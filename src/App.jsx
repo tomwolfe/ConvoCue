@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useMicVAD } from '@ricky0123/vad-web';
+import { useMicVAD } from '@ricky0123/vad-react';
 import { Mic, Heart, Loader2, Volume2 } from 'lucide-react';
 import { useMLWorker } from './hooks/useMLWorker';
 
@@ -26,8 +26,8 @@ const App = () => {
     onSpeechEnd: (audio) => {
       processAudio(audio);
     },
-    workletURL: "https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.30/dist/vad.worklet.bundle.min.js",
-    modelURL: "https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.30/dist/silero_vad.onnx",
+    workletURL: "/vad.worklet.bundle.min.js",
+    modelURL: "/silero_vad.onnx",
   });
 
   const toggleVAD = () => {
