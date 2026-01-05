@@ -4,6 +4,11 @@ import { pipeline, env } from '@xenova/transformers';
 env.allowLocalModels = false;
 env.useBrowserCache = true;
 
+// Point to CDN for WASM files to avoid local path issues
+env.backends.onnx.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.0/dist/';
+
+console.log("ML Worker script loaded");
+
 class MLPipeline {
     static instance = null;
     static stt = null;

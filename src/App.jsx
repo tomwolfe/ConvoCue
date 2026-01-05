@@ -26,11 +26,12 @@ const App = () => {
     onSpeechEnd: (audio) => {
       processAudio(audio);
     },
-    workletURL: "/vad.worklet.bundle.min.js",
-    modelURL: "/silero_vad.onnx",
+    workletURL: "https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.30/dist/vad.worklet.bundle.min.js",
+    modelURL: "https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.30/dist/silero_vad.onnx",
   });
 
   const toggleVAD = () => {
+    if (!vad) return;
     if (isVADMode) {
       vad.pause();
       setIsVADMode(false);
@@ -45,6 +46,7 @@ const App = () => {
   };
 
   const handleManualTrigger = () => {
+    if (!vad) return;
     if (vad.listening && !isVADMode) {
       vad.pause();
       setStatus('Ready');
