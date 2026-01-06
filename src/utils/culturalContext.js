@@ -1,5 +1,5 @@
 /**
- * Cultural context database for cross-cultural communication
+ * Cultural context database and analysis for cross-cultural communication
  */
 
 export const culturalContextDatabase = {
@@ -67,7 +67,7 @@ export const culturalContextDatabase = {
       {
         situation: 'Disagreeing with authority',
         inappropriate: 'You are completely wrong',
-        appropriate: 'I see your point, but have you considered...',
+        appropriate: 'I see your point, but have you considered...', 
         culturalContext: 'Respect for hierarchy is important in many cultures'
       }
     ],
@@ -290,6 +290,168 @@ export const culturalContextDatabase = {
       businessTips: ['Allow extra time', 'Build relationships', 'Be flexible', 'Expect interruptions']
     }
   }
+};
+
+/**
+ * Analyzes cultural context in text
+ * @param {string} text - Input text to analyze
+ * @param {string} selectedCulturalContext - User selected cultural context
+ * @returns {string} Cultural analysis string
+ */
+export const analyzeCulturalContext = (text, selectedCulturalContext = 'general') => {
+    if (!text || typeof text !== 'string') {
+        return '';
+    }
+
+    // Normalize text for analysis
+    const normalizedText = text.toLowerCase().replace(/\s+/g, ' ').trim();
+    const words = normalizedText.split(/\s+/);
+
+    // Cultural indicators and patterns
+    const culturalIndicators = {
+        // Formality indicators
+        formality: {
+            words: ['sir', 'ma\'am', 'mr.', 'mrs.', 'dr.', 'professor', 'boss', 'manager', 'executive', 'director', 'senior', 'honorable', 'reverend'],
+            phrases: ['please', 'thank you', 'excuse me', 'pardon me', 'if you would', 'would you please', 'may i', 'i humbly']
+        },
+        // Cultural group references
+        culturalGroups: {
+            eastAsian: ['chinese', 'japanese', 'korean', 'vietnamese', 'thai', 'malaysian', 'singaporean', 'filipino', 'indonesian', 'cantonese', 'mandarin', 'korean'],
+            western: ['american', 'british', 'canadian', 'australian', 'european', 'french', 'german', 'spanish', 'italian', 'dutch', 'scandinavian', 'swedish', 'norwegian', 'danish'],
+            middleEastern: ['arab', 'middle eastern', 'saudi', 'emirati', 'qatari', 'kuwaiti', 'egyptian', 'lebanese', 'jordanian', 'iraqi', 'iranian', 'persian', 'turkish', 'israeli'],
+            latinAmerican: ['mexican', 'brazilian', 'argentine', 'chilean', 'colombian', 'peruvian', 'venezuelan', 'ecuadorian', 'salvadoran', 'spanish', 'portuguese', 'brazilian', 'cuban', 'argentinian'],
+            african: ['nigerian', 'kenyan', 'south african', 'ghanaian', 'ugandan', 'moroccan', 'ethiopian', 'tanzanian', 'egyptian', 'moroccan', 'south african', 'nigerian']
+        },
+        // Communication style indicators
+        communicationStyles: {
+            highContext: ['relationship', 'trust', 'connection', 'understanding', 'feeling', 'intuition', 'non-verbal', 'indirect', 'implied', 'face-saving', 'hierarchy', 'respect', 'formality'],
+            lowContext: ['clear', 'explicit', 'direct', 'stated', 'defined', 'specific', 'detailed', 'precise', 'straightforward', 'efficient', 'results-oriented', 'task-focused'],
+            mediumContext: ['balance', 'moderate', 'some formality', 'personal touch', 'relationship building']
+        },
+        // Cultural topics
+        culturalTopics: ['culture', 'tradition', 'custom', 'etiquette', 'protocol', 'manners', 'courtesy', 'respect', 'values', 'beliefs', 'practices', 'norms', 'concepts', 'time', 'punctuality', 'schedule']
+    };
+
+    const detectedCulturalElements = [];
+    let contextPreference = '';
+    let specificCulturalGuidance = '';
+
+    // Check for formality indicators
+    for (const word of words) {
+        const cleanWord = word.replace(/[^\w\s]/g, '').trim();
+        if (cleanWord && culturalIndicators.formality.words.includes(cleanWord)) {
+            detectedCulturalElements.push(`formal_address_${cleanWord}`);
+        }
+    }
+
+    // Check for phrases indicating formality
+    for (const phrase of culturalIndicators.formality.phrases) {
+        if (normalizedText.includes(phrase.toLowerCase())) {
+            detectedCulturalElements.push(`formal_phrase_${phrase.replace(/\s+/g, '_')}`);
+        }
+    }
+
+    // Check for cultural group references
+    for (const [region, groupWords] of Object.entries(culturalIndicators.culturalGroups)) {
+        for (const word of words) {
+            const cleanWord = word.replace(/[^\w\s]/g, '').trim();
+            if (cleanWord && groupWords.some(culture =>
+                culture.includes(cleanWord) || cleanWord.includes(culture))) {
+                detectedCulturalElements.push(`cultural_group_${region}_${cleanWord}`);
+            }
+        }
+    }
+
+    // Check for communication style indicators
+    let highContextCount = 0;
+    let lowContextCount = 0;
+    let mediumContextCount = 0;
+
+    for (const word of words) {
+        const cleanWord = word.replace(/[^\w\s]/g, '').trim();
+        if (cleanWord) {
+            if (culturalIndicators.communicationStyles.highContext.includes(cleanWord)) {
+                highContextCount++;
+                detectedCulturalElements.push(`high_context_${cleanWord}`);
+            }
+            if (culturalIndicators.communicationStyles.lowContext.includes(cleanWord)) {
+                lowContextCount++;
+                detectedCulturalElements.push(`low_context_${cleanWord}`);
+            }
+            if (culturalIndicators.communicationStyles.mediumContext.includes(cleanWord)) {
+                mediumContextCount++;
+                detectedCulturalElements.push(`medium_context_${cleanWord}`);
+            }
+        }
+    }
+
+    // Determine context preference based on detected indicators
+    if (highContextCount > lowContextCount && highContextCount > mediumContextCount) {
+        contextPreference = 'high-context communication preferred (indirect, relationship-focused)';
+    } else if (lowContextCount > highContextCount && lowContextCount > mediumContextCount) {
+        contextPreference = 'low-context communication preferred (direct, explicit)';
+    } else if (mediumContextCount > highContextCount && mediumContextCount > lowContextCount) {
+        contextPreference = 'medium-context communication preferred (balanced approach)';
+    }
+
+    // Add specific cultural guidance based on user selection
+    if (selectedCulturalContext !== 'general') {
+        const culturalGuidanceMap = {
+            'east_asian': 'Apply high-context communication principles with respect for hierarchy and indirectness. Consider face-saving and group harmony. Be patient with silence and pay attention to non-verbal cues.',
+            'western': 'Apply low-context communication principles with directness and clarity. Focus on individual achievement and explicit communication. Value efficiency and get to the point quickly.',
+            'middle_eastern': 'Apply respect for traditions, hospitality, and appropriate formality. Consider relationship-building before business. Show patience with decision-making and accept hospitality when offered.',
+            'latin_american': 'Emphasize relationship-building, personal connection, and warmth. Formality may vary by country. Show interest in family and personal life. Expect flexible punctuality.',
+            'formal_business': 'Apply professional formality and appropriate business etiquette. Use structured communication. Exchange business cards respectfully and show respect for seniority.',
+            'french': 'Use formal language initially and proper etiquette. Respect for cuisine and culture is important. Allow time for pleasantries before business.',
+            'german': 'Be direct and efficient but respectful. Punctuality is crucial. Value detailed preparation and structured communication.',
+            'russian': 'Show respect for traditions and hierarchy. Be patient with formalities. Accept hospitality when offered.',
+            'brazilian': 'Show warmth and friendliness. Physical contact in greetings is common. Build personal relationships first.',
+            'japanese': 'Show utmost respect for hierarchy and face-saving. Use formal language and honorifics. Be patient with silence and indirect communication.',
+            'chinese': 'Respect for hierarchy and face-saving is crucial. Indirect communication is preferred. Build relationships before business.',
+            'indian': 'Show respect for traditions and elders. Relationship-building is important. Be mindful of cultural diversity within India.',
+            'arabic': 'Show deep respect for traditions and hospitality. Relationship-building precedes business. Be aware of religious considerations.',
+            'spanish': 'Build personal relationships and show warmth. Formal titles should be used initially. Be patient with punctuality expectations.'
+        };
+
+        specificCulturalGuidance = culturalGuidanceMap[selectedCulturalContext] || '';
+    }
+
+    // If no cultural elements detected and no specific guidance needed, return empty string
+    if (detectedCulturalElements.length === 0 && !contextPreference && !specificCulturalGuidance) {
+        return '';
+    }
+
+    // Build cultural analysis string
+    const culturalNotes = [];
+    if (detectedCulturalElements.length > 0) {
+        culturalNotes.push(`Detected cultural elements: ${Array.from(new Set(detectedCulturalElements)).join(', ')}.`);
+    }
+    if (contextPreference) {
+        culturalNotes.push(`Context preference: ${contextPreference}.`);
+    }
+    if (specificCulturalGuidance) {
+        culturalNotes.push(specificCulturalGuidance);
+    }
+
+    return `Cultural context analysis: ${culturalNotes.join(' ')}. When responding, consider appropriate cultural sensitivity, formality levels, and communication styles.`;
+};
+
+/**
+ * Get cultural context for fallback responses based on selected cultural context
+ * @param {string} culturalContext - Selected cultural context
+ * @returns {string} Fallback text
+ */
+export const getCulturalContextForFallback = (culturalContext) => {
+    const culturalContextMap = {
+        'general': 'Consider general cultural sensitivity and appropriate formality.',
+        'east_asian': 'Use high-context communication style with respect for hierarchy, face-saving, and group harmony.',
+        'western': 'Use low-context communication style with directness, clarity, and focus on individual achievement.',
+        'middle_eastern': 'Maintain respect for traditions, show appropriate formality, and emphasize relationship-building.',
+        'latin_american': 'Emphasize relationship-building, personal connection, and warmth with appropriate formality.',
+        'formal_business': 'Use professional formality and appropriate business etiquette with structured communication.'
+    };
+
+    return culturalContextMap[culturalContext] || culturalContextMap['general'];
 };
 
 /**

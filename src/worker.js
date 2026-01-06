@@ -1,5 +1,8 @@
 import { pipeline, env, TextStreamer } from '@huggingface/transformers';
 import { AppConfig } from './config';
+import { analyzeEmotion } from './utils/emotion';
+import { analyzeCulturalContext, getCulturalContextForFallback } from './utils/culturalContext';
+import { adjustResponseForUser } from './utils/responseEnhancement';
 
 // Configuration for on-device execution
 env.allowLocalModels = false;
@@ -16,348 +19,6 @@ if (AppConfig.vad.onnxWASMPaths) {
 }
 
 console.log(`ML Worker script loaded. Using ${AppConfig.worker.numThreads} thread(s). SIMD: ${AppConfig.worker.simd}`);
-
-// Enhanced emotional analysis function for more nuanced emotional context
-const emotionWords = {
-    joy: ['happy', 'joy', 'excited', 'wonderful', 'amazing', 'fantastic', 'love', 'pleased', 'delighted', 'thrilled', 'cheerful', 'delighted', 'ecstatic', 'glad', 'jubilant', 'merry', 'overjoyed', 'pleased', 'tickled', 'blissful', 'content', 'grateful', 'optimistic', 'playful', 'satisfied', 'upbeat', 'elated', 'gleeful', 'radiant', 'uplifted', 'buoyant', 'jovial', 'mirthful', 'zestful', 'ebullient', 'jubilant', 'sanguine', 'jaunty', 'sprightly'],
-    sadness: ['sad', 'depressed', 'unhappy', 'miserable', 'sorrow', 'gloomy', 'heartbroken', 'melancholy', 'despair', 'grief', 'mourn', 'sorrowful', 'tearful', 'tragic', 'upset', 'woeful', 'despondent', 'downcast', 'forlorn', 'grieved', 'heavy-hearted', 'lonely', 'mournful', 'dejected', 'desolate', 'doleful', 'dreary', 'lamentable', 'lugubrious', 'mournful', 'piteous', 'saddened', 'sullen', 'woebegone', 'bereaved', 'disconsolate', 'grievous', 'plaintive'],
-    anger: ['angry', 'mad', 'furious', 'irate', 'enraged', 'annoyed', 'irritated', 'offended', 'hostile', 'aggressive', 'infuriated', 'livid', 'outraged', 'resentful', 'seething', 'vexed', 'choleric', 'cross', 'fuming', 'indignant', 'irate', 'provoked', 'raging', 'incensed', 'ireful', 'wrathful', 'choleric', 'implacable', 'inflamed', 'ire', 'livid', 'mad', 'nettled', 'offended', 'peeved', 'rankled', 'seething', 'simmering', 'stormy', 'tempestuous'],
-    fear: ['afraid', 'scared', 'frightened', 'anxious', 'nervous', 'worried', 'panicked', 'terrified', 'apprehensive', 'dread', 'fearful', 'horrified', 'petrified', 'startled', 'timid', 'trepidation', 'alarmed', 'concerned', 'daunted', 'dreadful', 'fright', 'hysterical', 'panicky', 'apprehensive', 'cowardly', 'dismayed', 'frightened', 'intimidated', 'leery', 'lethophobic', 'phobic', 'skittish', 'spooked', 'startled', 'timorous', 'trepid', 'unnerved', 'wary', 'worrisome'],
-    surprise: ['surprised', 'shocked', 'amazed', 'astonished', 'astounded', 'stunned', 'flabbergasted', 'dumbfounded', 'speechless', 'unbelievable', 'incredible', 'unexpected', 'startled', 'wonder', 'baffled', 'bewildered', 'dumbstruck', 'flummoxed', 'gobsmacked', 'staggered', 'thunderstruck', 'agog', 'amazed', 'astound', 'bemused', 'bewildered', 'confounded', 'dazzled', 'dumfounded', 'flummoxed', 'gobsmacked', 'intrigued', 'marveled', 'perplexed', 'stumped', 'thunderstruck', 'wonder', 'stupefied'],
-    disgust: ['disgusted', 'revolted', 'nauseated', 'sickened', 'repulsed', 'horrified', 'appalled', 'grossed', 'offended', 'repugnant', 'sick', 'turned off', 'vile', 'wretched', 'abhorrent', 'contemptuous', 'loathing', 'nauseous', 'repellent', 'revolting', 'sickening', 'abominated', 'anted', 'detested', 'loathe', 'odious', 'repugnant', 'repulsive', 'reviling', 'scornful', 'shocking', 'sickening', 'unsavory', 'vile', 'vomit', 'wretched', 'yucky']
-};
-
-// More sophisticated sentiment analysis using valence, arousal, and dominance (VAD) model
-const analyzeSentimentVAD = (text) => {
-    // Valence (positive/negative), Arousal (calm/excited), Dominance (controlled/in control)
-    const vadWords = {
-        'love': { valence: 0.8, arousal: 0.6, dominance: 0.5 },
-        'hate': { valence: 0.1, arousal: 0.8, dominance: 0.7 },
-        'happy': { valence: 0.8, arousal: 0.5, dominance: 0.4 },
-        'sad': { valence: 0.2, arousal: 0.3, dominance: 0.2 },
-        'angry': { valence: 0.1, arousal: 0.9, dominance: 0.8 },
-        'excited': { valence: 0.7, arousal: 0.9, dominance: 0.6 },
-        'calm': { valence: 0.6, arousal: 0.2, dominance: 0.5 },
-        'scared': { valence: 0.2, arousal: 0.8, dominance: 0.1 },
-        'confident': { valence: 0.7, arousal: 0.4, dominance: 0.9 },
-        'nervous': { valence: 0.3, arousal: 0.7, dominance: 0.2 },
-        'peaceful': { valence: 0.8, arousal: 0.1, dominance: 0.4 },
-        'frustrated': { valence: 0.2, arousal: 0.7, dominance: 0.3 },
-        'hopeful': { valence: 0.7, arousal: 0.5, dominance: 0.6 },
-        'disappointed': { valence: 0.2, arousal: 0.4, dominance: 0.3 },
-        'grateful': { valence: 0.9, arousal: 0.4, dominance: 0.5 },
-        'anxious': { valence: 0.3, arousal: 0.8, dominance: 0.2 },
-        'relaxed': { valence: 0.7, arousal: 0.2, dominance: 0.4 },
-        'overwhelmed': { valence: 0.2, arousal: 0.9, dominance: 0.1 }
-    };
-
-    if (!text || typeof text !== 'string') {
-        return { valence: 0.5, arousal: 0.5, dominance: 0.5 };
-    }
-
-    const normalizedText = text.toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
-    const words = normalizedText.split(/\s+/).filter(w => w.length > 0);
-
-    let totalValence = 0, totalArousal = 0, totalDominance = 0;
-    let wordCount = 0;
-
-    for (const word of words) {
-        if (vadWords[word]) {
-            totalValence += vadWords[word].valence;
-            totalArousal += vadWords[word].arousal;
-            totalDominance += vadWords[word].dominance;
-            wordCount++;
-        }
-    }
-
-    if (wordCount === 0) {
-        return { valence: 0.5, arousal: 0.5, dominance: 0.5 };
-    }
-
-    return {
-        valence: totalValence / wordCount,
-        arousal: totalArousal / wordCount,
-        dominance: totalDominance / wordCount
-    };
-};
-
-const analyzeEmotion = (text) => {
-    if (!text || typeof text !== 'string') {
-        return { emotion: 'neutral', confidence: 0, valence: 0.5, arousal: 0.5, dominance: 0.5 };
-    }
-
-    // Normalize text: remove extra whitespace, convert to lowercase
-    const normalizedText = text.toLowerCase().replace(/\s+/g, ' ').trim();
-
-    // Get VAD scores for more nuanced emotional analysis
-    const vadScores = analyzeSentimentVAD(text);
-
-    // Split into words and phrases for more context
-    const words = normalizedText.split(/\s+/);
-    const phrases = extractPhrases(normalizedText);
-
-    const emotionScores = {};
-
-    // Calculate scores for each emotion based on individual words
-    for (const [emotion, wordList] of Object.entries(emotionWords)) {
-        let score = 0;
-
-        // Score individual words
-        for (const word of words) {
-            const cleanWord = word.replace(/[^\w\s]/g, '').trim();
-            if (cleanWord && wordList.includes(cleanWord)) {
-                score++;
-            }
-        }
-
-        // Score phrases (which often carry more emotional weight)
-        for (const phrase of phrases) {
-            for (const emotionWord of wordList) {
-                if (phrase.includes(emotionWord)) {
-                    // Phrases get higher weight than individual words
-                    score += 1.5;
-                }
-            }
-        }
-
-        // Apply negation detection (e.g., "not happy", "not sad")
-        const negationWords = ['not', 'no', 'never', 'nothing', 'nowhere', 'neither', 'nor', 'none', 'nobody', 'nothing', 'hardly', 'scarcely', 'barely', 'doesn\'t', 'don\'t', 'won\'t', 'can\'t', 'couldn\'t', 'shouldn\'t', 'wouldn\'t', 'isn\'t', 'aren\'t', 'wasn\'t', 'weren\'t'];
-        for (const negation of negationWords) {
-            if (normalizedText.includes(negation)) {
-                // Look for negation followed by emotion words within a certain distance
-                const negationIndex = normalizedText.indexOf(negation);
-                for (const emotionWord of wordList) {
-                    const emotionIndex = normalizedText.indexOf(emotionWord);
-                    if (emotionIndex > negationIndex && emotionIndex - negationIndex < 10) { // Within 10 characters
-                        score = Math.max(0, score - 1); // Reduce score for negated emotions
-                    }
-                }
-            }
-        }
-
-        emotionScores[emotion] = score;
-    }
-
-    // Find the dominant emotion
-    let dominantEmotion = 'neutral';
-    let maxScore = 0;
-
-    for (const [emotion, score] of Object.entries(emotionScores)) {
-        if (score > maxScore) {
-            maxScore = score;
-            dominantEmotion = emotion;
-        }
-    }
-
-    // If no strong emotion detected, use neutral
-    if (maxScore === 0) {
-        return {
-            emotion: 'neutral',
-            confidence: 0,
-            valence: vadScores.valence,
-            arousal: vadScores.arousal,
-            dominance: vadScores.dominance
-        };
-    }
-
-    // Calculate confidence based on the ratio of dominant emotion to total emotion words
-    const totalEmotionWords = Object.values(emotionScores).reduce((sum, val) => sum + val, 0);
-    let confidence = totalEmotionWords > 0 ? maxScore / totalEmotionWords : 0;
-
-    // Adjust confidence based on text length and complexity
-    const textLength = normalizedText.length;
-    if (textLength < 10) {
-        // Short texts may have less reliable emotion detection
-        confidence *= 0.7;
-    } else if (textLength > 50) {
-        // Longer texts may have more nuanced emotions
-        confidence = Math.min(1.0, confidence * 1.2);
-    }
-
-    return {
-        emotion: dominantEmotion,
-        confidence: Math.min(confidence, 1.0), // Cap at 1.0
-        valence: vadScores.valence,
-        arousal: vadScores.arousal,
-        dominance: vadScores.dominance
-    };
-};
-
-// Extracts common phrases from text for more contextual emotion analysis
-const extractPhrases = (text) => {
-    // Simple phrase extraction based on common emotional expressions
-    const phrasePatterns = [
-        /\b(?:i am|i'm|i feel|i'm feeling|i feel like)\s+(\w+)\b/gi,
-        /\b(?:very|really|extremely|quite|so|super|incredibly)\s+(\w+)\b/gi,
-        /\b(?:feeling|feels|felt)\s+(\w+)\b/gi,
-        /\b(?:getting|get|gets)\s+(\w+)\b/gi,
-        /\b(?:becoming|become|becomes)\s+(\w+)\b/gi,
-        /\b(?:kind of|sort of|a little|somewhat)\s+(\w+)\b/gi
-    ];
-
-    const phrases = [];
-    for (const pattern of phrasePatterns) {
-        let match;
-        while ((match = pattern.exec(text)) !== null) {
-            phrases.push(match[0]);
-        }
-    }
-
-    return phrases;
-};
-
-// Cultural context analysis function for cross-cultural communication
-const analyzeCulturalContext = (text, selectedCulturalContext = 'general') => {
-    if (!text || typeof text !== 'string') {
-        return '';
-    }
-
-    // Normalize text for analysis
-    const normalizedText = text.toLowerCase().replace(/\s+/g, ' ').trim();
-    const words = normalizedText.split(/\s+/);
-
-    // Cultural indicators and patterns
-    const culturalIndicators = {
-        // Formality indicators
-        formality: {
-            words: ['sir', 'ma\'am', 'mr.', 'mrs.', 'dr.', 'professor', 'boss', 'manager', 'executive', 'director', 'senior', 'honorable', 'reverend'],
-            phrases: ['please', 'thank you', 'excuse me', 'pardon me', 'if you would', 'would you please', 'may i', 'i humbly']
-        },
-        // Cultural group references
-        culturalGroups: {
-            eastAsian: ['chinese', 'japanese', 'korean', 'vietnamese', 'thai', 'malaysian', 'singaporean', 'filipino', 'indonesian', 'cantonese', 'mandarin', 'korean'],
-            western: ['american', 'british', 'canadian', 'australian', 'european', 'french', 'german', 'spanish', 'italian', 'dutch', 'scandinavian', 'swedish', 'norwegian', 'danish'],
-            middleEastern: ['arab', 'middle eastern', 'saudi', 'emirati', 'qatari', 'kuwaiti', 'egyptian', 'lebanese', 'jordanian', 'iraqi', 'iranian', 'persian', 'turkish', 'israeli'],
-            latinAmerican: ['mexican', 'brazilian', 'argentine', 'chilean', 'colombian', 'peruvian', 'venezuelan', 'ecuadorian', 'salvadoran', 'spanish', 'portuguese', 'brazilian', 'cuban', 'argentinian'],
-            african: ['nigerian', 'kenyan', 'south african', 'ghanaian', 'ugandan', 'moroccan', 'ethiopian', 'tanzanian', 'egyptian', 'moroccan', 'south african', 'nigerian']
-        },
-        // Communication style indicators
-        communicationStyles: {
-            highContext: ['relationship', 'trust', 'connection', 'understanding', 'feeling', 'intuition', 'non-verbal', 'indirect', 'implied', 'face-saving', 'hierarchy', 'respect', 'formality'],
-            lowContext: ['clear', 'explicit', 'direct', 'stated', 'defined', 'specific', 'detailed', 'precise', 'straightforward', 'efficient', 'results-oriented', 'task-focused'],
-            mediumContext: ['balance', 'moderate', 'some formality', 'personal touch', 'relationship building']
-        },
-        // Cultural topics
-        culturalTopics: ['culture', 'tradition', 'custom', 'etiquette', 'protocol', 'manners', 'courtesy', 'respect', 'values', 'beliefs', 'practices', 'norms', 'concepts', 'time', 'punctuality', 'schedule']
-    };
-
-    const detectedCulturalElements = [];
-    let contextPreference = '';
-    let specificCulturalGuidance = '';
-
-    // Check for formality indicators
-    for (const word of words) {
-        const cleanWord = word.replace(/[^\w\s]/g, '').trim();
-        if (cleanWord && culturalIndicators.formality.words.includes(cleanWord)) {
-            detectedCulturalElements.push(`formal_address_${cleanWord}`);
-        }
-    }
-
-    // Check for phrases indicating formality
-    for (const phrase of culturalIndicators.formality.phrases) {
-        if (normalizedText.includes(phrase.toLowerCase())) {
-            detectedCulturalElements.push(`formal_phrase_${phrase.replace(/\s+/g, '_')}`);
-        }
-    }
-
-    // Check for cultural group references
-    for (const [region, groupWords] of Object.entries(culturalIndicators.culturalGroups)) {
-        for (const word of words) {
-            const cleanWord = word.replace(/[^\w\s]/g, '').trim();
-            if (cleanWord && groupWords.some(culture =>
-                culture.includes(cleanWord) || cleanWord.includes(culture))) {
-                detectedCulturalElements.push(`cultural_group_${region}_${cleanWord}`);
-            }
-        }
-    }
-
-    // Check for communication style indicators
-    let highContextCount = 0;
-    let lowContextCount = 0;
-    let mediumContextCount = 0;
-
-    for (const word of words) {
-        const cleanWord = word.replace(/[^\w\s]/g, '').trim();
-        if (cleanWord) {
-            if (culturalIndicators.communicationStyles.highContext.includes(cleanWord)) {
-                highContextCount++;
-                detectedCulturalElements.push(`high_context_${cleanWord}`);
-            }
-            if (culturalIndicators.communicationStyles.lowContext.includes(cleanWord)) {
-                lowContextCount++;
-                detectedCulturalElements.push(`low_context_${cleanWord}`);
-            }
-            if (culturalIndicators.communicationStyles.mediumContext.includes(cleanWord)) {
-                mediumContextCount++;
-                detectedCulturalElements.push(`medium_context_${cleanWord}`);
-            }
-        }
-    }
-
-    // Determine context preference based on detected indicators
-    if (highContextCount > lowContextCount && highContextCount > mediumContextCount) {
-        contextPreference = 'high-context communication preferred (indirect, relationship-focused)';
-    } else if (lowContextCount > highContextCount && lowContextCount > mediumContextCount) {
-        contextPreference = 'low-context communication preferred (direct, explicit)';
-    } else if (mediumContextCount > highContextCount && mediumContextCount > lowContextCount) {
-        contextPreference = 'medium-context communication preferred (balanced approach)';
-    }
-
-    // Add specific cultural guidance based on user selection
-    if (selectedCulturalContext !== 'general') {
-        const culturalGuidanceMap = {
-            'east_asian': 'Apply high-context communication principles with respect for hierarchy and indirectness. Consider face-saving and group harmony. Be patient with silence and pay attention to non-verbal cues.',
-            'western': 'Apply low-context communication principles with directness and clarity. Focus on individual achievement and explicit communication. Value efficiency and get to the point quickly.',
-            'middle_eastern': 'Apply respect for traditions, hospitality, and appropriate formality. Consider relationship-building before business. Show patience with decision-making and accept hospitality when offered.',
-            'latin_american': 'Emphasize relationship-building, personal connection, and warmth. Formality may vary by country. Show interest in family and personal life. Expect flexible punctuality.',
-            'formal_business': 'Apply professional formality and appropriate business etiquette. Use structured communication. Exchange business cards respectfully and show respect for seniority.',
-            'french': 'Use formal language initially and proper etiquette. Respect for cuisine and culture is important. Allow time for pleasantries before business.',
-            'german': 'Be direct and efficient but respectful. Punctuality is crucial. Value detailed preparation and structured communication.',
-            'russian': 'Show respect for traditions and hierarchy. Be patient with formalities. Accept hospitality when offered.',
-            'brazilian': 'Show warmth and friendliness. Physical contact in greetings is common. Build personal relationships first.',
-            'japanese': 'Show utmost respect for hierarchy and face-saving. Use formal language and honorifics. Be patient with silence and indirect communication.',
-            'chinese': 'Respect for hierarchy and face-saving is crucial. Indirect communication is preferred. Build relationships before business.',
-            'indian': 'Show respect for traditions and elders. Relationship-building is important. Be mindful of cultural diversity within India.',
-            'arabic': 'Show deep respect for traditions and hospitality. Relationship-building precedes business. Be aware of religious considerations.',
-            'spanish': 'Build personal relationships and show warmth. Formal titles should be used initially. Be patient with punctuality expectations.'
-        };
-
-        specificCulturalGuidance = culturalGuidanceMap[selectedCulturalContext] || '';
-    }
-
-    // If no cultural elements detected and no specific guidance needed, return empty string
-    if (detectedCulturalElements.length === 0 && !contextPreference && !specificCulturalGuidance) {
-        return '';
-    }
-
-    // Build cultural analysis string
-    const culturalNotes = [];
-    if (detectedCulturalElements.length > 0) {
-        culturalNotes.push(`Detected cultural elements: ${Array.from(new Set(detectedCulturalElements)).join(', ')}.`);
-    }
-    if (contextPreference) {
-        culturalNotes.push(`Context preference: ${contextPreference}.`);
-    }
-    if (specificCulturalGuidance) {
-        culturalNotes.push(specificCulturalGuidance);
-    }
-
-    return `Cultural context analysis: ${culturalNotes.join(' ')}. When responding, consider appropriate cultural sensitivity, formality levels, and communication styles.`;
-};
-
-// Get cultural context for fallback responses based on selected cultural context
-const getCulturalContextForFallback = (culturalContext) => {
-    const culturalContextMap = {
-        'general': 'Consider general cultural sensitivity and appropriate formality.',
-        'east_asian': 'Use high-context communication style with respect for hierarchy, face-saving, and group harmony.',
-        'western': 'Use low-context communication style with directness, clarity, and focus on individual achievement.',
-        'middle_eastern': 'Maintain respect for traditions, show appropriate formality, and emphasize relationship-building.',
-        'latin_american': 'Emphasize relationship-building, personal connection, and warmth with appropriate formality.',
-        'formal_business': 'Use professional formality and appropriate business etiquette with structured communication.'
-    };
-
-    return culturalContextMap[culturalContext] || culturalContextMap['general'];
-};
 
 class MLPipeline {
     static instance = null;
@@ -414,7 +75,6 @@ class MLPipeline {
         if (MLPipeline.llm) {
             console.log("Disposing LLM to free memory...");
             try {
-                // In Transformers.js v3, we try to dispose the underlying session
                 if (MLPipeline.llm.model && MLPipeline.llm.model.session) {
                     if (Array.isArray(MLPipeline.llm.model.session)) {
                         for (const s of MLPipeline.llm.model.session) {
@@ -428,7 +88,7 @@ class MLPipeline {
                 console.log("LLM disposed");
             } catch (e) {
                 console.warn("Error disposing LLM:", e);
-                MLPipeline.llm = null; // Force null anyway
+                MLPipeline.llm = null;
             }
         }
     }
@@ -455,7 +115,6 @@ const cleanupModels = async () => {
             MLPipeline.stt = null;
         }
     }
-    // Attempt to force garbage collection if possible (non-standard but helpful in some environments)
     if (self.gc) self.gc();
 };
 
@@ -514,44 +173,29 @@ const throttledProgress = (p, statusPrefix, taskId) => {
 };
 
 self.onmessage = async (event) => {
-    const { type, audio, taskId, text: _text } = event.data; // text is only used in LLM processing
+    const { type, audio, taskId, text: _text } = event.data;
     const pipelineManager = await MLPipeline.getInstance();
 
-    // Check memory usage and log if high
     const memoryInfo = checkMemoryUsage();
     if (memoryInfo && memoryInfo.isHighMemory) {
         console.warn(`High memory usage detected: ${memoryInfo.usedMB}MB (${memoryInfo.usagePercent}%)`);
-        
-        // If memory is very high (>90%), try to dispose LLM if it's not being used for this task
         if (memoryInfo.usagePercent > 90 && type !== 'llm') {
             await MLPipeline.disposeLLM();
         }
-
-        self.postMessage({
-            type: 'memory_warning',
-            memoryInfo,
-            taskId
-        });
+        self.postMessage({ type: 'memory_warning', memoryInfo, taskId });
     }
 
     try {
         if (type === 'load') {
             console.log("Worker: Starting load sequence");
             self.postMessage({ type: 'status', status: 'Waking up Speech Engine...', taskId });
-
             await pipelineManager.loadSTT((p) => throttledProgress(p, 'Speech Engine', taskId));
-            
-            // Check if we should pre-warm the LLM based on memory
             const mem = checkMemoryUsage();
             const shouldPrewarm = !AppConfig.isMobile || (mem && mem.usagePercent < 50);
-
             if (shouldPrewarm) {
                 console.log("Worker: Pre-warming LLM as memory is sufficient");
                 await pipelineManager.loadLLM((p) => throttledProgress(p, 'Social Brain', taskId));
-            } else {
-                console.log("Worker: Skipping LLM pre-warm to save memory");
             }
-
             console.log("Worker: Initialization complete");
             self.postMessage({ type: 'ready', taskId });
         }
@@ -569,29 +213,18 @@ self.onmessage = async (event) => {
             MLPipeline.lastUsed = Date.now();
 
             let audioData;
-            if (audio instanceof Float32Array) {
-                audioData = audio;
-            } else if (audio.buffer instanceof ArrayBuffer) {
-                audioData = new Float32Array(audio.buffer);
-            } else if (Array.isArray(audio)) {
-                audioData = new Float32Array(audio);
-            } else if (typeof audio === 'object' && audio !== null) {
-                audioData = new Float32Array(Object.values(audio));
-            } else {
-                throw new Error("Invalid audio data format");
-            }
+            if (audio instanceof Float32Array) audioData = audio;
+            else if (audio.buffer instanceof ArrayBuffer) audioData = new Float32Array(audio.buffer);
+            else if (Array.isArray(audio)) audioData = new Float32Array(audio);
+            else if (typeof audio === 'object' && audio !== null) audioData = new Float32Array(Object.values(audio));
+            else throw new Error("Invalid audio data format");
 
-            if (!audioData || audioData.length === 0) {
-                throw new Error("Audio data is empty");
-            }
+            if (!audioData || audioData.length === 0) throw new Error("Audio data is empty");
 
-            // Calculate audio metadata (volume/RMS)
             let sum = 0;
-            for (let i = 0; i < audioData.length; i++) {
-                sum += audioData[i] * audioData[i];
-            }
+            for (let i = 0; i < audioData.length; i++) sum += audioData[i] * audioData[i];
             const rms = Math.sqrt(sum / audioData.length);
-            const duration = audioData.length / 16000; // Assuming 16kHz sample rate
+            const duration = audioData.length / 16000;
 
             const output = await MLPipeline.stt(audioData, {
                 chunk_length_s: AppConfig.models.stt.chunk_length_s,
@@ -599,52 +232,37 @@ self.onmessage = async (event) => {
                 return_timestamps: false,
             });
             
-            if (!output || typeof output.text !== 'string') {
-                throw new Error("Invalid STT output format");
-            }
-
-            // Immediately clear audio data from memory
+            if (!output || typeof output.text !== 'string') throw new Error("Invalid STT output format");
             audioData = null;
-            
-            self.postMessage({ 
-                type: 'stt_result', 
-                text: output.text, 
-                metadata: { rms, duration },
-                taskId 
-            });
+            self.postMessage({ type: 'stt_result', text: output.text, metadata: { rms, duration }, taskId });
         }
 
         if (type === 'llm') {
-            const { text, persona = 'social', history = [], culturalContext = 'general', metadata = {} } = event.data;
+            const { text, persona = 'social', history = [], culturalContext = 'general', metadata = {}, preferences = {} } = event.data;
 
-            // If memory is very tight, we might want to check again before loading LLM
             const preLLMMemory = checkMemoryUsage();
             if (preLLMMemory && preLLMMemory.usagePercent > AppConfig.system.memory.modelUnloadThreshold) {
                 console.warn("Memory too high to load LLM comfortably, attempting cleanup...");
                 self.postMessage({ type: 'status', status: 'Optimizing memory...', taskId });
             }
 
-            // Lazy load LLM if not present
             if (!MLPipeline.llm) {
                 self.postMessage({ type: 'status', status: 'Waking up Social Brain...', taskId });
                 await pipelineManager.loadLLM((p) => throttledProgress(p, 'Social Brain', taskId));
             }
             MLPipeline.lastUsed = Date.now();
 
-            if (typeof text !== 'string' || text.trim().length === 0) {
-                throw new Error("Invalid input text for LLM processing");
-            }
+            if (typeof text !== 'string' || text.trim().length === 0) throw new Error("Invalid input text for LLM processing");
 
             self.postMessage({ type: 'status', status: 'Analyzing context...', taskId });
 
             const personaConfig = AppConfig.models.personas[persona] || AppConfig.models.personas.anxiety;
             const sanitizedText = text.trim().substring(0, AppConfig.system.maxTranscriptLength);
 
-            // Analyze speech patterns from metadata
             let speechPatternContext = '';
             if (metadata.rms !== undefined && metadata.duration !== undefined) {
-                const words = sanitizedText.split(/\s+/).length;
-                const speechRate = words / metadata.duration;
+                const wordsCount = sanitizedText.split(/\s+/).length;
+                const speechRate = wordsCount / metadata.duration;
                 const isLoud = metadata.rms > AppConfig.system.speechAnalysis.volumeThreshold;
                 const isFast = speechRate > AppConfig.system.speechAnalysis.tempoThreshold;
 
@@ -654,59 +272,35 @@ self.onmessage = async (event) => {
                 else if (metadata.rms < 0.005) speechPatternContext = ' The user is speaking very softly or tentatively.';
             }
 
-            // Process history and ensure we don't duplicate the current message
-            const processedHistory = [];
-            for (const msg of history) {
-                if (msg.role === 'system' && msg.content.startsWith('Previous conversation summary:')) {
-                    processedHistory.push({
-                        role: "system",
-                        content: `Context from earlier conversation: ${msg.content.substring('Previous conversation summary: '.length)}`
-                    });
-                } else {
-                    processedHistory.push({ role: msg.role, content: msg.content });
-                }
-            }
+            const processedHistory = history.map(msg => 
+                msg.role === 'system' && msg.content.startsWith('Previous conversation summary:') 
+                ? { role: "system", content: `Context from earlier conversation: ${msg.content.substring('Previous conversation summary: '.length)}` }
+                : { role: msg.role, content: msg.content }
+            );
 
-            // Analyze emotional tone for emotional support persona and other relevant personas
             let emotionalContext = '';
             const emotionResult = analyzeEmotion(sanitizedText);
             if (emotionResult.emotion !== 'neutral' && emotionResult.confidence > 0.3) {
-                // Create more nuanced emotional context using VAD scores
-                const valenceDesc = emotionResult.valence > 0.7 ? 'very positive' :
-                                  emotionResult.valence > 0.5 ? 'somewhat positive' :
-                                  emotionResult.valence > 0.3 ? 'somewhat negative' : 'very negative';
-
-                const arousalDesc = emotionResult.arousal > 0.7 ? 'highly energetic' :
-                                  emotionResult.arousal > 0.5 ? 'moderately energetic' :
-                                  emotionResult.arousal > 0.3 ? 'calm' : 'very calm';
-
-                const dominanceDesc = emotionResult.dominance > 0.7 ? 'very assertive' :
-                                    emotionResult.dominance > 0.5 ? 'moderately assertive' :
-                                    emotionResult.dominance > 0.3 ? 'somewhat submissive' : 'very submissive';
-
-                emotionalContext = ` Emotional analysis: The user's tone seems to express ${emotionResult.emotion} with ${Math.round(emotionResult.confidence * 100)}% confidence. Valence (positive/negative): ${valenceDesc}. Arousal (calm/excited): ${arousalDesc}. Dominance (controlled/in control): ${dominanceDesc}. Please respond with appropriate empathy and emotional awareness.`;
+                const valenceDesc = emotionResult.valence > 0.7 ? 'very positive' : emotionResult.valence > 0.5 ? 'somewhat positive' : emotionResult.valence > 0.3 ? 'somewhat negative' : 'very negative';
+                const arousalDesc = emotionResult.arousal > 0.7 ? 'highly energetic' : emotionResult.arousal > 0.5 ? 'moderately energetic' : emotionResult.arousal > 0.3 ? 'calm' : 'very calm';
+                const dominanceDesc = emotionResult.dominance > 0.7 ? 'very assertive' : emotionResult.dominance > 0.5 ? 'moderately assertive' : emotionResult.dominance > 0.3 ? 'somewhat submissive' : 'very submissive';
+                emotionalContext = ` Emotional analysis: The user's tone seems to express ${emotionResult.emotion} with ${Math.round(emotionResult.confidence * 100)}% confidence. Valence: ${valenceDesc}. Arousal: ${arousalDesc}. Dominance: ${dominanceDesc}.`;
             }
 
-            // Analyze cultural context for cross-cultural and related personas
             let culturalContextAnalysis = '';
-            if (persona === 'crosscultural' || persona === 'languagelearning' || persona === 'meeting') {
+            if (['crosscultural', 'languagelearning', 'meeting'].includes(persona)) {
                 culturalContextAnalysis = analyzeCulturalContext(sanitizedText, culturalContext);
             }
 
-            // Construct messages array, ensuring the latest user message is present exactly once
             const systemPrompt = personaConfig.prompt + speechPatternContext + emotionalContext + (culturalContextAnalysis ? ` ${culturalContextAnalysis}` : '');
-            const messages = [
-                { role: "system", content: systemPrompt },
-                ...processedHistory,
-            ];
+            const messages = [{ role: "system", content: systemPrompt }, ...processedHistory];
 
-            // If the latest message in processedHistory is not the current sanitizedText, add it
             const lastHistoryMessage = processedHistory.length > 0 ? processedHistory[processedHistory.length - 1] : null;
             if (!lastHistoryMessage || lastHistoryMessage.role !== 'user' || lastHistoryMessage.content !== sanitizedText) {
                 messages.push({ role: "user", content: sanitizedText });
             }
 
-            console.log(`Starting LLM generation for mode: ${persona} with ${messages.length} total messages and cultural context: ${culturalContext}`);
+            console.log(`Starting LLM generation for mode: ${persona}`);
             self.postMessage({ type: 'status', status: 'Polishing cue...', taskId });
 
             try {
@@ -727,180 +321,64 @@ self.onmessage = async (event) => {
                     streamer,
                 });
 
-                if (!output || !Array.isArray(output) || output.length === 0) {
-                    throw new Error("Invalid LLM output format");
-                }
-
-                // In Transformers.js v3, the output format might vary depending on the model
-                // Try to extract the response properly
                 let response = '';
-
-                // First, try to get the generated text from the output
                 if (output[0] && output[0].generated_text) {
-                    // If it's a chat format with multiple messages
                     if (Array.isArray(output[0].generated_text)) {
                         const resultMessages = output[0].generated_text;
-                        // Find the last assistant message that's not the original input
                         for (let i = resultMessages.length - 1; i >= 0; i--) {
                             if (resultMessages[i].role === 'assistant') {
                                 response = resultMessages[i].content.trim();
                                 break;
                             }
                         }
-                    } else {
-                        // If it's a simple text response
-                        response = output[0].generated_text.trim();
-                    }
-                } else if (typeof output[0] === 'string') {
-                    // If the output is just a string
-                    response = output[0].trim();
-                }
+                    } else response = output[0].generated_text.trim();
+                } else if (typeof output[0] === 'string') response = output[0].trim();
 
-                // If we still don't have a response, try alternative extraction methods
-                if (!response && output[0] && typeof output[0] === 'object') {
-                    if (output[0].response) {
-                        response = output[0].response.trim();
-                    } else if (output[0].text) {
-                        response = output[0].text.trim();
-                    }
-                }
+                if (!response || response.toLowerCase().includes(sanitizedText.toLowerCase())) throw new Error("Invalid or echo response");
 
-                if (!response) {
-                    console.warn("LLM failed to generate a distinct response, using fallback");
-                    throw new Error("Empty response");
-                }
+                const enhancedResponse = adjustResponseForUser(response, persona, emotionResult, preferences);
 
-                // Check if the response is just echoing the input
-                if (response.toLowerCase().includes(sanitizedText.toLowerCase()) ||
-                    sanitizedText.toLowerCase().includes(response.toLowerCase())) {
-                    console.warn("LLM echoed the input, triggering fallback");
-                    throw new Error("Echo detected");
-                }
-
-                // Enhance response based on user preferences and emotional context
-                const enhancedResponse = adjustResponseForUser(response, persona, emotionResult);
-
-                console.log("LLM Generation complete. Response length:", response.length);
-                self.postMessage({
-                    type: 'llm_result',
-                    text: enhancedResponse,
-                    taskId,
-                    emotionData: emotionResult  // Include emotion data for potential use in main thread
-                });
+                self.postMessage({ type: 'llm_result', text: enhancedResponse, taskId, emotionData: emotionResult });
             } catch (llmError) {
                 console.error("LLM generation failed:", llmError);
-
-                // Enhanced fallback responses with more context awareness
                 const enhancedFallbackResponses = {
-                    anxiety: [
-                        "That sounds interesting. Could you tell me more about that?",
-                        "I can understand why that might feel overwhelming. What's on your mind?",
-                        "That's a thoughtful point. How does that make you feel?",
-                        "I hear you. Would you like to explore that further?"
-                    ],
-                    professional: [
-                        "Thank you for sharing. What are the next steps?",
-                        "That's an important consideration. How should we move forward?",
-                        "I appreciate your input. What's your perspective on the timeline?",
-                        "That's valuable feedback. What are your recommendations?"
-                    ],
-                    relationship: [
-                        "I understand. How are you feeling about all this?",
-                        "That sounds meaningful. How did that impact you?",
-                        "I can see this matters to you. What would support look like?",
-                        "That's significant. How can I best support you right now?"
-                    ],
-                    concise: [
-                        ["Interesting", "Tell me more", "That makes sense"],
-                        ["Got it", "Thanks", "I see"],
-                        ["Hmm", "Really?", "Wow"],
-                        ["Yes", "Agreed", "Exactly"]
-                    ],
-                    crosscultural: [
-                        "That's a thoughtful point. How does this align with your cultural perspective?",
-                        "I appreciate that cultural insight. How might this be approached differently?",
-                        "That's culturally nuanced. What context should I be aware of?",
-                        "Thank you for sharing that perspective. How does it relate to your background?"
-                    ],
-                    languagelearning: [
-                        "I understand. The grammar looks good, but you could also say it this way...",
-                        "That's clear. In more natural English, you might say...",
-                        "Good attempt! Here's a more idiomatic way to express that...",
-                        "I follow you. Another way to say that would be..."
-                    ],
-                    meeting: [
-                        "That's an important point. Should we discuss this further in our agenda?",
-                        "That's worth noting. How does this impact our timeline?",
-                        "I see your point. What are the action items from this?",
-                        "That's relevant. Should we allocate time for this in our next discussion?"
-                    ]
+                    anxiety: ["That sounds interesting. Tell me more.", "I understand. What's on your mind?", "That's a thoughtful point. How do you feel?"],
+                    professional: ["Thank you for sharing. What are the next steps?", "That's an important consideration. How should we proceed?"],
+                    relationship: ["I understand. How are you feeling about this?", "That sounds meaningful. How did that impact you?"],
+                    concise: [["Interesting", "Tell me more"], ["Got it", "Thanks"]],
+                    crosscultural: ["That's a thoughtful point. How does this align with your cultural perspective?"],
+                    languagelearning: ["I understand. Here's a more natural way to say it..."],
+                    meeting: ["That's an important point. Should we discuss this further?"]
                 };
 
-                // Select a random fallback response for more natural variation
                 const personaFallbacks = enhancedFallbackResponses[persona] || enhancedFallbackResponses.anxiety;
-                let fallbackText;
+                let fallbackText = Array.isArray(personaFallbacks[0]) 
+                    ? (persona === 'concise' ? personaFallbacks[0].join(' | ') : personaFallbacks[0].join(', '))
+                    : personaFallbacks[Math.floor(Math.random() * personaFallbacks.length)];
 
-                if (Array.isArray(personaFallbacks)) {
-                    const randomFallback = personaFallbacks[Math.floor(Math.random() * personaFallbacks.length)];
-                    if (Array.isArray(randomFallback)) {
-                        // For concise persona, join the options with " | " as specified in the prompt
-                        fallbackText = persona === 'concise' ? randomFallback.join(' | ') : randomFallback.join(', ');
-                    } else {
-                        fallbackText = randomFallback;
-                    }
-                } else {
-                    fallbackText = String(personaFallbacks);
-                }
-
-                // Add emotional context to fallback if available
-                const emotionResult = analyzeEmotion(sanitizedText);
                 if (emotionResult.emotion !== 'neutral' && emotionResult.confidence > 0.5) {
-                    // Use more nuanced emotional context based on VAD scores
                     const emotionalPrefixes = {
-                        joy: ["That sounds wonderful!", "How delightful!", "That's great to hear!"],
-                        sadness: ["I'm sorry to hear that.", "That sounds difficult.", "I understand this is tough."],
-                        anger: ["I can sense your frustration.", "That sounds really frustrating.", "I understand your concern."],
-                        fear: ["I understand your concern.", "That sounds concerning.", "I can see why you'd be worried."],
-                        surprise: ["That's unexpected!", "Really? That's surprising!", "Wow, I didn't expect that!"],
-                        disgust: ["I understand your reaction.", "That sounds unpleasant.", "I can see why that would bother you."]
+                        joy: "That sounds wonderful!", sadness: "I'm sorry to hear that.", anger: "I can sense your frustration.",
+                        fear: "I understand your concern.", surprise: "That's unexpected!", disgust: "I understand your reaction."
                     };
-
-                    const prefixes = emotionalPrefixes[emotionResult.emotion] || ["I sense you're feeling something important."];
-                    const randomPrefix = prefixes[Math.floor(Math.random() * prefixes.length)];
-
-                    fallbackText = `${randomPrefix} ${fallbackText}`;
+                    fallbackText = `${emotionalPrefixes[emotionResult.emotion] || "I hear you."} ${fallbackText}`;
                 }
 
-                // Add cultural context to fallback if applicable
                 if (persona === 'crosscultural' && culturalContext !== 'general') {
-                    const culturalContextText = getCulturalContextForFallback(culturalContext);
-                    if (culturalContextText) {
-                        fallbackText += ` ${culturalContextText}`;
-                    }
+                    fallbackText += ` ${getCulturalContextForFallback(culturalContext)}`;
                 }
 
-                // Add error context to the fallback response
-                const errorContext = llmError.message || 'processing error';
-                console.warn(`LLM fallback triggered due to: ${errorContext}`);
-
-                self.postMessage({
-                    type: 'llm_result',
-                    text: fallbackText,
-                    taskId
-                });
+                self.postMessage({ type: 'llm_result', text: fallbackText, taskId });
             }
 
-            // Set a timeout to potentially unload LLM after inactivity to save memory
             setTimeout(async () => {
-                const now = Date.now();
-                if (now - MLPipeline.lastUsed >= AppConfig.system.memory.llmInactivityTimeout && MLPipeline.llm) {
+                if (Date.now() - MLPipeline.lastUsed >= AppConfig.system.memory.llmInactivityTimeout && MLPipeline.llm) {
                     await MLPipeline.disposeLLM();
                 }
             }, AppConfig.system.memory.llmInactivityTimeout + 1000);
         }
         
         if (type === 'cleanup') {
-            console.log("Received cleanup command");
             await cleanupModels();
             self.postMessage({ type: 'cleanup_complete', taskId });
         }
@@ -910,111 +388,11 @@ self.onmessage = async (event) => {
     }
 };
 
-// Handle worker termination to clean up resources
-self.onterminate = () => {
-    console.log("Worker terminating, cleaning up models...");
-    cleanupModels();
-};
+self.onterminate = cleanupModels;
 
-// Response enhancement utilities for use in the worker
-const getUserPreferences = () => {
-  try {
-    // In a worker context, we need to access localStorage differently
-    // For now, we'll simulate the functionality or use a simpler approach
-    // In a real implementation, we might pass preferences from the main thread
-
-    // Simulate getting preferences from main thread via message
-    // This would require coordination with the main thread
-    return {
-      preferredLength: 'medium', // 'short', 'medium', 'long'
-      preferredTone: 'balanced', // 'formal', 'casual', 'balanced'
-      preferredStyle: 'adaptive' // 'directive', 'supportive', 'adaptive'
-    };
-  } catch (e) {
-    console.error('Failed to determine user preferences:', e);
-    return {
-      preferredLength: 'medium',
-      preferredTone: 'balanced',
-      preferredStyle: 'adaptive'
-    };
-  }
-};
-
-const adjustResponseForUser = (response, persona, emotionData) => {
-  const preferences = getUserPreferences();
-
-  // Adjust length based on user preference
-  let adjustedResponse = response;
-
-  if (preferences.preferredLength === 'short' && response.length > 50) {
-    // Truncate to first sentence if too long
-    const sentences = response.split(/(?<=[.!?])\s+/);
-    if (sentences.length > 1) {
-      adjustedResponse = sentences[0];
-    } else if (response.length > 60) {
-      // If it's one long sentence, truncate to ~60 chars
-      adjustedResponse = response.substring(0, 60).trim() + '...';
-    }
-  } else if (preferences.preferredLength === 'long' && response.length < 40) {
-    // Expand short responses with follow-up if user prefers longer responses
-    if (persona === 'anxiety') {
-      adjustedResponse += " I'm here to listen and help if you'd like to share more.";
-    } else if (persona === 'relationship') {
-      adjustedResponse += " What are your thoughts on this? I'm interested to hear more.";
-    }
-  }
-
-  // Adjust tone based on user preference
-  if (preferences.preferredTone === 'formal' && persona !== 'professional') {
-    // Make more formal if user prefers it
-    adjustedResponse = adjustedResponse
-      .replace(/\b(i|we|you|they)\b/g, (match) => match.charAt(0).toUpperCase() + match.slice(1))
-      .replace(/\bim\b/gi, 'I am')
-      .replace(/\bcant\b/gi, 'cannot')
-      .replace(/\bwont\b/gi, 'will not');
-  } else if (preferences.preferredTone === 'casual' && persona === 'professional') {
-    // Make more casual if user prefers it
-    adjustedResponse = adjustedResponse
-      .replace(/\bI am\b/gi, 'I\'m')
-      .replace(/\bcannot\b/gi, 'cannot')
-      .replace(/\bwill not\b/gi, 'won\'t');
-  }
-
-  // Add emotional awareness if emotion detected
-  if (emotionData && emotionData.emotion !== 'neutral' && emotionData.confidence > 0.4) {
-    const emotionalAcknowledge = getEmotionalAcknowledgment(emotionData.emotion);
-    if (!adjustedResponse.toLowerCase().includes(emotionalAcknowledge.toLowerCase())) {
-      adjustedResponse = `${emotionalAcknowledge} ${adjustedResponse}`;
-    }
-  }
-
-  return adjustedResponse;
-};
-
-const getEmotionalAcknowledgment = (emotion) => {
-  const acknowledgments = {
-    joy: "That sounds positive!",
-    sadness: "I understand this might be difficult.",
-    anger: "I can sense some frustration.",
-    fear: "I understand your concern.",
-    surprise: "That's interesting!",
-    disgust: "I understand your reaction."
-  };
-
-  return acknowledgments[emotion] || "I hear what you're saying.";
-};
-
-// Handle unhandled errors in the worker
 self.addEventListener('error', (event) => {
     console.error('Unhandled worker error:', event.error);
-    // Try to send error message to main thread if possible
     try {
-        self.postMessage({
-            type: 'error',
-            error: `Unhandled worker error: ${event.error.message || 'Unknown error'}`,
-            taskId: `error-${Date.now()}`
-        });
-    } catch (e) {
-        console.error('Failed to send error to main thread:', e);
-    }
+        self.postMessage({ type: 'error', error: `Unhandled: ${event.error?.message || 'Unknown'}`, taskId: `error-${Date.now()}` });
+    } catch (e) {}
 });

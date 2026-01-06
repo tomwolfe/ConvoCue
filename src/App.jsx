@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Mic, Loader2, Volume2, AlertCircle, Activity, ThumbsUp, ThumbsDown, BookOpen, Settings } from 'lucide-react';
+import { Mic, Loader2, Volume2, AlertCircle, Activity, BookOpen, Settings } from 'lucide-react';
 import { Analytics } from '@vercel/analytics/react';
 import { useMLWorker } from './hooks/useMLWorker';
 import VADContent from './components/VADContent';
@@ -8,6 +8,13 @@ import PersonaCustomization from './components/PersonaCustomization';
 import ErrorBoundary from './ErrorBoundary';
 import { AppConfig } from './config';
 import { checkAssets } from './utils/diagnostics';
+import { 
+  hasSeenTutorial, 
+  setTutorialSeen, 
+  saveCustomPersona, 
+  deleteCustomPersona as removeCustomPersona,
+  getCustomPersonas
+} from './utils/preferences';
 
 import './App.css';
 
@@ -18,8 +25,8 @@ const App = () => {
   const [isCompactMode, setIsCompactMode] = useState(false);
   const [isSubtleMode, setIsSubtleMode] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
-  const [hasSeenTutorial, setHasSeenTutorial] = useState(false);
   const [showPersonaCustomization, setShowPersonaCustomization] = useState(false);
+  
   const {
     status,
     progress,
@@ -47,43 +54,25 @@ const App = () => {
   const [micPermissionError, setMicPermissionError] = useState(null);
 
   useEffect(() => {
-    if (isDyslexicFriendly) {
-      document.body.classList.add('dyslexic-mode');
-    } else {
-      document.body.classList.remove('dyslexic-mode');
-    }
+    document.body.classList.toggle('dyslexic-mode', isDyslexicFriendly);
   }, [isDyslexicFriendly]);
 
   useEffect(() => {
-    if (isCompactMode) {
-      document.body.classList.add('compact-mode');
-    } else {
-      document.body.classList.remove('compact-mode');
-    }
+    document.body.classList.toggle('compact-mode', isCompactMode);
   }, [isCompactMode]);
 
   useEffect(() => {
-    if (isSubtleMode) {
-      document.body.classList.add('subtle-mode');
-    } else {
-      document.body.classList.remove('subtle-mode');
-    }
+    document.body.classList.toggle('subtle-mode', isSubtleMode);
   }, [isSubtleMode]);
 
   useEffect(() => {
-    // Check if user has seen tutorial before
-    const seenTutorial = localStorage.getItem('convocue_tutorial_seen');
-    if (!seenTutorial) {
-      setHasSeenTutorial(false);
+    if (!hasSeenTutorial()) {
       setShowTutorial(true);
-    } else {
-      setHasSeenTutorial(true);
     }
 
     const runDiagnostics = async () => {
       const result = await checkAssets();
       if (!result.allOk) {
-        console.error("Missing assets:", result.missing);
         setAssetError(`Critical assets missing: ${result.missing.map(m => m.url.split('/').pop()).join(', ')}`);
       }
     };
@@ -91,19 +80,12 @@ const App = () => {
   }, []);
 
   const handleStart = async () => {
-    console.log("User clicked start. Transitioning to VAD content.");
     setMicPermissionError(null);
-
-    // Pre-warm LLM as soon as user shows intent to use the app
     prewarmLLM();
 
-    // On mobile, we want to be extra careful with memory spikes
-    // A small delay allows any pending work to finish
     if (AppConfig.isMobile) {
       setStatus('Preparing Social Brain...');
-      setTimeout(() => {
-        setHasInteracted(true);
-      }, 300);
+      setTimeout(() => setHasInteracted(true), 300);
     } else {
       setHasInteracted(true);
     }
@@ -111,61 +93,18 @@ const App = () => {
 
   const handleTutorialComplete = () => {
     setShowTutorial(false);
-    setHasSeenTutorial(true);
-    localStorage.setItem('convocue_tutorial_seen', 'true');
-  };
-
-  const showTutorialHandler = () => {
-    setShowTutorial(true);
-  };
-
-  const showPersonaCustomizationHandler = () => {
-    setShowPersonaCustomization(true);
+    setTutorialSeen();
   };
 
   const handleSavePersona = (newPersona) => {
-    try {
-      // Load existing custom personas from localStorage
-      const customPersonasStr = localStorage.getItem('convocue_custom_personas');
-      const customPersonas = customPersonasStr ? JSON.parse(customPersonasStr) : {};
-
-      // Add/update the persona
-      customPersonas[newPersona.id] = {
-        id: newPersona.id,
-        label: newPersona.label,
-        description: newPersona.description,
-        prompt: newPersona.prompt
-      };
-
-      // Save back to localStorage
-      localStorage.setItem('convocue_custom_personas', JSON.stringify(customPersonas));
-
-      // Show success message
-      alert(`Persona "${newPersona.label}" saved successfully!`);
-      setShowPersonaCustomization(false);
-    } catch (error) {
-      console.error('Error saving persona:', error);
-      alert('Error saving persona. Please try again.');
-    }
+    saveCustomPersona(newPersona);
+    alert(`Persona "${newPersona.label}" saved successfully!`);
+    setShowPersonaCustomization(false);
   };
 
   const handleDeletePersona = (personaId) => {
-    try {
-      // Load existing custom personas from localStorage
-      const customPersonasStr = localStorage.getItem('convocue_custom_personas');
-      const customPersonas = customPersonasStr ? JSON.parse(customPersonasStr) : {};
-
-      // Remove the persona
-      delete customPersonas[personaId];
-
-      // Save back to localStorage
-      localStorage.setItem('convocue_custom_personas', JSON.stringify(customPersonas));
-
-      alert(`Persona deleted successfully!`);
-    } catch (error) {
-      console.error('Error deleting persona:', error);
-      alert('Error deleting persona. Please try again.');
-    }
+    removeCustomPersona(personaId);
+    alert(`Persona deleted successfully!`);
   };
 
   return (
@@ -214,7 +153,7 @@ const App = () => {
               </button>
               <button
                 className="btn-settings"
-                onClick={showTutorialHandler}
+                onClick={() => setShowTutorial(true)}
                 aria-label="Show Tutorial"
                 title="Show Tutorial"
               >
@@ -222,7 +161,7 @@ const App = () => {
               </button>
               <button
                 className="btn-settings"
-                onClick={showPersonaCustomizationHandler}
+                onClick={() => setShowPersonaCustomization(true)}
                 aria-label="Customize Personas"
                 title="Customize Personas"
               >
@@ -243,11 +182,7 @@ const App = () => {
 
         {!hasInteracted ? (
           <main className="initial-screen">
-            <div
-              className={`status-badge ${!isReady ? 'processing' : ''}`}
-              role="status"
-              aria-live="polite"
-            >
+            <div className={`status-badge ${!isReady ? 'processing' : ''}`} role="status" aria-live="polite">
               {!isReady ? <Loader2 className="animate-spin" size={16} aria-hidden="true" /> : <div className="dot" aria-hidden="true" />}
               <span>{status}</span>
             </div>
@@ -277,7 +212,6 @@ const App = () => {
                 onClick={handleStart}
                 disabled={!isReady}
                 aria-label="Enable Microphone"
-                aria-describedby="setup-instruction"
               >
                 <Mic size={24} aria-hidden="true" />
                 <span>Enable Microphone</span>
