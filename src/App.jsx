@@ -4,6 +4,7 @@ import { Analytics } from '@vercel/analytics/react';
 import { useMLWorker } from './hooks/useMLWorker';
 import VADContent from './components/VADContent';
 import ErrorBoundary from './ErrorBoundary';
+import { AppConfig } from './config';
 
 import './App.css';
 
@@ -38,7 +39,7 @@ const App = () => {
     <ErrorBoundary>
       <Analytics />
       <div className="app-container" role="main" aria-label="ConvoCue Application">
-        <header>
+        <header role="banner">
           <div className="logo-area">
             <Volume2 size={40} color="#6C5CE7" aria-hidden="true" />
             <h1>ConvoCue</h1>
@@ -57,10 +58,10 @@ const App = () => {
               <span>{status}</span>
             </div>
 
-            <div className="setup-card">
+            <div className="setup-card" role="region" aria-labelledby="setup-card-title">
               <div className="progress-display" role="progressbar" aria-valuenow={progress} aria-valuemin="0" aria-valuemax="100" aria-label="Model loading progress">
                 <div className="progress-ring">
-                  <svg viewBox="0 0 100 100">
+                  <svg viewBox="0 0 100 100" aria-hidden="true">
                     <circle className="bg" cx="50" cy="50" r="45" />
                     <circle
                       className="fg"
@@ -70,11 +71,11 @@ const App = () => {
                       style={{ strokeDashoffset: 282.7 - (282.7 * progress) / 100 }}
                     />
                   </svg>
-                  <div className="progress-text">{progress}%</div>
+                  <div className="progress-text" aria-live="polite">{progress}%</div>
                 </div>
               </div>
 
-              <h2>Ready to tune in?</h2>
+              <h2 id="setup-card-title">Ready to tune in?</h2>
               <p>ConvoCue needs your microphone to analyze social cues in real-time. All processing happens locally on your device.</p>
 
               <button
@@ -82,6 +83,7 @@ const App = () => {
                 onClick={handleStart}
                 disabled={!isReady}
                 aria-label="Enable Microphone"
+                aria-describedby="setup-instruction"
               >
                 <Mic size={24} aria-hidden="true" />
                 <span>Enable Microphone</span>
@@ -89,7 +91,7 @@ const App = () => {
             </div>
 
             {micPermissionError && (
-              <div className="error-box" role="alert">
+              <div className="error-box" role="alert" aria-live="assertive">
                 <AlertCircle size={20} aria-hidden="true" />
                 <p>Microphone access denied: {micPermissionError}</p>
               </div>

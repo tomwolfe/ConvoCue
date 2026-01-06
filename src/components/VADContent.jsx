@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useMicVAD } from '@ricky0123/vad-react';
 import { Mic, Heart, Loader2, AlertCircle, RefreshCw, Trash2 } from 'lucide-react';
+import { AppConfig } from '../config';
 
 const VADContent = ({
   status,
@@ -17,6 +18,7 @@ const VADContent = ({
 }) => {
   const [isVADMode, setIsVADMode] = useState(false);
   const [vadError, setVadError] = useState(initialError);
+  const vadErrorSetRef = useRef(!!initialError);
 
   // Use refs to avoid stale closures in VAD callbacks without re-triggering useMicVAD
   const isVADModeRef = useRef(isVADMode);
@@ -76,35 +78,26 @@ const VADContent = ({
     onSpeechEnd,
     onVADReady,
     onError,
-    workletURL: "/vad.worklet.bundle.min.js",
-    modelURL: "/silero_vad_v5.onnx", 
-    model: "v5",
-    onnxWASMPaths: {
-      "ort-wasm-simd-threaded.wasm": "/ort-wasm-simd-threaded.wasm",
-      "ort-wasm-simd-threaded.mjs": "/ort-wasm-simd-threaded.mjs",
-      "ort-wasm-simd-threaded.jsep.wasm": "/ort-wasm-simd-threaded.jsep.wasm",
-      "ort-wasm-simd-threaded.jsep.mjs": "/ort-wasm-simd-threaded.jsep.mjs",
-    },
-    positiveSpeechThreshold: 0.55,
-    negativeSpeechThreshold: 0.35,
-    minSpeechFrames: 4,
+    workletURL: AppConfig.vad.workletURL,
+    modelURL: AppConfig.vad.modelURL,
+    model: AppConfig.vad.model,
+    onnxWASMPaths: AppConfig.vad.onnxWASMPaths,
+    positiveSpeechThreshold: AppConfig.vad.positiveSpeechThreshold,
+    negativeSpeechThreshold: AppConfig.vad.negativeSpeechThreshold,
+    minSpeechFrames: AppConfig.vad.minSpeechFrames,
   });
 
-  // Handle initial error if it's a microphone permission error
   useEffect(() => {
-    if (initialError) {
-      console.log("Setting VAD error from initialError:", initialError);
-      setVadError(initialError);
-    }
-  }, [initialError]);
-
-  useEffect(() => {
-    if (vad.errored && !vadError) {
+    if (vad.errored && !vadErrorSetRef.current) {
       const detail = vad.error || "Unknown VAD initialization error";
       console.error("VAD entered errored state:", detail);
+      // This is a legitimate case where we need to update state based on external system errors
+      // The VAD system reports errors that need to be reflected in the UI state
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setVadError(`VAD failed to initialize: ${detail}. Please ensure silero_vad_v5.onnx, vad.worklet.bundle.min.js, and ort-wasm-simd-threaded.wasm are in the public folder and match the required versions.`);
+      vadErrorSetRef.current = true;
     }
-  }, [vad.errored, vadError, vad.error]);
+  }, [vad.errored, vad.error]);
 
   useEffect(() => {
     vadRef.current = vad;
@@ -139,7 +132,7 @@ const VADContent = ({
   };
 
   return (
-    <main className="vad-container">
+    <main className="vad-container" role="main">
       <div
         className={`status-badge ${isProcessing || vad.loading || vad.errored || vadError ? 'processing' : ''} ${vad.errored || vadError ? 'error' : ''}`}
         role="status"
@@ -157,20 +150,20 @@ const VADContent = ({
         </span>
       </div>
 
-      <div className="display-area">
-        <div className={`card transcript ${transcript ? 'visible' : ''}`} aria-label="Transcript">
+      <div className="display-area" role="region" aria-label="Speech processing results">
+        <div className={`card transcript ${transcript ? 'visible' : ''}`} role="region" aria-labelledby="transcript-label">
           <div className="card-header">
-            <label>You said</label>
-            {transcript && <button className="btn-icon" onClick={handleClear} aria-label="Clear transcript"><Trash2 size={14} /></button>}
+            <label id="transcript-label">You said</label>
+            {transcript && <button className="btn-icon" onClick={handleClear} aria-label="Clear transcript" title="Clear transcript"><Trash2 size={14} /></button>}
           </div>
-          <p>{transcript || "Waiting for speech..."}</p>
+          <p id="transcript-content">{transcript || "Waiting for speech..."}</p>
         </div>
 
-        <div className={`card suggestion ${suggestion ? 'visible' : ''}`} aria-label="Social Cue Suggestion">
-          <label>Social Cue</label>
-          <p>{suggestion || "AI Brain is pondering..."}</p>
+        <div className={`card suggestion ${suggestion ? 'visible' : ''}`} role="region" aria-labelledby="suggestion-label">
+          <label id="suggestion-label">Social Cue</label>
+          <p id="suggestion-content">{suggestion || "AI Brain is pondering..."}</p>
           {isProcessing && !suggestion && (
-             <div className="thinking-dots" aria-label="Processing">
+             <div className="thinking-dots" aria-label="Processing, please wait" role="status">
                <span>.</span><span>.</span><span>.</span>
              </div>
           )}
@@ -184,12 +177,14 @@ const VADContent = ({
           disabled={!isReady || isVADMode || vad.loading || (vad.errored && !vadError)}
           title="Manual Trigger"
           aria-label="Manual speech trigger"
+          aria-describedby="pulse-description"
         >
           <div className="icon-circle" aria-hidden="true">
             <Mic size={28} />
           </div>
           <span>Pulse</span>
         </button>
+        <div id="pulse-description" className="sr-only">Manually trigger speech recognition</div>
 
         <button
           className={`btn-control heartbeat-btn ${isVADMode ? 'active' : ''}`}
@@ -197,16 +192,18 @@ const VADContent = ({
           disabled={!isReady || vad.loading || (vad.errored && !vadError)}
           title="Continuous Mode"
           aria-label="Continuous speech detection"
+          aria-describedby="heartbeat-description"
         >
           <div className="icon-circle" aria-hidden="true">
             <Heart size={28} fill={isVADMode ? "white" : "none"} />
           </div>
           <span>Heartbeat</span>
         </button>
+        <div id="heartbeat-description" className="sr-only">Enable continuous speech detection</div>
       </div>
 
       {(vad.errored || vadError) && (
-        <div className="error-recovery" role="alert">
+        <div className="error-recovery" role="alert" aria-live="assertive">
           <p>{vadError || "Microphone access or VAD initialization error"}</p>
           <button className="btn-retry" onClick={onReset} aria-label="Try again">
             <RefreshCw size={18} aria-hidden="true" />

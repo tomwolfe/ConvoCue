@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { AppConfig } from '../config';
 
 export const useMLWorker = () => {
   const [status, setStatus] = useState('Initializing Models...');
@@ -39,21 +40,32 @@ export const useMLWorker = () => {
             setStatus('Ready');
             console.log("Worker signaled ready. Models are loaded.");
             break;
-          case 'stt_result':
+          case 'stt_result': {
             if (!text || text.trim().length === 0) {
               console.log("Empty transcription, resetting...");
               setIsProcessing(false);
               setStatus('Ready');
               break;
             }
-            console.log("Transcription received:", text);
-            setTranscript(text);
-            if (text.trim().length > 1) {
+
+            // Validate and sanitize transcription
+            const sanitizedTranscript = text.trim().substring(0, AppConfig.system.maxTranscriptLength);
+            if (!AppConfig.system.allowedTranscriptPattern.test(sanitizedTranscript)) {
+              console.warn("Transcription contains invalid characters, sanitizing...");
+              // Basic sanitization - remove potentially harmful characters
+              const cleanTranscript = sanitizedTranscript.replace(/[^a-zA-Z0-9\s.,!?'""-]/g, '');
+              setTranscript(cleanTranscript);
+            } else {
+              setTranscript(sanitizedTranscript);
+            }
+
+            console.log("Transcription received:", sanitizedTranscript);
+            if (sanitizedTranscript.trim().length > 1) {
               setStatus('Analyzing social cue...');
               setSuggestion(''); // Clear suggestion before starting LLM
               newWorker.postMessage({
                 type: 'llm',
-                text,
+                text: sanitizedTranscript,
                 taskId: `llm-${Date.now()}`
               });
             } else {
@@ -61,8 +73,11 @@ export const useMLWorker = () => {
               setStatus('Ready');
             }
             break;
-          case 'llm_result':
-            setSuggestion(text);
+          }
+          case 'llm_result': {
+            // Validate and sanitize suggestion
+            const sanitizedSuggestion = text ? text.trim().substring(0, AppConfig.system.maxSuggestionLength) : '';
+            setSuggestion(sanitizedSuggestion);
             setIsProcessing(false);
             setStatus('Ready');
             // Haptic feedback if available
@@ -70,9 +85,19 @@ export const useMLWorker = () => {
               navigator.vibrate(20);
             }
             break;
-          case 'llm_chunk':
-            setSuggestion(prev => prev + text);
+          }
+          case 'llm_chunk': {
+            // Validate and sanitize chunk before adding
+            if (typeof text === 'string') {
+              const safeChunk = text.substring(0, AppConfig.system.maxSuggestionLength);
+              setSuggestion(prev => {
+                const newSuggestion = (prev || '') + safeChunk;
+                // Limit total length
+                return newSuggestion.substring(0, AppConfig.system.maxSuggestionLength);
+              });
+            }
             break;
+          }
           case 'error':
             console.error("Worker Logic Error:", error);
             setStatus(`Model Error: ${error}`);
@@ -102,25 +127,56 @@ export const useMLWorker = () => {
     }
   }, []);
 
+  // Cleanup function for worker termination
+  const cleanupWorker = useCallback(() => {
+    if (worker.current) {
+      // Send cleanup command to worker to free model resources
+      worker.current.postMessage({ type: 'cleanup', taskId: `cleanup-${Date.now()}` });
+
+      // Wait a bit for cleanup to complete, then terminate
+      setTimeout(() => {
+        if (worker.current) {
+          worker.current.terminate();
+          worker.current = null;
+        }
+      }, 100);
+    }
+  }, []);
+
   useEffect(() => {
     initWorker();
     return () => {
-      if (worker.current) {
-        worker.current.terminate();
-      }
+      cleanupWorker();
     };
-  }, [initWorker]);
+  }, [initWorker, cleanupWorker]);
 
   const processAudio = useCallback((audioBuffer) => {
     if (!isReady || isProcessing || !worker.current) return;
+
+    // Input validation
+    if (!audioBuffer) {
+      console.error("processAudio: audioBuffer is null or undefined");
+      setStatus('Invalid audio input');
+      return;
+    }
+
+    // Additional validation for audio buffer
+    if (!(audioBuffer instanceof Float32Array) &&
+        !(audioBuffer.buffer instanceof ArrayBuffer) &&
+        !Array.isArray(audioBuffer)) {
+      console.error("processAudio: Invalid audio buffer format");
+      setStatus('Invalid audio format');
+      return;
+    }
+
     setIsProcessing(true);
     setStatus('Transcribing...');
-    
+
     // Use Transferables for zero-copy transfer of the audio buffer
-    worker.current.postMessage({ 
-      type: 'stt', 
+    worker.current.postMessage({
+      type: 'stt',
       audio: audioBuffer,
-      taskId: `stt-${Date.now()}` 
+      taskId: `stt-${Date.now()}`
     }, [audioBuffer.buffer]);
   }, [isReady, isProcessing]);
 
