@@ -15,23 +15,6 @@ if (AppConfig.vad.onnxWASMPaths) {
     env.backends.onnx.wasm.wasmPaths = AppConfig.vad.onnxWASMPaths;
 }
 
-import { pipeline, env, TextStreamer } from '@huggingface/transformers';
-import { AppConfig } from './config';
-import { analyzeEmotion } from './utils/emotion';
-
-// Configuration for on-device execution
-env.allowLocalModels = false;
-env.useBrowserCache = true;
-
-// Optimize threads based on hardware
-env.backends.onnx.wasm.numThreads = AppConfig.worker.numThreads;
-env.backends.onnx.wasm.simd = AppConfig.worker.simd;
-env.backends.onnx.wasm.proxy = false;
-
-if (AppConfig.vad.onnxWASMPaths) {
-    env.backends.onnx.wasm.wasmPaths = AppConfig.vad.onnxWASMPaths;
-}
-
 class MLPipeline {
     static instance = null;
     static stt = null;
