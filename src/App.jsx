@@ -77,10 +77,10 @@ const App = () => {
     <ErrorBoundary>
       <Analytics />
       <div className="app-container" role="main" aria-label="ConvoCue Application">
-        <header role="banner">
+        <header role="banner" className={hasInteracted ? 'compact' : ''}>
           <div className="header-top">
             <div className="logo-area">
-              <Volume2 size={40} color="#6C5CE7" aria-hidden="true" />
+              <Volume2 size={hasInteracted ? 24 : 40} color="#6C5CE7" aria-hidden="true" />
               <h1>ConvoCue</h1>
             </div>
             <button 

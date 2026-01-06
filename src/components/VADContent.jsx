@@ -228,21 +228,13 @@ const VADContent = ({
 
       <div className="display-area" role="region" aria-label="Speech processing results">
         <div className={`card transcript ${transcript ? 'visible' : ''}`} role="region" aria-labelledby="transcript-label">
-          <div className="card-header">
-            <label id="transcript-label">You said</label>
-            {transcript && <button className="btn-icon" onClick={handleClear} aria-label="Clear transcript" title="Clear transcript"><Trash2 size={14} /></button>}
-          </div>
+          <label id="transcript-label">Context</label>
           <p id="transcript-content">{transcript || "Waiting for speech..."}</p>
         </div>
 
-        <div className={`card suggestion ${suggestion ? 'visible' : ''}`} role="region" aria-labelledby="suggestion-label">
-          <label id="suggestion-label">Social Cue</label>
-          <p id="suggestion-content">{suggestion || (processingStep === 'thinking' ? "AI Brain is pondering..." : "Waiting for cues...")}</p>
-          {processingStep === 'thinking' && !suggestion && (
-             <div className="thinking-dots" aria-label="Processing, please wait" role="status">
-               <span>.</span><span>.</span><span>.</span>
-             </div>
-          )}
+        <div className={`card suggestion ${suggestion || processingStep === 'thinking' ? 'visible' : ''}`} role="region" aria-labelledby="suggestion-label">
+          <label id="suggestion-label">{AppConfig.models.personas[persona]?.label || 'Cue'}</label>
+          <p id="suggestion-content">{suggestion || (processingStep === 'thinking' ? "Thinking..." : "Listening for cues...")}</p>
         </div>
       </div>
 

@@ -23,23 +23,23 @@ export const AppConfig = {
       do_sample: true,
     },
     personas: {
-      social: {
-        id: 'social',
-        label: 'Social Coach',
-        description: 'Friendly validation and natural follow-up questions.',
-        prompt: 'Validate the user\'s statement briefly and ask one natural follow-up question. Keep it under 20 words.'
+      anxiety: {
+        id: 'anxiety',
+        label: 'Social Anxiety',
+        description: 'Confidence boosts and low-pressure follow-up questions.',
+        prompt: 'The user is feeling anxious. Provide a warm, validating confidence boost or a simple, open-ended but low-pressure follow-up question. Avoid complex topics. Keep it under 12 words.'
+      },
+      relationship: {
+        id: 'relationship',
+        label: 'EQ Coach',
+        description: 'Relationship coaching: empathy and active listening.',
+        prompt: 'Focus on emotional intelligence. Suggest a response that uses active listening or validates the other person\'s feelings. Use "I" statements where appropriate. Keep it under 20 words.'
       },
       professional: {
         id: 'professional',
         label: 'Professional',
-        description: 'Polite, confident, and workplace-appropriate responses.',
-        prompt: 'Provide a concise, professional, and polite response for a workplace setting. Keep it under 15 words.'
-      },
-      friendly: {
-        id: 'friendly',
-        label: 'Warm Friend',
-        description: 'Empathetic and supportive responses for close friends.',
-        prompt: 'Respond as a warm, supportive friend. Acknowledge feelings with care. Keep it informal and under 20 words.'
+        description: 'Confident, clear, and workplace-appropriate cues.',
+        prompt: 'Provide a concise, professional response that demonstrates competence and clarity. Focus on next steps or constructive input. Keep it under 15 words.'
       },
       concise: {
         id: 'concise',
@@ -50,26 +50,20 @@ export const AppConfig = {
       crosscultural: {
         id: 'crosscultural',
         label: 'Cultural Guide',
-        description: 'Culturally sensitive and respectful suggestions.',
-        prompt: 'Suggest a respectful response that avoids idioms and shows cultural awareness. Keep it brief.'
+        description: 'Culturally sensitive phrasing suggestions.',
+        prompt: 'Suggest a respectful response that avoids idioms and shows cultural awareness. If a specific culture is mentioned, adapt accordingly. Keep it brief.'
       },
       languagelearning: {
         id: 'languagelearning',
         label: 'Language Tutor',
-        description: 'Corrects grammar and suggests natural phrasing.',
-        prompt: 'Suggest a more natural way to say what the user said, then ask a follow-up question. Be brief.'
+        description: 'Natural phrasing and grammar corrections.',
+        prompt: 'Suggest a more natural way to say what the user said, then ask a follow-up question. Be brief and encouraging.'
       },
       meeting: {
         id: 'meeting',
         label: 'Meeting Aide',
-        description: 'Helpful interjections and summaries for meetings.',
-        prompt: 'Suggest a concise interjection for a professional meeting to help the user contribute. Under 15 words.'
-      },
-      emotional: {
-        id: 'emotional',
-        label: 'Emotional Support',
-        description: 'Deep validation and comfort for stressful times.',
-        prompt: 'Provide deep emotional validation. Use gentle phrases like "It makes sense you feel...". Keep it very brief.'
+        description: 'Interjections and summaries for professional meetings.',
+        prompt: 'Suggest a concise interjection to help the user contribute to a meeting or summarize a point. Under 15 words.'
       }
     }
   },
