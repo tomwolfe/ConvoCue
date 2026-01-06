@@ -24,15 +24,7 @@ const App = () => {
   const [micPermissionError, setMicPermissionError] = useState(null);
 
   const handleStart = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach(track => track.stop());
-      setHasInteracted(true);
-    } catch (err) {
-      console.error("Initial microphone check failed:", err);
-      setMicPermissionError(err.message || String(err));
-      setHasInteracted(true);
-    }
+    setHasInteracted(true);
   };
 
   return (
@@ -107,6 +99,10 @@ const App = () => {
             setSuggestion={setSuggestion}
             setStatus={setStatus}
             initialError={micPermissionError}
+            onReset={() => {
+              setHasInteracted(false);
+              setMicPermissionError(null);
+            }}
           />
         )}
       </div>

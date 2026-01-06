@@ -12,15 +12,16 @@ const VADContent = ({
   setTranscript,
   setSuggestion,
   setStatus,
-  initialError
+  initialError,
+  onReset
 }) => {
   const [isVADMode, setIsVADMode] = useState(false);
   const [vadError, setVadError] = useState(initialError);
-  
+
   // Use refs to avoid stale closures in VAD callbacks without re-triggering useMicVAD
   const isVADModeRef = useRef(isVADMode);
   const processAudioRef = useRef(processAudio);
-  
+
   useEffect(() => {
     isVADModeRef.current = isVADMode;
   }, [isVADMode]);
@@ -74,6 +75,13 @@ const VADContent = ({
     negativeSpeechThreshold: 0.35,
     minSpeechFrames: 4,
   });
+
+  // Handle initial error if it's a microphone permission error
+  useEffect(() => {
+    if (initialError) {
+      setVadError(initialError);
+    }
+  }, [initialError]);
 
   useEffect(() => {
     vadRef.current = vad;
@@ -175,7 +183,7 @@ const VADContent = ({
       {(vad.errored || vadError) && (
         <div className="error-recovery" role="alert">
           <p>{vadError || "Microphone access error"}</p>
-          <button className="btn-retry" onClick={() => window.location.reload()} aria-label="Try again">
+          <button className="btn-retry" onClick={onReset} aria-label="Try again">
             <RefreshCw size={18} aria-hidden="true" />
             Try Again
           </button>
