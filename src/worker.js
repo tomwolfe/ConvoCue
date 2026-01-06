@@ -1,6 +1,5 @@
 import { pipeline, env, TextStreamer } from '@huggingface/transformers';
 import { AppConfig } from './config';
-import { analyzeCulturalContext } from './utils/culturalContext';
 
 // Configuration for on-device execution
 env.allowLocalModels = false;
