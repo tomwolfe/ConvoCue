@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Mic, Loader2, Volume2, AlertCircle } from 'lucide-react';
+import { Analytics } from '@vercel/analytics/react';
 import { useMLWorker } from './hooks/useMLWorker';
 import VADContent from './components/VADContent';
 import ErrorBoundary from './ErrorBoundary';
@@ -34,6 +35,7 @@ const App = () => {
 
   return (
     <ErrorBoundary>
+      <Analytics />
       <div className="app-container" role="main" aria-label="ConvoCue Application">
         <header>
           <div className="logo-area">
