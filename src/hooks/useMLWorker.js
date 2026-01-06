@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { AppConfig } from '../config';
+import { manageConversationHistory } from '../utils/conversation';
 
 export const useMLWorker = () => {
   const [status, setStatus] = useState('Initializing Models...');
@@ -10,7 +11,19 @@ export const useMLWorker = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStep, setProcessingStep] = useState('none'); // 'none', 'transcribing', 'thinking'
   const [history, setHistory] = useState([]);
-  const [persona, setPersona] = useState('anxiety');
+  const [persona, setPersona] = useState(() => {
+    // Initialize with user's preferred persona from local storage
+    try {
+      const savedPreferences = localStorage.getItem('convocue_preferences');
+      if (savedPreferences) {
+        const preferences = JSON.parse(savedPreferences);
+        return preferences.preferredPersona || 'anxiety';
+      }
+    } catch (e) {
+      console.error('Error loading preferred persona:', e);
+    }
+    return 'anxiety';
+  });
   
   const worker = useRef(null);
   const historyRef = useRef([]);
@@ -68,10 +81,9 @@ export const useMLWorker = () => {
               setProcessingStep('thinking');
               setSuggestion(''); // Clear suggestion before starting LLM
               
-            // Maintain a sliding window of history to keep context relevant and within token limits
-            // For a 135M model, keeping the last 5-6 turns is usually more effective than long summaries
+            // Use conversation management utility to maintain context with summarization
             const currentHistory = [...historyRef.current, { role: 'user', content: sanitizedTranscript }];
-            const nextHistory = currentHistory.slice(-6); // Keep last 6 messages
+            const nextHistory = manageConversationHistory(currentHistory, AppConfig.system.maxHistoryLength || 6);
 
             setHistory(nextHistory);
 
@@ -96,11 +108,11 @@ export const useMLWorker = () => {
             setProcessingStep('none');
             setStatus('Ready');
             
-            // Add assistant turn to history maintaining sliding window
+            // Add assistant turn to history using conversation management utility
             if (sanitizedSuggestion) {
               setHistory(prev => {
                 const updatedHistory = [...prev, { role: 'assistant', content: sanitizedSuggestion }];
-                return updatedHistory.slice(-6); // Maintain same window size
+                return manageConversationHistory(updatedHistory, AppConfig.system.maxHistoryLength || 6);
               });
             }
 
@@ -222,6 +234,25 @@ export const useMLWorker = () => {
     setSuggestion('');
   }, []);
 
+  const savePersonaPreference = useCallback((newPersona) => {
+    try {
+      let preferences = {};
+      const savedPreferences = localStorage.getItem('convocue_preferences');
+      if (savedPreferences) {
+        preferences = JSON.parse(savedPreferences);
+      }
+      preferences.preferredPersona = newPersona;
+      localStorage.setItem('convocue_preferences', JSON.stringify(preferences));
+    } catch (e) {
+      console.error('Error saving persona preference:', e);
+    }
+  }, []);
+
+  const updatedSetPersona = useCallback((newPersona) => {
+    setPersona(newPersona);
+    savePersonaPreference(newPersona);
+  }, [savePersonaPreference]);
+
   return {
     status,
     progress,
@@ -239,7 +270,7 @@ export const useMLWorker = () => {
     history,
     setHistory,
     persona,
-    setPersona,
+    setPersona: updatedSetPersona,
     clearHistory
   };
 };

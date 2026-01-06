@@ -17,6 +17,62 @@ if (AppConfig.vad.onnxWASMPaths) {
 
 console.log(`ML Worker script loaded. Using ${AppConfig.worker.numThreads} thread(s). SIMD: ${AppConfig.worker.simd}`);
 
+// Enhanced emotional analysis function for more nuanced emotional context
+const analyzeEmotion = (text) => {
+    if (!text || typeof text !== 'string') {
+        return { emotion: 'neutral', confidence: 0 };
+    }
+
+    const emotionWords = {
+        joy: ['happy', 'joy', 'excited', 'wonderful', 'amazing', 'fantastic', 'love', 'pleased', 'delighted', 'thrilled', 'cheerful', 'delighted', 'ecstatic', 'glad', 'jubilant', 'merry', 'overjoyed', 'pleased', 'tickled'],
+        sadness: ['sad', 'depressed', 'unhappy', 'miserable', 'sorrow', 'gloomy', 'heartbroken', 'melancholy', 'despair', 'grief', 'mourn', 'sorrowful', 'tearful', 'tragic', 'upset', 'woeful'],
+        anger: ['angry', 'mad', 'furious', 'irate', 'enraged', 'annoyed', 'irritated', 'offended', 'hostile', 'aggressive', 'infuriated', 'livid', 'outraged', 'resentful', 'seething', 'vexed'],
+        fear: ['afraid', 'scared', 'frightened', 'anxious', 'nervous', 'worried', 'panicked', 'terrified', 'apprehensive', 'dread', 'fearful', 'horrified', 'petrified', 'startled', 'timid', 'trepidation'],
+        surprise: ['surprised', 'shocked', 'amazed', 'astonished', 'astounded', 'stunned', 'flabbergasted', 'dumbfounded', 'speechless', 'unbelievable', 'incredible', 'unexpected', 'startled', 'wonder'],
+        disgust: ['disgusted', 'revolted', 'nauseated', 'sickened', 'repulsed', 'horrified', 'appalled', 'grossed', 'offended', 'repugnant', 'sick', 'turned off', 'vile', 'wretched']
+    };
+
+    const words = text.toLowerCase().split(/\s+/);
+    const emotionScores = {};
+
+    // Calculate scores for each emotion
+    for (const [emotion, wordList] of Object.entries(emotionWords)) {
+        let score = 0;
+        for (const word of words) {
+            const cleanWord = word.replace(/[^\w\s]/g, '').trim();
+            if (cleanWord && wordList.includes(cleanWord)) {
+                score++;
+            }
+        }
+        emotionScores[emotion] = score;
+    }
+
+    // Find the dominant emotion
+    let dominantEmotion = 'neutral';
+    let maxScore = 0;
+
+    for (const [emotion, score] of Object.entries(emotionScores)) {
+        if (score > maxScore) {
+            maxScore = score;
+            dominantEmotion = emotion;
+        }
+    }
+
+    // If no strong emotion detected, use neutral
+    if (maxScore === 0) {
+        return { emotion: 'neutral', confidence: 0 };
+    }
+
+    // Calculate confidence based on the ratio of dominant emotion to total emotion words
+    const totalEmotionWords = Object.values(emotionScores).reduce((sum, val) => sum + val, 0);
+    const confidence = totalEmotionWords > 0 ? maxScore / totalEmotionWords : 0;
+
+    return {
+        emotion: dominantEmotion,
+        confidence: Math.min(confidence, 1.0) // Cap at 1.0
+    };
+};
+
 class MLPipeline {
     static instance = null;
     static stt = null;
@@ -137,23 +193,55 @@ const checkMemoryUsage = () => {
     return null;
 };
 
-// Simple sentiment analysis function for emotional context
-const analyzeSentiment = (text) => {
-    const positiveWords = ['good', 'great', 'excellent', 'amazing', 'wonderful', 'fantastic', 'love', 'like', 'happy', 'pleased', 'satisfied', 'thank', 'thanks', 'awesome', 'brilliant', 'perfect', 'right', 'correct', 'agree', 'yes', 'ok', 'okay', 'fine', 'well'];
-    const negativeWords = ['bad', 'terrible', 'awful', 'hate', 'dislike', 'sad', 'angry', 'frustrated', 'disappointed', 'wrong', 'no', 'not', 'never', 'hurt', 'difficult', 'hard', 'problem', 'issue', 'concern', 'worry', 'stressed', 'anxious', 'upset', 'mad', 'annoyed'];
+// Enhanced emotional analysis function for more nuanced emotional context
+const analyzeEmotion = (text) => {
+    const emotionWords = {
+        joy: ['happy', 'joy', 'excited', 'wonderful', 'amazing', 'fantastic', 'love', 'pleased', 'delighted', 'thrilled', 'cheerful', 'delighted', 'ecstatic', 'glad', 'jubilant', 'merry', 'overjoyed', 'pleased', 'tickled'],
+        sadness: ['sad', 'depressed', 'unhappy', 'miserable', 'sorrow', 'gloomy', 'heartbroken', 'melancholy', 'despair', 'grief', 'mourn', 'sorrowful', 'tearful', 'tragic', 'upset', 'woeful'],
+        anger: ['angry', 'mad', 'furious', 'irate', 'enraged', 'annoyed', 'irritated', 'offended', 'hostile', 'aggressive', 'infuriated', 'livid', 'outraged', 'resentful', 'seething', 'vexed'],
+        fear: ['afraid', 'scared', 'frightened', 'anxious', 'nervous', 'worried', 'panicked', 'terrified', 'apprehensive', 'dread', 'fearful', 'horrified', 'petrified', 'startled', 'timid', 'trepidation'],
+        surprise: ['surprised', 'shocked', 'amazed', 'astonished', 'astounded', 'stunned', 'flabbergasted', 'dumbfounded', 'speechless', 'unbelievable', 'incredible', 'unexpected', 'startled', 'wonder'],
+        disgust: ['disgusted', 'revolted', 'nauseated', 'sickened', 'repulsed', 'horrified', 'appalled', 'grossed', 'offended', 'repugnant', 'sick', 'turned off', 'vile', 'wretched']
+    };
 
     const words = text.toLowerCase().split(/\s+/);
-    let positiveCount = 0;
-    let negativeCount = 0;
+    const emotionScores = {};
 
-    for (const word of words) {
-        if (positiveWords.includes(word)) positiveCount++;
-        if (negativeWords.includes(word)) negativeCount++;
+    // Calculate scores for each emotion
+    for (const [emotion, wordList] of Object.entries(emotionWords)) {
+        let score = 0;
+        for (const word of words) {
+            if (wordList.includes(word)) {
+                score++;
+            }
+        }
+        emotionScores[emotion] = score;
     }
 
-    if (positiveCount > negativeCount) return 'positive';
-    if (negativeCount > positiveCount) return 'negative';
-    return 'neutral';
+    // Find the dominant emotion
+    let dominantEmotion = 'neutral';
+    let maxScore = 0;
+
+    for (const [emotion, score] of Object.entries(emotionScores)) {
+        if (score > maxScore) {
+            maxScore = score;
+            dominantEmotion = emotion;
+        }
+    }
+
+    // If no strong emotion detected, use neutral
+    if (maxScore === 0) {
+        return { emotion: 'neutral', confidence: 0 };
+    }
+
+    // Calculate confidence based on the ratio of dominant emotion to total emotion words
+    const totalEmotionWords = Object.values(emotionScores).reduce((sum, val) => sum + val, 0);
+    const confidence = totalEmotionWords > 0 ? maxScore / totalEmotionWords : 0;
+
+    return {
+        emotion: dominantEmotion,
+        confidence: Math.min(confidence, 1.0) // Cap at 1.0
+    };
 };
 
 // Periodic memory check for mobile
@@ -314,11 +402,11 @@ self.onmessage = async (event) => {
                 }
             }
 
-            // Analyze emotional tone for emotional support persona
+            // Analyze emotional tone for emotional support persona and other relevant personas
             let emotionalContext = '';
-            if (persona === 'emotional') {
-                const sentiment = analyzeSentiment(sanitizedText);
-                emotionalContext = `Emotional analysis: The user's tone seems ${sentiment}. Please respond with appropriate empathy and emotional support.`;
+            const emotionResult = analyzeEmotion(sanitizedText);
+            if (emotionResult.emotion !== 'neutral' && emotionResult.confidence > 0.3) {
+                emotionalContext = `Emotional analysis: The user's tone seems to express ${emotionResult.emotion} with ${Math.round(emotionResult.confidence * 100)}% confidence. Please respond with appropriate empathy and emotional awareness.`;
             }
 
             // Construct messages array, ensuring the latest user message is present exactly once
@@ -408,26 +496,72 @@ self.onmessage = async (event) => {
             } catch (llmError) {
                 console.error("LLM generation failed:", llmError);
 
-                // Provide a fallback response based on the selected persona
-                const fallbackResponses = {
-                    anxiety: "That sounds interesting. Could you tell me more about that?",
-                    professional: "Thank you for sharing. What are the next steps?",
-                    relationship: "I understand. How are you feeling about all this?",
-                    concise: ["Interesting", "Tell me more", "That makes sense"],
-                    crosscultural: "That's a thoughtful point. How does this align with your cultural perspective?",
-                    languagelearning: "I understand. The grammar looks good, but you could also say it this way...",
-                    meeting: "That's an important point. Should we discuss this further in our agenda?",
+                // Enhanced fallback responses with more context awareness
+                const enhancedFallbackResponses = {
+                    anxiety: [
+                        "That sounds interesting. Could you tell me more about that?",
+                        "I can understand why that might feel overwhelming. What's on your mind?",
+                        "That's a thoughtful point. How does that make you feel?",
+                        "I hear you. Would you like to explore that further?"
+                    ],
+                    professional: [
+                        "Thank you for sharing. What are the next steps?",
+                        "That's an important consideration. How should we move forward?",
+                        "I appreciate your input. What's your perspective on the timeline?",
+                        "That's valuable feedback. What are your recommendations?"
+                    ],
+                    relationship: [
+                        "I understand. How are you feeling about all this?",
+                        "That sounds meaningful. How did that impact you?",
+                        "I can see this matters to you. What would support look like?",
+                        "That's significant. How can I best support you right now?"
+                    ],
+                    concise: [
+                        ["Interesting", "Tell me more", "That makes sense"],
+                        ["Got it", "Thanks", "I see"],
+                        ["Hmm", "Really?", "Wow"],
+                        ["Yes", "Agreed", "Exactly"]
+                    ],
+                    crosscultural: [
+                        "That's a thoughtful point. How does this align with your cultural perspective?",
+                        "I appreciate that cultural insight. How might this be approached differently?",
+                        "That's culturally nuanced. What context should I be aware of?",
+                        "Thank you for sharing that perspective. How does it relate to your background?"
+                    ],
+                    languagelearning: [
+                        "I understand. The grammar looks good, but you could also say it this way...",
+                        "That's clear. In more natural English, you might say...",
+                        "Good attempt! Here's a more idiomatic way to express that...",
+                        "I follow you. Another way to say that would be..."
+                    ],
+                    meeting: [
+                        "That's an important point. Should we discuss this further in our agenda?",
+                        "That's worth noting. How does this impact our timeline?",
+                        "I see your point. What are the action items from this?",
+                        "That's relevant. Should we allocate time for this in our next discussion?"
+                    ]
                 };
 
-                const fallbackResponse = fallbackResponses[persona] || fallbackResponses.anxiety;
+                // Select a random fallback response for more natural variation
+                const personaFallbacks = enhancedFallbackResponses[persona] || enhancedFallbackResponses.anxiety;
                 let fallbackText;
-                if (typeof fallbackResponse === 'string') {
-                    fallbackText = fallbackResponse;
-                } else if (Array.isArray(fallbackResponse)) {
-                    // For concise persona, join the options with " | " as specified in the prompt
-                    fallbackText = persona === 'concise' ? fallbackResponse.join(' | ') : fallbackResponse.join(', ');
+
+                if (Array.isArray(personaFallbacks)) {
+                    const randomFallback = personaFallbacks[Math.floor(Math.random() * personaFallbacks.length)];
+                    if (Array.isArray(randomFallback)) {
+                        // For concise persona, join the options with " | " as specified in the prompt
+                        fallbackText = persona === 'concise' ? randomFallback.join(' | ') : randomFallback.join(', ');
+                    } else {
+                        fallbackText = randomFallback;
+                    }
                 } else {
-                    fallbackText = String(fallbackResponse);
+                    fallbackText = String(personaFallbacks);
+                }
+
+                // Add emotional context to fallback if available
+                const emotionResult = analyzeEmotion(sanitizedText);
+                if (emotionResult.emotion !== 'neutral' && emotionResult.confidence > 0.5) {
+                    fallbackText += ` (I sense you're feeling ${emotionResult.emotion})`;
                 }
 
                 self.postMessage({
