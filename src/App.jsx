@@ -35,7 +35,12 @@ const App = () => {
   // VAD Implementation with stable options
   const vad = useMicVAD({
     startOnLoad: false,
+    onSpeechStart: () => {
+      console.log("Speech detected...");
+      setStatus('Detected Speech...');
+    },
     onSpeechEnd: (audio) => {
+      console.log("Speech ended, processing audio...");
       if (!isVADModeRef.current) {
         vad.pause();
       }
@@ -43,8 +48,17 @@ const App = () => {
         processAudioRef.current(audio);
       }
     },
+    onVADReady: () => {
+      console.log("VAD is ready");
+    },
+    onError: (err) => {
+      console.error("VAD Error:", err);
+    },
     workletURL: "/vad.worklet.bundle.min.js",
     modelURL: "/silero_vad.onnx",
+    positiveSpeechThreshold: 0.5, // Lower threshold slightly for better sensitivity
+    negativeSpeechThreshold: 0.35,
+    minSpeechFrames: 3,
   });
 
   const toggleVAD = () => {

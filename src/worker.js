@@ -104,7 +104,22 @@ self.onmessage = async (event) => {
 
         if (type === 'stt') {
             if (!MLPipeline.stt) await pipelineManager.loadSTT();
-            const output = await MLPipeline.stt(audio, {
+            
+            console.log("Processing audio in worker, length:", audio?.length);
+            
+            // Handle different ways audio might be passed (as object or array)
+            let audioData;
+            if (audio instanceof Float32Array) {
+                audioData = audio;
+            } else if (Array.isArray(audio)) {
+                audioData = new Float32Array(audio);
+            } else if (audio && typeof audio === 'object') {
+                audioData = new Float32Array(Object.values(audio));
+            } else {
+                throw new Error("Invalid audio data format received by worker");
+            }
+            
+            const output = await MLPipeline.stt(audioData, {
                 chunk_length_s: 30,
                 stride_length_s: 5,
                 language: 'english',

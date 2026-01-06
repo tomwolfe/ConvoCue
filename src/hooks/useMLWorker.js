@@ -30,10 +30,12 @@ export const useMLWorker = () => {
             break;
           case 'stt_result':
             if (!text || text.trim().length === 0) {
+              console.log("Empty transcription, resetting...");
               setIsProcessing(false);
-              setStatus('Ready');
+              setStatus('Ready (Try speaking again)');
               break;
             }
+            console.log("Transcription received:", text);
             setTranscript(text);
             if (text.trim().length > 2) {
               setStatus('Thinking...');
