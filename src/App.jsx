@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Mic, Loader2, Volume2 } from 'lucide-react';
+import { Mic, Loader2, Volume2, AlertCircle } from 'lucide-react';
 import { useMLWorker } from './hooks/useMLWorker';
 import VADContent from './components/VADContent';
 
@@ -45,30 +45,48 @@ const App = () => {
       </header>
 
       {!hasInteracted ? (
-        <main style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2rem', marginTop: '2rem' }}>
+        <main className="initial-screen">
           <div className={`status-badge ${!isReady ? 'processing' : ''}`}>
             {!isReady ? <Loader2 className="animate-spin" size={16} /> : <div className="dot" />}
             <span>{status}</span>
           </div>
-          {!isReady && (
-            <div className="progress-container">
-              <div className="progress-bar" style={{ width: `${progress}%` }} />
+          
+          <div className="setup-card">
+            <div className="progress-display">
+              <div className="progress-ring">
+                <svg viewBox="0 0 100 100">
+                  <circle className="bg" cx="50" cy="50" r="45" />
+                  <circle 
+                    className="fg" 
+                    cx="50" 
+                    cy="50" 
+                    r="45" 
+                    style={{ strokeDashoffset: 282.7 - (282.7 * progress) / 100 }}
+                  />
+                </svg>
+                <div className="progress-text">{progress}%</div>
+              </div>
+            </div>
+
+            <h2>Ready to tune in?</h2>
+            <p>ConvoCue needs your microphone to analyze social cues in real-time. All processing happens locally on your device.</p>
+
+            <button 
+              className={`btn-main ${!isReady ? 'disabled' : 'pulse'}`}
+              onClick={handleStart}
+              disabled={!isReady}
+            >
+              <Mic size={24} />
+              <span>Enable Microphone</span>
+            </button>
+          </div>
+          
+          {micPermissionError && (
+            <div className="error-box">
+              <AlertCircle size={20} />
+              <p>Microphone access denied: {micPermissionError}</p>
             </div>
           )}
-          <button 
-            className="btn-pulse active" 
-            onClick={handleStart}
-            style={{ width: '220px', height: '220px', borderRadius: '50%', flexDirection: 'column' }}
-            disabled={!isReady}
-          >
-            <div className="icon-circle" style={{ width: '80px', height: '80px' }}>
-              <Mic size={40} />
-            </div>
-            <span style={{ fontSize: '1.1rem' }}>Initialize Microphone</span>
-          </button>
-          <p style={{ textAlign: 'center', opacity: 0.6, maxWidth: '300px' }}>
-            Click to enable microphone access and start the social cue analyzer.
-          </p>
         </main>
       ) : (
         <VADContent 

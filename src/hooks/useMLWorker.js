@@ -13,37 +13,39 @@ export const useMLWorker = () => {
   useEffect(() => {
     console.log("Initializing worker...");
     try {
-      worker.current = new Worker(new URL('../worker.js', import.meta.url), {
+      const newWorker = new Worker(new URL('../worker.js', import.meta.url), {
         type: 'module'
       });
+      worker.current = newWorker;
 
-      worker.current.onmessage = (e) => {
+      newWorker.onmessage = (e) => {
         const { type, text, status: workerStatus, progress: workerProgress, error } = e.data;
         
         switch (type) {
           case 'status':
             setStatus(workerStatus);
             if (workerProgress !== undefined) {
-              setProgress(workerProgress);
+              setProgress(Math.round(workerProgress));
             }
             break;
           case 'ready':
             setIsReady(true);
             setProgress(100);
             setStatus('Ready');
+            console.log("Worker signaled ready");
             break;
           case 'stt_result':
             if (!text || text.trim().length === 0) {
               console.log("Empty transcription, resetting...");
               setIsProcessing(false);
-              setStatus('Ready (Try speaking again)');
+              setStatus('Ready');
               break;
             }
             console.log("Transcription received:", text);
             setTranscript(text);
-            if (text.trim().length > 2) {
-              setStatus('Thinking...');
-              worker.current.postMessage({ 
+            if (text.trim().length > 1) {
+              setStatus('Analyzing social cue...');
+              newWorker.postMessage({ 
                 type: 'llm', 
                 text,
                 taskId: `llm-${Date.now()}`
@@ -57,29 +59,33 @@ export const useMLWorker = () => {
             setSuggestion(text);
             setIsProcessing(false);
             setStatus('Ready');
-            if (navigator.vibrate) {
+            // Haptic feedback if available
+            if (typeof navigator !== 'undefined' && navigator.vibrate) {
               navigator.vibrate(20);
             }
             break;
           case 'error':
-            console.error("Worker Error:", error);
-            setStatus('Error: ' + error);
+            console.error("Worker Logic Error:", error);
+            setStatus(`Model Error: ${error}`);
             setIsProcessing(false);
+            setIsReady(false); // Mark as not ready if critical error
             break;
           default:
+            console.warn("Unknown worker message type:", type);
             break;
         }
       };
 
-      worker.current.onerror = (e) => {
+      newWorker.onerror = (e) => {
         console.error("Worker Script Error:", e);
-        setStatus('Worker Failed to Load');
+        setStatus('Worker failed to initialize. Try refreshing.');
+        setIsProcessing(false);
       };
 
-      worker.current.postMessage({ type: 'load', taskId: 'initial-load' });
+      newWorker.postMessage({ type: 'load', taskId: 'initial-load' });
     } catch (err) {
       console.error("Failed to create worker:", err);
-      setTimeout(() => setStatus('Worker Creation Failed'), 0);
+      setStatus('Could not create background worker');
     }
 
     return () => {

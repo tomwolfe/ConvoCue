@@ -25,12 +25,12 @@ vi.stubGlobal('navigator', {
 
 test('renders ConvoCue heading', () => {
   render(<App />);
-  const headingElement = screen.getByText(/ConvoCue/i);
-  expect(headingElement).toBeInTheDocument();
+  const headingElements = screen.getAllByText(/ConvoCue/i);
+  expect(headingElements[0]).toBeInTheDocument();
 });
 
-test('renders Initialize Microphone button', () => {
+test('renders Enable Microphone button', () => {
   render(<App />);
-  const buttonElement = screen.getByText(/Initialize Microphone/i);
+  const buttonElement = screen.getByText(/Enable Microphone/i);
   expect(buttonElement).toBeInTheDocument();
 });

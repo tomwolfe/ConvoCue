@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useMicVAD } from '@ricky0123/vad-react';
-import { Mic, Heart, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
+import { Mic, Heart, Loader2, AlertCircle, RefreshCw, Trash2 } from 'lucide-react';
 
 const VADContent = ({ 
   status, 
@@ -18,21 +18,29 @@ const VADContent = ({
   const [isVADMode, setIsVADMode] = useState(false);
   const [vadError, setVadError] = useState(initialError);
   
+  // Use refs to avoid stale closures in VAD callbacks without re-triggering useMicVAD
   const isVADModeRef = useRef(isVADMode);
+  const processAudioRef = useRef(processAudio);
+  
   useEffect(() => {
     isVADModeRef.current = isVADMode;
   }, [isVADMode]);
 
-  const processAudioRef = useRef(processAudio);
   useEffect(() => {
     processAudioRef.current = processAudio;
   }, [processAudio]);
 
   const vadRef = useRef(null);
 
+  const handleClear = () => {
+    setTranscript('');
+    setSuggestion('');
+    if (!isProcessing) setStatus('Ready');
+  };
+
   // Define stable callbacks for VAD
   const onSpeechEnd = useCallback((audio) => {
-    console.log("Speech ended, processing audio...");
+    console.log("Speech ended");
     if (!isVADModeRef.current && vadRef.current) {
       vadRef.current.pause();
     }
@@ -42,18 +50,16 @@ const VADContent = ({
   }, []);
 
   const onError = useCallback((err) => {
-    console.error("VAD Error Detail:", err);
-    setVadError(err?.message || String(err) || "Unknown microphone error");
+    console.error("VAD Error:", err);
+    setVadError(err?.message || String(err));
   }, []);
 
   const onVADReady = useCallback(() => {
-    console.log("VAD is ready");
     setVadError(null);
   }, []);
 
   const onSpeechStart = useCallback(() => {
-    console.log("Speech detected...");
-    setStatus('Detected Speech...');
+    setStatus('Listening...');
   }, [setStatus]);
 
   // VAD Implementation
@@ -63,15 +69,13 @@ const VADContent = ({
     onSpeechEnd,
     onVADReady,
     onError,
-    // Use local paths with cache-busting/absolute reference for Vite
     workletURL: "/vad.worklet.bundle.min.js",
     modelURL: "/silero_vad.onnx",
-    positiveSpeechThreshold: 0.5,
+    positiveSpeechThreshold: 0.55,
     negativeSpeechThreshold: 0.35,
-    minSpeechFrames: 3,
+    minSpeechFrames: 4,
   });
 
-  // Keep the ref updated for use in callbacks
   useEffect(() => {
     vadRef.current = vad;
   }, [vad]);
@@ -83,11 +87,10 @@ const VADContent = ({
       setIsVADMode(false);
       setStatus('Ready');
     } else {
-      setSuggestion('');
-      setTranscript('');
+      handleClear();
       vad.start();
       setIsVADMode(true);
-      setStatus('Heartbeat Listening...');
+      setStatus('Heartbeat Active');
     }
   };
 
@@ -97,95 +100,83 @@ const VADContent = ({
       vad.pause();
       setStatus('Ready');
     } else {
-      setSuggestion('');
-      setTranscript('');
+      handleClear();
       vad.start();
       setStatus('Listening...');
     }
   };
 
   return (
-    <>
-      <main>
-        <div className={`status-badge ${isProcessing || vad.loading || vad.errored || vadError ? 'processing' : ''} ${vad.errored || vadError ? 'error' : ''}`}>
-          {isProcessing || (vad.loading && !vad.errored && !vadError) ? (
-            <Loader2 className="animate-spin" size={16} />
-          ) : (vad.errored || vadError) ? (
-            <AlertCircle size={16} color="#FF7675" />
-          ) : (
-            <div className="dot" />
-          )}
-          <span>
-            {(vad.errored || vadError) ? `Mic Error: ${vadError || "Check permissions"}` : (vad.loading ? "VAD Loading..." : status)}
-          </span>
-        </div>
-        {!isReady && (
-          <div className="progress-container" style={{ margin: '0 auto 2rem' }}>
-            <div className="progress-bar" style={{ width: `${progress}%` }} />
-          </div>
+    <main className="vad-container">
+      <div className={`status-badge ${isProcessing || vad.loading || vad.errored || vadError ? 'processing' : ''} ${vad.errored || vadError ? 'error' : ''}`}>
+        {isProcessing || (vad.loading && !vad.errored && !vadError) ? (
+          <Loader2 className="animate-spin" size={16} />
+        ) : (vad.errored || vadError) ? (
+          <AlertCircle size={16} />
+        ) : (
+          <div className="dot" />
         )}
+        <span>
+          {(vad.errored || vadError) ? `Mic Error` : (vad.loading ? "Warming up..." : status)}
+        </span>
+      </div>
 
-        <div className="display-area">
-          <div className={`card transcript ${transcript ? 'visible' : ''}`}>
-            <label>Detected Speech</label>
-            <p>{transcript || "Waiting for speech..."}</p>
+      <div className="display-area">
+        <div className={`card transcript ${transcript ? 'visible' : ''}`}>
+          <div className="card-header">
+            <label>You said</label>
+            {transcript && <button className="btn-icon" onClick={handleClear}><Trash2 size={14} /></button>}
           </div>
-          
-          <div className={`card suggestion ${suggestion ? 'visible' : ''}`}>
-            <label>Social Cue</label>
-            <p>{suggestion || "Analysis will appear here."}</p>
-          </div>
-        </div>
-
-        <div className="controls">
-          <button 
-            className={`btn-pulse ${vad.listening && !isVADMode ? 'active' : ''}`}
-            onClick={handleManualTrigger}
-            disabled={!isReady || isVADMode || vad.loading || vad.errored || !!vadError}
-          >
-            <div className="icon-circle">
-              <Mic size={28} />
-            </div>
-            <span>Pulse-to-Listen</span>
-          </button>
-
-          <button 
-            className={`btn-heartbeat ${isVADMode ? 'active' : ''}`}
-            onClick={toggleVAD}
-            disabled={!isReady || vad.loading || vad.errored || !!vadError}
-          >
-            <div className="icon-circle">
-              <Heart size={28} fill={isVADMode ? "white" : "none"} />
-            </div>
-            <span>Heartbeat Mode</span>
-          </button>
+          <p>{transcript || "Waiting for speech..."}</p>
         </div>
         
-        {(vad.errored || vadError) && (
-          <button 
-            className="btn-retry"
-            onClick={() => window.location.reload()}
-            style={{ 
-              marginTop: '2rem', 
-              padding: '1rem 2rem', 
-              borderRadius: '16px', 
-              background: '#FF7675', 
-              color: 'white', 
-              border: 'none', 
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              fontWeight: 'bold',
-              width: '100%'
-            }}
-          >
-            <RefreshCw size={20} />
-            Retry Microphone Access
+        <div className={`card suggestion ${suggestion ? 'visible' : ''}`}>
+          <label>Social Cue</label>
+          <p>{suggestion || "AI Brain is pondering..."}</p>
+          {isProcessing && !suggestion && (
+             <div className="thinking-dots">
+               <span>.</span><span>.</span><span>.</span>
+             </div>
+          )}
+        </div>
+      </div>
+
+      <div className="controls">
+        <button 
+          className={`btn-control pulse-btn ${vad.listening && !isVADMode ? 'active' : ''}`}
+          onClick={handleManualTrigger}
+          disabled={!isReady || isVADMode || vad.loading || vad.errored || !!vadError}
+          title="Manual Trigger"
+        >
+          <div className="icon-circle">
+            <Mic size={28} />
+          </div>
+          <span>Pulse</span>
+        </button>
+
+        <button 
+          className={`btn-control heartbeat-btn ${isVADMode ? 'active' : ''}`}
+          onClick={toggleVAD}
+          disabled={!isReady || vad.loading || vad.errored || !!vadError}
+          title="Continuous Mode"
+        >
+          <div className="icon-circle">
+            <Heart size={28} fill={isVADMode ? "white" : "none"} />
+          </div>
+          <span>Heartbeat</span>
+        </button>
+      </div>
+      
+      {(vad.errored || vadError) && (
+        <div className="error-recovery">
+          <p>{vadError || "Microphone access error"}</p>
+          <button className="btn-retry" onClick={() => window.location.reload()}>
+            <RefreshCw size={18} />
+            Try Again
           </button>
-        )}
-      </main>
-    </>
+        </div>
+      )}
+    </main>
   );
 };
 

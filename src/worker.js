@@ -25,25 +25,24 @@ class MLPipeline {
 
     async loadSTT(progress_callback) {
         if (!MLPipeline.stt) {
-            console.log("Loading STT model...");
+            console.log("Loading STT model (whisper-tiny.en)...");
             try {
-                // Using whisper-tiny.en with quantized weights if possible
                 MLPipeline.stt = await pipeline('automatic-speech-recognition', 'onnx-community/whisper-tiny.en', {
                     progress_callback,
                     device: 'wasm',
-                    dtype: 'fp32', // whisper-tiny.en on onnx-community is often fp32
+                    dtype: 'fp32',
                 });
                 console.log("STT model loaded successfully");
             } catch (err) {
-                console.error("Failed to load STT model:", err);
-                throw err;
+                console.error("CRITICAL: Failed to load STT model:", err);
+                throw new Error(`STT Load Failed: ${err.message}`);
             }
         }
     }
 
     async loadLLM(progress_callback) {
         if (!MLPipeline.llm) {
-            console.log("Loading LLM model...");
+            console.log("Loading LLM model (Qwen2.5-0.5B-Instruct)...");
             try {
                 MLPipeline.llm = await pipeline('text-generation', 'onnx-community/Qwen2.5-0.5B-Instruct', {
                     progress_callback,
@@ -52,8 +51,8 @@ class MLPipeline {
                 });
                 console.log("LLM model loaded successfully");
             } catch (err) {
-                console.error("Failed to load LLM model:", err);
-                throw err;
+                console.error("CRITICAL: Failed to load LLM model:", err);
+                throw new Error(`LLM Load Failed: ${err.message}`);
             }
         }
     }
@@ -73,6 +72,12 @@ const throttledProgress = (p, statusPrefix, taskId) => {
             status: `${statusPrefix}: Initializing...`, 
             taskId 
         });
+    } else if (p.status === 'done') {
+        self.postMessage({ 
+            type: 'status', 
+            status: `${statusPrefix}: Ready`, 
+            taskId 
+        });
     }
 };
 
@@ -82,13 +87,14 @@ self.onmessage = async (event) => {
 
     try {
         if (type === 'load') {
-            self.postMessage({ type: 'status', status: 'Initializing models...', taskId });
+            self.postMessage({ type: 'status', status: 'Waking up AI engines...', taskId });
             
-            await pipelineManager.loadSTT((p) => throttledProgress(p, 'Loading Speech Engine', taskId));
-            self.postMessage({ type: 'status', status: 'Speech Engine Ready. Loading AI Brain...', taskId });
+            await pipelineManager.loadSTT((p) => throttledProgress(p, 'Speech Engine', taskId));
+            self.postMessage({ type: 'status', status: 'Speech Engine Ready. Loading Social Brain...', taskId });
 
-            await pipelineManager.loadLLM((p) => throttledProgress(p, 'Loading AI Brain', taskId));
+            await pipelineManager.loadLLM((p) => throttledProgress(p, 'Social Brain', taskId));
             
+            console.log("Worker fully initialized");
             self.postMessage({ type: 'ready', taskId });
         }
 
