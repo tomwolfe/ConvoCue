@@ -77,7 +77,7 @@ const VADContent = ({
     onVADReady,
     onError,
     workletURL: "/vad.worklet.bundle.min.js",
-    modelURL: "/silero_vad.onnx",
+    modelURL: "/silero_vad_v5.onnx",  // Updated to use the versioned model file
     positiveSpeechThreshold: 0.55,
     negativeSpeechThreshold: 0.35,
     minSpeechFrames: 4,
@@ -94,7 +94,7 @@ const VADContent = ({
   useEffect(() => {
     if (vad.errored && !vadError) {
       console.error("VAD entered errored state. Checking console for worklet/model load errors.");
-      setVadError("VAD failed to initialize. Please check if silero_vad.onnx and vad.worklet.bundle.min.js are in the public folder.");
+      setVadError("VAD failed to initialize. Please check if silero_vad_v5.onnx, vad.worklet.bundle.min.js, and ort-wasm-simd-threaded.wasm are in the public folder.");
     }
   }, [vad.errored, vadError]);
 
