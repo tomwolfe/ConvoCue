@@ -301,13 +301,10 @@ self.onmessage = async (event) => {
             const personaConfig = AppConfig.models.personas[persona] || AppConfig.models.personas.social;
             const sanitizedText = text.trim().substring(0, AppConfig.system.maxTranscriptLength);
 
-            // Process history to handle conversation summaries appropriately
+            // Process history and ensure we don't duplicate the current message
             const processedHistory = [];
             for (const msg of history) {
                 if (msg.role === 'system' && msg.content.startsWith('Previous conversation summary:')) {
-                    // For system messages containing conversation summaries, we can either:
-                    // 1. Include as a system message with context
-                    // 2. Or convert to a more structured format
                     processedHistory.push({
                         role: "system",
                         content: `Context from earlier conversation: ${msg.content.substring('Previous conversation summary: '.length)}`
@@ -324,20 +321,26 @@ self.onmessage = async (event) => {
                 emotionalContext = `Emotional analysis: The user's tone seems ${sentiment}. Please respond with appropriate empathy and emotional support.`;
             }
 
+            // Construct messages array, ensuring the latest user message is present exactly once
             const messages = [
                 { role: "system", content: personaConfig.prompt + (emotionalContext ? ` ${emotionalContext}` : '') },
                 ...processedHistory,
-                { role: "user", content: sanitizedText },
             ];
 
-            console.log(`Starting LLM generation for mode: ${persona} with ${history.length} history items`);
+            // If the latest message in processedHistory is not the current sanitizedText, add it
+            const lastHistoryMessage = processedHistory[processedHistory.length - 1];
+            if (!lastHistoryMessage || lastHistoryMessage.role !== 'user' || lastHistoryMessage.content !== sanitizedText) {
+                messages.push({ role: "user", content: sanitizedText });
+            }
+
+            console.log(`Starting LLM generation for mode: ${persona} with ${messages.length} total messages`);
 
             try {
                 const streamer = new TextStreamer(MLPipeline.llm.tokenizer, {
                     skip_prompt: true,
                     skip_special_tokens: true,
                     callback_function: (chunk) => {
-                        if (typeof chunk === 'string') {
+                        if (typeof chunk === 'string' && chunk.length > 0) {
                             self.postMessage({ type: 'llm_chunk', text: chunk, taskId });
                         }
                     },
@@ -354,13 +357,38 @@ self.onmessage = async (event) => {
                     throw new Error("Invalid LLM output format");
                 }
 
-                const response = output[0].generated_text.at(-1)?.content?.trim() || '';
-
-                if (typeof response !== 'string') {
-                    throw new Error("Invalid LLM response format");
+                // In Transformers.js v3, the output for chat is the full list of messages
+                // We want to find the last assistant message
+                const resultMessages = output[0].generated_text;
+                let response = '';
+                
+                for (let i = resultMessages.length - 1; i >= 0; i--) {
+                    if (resultMessages[i].role === 'assistant') {
+                        response = resultMessages[i].content.trim();
+                        break;
+                    }
                 }
 
-                console.log("LLM Generation complete");
+                // If no assistant response was found, it might be that the model didn't use chat format
+                // or just returned text. Fall back to the last message if it's not the user message.
+                if (!response) {
+                    const lastMsg = resultMessages[resultMessages.length - 1];
+                    if (lastMsg && lastMsg.role !== 'user') {
+                        response = lastMsg.content.trim();
+                    }
+                }
+
+                if (!response) {
+                    console.warn("LLM failed to generate a distinct response, using fallback");
+                    throw new Error("Empty response");
+                }
+
+                if (response.toLowerCase() === sanitizedText.toLowerCase()) {
+                    console.warn("LLM echoed the input, triggering fallback");
+                    throw new Error("Echo detected");
+                }
+
+                console.log("LLM Generation complete. Response length:", response.length);
                 self.postMessage({ type: 'llm_result', text: response, taskId });
             } catch (llmError) {
                 console.error("LLM generation failed:", llmError);

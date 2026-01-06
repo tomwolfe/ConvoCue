@@ -110,6 +110,12 @@ export const useMLWorker = () => {
             }
             break;
           }
+          case 'llm_chunk': {
+            if (text) {
+              setSuggestion(prev => prev + text);
+            }
+            break;
+          }
           case 'memory_warning':
             console.warn("Worker is running low on memory:", e.data.memoryInfo);
             // Optionally update UI to show a warning
