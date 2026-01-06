@@ -9,6 +9,7 @@ export const useMLWorker = () => {
   const [isReady, setIsReady] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [suggestion, setSuggestion] = useState('');
+  const [emotionData, setEmotionData] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStep, setProcessingStep] = useState('none'); // 'none', 'transcribing', 'thinking'
   const [history, setHistory] = useState([]);
@@ -73,6 +74,7 @@ export const useMLWorker = () => {
             console.log("Worker signaled ready. Models are loaded.");
             break;
           case 'stt_result': {
+            const { metadata } = e.data;
             if (!text || text.trim().length === 0) {
               console.log("Empty transcription, resetting...");
               setIsProcessing(false);
@@ -85,7 +87,7 @@ export const useMLWorker = () => {
             const sanitizedTranscript = text.trim().substring(0, AppConfig.system.maxTranscriptLength);
             setTranscript(sanitizedTranscript);
 
-            console.log("Transcription received:", sanitizedTranscript);
+            console.log("Transcription received:", sanitizedTranscript, "Metadata:", metadata);
             if (sanitizedTranscript.trim().length > 1) {
               setStatus('Analyzing social cue...');
               setProcessingStep('thinking');
@@ -103,6 +105,7 @@ export const useMLWorker = () => {
               persona: persona,
               culturalContext: culturalContext,
               history: nextHistory,
+              metadata: metadata,
               taskId: `llm-${Date.now()}`
             });
             } else {
@@ -116,10 +119,12 @@ export const useMLWorker = () => {
             const sanitizedSuggestion = text ? text.trim().substring(0, AppConfig.system.maxSuggestionLength) : '';
 
             // Get emotion data from the message if available
-            const emotionData = e.data.emotionData || null;
+            const emotion = e.data.emotionData || null;
+            setEmotionData(emotion);
 
             // Enhance response based on user preferences and emotional context
-            const enhancedSuggestion = enhanceResponse(sanitizedSuggestion, persona, emotionData);
+            // Pass the current transcript to enhanceResponse for deeper context (e.g. professional insights)
+            const enhancedSuggestion = enhanceResponse(sanitizedSuggestion, persona, emotion, transcript);
 
             setSuggestion(enhancedSuggestion);
             setIsProcessing(false);
@@ -304,6 +309,7 @@ export const useMLWorker = () => {
     isReady,
     transcript,
     suggestion,
+    emotionData,
     isProcessing,
     processingStep,
     processAudio,

@@ -585,10 +585,18 @@ self.onmessage = async (event) => {
                 throw new Error("Audio data is empty");
             }
 
+            // Calculate audio metadata (volume/RMS)
+            let sum = 0;
+            for (let i = 0; i < audioData.length; i++) {
+                sum += audioData[i] * audioData[i];
+            }
+            const rms = Math.sqrt(sum / audioData.length);
+            const duration = audioData.length / 16000; // Assuming 16kHz sample rate
+
             const output = await MLPipeline.stt(audioData, {
                 chunk_length_s: AppConfig.models.stt.chunk_length_s,
                 stride_length_s: AppConfig.models.stt.stride_length_s,
-                return_timestamps: false, // Save memory by not returning timestamps
+                return_timestamps: false,
             });
             
             if (!output || typeof output.text !== 'string') {
@@ -598,11 +606,16 @@ self.onmessage = async (event) => {
             // Immediately clear audio data from memory
             audioData = null;
             
-            self.postMessage({ type: 'stt_result', text: output.text, taskId });
+            self.postMessage({ 
+                type: 'stt_result', 
+                text: output.text, 
+                metadata: { rms, duration },
+                taskId 
+            });
         }
 
         if (type === 'llm') {
-            const { text, persona = 'social', history = [], culturalContext = 'general' } = event.data;
+            const { text, persona = 'social', history = [], culturalContext = 'general', metadata = {} } = event.data;
 
             // If memory is very tight, we might want to check again before loading LLM
             const preLLMMemory = checkMemoryUsage();
@@ -626,6 +639,20 @@ self.onmessage = async (event) => {
 
             const personaConfig = AppConfig.models.personas[persona] || AppConfig.models.personas.anxiety;
             const sanitizedText = text.trim().substring(0, AppConfig.system.maxTranscriptLength);
+
+            // Analyze speech patterns from metadata
+            let speechPatternContext = '';
+            if (metadata.rms !== undefined && metadata.duration !== undefined) {
+                const words = sanitizedText.split(/\s+/).length;
+                const speechRate = words / metadata.duration;
+                const isLoud = metadata.rms > AppConfig.system.speechAnalysis.volumeThreshold;
+                const isFast = speechRate > AppConfig.system.speechAnalysis.tempoThreshold;
+
+                if (isLoud && isFast) speechPatternContext = ' The user sounds very energetic or urgent.';
+                else if (isLoud) speechPatternContext = ' The user is speaking clearly and with emphasis.';
+                else if (isFast) speechPatternContext = ' The user is speaking quickly, possibly excited or rushed.';
+                else if (metadata.rms < 0.005) speechPatternContext = ' The user is speaking very softly or tentatively.';
+            }
 
             // Process history and ensure we don't duplicate the current message
             const processedHistory = [];
@@ -657,7 +684,7 @@ self.onmessage = async (event) => {
                                     emotionResult.dominance > 0.5 ? 'moderately assertive' :
                                     emotionResult.dominance > 0.3 ? 'somewhat submissive' : 'very submissive';
 
-                emotionalContext = `Emotional analysis: The user's tone seems to express ${emotionResult.emotion} with ${Math.round(emotionResult.confidence * 100)}% confidence. Valence (positive/negative): ${valenceDesc}. Arousal (calm/excited): ${arousalDesc}. Dominance (controlled/in control): ${dominanceDesc}. Please respond with appropriate empathy and emotional awareness.`;
+                emotionalContext = ` Emotional analysis: The user's tone seems to express ${emotionResult.emotion} with ${Math.round(emotionResult.confidence * 100)}% confidence. Valence (positive/negative): ${valenceDesc}. Arousal (calm/excited): ${arousalDesc}. Dominance (controlled/in control): ${dominanceDesc}. Please respond with appropriate empathy and emotional awareness.`;
             }
 
             // Analyze cultural context for cross-cultural and related personas
@@ -667,8 +694,9 @@ self.onmessage = async (event) => {
             }
 
             // Construct messages array, ensuring the latest user message is present exactly once
+            const systemPrompt = personaConfig.prompt + speechPatternContext + emotionalContext + (culturalContextAnalysis ? ` ${culturalContextAnalysis}` : '');
             const messages = [
-                { role: "system", content: personaConfig.prompt + (emotionalContext ? ` ${emotionalContext}` : '') + (culturalContextAnalysis ? ` ${culturalContextAnalysis}` : '') },
+                { role: "system", content: systemPrompt },
                 ...processedHistory,
             ];
 

@@ -182,17 +182,60 @@ export const hasDislikedPhrases = (response) => {
 };
 
 /**
+ * Applies professional-specific insights to responses
+ * @param {string} response - Original response
+ * @param {string} input - User input/transcript
+ * @returns {string} Response with professional insights
+ */
+const applyProfessionalInsights = (response, input) => {
+  let professionalResponse = response;
+  const lowerInput = input.toLowerCase();
+
+  // 1. Action Item Detection
+  const actionKeywords = ['need to', 'should', 'will', 'let\'s', 'assign', 'deadline', 'task', 'follow up'];
+  const hasActionItem = actionKeywords.some(keyword => lowerInput.includes(keyword));
+  
+  if (hasActionItem && !response.toLowerCase().includes('action') && !response.toLowerCase().includes('next steps')) {
+    professionalResponse = `[Action Item] ${professionalResponse} Should we note down the next steps?`;
+  }
+
+  // 2. Conflict Resolution Cues
+  const conflictKeywords = ['disagree', 'wrong', 'problem', 'issue', 'not happy', 'frustrated', 'mistake'];
+  const hasConflict = conflictKeywords.some(keyword => lowerInput.includes(keyword));
+
+  if (hasConflict) {
+    professionalResponse = `[Diplomatic] ${professionalResponse} I hear the concern. How can we find a middle ground?`;
+  }
+
+  // 3. Power Dynamic Alerts (subtle cues for high-stakes situations)
+  const powerKeywords = ['boss', 'manager', 'executive', 'director', 'urgent', 'priority', 'important'];
+  const isHighStakes = powerKeywords.some(keyword => lowerInput.includes(keyword));
+
+  if (isHighStakes && !hasConflict) {
+    professionalResponse = `[Strategic] ${professionalResponse} This seems like a priority for leadership.`;
+  }
+
+  return professionalResponse;
+};
+
+/**
  * Enhances a response based on user preferences, emotional context, and feedback patterns
  * @param {string} response - Original response to enhance
  * @param {string} persona - Current persona being used
  * @param {object} emotionData - Optional emotional analysis data
+ * @param {string} input - Optional original user transcript for deeper context
  * @returns {string} Enhanced response
  */
-export const enhanceResponse = (response, persona, emotionData = null) => {
+export const enhanceResponse = (response, persona, emotionData = null, input = '') => {
   if (!response) return response;
 
   const preferences = getUserPreferences();
   let enhancedResponse = response;
+
+  // Apply professional insights for relevant personas
+  if ((persona === 'professional' || persona === 'meeting') && input) {
+    enhancedResponse = applyProfessionalInsights(enhancedResponse, input);
+  }
 
   // Adjust length based on user preference
   if (preferences.preferredLength === 'short' && enhancedResponse.length > 50) {

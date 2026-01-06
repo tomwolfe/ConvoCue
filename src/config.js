@@ -105,7 +105,10 @@ export const AppConfig = {
 
   // ML Worker configurations
   worker: {
-    numThreads: 1, // Keep at 1 for both mobile and desktop to be safe
+    // Dynamically set threads based on hardware, but cap for mobile to prevent memory pressure
+    numThreads: isMobile 
+      ? Math.min(2, (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 1)
+      : Math.min(4, (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 2),
     simd: true,
   },
 
@@ -115,6 +118,12 @@ export const AppConfig = {
     maxTranscriptLength: isMobile ? 500 : 1000,
     maxSuggestionLength: isMobile ? 250 : 500,
     maxHistoryLength: isMobile ? 4 : 8, // Increased history length for better context
+
+    // Speech analysis settings
+    speechAnalysis: {
+      volumeThreshold: 0.01, // Minimum RMS volume to consider speech "energetic"
+      tempoThreshold: 3.0,   // Words per second threshold for "fast" speech
+    },
 
     // Validation patterns
     allowedTranscriptPattern: /^[a-zA-Z0-9\s.,!?'""-]+$/,

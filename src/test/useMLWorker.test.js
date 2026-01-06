@@ -2,23 +2,29 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useMLWorker } from '../hooks/useMLWorker';
 
-// Mock the Worker API
-const mockWorker = {
-  postMessage: vi.fn(),
-  onmessage: null,
-  onerror: null,
-  terminate: vi.fn(),
-};
-
-// Mock the Worker constructor
-const mockWorkerConstructor = vi.fn(() => mockWorker);
+// Improved Worker Mock
+class MockWorker {
+  constructor(url, options) {
+    this.url = url;
+    this.options = options;
+    this.postMessage = vi.fn();
+    this.terminate = vi.fn();
+    this.onmessage = null;
+    this.onerror = null;
+    MockWorker.instance = this;
+  }
+}
 
 // Set up the mock globally
-global.Worker = mockWorkerConstructor;
+vi.stubGlobal('Worker', MockWorker);
 
-// Mock the URL constructor
-global.URL = {
-  createObjectURL: vi.fn(() => 'mocked-url'),
+// Mock the URL constructor properly
+const OriginalURL = global.URL;
+global.URL = class extends OriginalURL {
+  constructor(url, base) {
+    super(url, base || 'http://localhost');
+  }
+  static createObjectURL = vi.fn(() => 'mocked-url');
 };
 
 describe('useMLWorker Hook', () => {
@@ -26,16 +32,6 @@ describe('useMLWorker Hook', () => {
     vi.clearAllMocks();
     // Reset localStorage
     localStorage.clear();
-  });
-
-  afterEach(() => {
-    // Clean up any workers that might have been created
-    if (global.Worker.mock.results.length > 0) {
-      const worker = global.Worker.mock.results[0].value;
-      if (worker && typeof worker.terminate === 'function') {
-        worker.terminate();
-      }
-    }
   });
 
   it('initializes with correct default state', () => {
@@ -46,6 +42,7 @@ describe('useMLWorker Hook', () => {
     expect(result.current.isReady).toBe(false);
     expect(result.current.transcript).toBe('');
     expect(result.current.suggestion).toBe('');
+    expect(result.current.emotionData).toBe(null);
     expect(result.current.isProcessing).toBe(false);
     expect(result.current.persona).toBeDefined();
   });
@@ -55,8 +52,7 @@ describe('useMLWorker Hook', () => {
 
     // Simulate worker ready message
     await act(async () => {
-      const worker = mockWorkerConstructor.mock.results[0].value;
-      worker.onmessage({ data: { type: 'ready' } });
+      MockWorker.instance.onmessage({ data: { type: 'ready' } });
     });
 
     expect(result.current.isReady).toBe(true);
@@ -68,8 +64,7 @@ describe('useMLWorker Hook', () => {
 
     // Simulate worker ready
     await act(async () => {
-      const worker = mockWorkerConstructor.mock.results[0].value;
-      worker.onmessage({ data: { type: 'ready' } });
+      MockWorker.instance.onmessage({ data: { type: 'ready' } });
     });
 
     // Process audio
@@ -78,7 +73,7 @@ describe('useMLWorker Hook', () => {
       result.current.processAudio(audioBuffer);
     });
 
-    expect(mockWorker.postMessage).toHaveBeenCalledWith(
+    expect(MockWorker.instance.postMessage).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'stt',
         audio: expect.any(Float32Array),
@@ -92,14 +87,12 @@ describe('useMLWorker Hook', () => {
 
     // Simulate ready state
     await act(async () => {
-      const worker = mockWorkerConstructor.mock.results[0].value;
-      worker.onmessage({ data: { type: 'ready' } });
+      MockWorker.instance.onmessage({ data: { type: 'ready' } });
     });
 
     // Simulate transcription result
     await act(async () => {
-      const worker = mockWorkerConstructor.mock.results[0].value;
-      worker.onmessage({ data: { type: 'stt_result', text: 'Hello world' } });
+      MockWorker.instance.onmessage({ data: { type: 'stt_result', text: 'Hello world', metadata: { rms: 0.1, duration: 1 } } });
     });
 
     expect(result.current.transcript).toBe('Hello world');
@@ -110,17 +103,17 @@ describe('useMLWorker Hook', () => {
 
     // Simulate ready state
     await act(async () => {
-      const worker = mockWorkerConstructor.mock.results[0].value;
-      worker.onmessage({ data: { type: 'ready' } });
+      MockWorker.instance.onmessage({ data: { type: 'ready' } });
     });
 
     // Simulate LLM result
+    const mockEmotion = { emotion: 'joy', confidence: 0.8 };
     await act(async () => {
-      const worker = mockWorkerConstructor.mock.results[0].value;
-      worker.onmessage({ data: { type: 'llm_result', text: 'This is a suggestion' } });
+      MockWorker.instance.onmessage({ data: { type: 'llm_result', text: 'This is a suggestion', emotionData: mockEmotion } });
     });
 
-    expect(result.current.suggestion).toBe('This is a suggestion');
+    expect(result.current.suggestion).toContain('This is a suggestion');
+    expect(result.current.emotionData).toEqual(mockEmotion);
     expect(result.current.isProcessing).toBe(false);
   });
 
@@ -141,8 +134,7 @@ describe('useMLWorker Hook', () => {
 
     // Simulate error
     await act(async () => {
-      const worker = mockWorkerConstructor.mock.results[0].value;
-      worker.onmessage({ data: { type: 'error', error: 'Test error' } });
+      MockWorker.instance.onmessage({ data: { type: 'error', error: 'Test error' } });
     });
 
     expect(result.current.status).toContain('Model Error');

@@ -26,6 +26,7 @@ const App = () => {
     isReady,
     transcript,
     suggestion,
+    emotionData,
     isProcessing,
     processingStep,
     processAudio,
@@ -303,6 +304,7 @@ const App = () => {
             isReady={isReady}
             transcript={transcript}
             suggestion={suggestion}
+            emotionData={emotionData}
             isProcessing={isProcessing}
             processingStep={processingStep}
             processAudio={processAudio}

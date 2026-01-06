@@ -1,8 +1,43 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useMicVAD } from '@ricky0123/vad-react';
-import { Mic, Heart, Loader2, AlertCircle, RefreshCw, Trash2, Activity, Copy, Check, ThumbsUp, ThumbsDown, Flag } from 'lucide-react';
+import { Mic, Heart, Loader2, AlertCircle, RefreshCw, Trash2, Activity, Copy, Check, ThumbsUp, ThumbsDown, Flag, Zap, Info, ShieldAlert } from 'lucide-react';
 import { AppConfig } from '../config';
 import { submitFeedback } from '../utils/feedback';
+
+const GlanceWidget = ({ suggestion, emotionData, isProcessing }) => {
+  const emotion = emotionData?.emotion || 'neutral';
+  const hasActionItem = suggestion?.includes('[Action Item]');
+  const hasConflict = suggestion?.includes('[Diplomatic]');
+  const isHighStakes = suggestion?.includes('[Strategic]');
+
+  // Clean the suggestion for glance display
+  const displaySuggestion = suggestion
+    ? suggestion.replace(/\[.*?\]/g, '').trim()
+    : isProcessing ? 'Thinking...' : 'Listening...';
+
+  return (
+    <div className={`glance-widget ${emotion}`} role="region" aria-label="Glance Feedback">
+      <p className="glance-suggestion">{displaySuggestion}</p>
+      <div className="glance-indicators">
+        {hasActionItem && (
+          <div className="glance-badge action">
+            <Zap size={14} /> <span>Action</span>
+          </div>
+        )}
+        {hasConflict && (
+          <div className="glance-badge conflict">
+            <ShieldAlert size={14} /> <span>Conflict</span>
+          </div>
+        )}
+        {isHighStakes && (
+          <div className="glance-badge strategic">
+            <Info size={14} /> <span>Strategic</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const AudioVisualizer = ({ isActive, analyser, isCompactMode }) => {
   const canvasRef = useRef(null);
@@ -66,6 +101,7 @@ const VADContent = ({
   isReady,
   transcript,
   suggestion,
+  emotionData,
   isProcessing,
   processingStep,
   processAudio,
@@ -268,6 +304,13 @@ const VADContent = ({
       )}
 
       <div className="display-area" role="region" aria-label="Speech processing results">
+        {isSubtleMode && (
+          <GlanceWidget 
+            suggestion={suggestion} 
+            emotionData={emotionData} 
+            isProcessing={isProcessing} 
+          />
+        )}
         {!showMinimalUI && !isCompactMode && (
           <div className={`card transcript ${transcript ? 'visible' : ''}`} role="region" aria-labelledby="transcript-label">
             <div className="card-header">

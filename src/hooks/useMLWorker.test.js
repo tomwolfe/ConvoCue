@@ -71,11 +71,13 @@ describe('useMLWorker Comprehensive', () => {
     expect(result.current.processingStep).toBe('thinking');
 
     // Simulate LLM result from worker
+    const mockEmotion = { emotion: 'joy', confidence: 0.9 };
     await act(async () => {
-      MockWorker.instance.onmessage({ data: { type: 'llm_result', text: 'Hi there' } });
+      MockWorker.instance.onmessage({ data: { type: 'llm_result', text: 'Hi there', emotionData: mockEmotion } });
     });
 
-    expect(result.current.suggestion).toBe('Hi there');
+    expect(result.current.suggestion).toContain('Hi there');
+    expect(result.current.emotionData).toEqual(mockEmotion);
     expect(result.current.isProcessing).toBe(false);
     expect(result.current.processingStep).toBe('none');
     expect(result.current.history).toHaveLength(2); // user + assistant
