@@ -328,7 +328,7 @@ self.onmessage = async (event) => {
             ];
 
             // If the latest message in processedHistory is not the current sanitizedText, add it
-            const lastHistoryMessage = processedHistory[processedHistory.length - 1];
+            const lastHistoryMessage = processedHistory.length > 0 ? processedHistory[processedHistory.length - 1] : null;
             if (!lastHistoryMessage || lastHistoryMessage.role !== 'user' || lastHistoryMessage.content !== sanitizedText) {
                 messages.push({ role: "user", content: sanitizedText });
             }
@@ -357,24 +357,37 @@ self.onmessage = async (event) => {
                     throw new Error("Invalid LLM output format");
                 }
 
-                // In Transformers.js v3, the output for chat is the full list of messages
-                // We want to find the last assistant message
-                const resultMessages = output[0].generated_text;
+                // In Transformers.js v3, the output format might vary depending on the model
+                // Try to extract the response properly
                 let response = '';
-                
-                for (let i = resultMessages.length - 1; i >= 0; i--) {
-                    if (resultMessages[i].role === 'assistant') {
-                        response = resultMessages[i].content.trim();
-                        break;
+
+                // First, try to get the generated text from the output
+                if (output[0] && output[0].generated_text) {
+                    // If it's a chat format with multiple messages
+                    if (Array.isArray(output[0].generated_text)) {
+                        const resultMessages = output[0].generated_text;
+                        // Find the last assistant message that's not the original input
+                        for (let i = resultMessages.length - 1; i >= 0; i--) {
+                            if (resultMessages[i].role === 'assistant') {
+                                response = resultMessages[i].content.trim();
+                                break;
+                            }
+                        }
+                    } else {
+                        // If it's a simple text response
+                        response = output[0].generated_text.trim();
                     }
+                } else if (typeof output[0] === 'string') {
+                    // If the output is just a string
+                    response = output[0].trim();
                 }
 
-                // If no assistant response was found, it might be that the model didn't use chat format
-                // or just returned text. Fall back to the last message if it's not the user message.
-                if (!response) {
-                    const lastMsg = resultMessages[resultMessages.length - 1];
-                    if (lastMsg && lastMsg.role !== 'user') {
-                        response = lastMsg.content.trim();
+                // If we still don't have a response, try alternative extraction methods
+                if (!response && output[0] && typeof output[0] === 'object') {
+                    if (output[0].response) {
+                        response = output[0].response.trim();
+                    } else if (output[0].text) {
+                        response = output[0].text.trim();
                     }
                 }
 
@@ -383,7 +396,9 @@ self.onmessage = async (event) => {
                     throw new Error("Empty response");
                 }
 
-                if (response.toLowerCase() === sanitizedText.toLowerCase()) {
+                // Check if the response is just echoing the input
+                if (response.toLowerCase().includes(sanitizedText.toLowerCase()) ||
+                    sanitizedText.toLowerCase().includes(response.toLowerCase())) {
                     console.warn("LLM echoed the input, triggering fallback");
                     throw new Error("Echo detected");
                 }
@@ -406,11 +421,19 @@ self.onmessage = async (event) => {
                 };
 
                 const fallbackResponse = fallbackResponses[persona] || fallbackResponses.social;
-                const fallbackText = typeof fallbackResponse === 'string' ? fallbackResponse : fallbackResponse.join(', ');
+                let fallbackText;
+                if (typeof fallbackResponse === 'string') {
+                    fallbackText = fallbackResponse;
+                } else if (Array.isArray(fallbackResponse)) {
+                    // For concise persona, join the options with " | " as specified in the prompt
+                    fallbackText = persona === 'concise' ? fallbackResponse.join(' | ') : fallbackResponse.join(', ');
+                } else {
+                    fallbackText = String(fallbackResponse);
+                }
 
                 self.postMessage({
                     type: 'llm_result',
-                    text: `Response temporarily unavailable. Suggestion: ${fallbackText}`,
+                    text: fallbackText,
                     taskId
                 });
             }
