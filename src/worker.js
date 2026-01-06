@@ -23,7 +23,7 @@ class MLPipeline {
 
     async loadSTT(progress_callback) {
         if (!MLPipeline.stt) {
-            MLPipeline.stt = await pipeline('automatic-speech-recognition', 'distil-whisper/distil-small.en', {
+            MLPipeline.stt = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny.en', {
                 progress_callback,
             });
         }
