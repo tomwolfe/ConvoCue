@@ -171,7 +171,31 @@ button:active {
   animation: animate-spin 1s linear infinite;
 }
 
+.progress-container {
+  width: 100%;
+  max-width: 300px;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: -1rem;
+  margin-bottom: 2rem;
+}
+
+.progress-bar {
+  height: 100%;
+  background: #6C5CE7;
+  transition: width 0.3s ease;
+}
+
 @font-face {
+
   font-family: 'OpenDyslexic';
-  src: url('https://cdn.jsdelivr.net/gh/antijingoist/opendyslexic@2/dist/OpenDyslexic-Regular.otf');
+
+  src: url('/OpenDyslexic-Regular.otf') format('opentype');
+
+  font-weight: normal;
+
+  font-style: normal;
+
 }

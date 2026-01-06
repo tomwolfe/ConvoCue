@@ -4,12 +4,12 @@ import { pipeline, env } from '@huggingface/transformers';
 env.allowLocalModels = false;
 env.useBrowserCache = true;
 
-// Transformers.js v3 handles WASM paths automatically, but we can ensure stability
-// by only setting threads if needed. SIMD should be enabled for modern browsers.
-env.backends.onnx.wasm.numThreads = 1;
-env.backends.onnx.wasm.simd = true; // Enable SIMD for significantly better performance
+// Optimize threads based on hardware
+const numThreads = self.navigator.hardwareConcurrency ? Math.min(4, self.navigator.hardwareConcurrency) : 1;
+env.backends.onnx.wasm.numThreads = numThreads;
+env.backends.onnx.wasm.simd = true;
 
-console.log("ML Worker script loaded with @huggingface/transformers");
+console.log(`ML Worker script loaded with ${numThreads} threads`);
 
 class MLPipeline {
     static instance = null;
@@ -27,11 +27,11 @@ class MLPipeline {
         if (!MLPipeline.stt) {
             console.log("Loading STT model...");
             try {
-                // Using whisper-tiny.en which is lightweight
+                // Using whisper-tiny.en with quantized weights if possible
                 MLPipeline.stt = await pipeline('automatic-speech-recognition', 'onnx-community/whisper-tiny.en', {
                     progress_callback,
                     device: 'wasm',
-                    dtype: 'fp32',
+                    dtype: 'fp32', // whisper-tiny.en on onnx-community is often fp32
                 });
                 console.log("STT model loaded successfully");
             } catch (err) {
@@ -45,7 +45,6 @@ class MLPipeline {
         if (!MLPipeline.llm) {
             console.log("Loading LLM model...");
             try {
-                // Qwen2.5-0.5B-Instruct is very capable for its size
                 MLPipeline.llm = await pipeline('text-generation', 'onnx-community/Qwen2.5-0.5B-Instruct', {
                     progress_callback,
                     device: 'wasm',
@@ -61,24 +60,17 @@ class MLPipeline {
 }
 
 const throttledProgress = (p, statusPrefix, taskId) => {
-    // Report progress for all statuses to avoid getting "stuck" at 100% 
-    // while the next file is initiating or the model is compiling.
     if (p.status === 'progress') {
         self.postMessage({ 
             type: 'status', 
-            status: `${statusPrefix} (${p.file}): ${Math.round(p.progress ?? 0)}%`, 
+            status: `${statusPrefix}: ${Math.round(p.progress ?? 0)}%`, 
+            progress: p.progress,
             taskId 
         });
     } else if (p.status === 'initiate') {
         self.postMessage({ 
             type: 'status', 
-            status: `${statusPrefix}: Initializing ${p.file}...`, 
-            taskId 
-        });
-    } else if (p.status === 'done') {
-        self.postMessage({ 
-            type: 'status', 
-            status: `${statusPrefix}: Finished loading ${p.file}`, 
+            status: `${statusPrefix}: Initializing...`, 
             taskId 
         });
     }
@@ -90,33 +82,32 @@ self.onmessage = async (event) => {
 
     try {
         if (type === 'load') {
-            console.log("Start loading pipelines...");
             self.postMessage({ type: 'status', status: 'Initializing models...', taskId });
             
-            await pipelineManager.loadSTT((p) => throttledProgress(p, 'Speech Engine', taskId));
+            await pipelineManager.loadSTT((p) => throttledProgress(p, 'Loading Speech Engine', taskId));
             self.postMessage({ type: 'status', status: 'Speech Engine Ready. Loading AI Brain...', taskId });
 
-            await pipelineManager.loadLLM((p) => throttledProgress(p, 'AI Brain', taskId));
+            await pipelineManager.loadLLM((p) => throttledProgress(p, 'Loading AI Brain', taskId));
             
-            console.log("All pipelines ready");
             self.postMessage({ type: 'ready', taskId });
         }
 
         if (type === 'stt') {
             if (!MLPipeline.stt) await pipelineManager.loadSTT();
             
-            console.log("Processing audio in worker, length:", audio?.length);
-            
-            // Handle different ways audio might be passed (as object or array)
             let audioData;
             if (audio instanceof Float32Array) {
                 audioData = audio;
+            } else if (audio.buffer instanceof ArrayBuffer) {
+                // Handle cases where it might be passed as a TypedArray but lost its prototype during postMessage
+                audioData = new Float32Array(audio.buffer);
             } else if (Array.isArray(audio)) {
                 audioData = new Float32Array(audio);
-            } else if (audio && typeof audio === 'object') {
+            } else if (typeof audio === 'object' && audio !== null) {
+                // Fallback for structured clone issues
                 audioData = new Float32Array(Object.values(audio));
             } else {
-                throw new Error("Invalid audio data format received by worker");
+                throw new Error("Invalid audio data format");
             }
             
             const output = await MLPipeline.stt(audioData, {
@@ -124,7 +115,6 @@ self.onmessage = async (event) => {
                 stride_length_s: 5,
                 language: 'english',
             });
-            console.log("STT Result:", output.text);
             self.postMessage({ type: 'stt_result', text: output.text, taskId });
         }
 

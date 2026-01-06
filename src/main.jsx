@@ -19,7 +19,7 @@ if (rootElement) {
   }
 }
 
-window.onerror = function(message, source, lineno, colno, error) {
+window.onerror = function(message, source, lineno, colno, _error) {
   if (rootElement && rootElement.innerHTML === '') {
     rootElement.innerHTML = `
       <div style="padding: 20px; color: red; font-family: sans-serif;">

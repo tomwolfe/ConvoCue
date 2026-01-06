@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 
 export const useMLWorker = () => {
   const [status, setStatus] = useState('Initializing Models...');
+  const [progress, setProgress] = useState(0);
   const [isReady, setIsReady] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [suggestion, setSuggestion] = useState('');
@@ -17,15 +18,18 @@ export const useMLWorker = () => {
       });
 
       worker.current.onmessage = (e) => {
-        const { type, text, status: workerStatus, error } = e.data;
-        console.log("Worker message:", type, workerStatus || text || error);
+        const { type, text, status: workerStatus, progress: workerProgress, error } = e.data;
         
         switch (type) {
           case 'status':
             setStatus(workerStatus);
+            if (workerProgress !== undefined) {
+              setProgress(workerProgress);
+            }
             break;
           case 'ready':
             setIsReady(true);
+            setProgress(100);
             setStatus('Ready');
             break;
           case 'stt_result':
@@ -75,7 +79,7 @@ export const useMLWorker = () => {
       worker.current.postMessage({ type: 'load', taskId: 'initial-load' });
     } catch (err) {
       console.error("Failed to create worker:", err);
-      setStatus('Worker Creation Failed');
+      setTimeout(() => setStatus('Worker Creation Failed'), 0);
     }
 
     return () => {
@@ -89,15 +93,18 @@ export const useMLWorker = () => {
     if (!isReady || isProcessing || !worker.current) return;
     setIsProcessing(true);
     setStatus('Transcribing...');
+    
+    // Use Transferables for zero-copy transfer of the audio buffer
     worker.current.postMessage({ 
       type: 'stt', 
       audio: audioBuffer,
       taskId: `stt-${Date.now()}` 
-    });
+    }, [audioBuffer.buffer]);
   }, [isReady, isProcessing]);
 
   return {
     status,
+    progress,
     isReady,
     transcript,
     suggestion,
