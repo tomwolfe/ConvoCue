@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useMicVAD } from '@ricky0123/vad-react';
-import { Mic, Heart, Loader2, Volume2 } from 'lucide-react';
+import { Mic, Heart, Loader2, Volume2, AlertCircle, RefreshCw } from 'lucide-react';
 import { useMLWorker } from './hooks/useMLWorker';
 
 import './App.css';
@@ -19,6 +19,10 @@ const App = () => {
     setStatus
   } = useMLWorker();
 
+  const handleStart = () => {
+    setHasInteracted(true);
+  };
+
   if (!hasInteracted) {
     return (
       <div className="app-container">
@@ -36,8 +40,8 @@ const App = () => {
           </div>
           <button 
             className="btn-pulse active" 
-            onClick={() => setHasInteracted(true)}
-            style={{ width: '220px', height: '220px', borderRadius: '50%', flexDirecton: 'column' }}
+            onClick={handleStart}
+            style={{ width: '220px', height: '220px', borderRadius: '50%', flexDirection: 'column' }}
             disabled={!isReady}
           >
             <div className="icon-circle" style={{ width: '80px', height: '80px' }}>
@@ -46,7 +50,7 @@ const App = () => {
             <span style={{ fontSize: '1.1rem' }}>Initialize Microphone</span>
           </button>
           <p style={{ textAlign: 'center', opacity: 0.6, maxWidth: '300px' }}>
-            To comply with browser security, please click to enable microphone and social analysis.
+            Click to enable microphone access and start the social social cue analyzer.
           </p>
         </main>
       </div>
@@ -80,8 +84,9 @@ const VADContent = ({
   setStatus 
 }) => {
   const [isVADMode, setIsVADMode] = useState(false);
-  const isVADModeRef = useRef(isVADMode);
+  const [vadError, setVadError] = useState(null);
   
+  const isVADModeRef = useRef(isVADMode);
   useEffect(() => {
     isVADModeRef.current = isVADMode;
   }, [isVADMode]);
@@ -91,47 +96,63 @@ const VADContent = ({
     processAudioRef.current = processAudio;
   }, [processAudio]);
 
-  const [vadError, setVadError] = useState(null);
   const vadRef = useRef(null);
 
-  const vadOptions = React.useMemo(() => ({
+  // Define stable callbacks for VAD
+  const onSpeechEnd = useCallback((audio) => {
+    console.log("Speech ended, processing audio...");
+    if (!isVADModeRef.current && vadRef.current) {
+      vadRef.current.pause();
+    }
+    if (processAudioRef.current) {
+      processAudioRef.current(audio);
+    }
+  }, []);
+
+  const onError = useCallback((err) => {
+    console.error("VAD Error Detail:", err);
+    setVadError(err?.message || String(err) || "Unknown microphone error");
+  }, []);
+
+  const onVADReady = useCallback(() => {
+    console.log("VAD is ready");
+    setVadError(null);
+  }, []);
+
+  const onSpeechStart = useCallback(() => {
+    console.log("Speech detected...");
+    setStatus('Detected Speech...');
+  }, [setStatus]);
+
+  // VAD Implementation
+  const vad = useMicVAD({
     startOnLoad: false,
-    onSpeechStart: () => {
-      console.log("Speech detected...");
-      setStatus('Detected Speech...');
-    },
-    onSpeechEnd: (audio) => {
-      console.log("Speech ended, processing audio...");
-      if (!isVADModeRef.current && vadRef.current) {
-        vadRef.current.pause();
-      }
-      if (processAudioRef.current) {
-        processAudioRef.current(audio);
-      }
-    },
-    onVADReady: () => {
-      console.log("VAD is ready");
-      setVadError(null);
-    },
-    onError: (err) => {
-      console.error("VAD Error:", err);
-      setVadError(err.message || String(err));
-    },
-    workletURL: "https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.30/dist/vad.worklet.bundle.min.js",
-    modelURL: "https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.30/dist/silero_vad.onnx",
+    onSpeechStart,
+    onSpeechEnd,
+    onVADReady,
+    onError,
+    // Use local paths with cache-busting/absolute reference for Vite
+    workletURL: "/vad.worklet.bundle.min.js",
+    modelURL: "/silero_vad.onnx",
     positiveSpeechThreshold: 0.5,
     negativeSpeechThreshold: 0.35,
     minSpeechFrames: 3,
-  }), [setStatus]);
+  });
 
-  const vad = useMicVAD(vadOptions);
-
+  // Keep the ref updated for use in callbacks
   useEffect(() => {
     vadRef.current = vad;
   }, [vad]);
 
+  // Supplemental error checking
+  useEffect(() => {
+    if (vad.errored && !vadError) {
+      setVadError("Microphone access failed or was denied. Please check your browser settings.");
+    }
+  }, [vad.errored, vadError]);
+
   const toggleVAD = () => {
-    if (!vad) return;
+    if (!vad || vad.loading || vad.errored) return;
     if (isVADMode) {
       vad.pause();
       setIsVADMode(false);
@@ -146,7 +167,7 @@ const VADContent = ({
   };
 
   const handleManualTrigger = () => {
-    if (!vad) return;
+    if (!vad || vad.loading || vad.errored) return;
     if (vad.listening && !isVADMode) {
       vad.pause();
       setStatus('Ready');
@@ -169,10 +190,16 @@ const VADContent = ({
       </header>
 
       <main>
-        <div className={`status-badge ${isProcessing || vad.loading || vad.errored ? 'processing' : ''}`}>
-          {isProcessing || (vad.loading && !vad.errored) ? <Loader2 className="animate-spin" size={16} /> : <div className="dot" />}
+        <div className={`status-badge ${isProcessing || vad.loading || vad.errored ? 'processing' : ''} ${vad.errored ? 'error' : ''}`}>
+          {isProcessing || (vad.loading && !vad.errored) ? (
+            <Loader2 className="animate-spin" size={16} />
+          ) : vad.errored ? (
+            <AlertCircle size={16} color="#FF7675" />
+          ) : (
+            <div className="dot" />
+          )}
           <span>
-            {vad.errored ? `Mic Error: ${vadError}` : (vad.loading ? "VAD Loading..." : status)}
+            {vad.errored ? `Mic Error: ${vadError || "Check permissions"}` : (vad.loading ? "VAD Loading..." : status)}
           </span>
         </div>
 
@@ -192,7 +219,7 @@ const VADContent = ({
           <button 
             className={`btn-pulse ${vad.listening && !isVADMode ? 'active' : ''}`}
             onClick={handleManualTrigger}
-            disabled={!isReady || isVADMode || vad.loading}
+            disabled={!isReady || isVADMode || vad.loading || vad.errored}
           >
             <div className="icon-circle">
               <Mic size={28} />
@@ -203,7 +230,7 @@ const VADContent = ({
           <button 
             className={`btn-heartbeat ${isVADMode ? 'active' : ''}`}
             onClick={toggleVAD}
-            disabled={!isReady || vad.loading}
+            disabled={!isReady || vad.loading || vad.errored}
           >
             <div className="icon-circle">
               <Heart size={28} fill={isVADMode ? "white" : "none"} />
@@ -214,10 +241,25 @@ const VADContent = ({
         
         {vad.errored && (
           <button 
+            className="btn-retry"
             onClick={() => window.location.reload()}
-            style={{ marginTop: '2rem', padding: '0.5rem 1rem', borderRadius: '8px', background: '#FF7675', color: 'white', border: 'none', cursor: 'pointer' }}
+            style={{ 
+              marginTop: '2rem', 
+              padding: '1rem 2rem', 
+              borderRadius: '16px', 
+              background: '#FF7675', 
+              color: 'white', 
+              border: 'none', 
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              fontWeight: 'bold',
+              width: '100%'
+            }}
           >
-            Retry initialization
+            <RefreshCw size={20} />
+            Retry Microphone Access
           </button>
         )}
       </main>

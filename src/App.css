@@ -49,6 +49,12 @@ header h1 {
   color: #6C5CE7;
 }
 
+.status-badge.error {
+  background: #FFEBEB;
+  color: #FF7675;
+  border: 1px solid #FF7675;
+}
+
 .dot {
   width: 8px;
   height: 8px;
