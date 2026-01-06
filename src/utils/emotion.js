@@ -1,134 +1,79 @@
 /**
- * Enhanced emotional analysis function for more nuanced emotional context
+ * Optimized emotional analysis using a pre-computed lookup map for O(1) word checks.
  */
 
 const emotionWords = {
-    joy: ['happy', 'joy', 'excited', 'wonderful', 'amazing', 'fantastic', 'love', 'pleased', 'delighted', 'thrilled', 'cheerful', 'delighted', 'ecstatic', 'glad', 'jubilant', 'merry', 'overjoyed', 'pleased', 'tickled', 'blissful', 'content', 'grateful', 'optimistic', 'playful', 'satisfied', 'upbeat'],
-    sadness: ['sad', 'depressed', 'unhappy', 'miserable', 'sorrow', 'gloomy', 'heartbroken', 'melancholy', 'despair', 'grief', 'mourn', 'sorrowful', 'tearful', 'tragic', 'upset', 'woeful', 'despondent', 'downcast', 'forlorn', 'grieved', 'heavy-hearted', 'lonely', 'mournful'],
-    anger: ['angry', 'mad', 'furious', 'irate', 'enraged', 'annoyed', 'irritated', 'offended', 'hostile', 'aggressive', 'infuriated', 'livid', 'outraged', 'resentful', 'seething', 'vexed', 'choleric', 'cross', 'fuming', 'indignant', 'irate', 'provoked', 'raging'],
-    fear: ['afraid', 'scared', 'frightened', 'anxious', 'nervous', 'worried', 'panicked', 'terrified', 'apprehensive', 'dread', 'fearful', 'horrified', 'petrified', 'startled', 'timid', 'trepidation', 'alarmed', 'concerned', 'daunted', 'dreadful', 'fright', 'hysterical', 'panicky'],
-    surprise: ['surprised', 'shocked', 'amazed', 'astonished', 'astounded', 'stunned', 'flabbergasted', 'dumbfounded', 'speechless', 'unbelievable', 'incredible', 'unexpected', 'startled', 'wonder', 'baffled', 'bewildered', 'dumbstruck', 'flummoxed', 'gobsmacked', 'staggered', 'thunderstruck'],
-    disgust: ['disgusted', 'revolted', 'nauseated', 'sickened', 'repulsed', 'horrified', 'appalled', 'grossed', 'offended', 'repugnant', 'sick', 'turned off', 'vile', 'wretched', 'abhorrent', 'contemptuous', 'loathing', 'nauseous', 'repellent', 'revolting', 'sickening']
+    joy: ['happy', 'joy', 'excited', 'wonderful', 'amazing', 'fantastic', 'love', 'pleased', 'delighted', 'thrilled', 'cheerful', 'ecstatic', 'glad', 'jubilant', 'merry', 'overjoyed', 'blissful', 'content', 'grateful', 'optimistic', 'playful', 'satisfied', 'upbeat'],
+    sadness: ['sad', 'depressed', 'unhappy', 'miserable', 'sorrow', 'gloomy', 'heartbroken', 'melancholy', 'despair', 'grief', 'mourn', 'sorrowful', 'tearful', 'tragic', 'upset', 'woeful', 'despondent', 'downcast', 'forlorn', 'lonely'],
+    anger: ['angry', 'mad', 'furious', 'irate', 'enraged', 'annoyed', 'irritated', 'offended', 'hostile', 'aggressive', 'infuriated', 'livid', 'outraged', 'resentful', 'seething', 'vexed', 'fuming', 'indignant', 'raging'],
+    fear: ['afraid', 'scared', 'frightened', 'anxious', 'nervous', 'worried', 'panicked', 'terrified', 'apprehensive', 'dread', 'fearful', 'horrified', 'petrified', 'startled', 'alarmed', 'concerned', 'panicky'],
+    surprise: ['surprised', 'shocked', 'amazed', 'astonished', 'astounded', 'stunned', 'flabbergasted', 'dumbfounded', 'speechless', 'unbelievable', 'incredible', 'unexpected', 'wonder', 'gobsmacked'],
+    disgust: ['disgusted', 'revolted', 'nauseated', 'sickened', 'repulsed', 'horrified', 'appalled', 'grossed', 'offended', 'repugnant', 'sick', 'vile', 'wretched', 'abhorrent', 'loathing']
 };
 
+// Pre-compute lookup map for O(1) access
+const emotionLookup = {};
+for (const [emotion, words] of Object.entries(emotionWords)) {
+    for (const word of words) {
+        emotionLookup[word] = emotion;
+    }
+}
+
+const negationWords = new Set(['not', 'no', 'never', 'hardly', 'barely', 'dont', 'doesnt', 'isnt', 'arent', 'wasnt', 'werent', 'cant', 'couldnt', 'wont']);
+
 /**
- * Analyzes emotions in text and returns the dominant emotion
- * @param {string} text - Input text to analyze
- * @returns {Object} - Object with emotion and confidence
+ * Analyzes emotions in text and returns the dominant emotion.
+ * Optimized for performance in real-time streaming contexts.
  */
 export const analyzeEmotion = (text) => {
     if (!text || typeof text !== 'string') {
         return { emotion: 'neutral', confidence: 0 };
     }
 
-    // Normalize text: remove extra whitespace, convert to lowercase
-    const normalizedText = text.toLowerCase().replace(/\s+/g, ' ').trim();
+    const words = text.toLowerCase()
+        .replace(/[^\w\s]/g, '')
+        .split(/\s+/)
+        .filter(Boolean);
 
-    // Split into words and phrases for more context
-    const words = normalizedText.split(/\s+/);
-    const phrases = extractPhrases(normalizedText);
+    if (words.length === 0) return { emotion: 'neutral', confidence: 0 };
 
-    const emotionScores = {};
+    const scores = { joy: 0, sadness: 0, anger: 0, fear: 0, surprise: 0, disgust: 0 };
+    let totalScore = 0;
+    let isNegated = false;
 
-    // Calculate scores for each emotion based on individual words
-    for (const [emotion, wordList] of Object.entries(emotionWords)) {
-        let score = 0;
-
-        // Score individual words
-        for (const word of words) {
-            const cleanWord = word.replace(/[^\w\s]/g, '').trim();
-            if (cleanWord && wordList.includes(cleanWord)) {
-                score++;
-            }
+    for (let i = 0; i < words.length; i++) {
+        const word = words[i];
+        
+        if (negationWords.has(word)) {
+            isNegated = true;
+            continue;
         }
 
-        // Score phrases (which often carry more emotional weight)
-        for (const phrase of phrases) {
-            for (const emotionWord of wordList) {
-                if (phrase.includes(emotionWord)) {
-                    // Phrases get higher weight than individual words
-                    score += 1.5;
-                }
+        const emotion = emotionLookup[word];
+        if (emotion) {
+            if (!isNegated) {
+                scores[emotion] += 1.0;
+                totalScore += 1.0;
             }
+            isNegated = false; // Reset negation after applying
+        } else {
+            // Decay negation if not followed by emotion word within 1 word
+            isNegated = false;
         }
-
-        // Apply negation detection (e.g., "not happy", "not sad")
-        const negationWords = ['not', 'no', 'never', 'nothing', 'nowhere', 'neither', 'nor', 'none', 'nobody', 'nothing', 'hardly', 'scarcely', 'barely', 'doesn\'t', 'don\'t', 'won\'t', 'can\'t', 'couldn\'t', 'shouldn\'t', 'wouldn\'t', 'isn\'t', 'aren\'t', 'wasn\'t', 'weren\'t'];
-        for (const negation of negationWords) {
-            if (normalizedText.includes(negation)) {
-                // Look for negation followed by emotion words within a certain distance
-                const negationIndex = normalizedText.indexOf(negation);
-                for (const emotionWord of wordList) {
-                    const emotionIndex = normalizedText.indexOf(emotionWord);
-                    if (emotionIndex > negationIndex && emotionIndex - negationIndex < 10) { // Within 10 characters
-                        score = Math.max(0, score - 1); // Reduce score for negated emotions
-                    }
-                }
-            }
-        }
-
-        emotionScores[emotion] = score;
     }
 
-    // Find the dominant emotion
     let dominantEmotion = 'neutral';
     let maxScore = 0;
 
-    for (const [emotion, score] of Object.entries(emotionScores)) {
+    for (const [emotion, score] of Object.entries(scores)) {
         if (score > maxScore) {
             maxScore = score;
             dominantEmotion = emotion;
         }
     }
 
-    // If no strong emotion detected, use neutral
-    if (maxScore === 0) {
-        return { emotion: 'neutral', confidence: 0 };
-    }
-
-    // Calculate confidence based on the ratio of dominant emotion to total emotion words
-    const totalEmotionWords = Object.values(emotionScores).reduce((sum, val) => sum + val, 0);
-    let confidence = totalEmotionWords > 0 ? maxScore / totalEmotionWords : 0;
-
-    // Adjust confidence based on text length and complexity
-    const textLength = normalizedText.length;
-    if (textLength < 10) {
-        // Short texts may have less reliable emotion detection
-        confidence *= 0.7;
-    } else if (textLength > 50) {
-        // Longer texts may have more nuanced emotions
-        confidence = Math.min(1.0, confidence * 1.2);
-    }
-
     return {
         emotion: dominantEmotion,
-        confidence: Math.min(confidence, 1.0) // Cap at 1.0
+        confidence: totalScore > 0 ? Math.min(maxScore / totalScore, 1.0) : 0
     };
-};
-
-/**
- * Extracts common phrases from text for more contextual emotion analysis
- * @param {string} text - Input text to analyze
- * @returns {Array} - Array of phrases
- */
-const extractPhrases = (text) => {
-    // Simple phrase extraction based on common emotional expressions
-    const phrasePatterns = [
-        /\b(?:i am|i'm|i feel|i'm feeling|i feel like)\s+(\w+)\b/gi,
-        /\b(?:very|really|extremely|quite|so|super|incredibly)\s+(\w+)\b/gi,
-        /\b(?:feeling|feels|felt)\s+(\w+)\b/gi,
-        /\b(?:getting|get|gets)\s+(\w+)\b/gi,
-        /\b(?:becoming|become|becomes)\s+(\w+)\b/gi,
-        /\b(?:kind of|sort of|a little|somewhat)\s+(\w+)\b/gi
-    ];
-
-    const phrases = [];
-    for (const pattern of phrasePatterns) {
-        let match;
-        while ((match = pattern.exec(text)) !== null) {
-            phrases.push(match[0]);
-        }
-    }
-
-    return phrases;
 };

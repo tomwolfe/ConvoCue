@@ -337,6 +337,18 @@ header.compact .subtitle {
   box-shadow: 0 10px 30px rgba(0,0,0,0.05);
 }
 
+@keyframes breathe {
+  0% { opacity: 0.7; transform: scale(0.99); }
+  50% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0.7; transform: scale(0.99); }
+}
+
+.suggestion.thinking {
+  animation: breathe 2s ease-in-out infinite;
+  border-left-color: #A29BFE;
+  background: linear-gradient(to right, #ffffff, #fcfbff);
+}
+
 .suggestion label { font-size: 0.7rem; font-weight: 800; color: var(--primary); text-transform: uppercase; margin-bottom: 0.5rem; display: block; }
 .suggestion p { font-size: 1.25rem; font-weight: 600; margin: 0; line-height: 1.4; }
 

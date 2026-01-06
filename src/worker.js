@@ -15,11 +15,29 @@ if (AppConfig.vad.onnxWASMPaths) {
     env.backends.onnx.wasm.wasmPaths = AppConfig.vad.onnxWASMPaths;
 }
 
+import { pipeline, env, TextStreamer } from '@huggingface/transformers';
+import { AppConfig } from './config';
+import { analyzeEmotion } from './utils/emotion';
+
+// Configuration for on-device execution
+env.allowLocalModels = false;
+env.useBrowserCache = true;
+
+// Optimize threads based on hardware
+env.backends.onnx.wasm.numThreads = AppConfig.worker.numThreads;
+env.backends.onnx.wasm.simd = AppConfig.worker.simd;
+env.backends.onnx.wasm.proxy = false;
+
+if (AppConfig.vad.onnxWASMPaths) {
+    env.backends.onnx.wasm.wasmPaths = AppConfig.vad.onnxWASMPaths;
+}
+
 class MLPipeline {
     static instance = null;
     static stt = null;
     static llm = null;
     static lastUsed = Date.now();
+    static inactivityTimer = null;
 
     static async getInstance() {
         if (!this.instance) {
@@ -42,9 +60,17 @@ class MLPipeline {
             }
         }
         MLPipeline.lastUsed = Date.now();
+        this.resetInactivityTimer();
     }
 
     async loadLLM(progress_callback) {
+        // Memory Guard: Don't load if memory is already very high on mobile
+        const mem = checkMemoryUsage();
+        if (AppConfig.isMobile && mem && mem.usagePercent > AppConfig.system.memory.modelUnloadThreshold) {
+            console.warn("Memory too high to load LLM:", mem.usagePercent);
+            return;
+        }
+
         if (!MLPipeline.llm) {
             try {
                 MLPipeline.llm = await pipeline('text-generation', AppConfig.models.llm.name, {
@@ -58,22 +84,34 @@ class MLPipeline {
             }
         }
         MLPipeline.lastUsed = Date.now();
+        this.resetInactivityTimer();
+    }
+
+    resetInactivityTimer() {
+        if (MLPipeline.inactivityTimer) clearTimeout(MLPipeline.inactivityTimer);
+        MLPipeline.inactivityTimer = setTimeout(async () => {
+            if (Date.now() - MLPipeline.lastUsed >= AppConfig.system.memory.llmInactivityTimeout) {
+                await MLPipeline.disposeLLM();
+            }
+        }, AppConfig.system.memory.llmInactivityTimeout + 100);
     }
 
     static async disposeLLM() {
         if (MLPipeline.llm) {
+            console.log("Disposing LLM to free memory...");
             try {
                 if (MLPipeline.llm.model && MLPipeline.llm.model.session) {
-                    if (Array.isArray(MLPipeline.llm.model.session)) {
-                        for (const s of MLPipeline.llm.model.session) {
-                            if (s && typeof s.release === 'function') await s.release();
-                        }
-                    } else if (typeof MLPipeline.llm.model.session.release === 'function') {
-                        await MLPipeline.llm.model.session.release();
+                    const sessions = Array.isArray(MLPipeline.llm.model.session) 
+                        ? MLPipeline.llm.model.session 
+                        : [MLPipeline.llm.model.session];
+                    
+                    for (const s of sessions) {
+                        if (s && typeof s.release === 'function') await s.release();
                     }
                 }
                 MLPipeline.llm = null;
             } catch (e) {
+                console.error("Error during LLM disposal:", e);
                 MLPipeline.llm = null;
             }
         }
@@ -83,9 +121,10 @@ class MLPipeline {
 const checkMemoryUsage = () => {
     if (self.performance && self.performance.memory) {
         const memory = self.performance.memory;
-        const usedMB = Math.round(memory.usedJSHeapSize / 1024 / 1024);
-        const usagePercent = Math.round((memory.usedJSHeapSize / memory.jsHeapSizeLimit) * 100);
-        return { usedMB, usagePercent, isHighMemory: usagePercent > AppConfig.system.memory.modelUnloadThreshold };
+        return {
+            usedMB: Math.round(memory.usedJSHeapSize / 1024 / 1024),
+            usagePercent: Math.round((memory.usedJSHeapSize / memory.jsHeapSizeLimit) * 100)
+        };
     }
     return null;
 };
@@ -100,6 +139,8 @@ const throttledProgress = (p, statusPrefix, taskId) => {
     }
 };
 
+let cachedSystemPrompt = { key: null, content: null };
+
 self.onmessage = async (event) => {
     const { type, audio, taskId, text: _text, persona, history, culturalContext, metadata, preferences } = event.data;
     const pipelineManager = await MLPipeline.getInstance();
@@ -107,20 +148,22 @@ self.onmessage = async (event) => {
     try {
         if (type === 'load') {
             await pipelineManager.loadSTT((p) => throttledProgress(p, 'Speech Engine', taskId));
-            const mem = checkMemoryUsage();
-            if (!AppConfig.isMobile || (mem && mem.usagePercent < 50)) {
-                await pipelineManager.loadLLM((p) => throttledProgress(p, 'Social Brain', taskId));
-            }
+            await pipelineManager.loadLLM((p) => throttledProgress(p, 'Social Brain', taskId));
             self.postMessage({ type: 'ready', taskId });
+        }
+
+        if (type === 'prewarm_llm') {
+            await pipelineManager.loadLLM();
         }
 
         if (type === 'stt') {
             if (!MLPipeline.stt) await pipelineManager.loadSTT();
             MLPipeline.lastUsed = Date.now();
+            pipelineManager.resetInactivityTimer();
+
             const audioData = audio instanceof Float32Array ? audio : new Float32Array(Object.values(audio));
             
-            let sum = 0;
-            for (let i = 0; i < audioData.length; i++) sum += audioData[i] * audioData[i];
+            const sum = audioData.reduce((a, b) => a + b * b, 0);
             const rms = Math.sqrt(sum / audioData.length);
             const duration = audioData.length / 16000;
 
@@ -135,26 +178,38 @@ self.onmessage = async (event) => {
 
         if (type === 'llm') {
             if (!MLPipeline.llm) await pipelineManager.loadLLM((p) => throttledProgress(p, 'Social Brain', taskId));
+            if (!MLPipeline.llm) throw new Error("Social Brain failed to load or was deferred due to memory.");
+
             MLPipeline.lastUsed = Date.now();
+            pipelineManager.resetInactivityTimer();
 
             const personaConfig = AppConfig.models.personas[persona] || AppConfig.models.personas.anxiety;
             const sanitizedText = _text.trim().substring(0, AppConfig.system.maxTranscriptLength);
             const emotionData = analyzeEmotion(sanitizedText);
 
-            // Build an "Intelligent Context" string
-            let contextInstruction = `Persona: ${personaConfig.label}. `;
-            if (metadata) {
-              const speechRate = sanitizedText.split(/\s+/).length / (metadata.duration || 1);
-              if (metadata.rms > 0.01 && speechRate > 3) contextInstruction += "The user sounds urgent. ";
-            }
-            if (emotionData.emotion !== 'neutral') contextInstruction += `User Emotion: ${emotionData.emotion}. `;
-            if (culturalContext && culturalContext !== 'general') contextInstruction += `Cultural Context: ${culturalContext}. `;
-            if (preferences) {
-              contextInstruction += `Preference: ${preferences.preferredLength} length, ${preferences.preferredTone} tone. `;
+            // Cached System Prompt Generation
+            const promptKey = `${persona}-${culturalContext}-${preferences?.preferredLength}`;
+            if (cachedSystemPrompt.key !== promptKey) {
+                let contextInstruction = `Persona: ${personaConfig.label}. `;
+                if (culturalContext && culturalContext !== 'general') contextInstruction += `Cultural Context: ${culturalContext}. `;
+                if (preferences) contextInstruction += `Preference: ${preferences.preferredLength} length. `;
+                
+                cachedSystemPrompt = {
+                    key: promptKey,
+                    content: `${personaConfig.prompt} ${contextInstruction} Respond naturally.`
+                };
             }
 
+            // Dynamic Context (Not cached)
+            let dynamicContext = "";
+            if (metadata) {
+                const speechRate = sanitizedText.split(/\s+/).length / (metadata.duration || 1);
+                if (metadata.rms > 0.01 && speechRate > 3) dynamicContext += "User sounds urgent. ";
+            }
+            if (emotionData.emotion !== 'neutral') dynamicContext += `Emotion: ${emotionData.emotion}. `;
+
             const messages = [
-                { role: "system", content: `${personaConfig.prompt} ${contextInstruction} Respond naturally.` },
+                { role: "system", content: `${cachedSystemPrompt.content} ${dynamicContext}` },
                 ...(history || []).map(m => ({ role: m.role, content: m.content })),
                 { role: "user", content: sanitizedText }
             ];
@@ -181,12 +236,6 @@ self.onmessage = async (event) => {
             }
 
             self.postMessage({ type: 'llm_result', text: response.trim(), emotionData, taskId });
-
-            setTimeout(async () => {
-                if (Date.now() - MLPipeline.lastUsed >= AppConfig.system.memory.llmInactivityTimeout) {
-                    await MLPipeline.disposeLLM();
-                }
-            }, AppConfig.system.memory.llmInactivityTimeout + 100);
         }
         
         if (type === 'cleanup') {

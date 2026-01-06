@@ -259,7 +259,10 @@ const VADContent = ({
         )}
         {!showMinimalUI && (
           <span>
-            {(vad.errored || vadError) ? `Mic Error` : (vad.loading ? "Warming up..." : status)}
+            {(vad.errored || vadError) ? `Mic Error` : 
+             (vad.loading ? "Warming up..." : 
+              (processingStep === 'transcribing' ? "Listening to you..." :
+               (processingStep === 'thinking' ? "Thinking of a cue..." : status)))}
           </span>
         )}
       </div>
@@ -323,7 +326,7 @@ const VADContent = ({
           </div>
         )}
 
-        <div className={`card suggestion ${suggestion || processingStep === 'thinking' ? 'visible' : ''} ${isCompactMode ? 'compact-suggestion' : ''} ${showMinimalUI ? 'minimal-suggestion' : ''}`} role="region" aria-labelledby="suggestion-label">
+        <div className={`card suggestion ${suggestion || processingStep === 'thinking' ? 'visible' : ''} ${processingStep === 'thinking' ? 'thinking' : ''} ${isCompactMode ? 'compact-suggestion' : ''} ${showMinimalUI ? 'minimal-suggestion' : ''}`} role="region" aria-labelledby="suggestion-label">
           <div className="card-header">
             {!showMinimalUI && <label id="suggestion-label">{AppConfig.models.personas[persona]?.label || 'Cue'}</label>}
             {!showMinimalUI && suggestion && (
