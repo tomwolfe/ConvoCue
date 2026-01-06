@@ -109,6 +109,7 @@ self.onmessage = async (event) => {
                 stride_length_s: 5,
                 language: 'english',
             });
+            console.log("STT Result:", output.text);
             self.postMessage({ type: 'stt_result', text: output.text, taskId });
         }
 
@@ -128,6 +129,7 @@ self.onmessage = async (event) => {
             });
 
             const response = output[0].generated_text.at(-1).content.trim();
+            console.log("LLM Result:", response);
             self.postMessage({ type: 'llm_result', text: response, taskId });
         }
     } catch (error) {

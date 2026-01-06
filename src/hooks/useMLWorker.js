@@ -29,6 +29,11 @@ export const useMLWorker = () => {
             setStatus('Ready');
             break;
           case 'stt_result':
+            if (!text || text.trim().length === 0) {
+              setIsProcessing(false);
+              setStatus('Ready');
+              break;
+            }
             setTranscript(text);
             if (text.trim().length > 2) {
               setStatus('Thinking...');

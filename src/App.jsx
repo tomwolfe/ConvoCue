@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useMicVAD } from '@ricky0123/vad-react';
 import { Mic, Heart, Loader2, Volume2 } from 'lucide-react';
 import { useMLWorker } from './hooks/useMLWorker';
@@ -19,12 +19,29 @@ const App = () => {
   } = useMLWorker();
 
   const [isVADMode, setIsVADMode] = useState(false);
+  const isVADModeRef = useRef(isVADMode);
+  
+  useEffect(() => {
+    isVADModeRef.current = isVADMode;
+  }, [isVADMode]);
 
-  // VAD Implementation
+  // Use a ref for processAudio to keep the VAD callback stable 
+  // while still having access to the latest processAudio function
+  const processAudioRef = useRef(processAudio);
+  useEffect(() => {
+    processAudioRef.current = processAudio;
+  }, [processAudio]);
+
+  // VAD Implementation with stable options
   const vad = useMicVAD({
     startOnLoad: false,
     onSpeechEnd: (audio) => {
-      processAudio(audio);
+      if (!isVADModeRef.current) {
+        vad.pause();
+      }
+      if (processAudioRef.current) {
+        processAudioRef.current(audio);
+      }
     },
     workletURL: "/vad.worklet.bundle.min.js",
     modelURL: "/silero_vad.onnx",
@@ -69,9 +86,11 @@ const App = () => {
       </header>
 
       <main>
-        <div className={`status-badge ${isProcessing ? 'processing' : ''}`}>
-          {isProcessing ? <Loader2 className="animate-spin" size={16} /> : <div className="dot" />}
-          <span>{status}</span>
+        <div className={`status-badge ${isProcessing || vad.loading ? 'processing' : ''}`}>
+          {isProcessing || vad.loading ? <Loader2 className="animate-spin" size={16} /> : <div className="dot" />}
+          <span>
+            {vad.errored ? "Mic Error" : (vad.loading ? "VAD Loading..." : status)}
+          </span>
         </div>
 
         <div className="display-area">
@@ -90,7 +109,7 @@ const App = () => {
           <button 
             className={`btn-pulse ${vad.listening && !isVADMode ? 'active' : ''}`}
             onClick={handleManualTrigger}
-            disabled={!isReady || isVADMode}
+            disabled={!isReady || isVADMode || vad.loading}
           >
             <div className="icon-circle">
               <Mic size={28} />
@@ -101,7 +120,7 @@ const App = () => {
           <button 
             className={`btn-heartbeat ${isVADMode ? 'active' : ''}`}
             onClick={toggleVAD}
-            disabled={!isReady}
+            disabled={!isReady || vad.loading}
           >
             <div className="icon-circle">
               <Heart size={28} fill={isVADMode ? "white" : "none"} />
