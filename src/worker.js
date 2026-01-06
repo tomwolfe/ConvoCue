@@ -433,6 +433,7 @@ self.onmessage = async (event) => {
             const preLLMMemory = checkMemoryUsage();
             if (preLLMMemory && preLLMMemory.usagePercent > AppConfig.system.memory.modelUnloadThreshold) {
                 console.warn("Memory too high to load LLM comfortably, attempting cleanup...");
+                self.postMessage({ type: 'status', status: 'Optimizing memory...', taskId });
             }
 
             // Lazy load LLM if not present
@@ -445,6 +446,8 @@ self.onmessage = async (event) => {
             if (typeof text !== 'string' || text.trim().length === 0) {
                 throw new Error("Invalid input text for LLM processing");
             }
+
+            self.postMessage({ type: 'status', status: 'Analyzing context...', taskId });
 
             const personaConfig = AppConfig.models.personas[persona] || AppConfig.models.personas.anxiety;
             const sanitizedText = text.trim().substring(0, AppConfig.system.maxTranscriptLength);
@@ -488,6 +491,7 @@ self.onmessage = async (event) => {
             }
 
             console.log(`Starting LLM generation for mode: ${persona} with ${messages.length} total messages and cultural context: ${culturalContext}`);
+            self.postMessage({ type: 'status', status: 'Polishing cue...', taskId });
 
             try {
                 const streamer = new TextStreamer(MLPipeline.llm.tokenizer, {

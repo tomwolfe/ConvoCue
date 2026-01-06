@@ -170,7 +170,7 @@ export const useMLWorker = () => {
         setStatus('Could not create background worker');
       }, 0);
     }
-  }, [persona]);
+  }, [persona, culturalContext]);
 
   // Cleanup function for worker termination
   const cleanupWorker = useCallback(() => {
@@ -238,6 +238,24 @@ export const useMLWorker = () => {
     }
   }, [isReady]);
 
+  const refreshSuggestion = useCallback(() => {
+    if (transcript && !isProcessing && worker.current) {
+      setIsProcessing(true);
+      setProcessingStep('thinking');
+      setSuggestion('');
+      setStatus('Refreshing cue...');
+      
+      worker.current.postMessage({
+        type: 'llm',
+        text: transcript,
+        persona: persona,
+        culturalContext: culturalContext,
+        history: historyRef.current,
+        taskId: `llm-refresh-${Date.now()}`
+      });
+    }
+  }, [transcript, isProcessing, persona, culturalContext]);
+
   const clearHistory = useCallback(() => {
     setHistory([]);
     setTranscript('');
@@ -278,6 +296,7 @@ export const useMLWorker = () => {
     processingStep,
     processAudio,
     prewarmLLM,
+    refreshSuggestion,
     setTranscript,
     setSuggestion,
     setStatus,

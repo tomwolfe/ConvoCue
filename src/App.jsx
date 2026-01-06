@@ -13,6 +13,7 @@ const App = () => {
   const [hasInteracted, setHasInteracted] = useState(false);
   const [assetError, setAssetError] = useState(null);
   const [isDyslexicFriendly, setIsDyslexicFriendly] = useState(false);
+  const [isCompactMode, setIsCompactMode] = useState(false);
   const {
     status,
     progress,
@@ -23,6 +24,7 @@ const App = () => {
     processingStep,
     processAudio,
     prewarmLLM,
+    refreshSuggestion,
     setTranscript,
     setSuggestion,
     setStatus,
@@ -44,6 +46,14 @@ const App = () => {
       document.body.classList.remove('dyslexic-mode');
     }
   }, [isDyslexicFriendly]);
+
+  useEffect(() => {
+    if (isCompactMode) {
+      document.body.classList.add('compact-mode');
+    } else {
+      document.body.classList.remove('compact-mode');
+    }
+  }, [isCompactMode]);
 
   useEffect(() => {
     const runDiagnostics = async () => {
@@ -78,21 +88,31 @@ const App = () => {
   return (
     <ErrorBoundary>
       <Analytics />
-      <div className="app-container" role="main" aria-label="ConvoCue Application">
+      <div className={`app-container ${isCompactMode ? 'compact-view' : ''}`} role="main" aria-label="ConvoCue Application">
         <header role="banner" className={hasInteracted ? 'compact' : ''}>
           <div className="header-top">
             <div className="logo-area">
               <Volume2 size={hasInteracted ? 24 : 40} color="#6C5CE7" aria-hidden="true" />
               <h1>ConvoCue</h1>
             </div>
-            <button 
-              className={`btn-settings ${isDyslexicFriendly ? 'active' : ''}`}
-              onClick={() => setIsDyslexicFriendly(!isDyslexicFriendly)}
-              aria-label="Toggle Dyslexic Friendly Font"
-              title="Toggle Dyslexic Friendly Font"
-            >
-              Abc
-            </button>
+            <div className="header-actions">
+              <button 
+                className={`btn-settings ${isCompactMode ? 'active' : ''}`}
+                onClick={() => setIsCompactMode(!isCompactMode)}
+                aria-label="Toggle Compact Mode"
+                title="Toggle Compact Mode"
+              >
+                <Activity size={18} />
+              </button>
+              <button 
+                className={`btn-settings ${isDyslexicFriendly ? 'active' : ''}`}
+                onClick={() => setIsDyslexicFriendly(!isDyslexicFriendly)}
+                aria-label="Toggle Dyslexic Friendly Font"
+                title="Toggle Dyslexic Friendly Font"
+              >
+                Abc
+              </button>
+            </div>
           </div>
           <p className="subtitle">Real-time social validation</p>
         </header>
@@ -163,6 +183,7 @@ const App = () => {
             isProcessing={isProcessing}
             processingStep={processingStep}
             processAudio={processAudio}
+            refreshSuggestion={refreshSuggestion}
             setTranscript={setTranscript}
             setSuggestion={setSuggestion}
             setStatus={setStatus}
@@ -173,6 +194,7 @@ const App = () => {
             culturalContext={culturalContext}
             setCulturalContext={setCulturalContext}
             clearHistory={clearHistory}
+            isCompactMode={isCompactMode}
             onReset={() => {
               setHasInteracted(false);
               setMicPermissionError(null);

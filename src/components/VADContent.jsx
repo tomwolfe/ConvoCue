@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useMicVAD } from '@ricky0123/vad-react';
-import { Mic, Heart, Loader2, AlertCircle, RefreshCw, Trash2, Activity } from 'lucide-react';
+import { Mic, Heart, Loader2, AlertCircle, RefreshCw, Trash2, Activity, Copy, Check } from 'lucide-react';
 import { AppConfig } from '../config';
 
-const AudioVisualizer = ({ isActive, analyser }) => {
+const AudioVisualizer = ({ isActive, analyser, isCompactMode }) => {
   const canvasRef = useRef(null);
   const animationRef = useRef(null);
 
@@ -54,8 +54,8 @@ const AudioVisualizer = ({ isActive, analyser }) => {
   }, [isActive, analyser]);
 
   return (
-    <div className={`audio-visualizer ${isActive ? 'active' : ''}`}>
-      <canvas ref={canvasRef} width="300" height="40" />
+    <div className={`audio-visualizer ${isActive ? 'active' : ''} ${isCompactMode ? 'compact' : ''}`}>
+      <canvas ref={canvasRef} width={isCompactMode ? "150" : "300"} height={isCompactMode ? "20" : "40"} />
     </div>
   );
 };
@@ -68,6 +68,7 @@ const VADContent = ({
   isProcessing,
   processingStep,
   processAudio,
+  refreshSuggestion,
   setStatus,
   initialError,
   persona,
@@ -75,10 +76,12 @@ const VADContent = ({
   culturalContext,
   setCulturalContext,
   clearHistory,
+  isCompactMode,
   onReset
 }) => {
   const [isVADMode, setIsVADMode] = useState(false);
   const [vadError, setVadError] = useState(initialError);
+  const [copied, setCopied] = useState(false);
   const vadErrorSetRef = useRef(!!initialError);
 
   // Use refs to avoid stale closures in VAD callbacks without re-triggering useMicVAD
@@ -100,6 +103,20 @@ const VADContent = ({
     if (!isProcessing) setStatus('Ready');
   };
 
+  const handleCopy = () => {
+    if (suggestion) {
+      navigator.clipboard.writeText(suggestion);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const handleRefresh = () => {
+    if (transcript && !isProcessing && refreshSuggestion) {
+      refreshSuggestion();
+    }
+  };
+
   // Define stable callbacks for VAD
   const onSpeechEnd = useCallback((audio) => {
     console.log("Speech ended");
@@ -113,11 +130,6 @@ const VADContent = ({
 
   const onError = useCallback((err) => {
     console.error("VAD Error Details:", err);
-    if (err instanceof Error) {
-      console.error("Error name:", err.name);
-      console.error("Error message:", err.message);
-      console.error("Error stack:", err.stack);
-    }
     setVadError(err?.message || String(err));
   }, []);
 
@@ -150,11 +162,10 @@ const VADContent = ({
   useEffect(() => {
     if (vad.errored && !vadErrorSetRef.current) {
       const detail = vad.error || "Unknown VAD initialization error";
-      console.error("VAD entered errored state:", detail);
       // This is a legitimate case where we need to update state based on external system errors
       // The VAD system reports errors that need to be reflected in the UI state
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setVadError(`VAD failed to initialize: ${detail}. Please ensure silero_vad_v5.onnx, vad.worklet.bundle.min.js, and ort-wasm-simd-threaded.wasm are in the public folder and match the required versions.`);
+      setVadError(`VAD failed to initialize: ${detail}`);
       vadErrorSetRef.current = true;
     }
   }, [vad.errored, vad.error]);
@@ -171,7 +182,7 @@ const VADContent = ({
       setStatus('Ready');
     } else {
       handleClear();
-      setVadError(null); // Clear any previous errors when trying to start
+      setVadError(null);
       vad.start();
       setIsVADMode(true);
       setStatus('Heartbeat Active');
@@ -185,14 +196,14 @@ const VADContent = ({
       setStatus('Ready');
     } else {
       handleClear();
-      setVadError(null); // Clear any previous errors when trying to start
+      setVadError(null);
       vad.start();
       setStatus('Listening...');
     }
   };
 
   return (
-    <main className="vad-container" role="main">
+    <main className={`vad-container ${isCompactMode ? 'compact-layout' : ''}`} role="main">
       <div
         className={`status-badge ${isProcessing || vad.loading || vad.errored || vadError ? 'processing' : ''} ${vad.errored || vadError ? 'error' : ''}`}
         role="status"
@@ -210,93 +221,111 @@ const VADContent = ({
         </span>
       </div>
 
-      <AudioVisualizer isActive={vad.listening} analyser={vad.analyser} />
+      <AudioVisualizer isActive={vad.listening} analyser={vad.analyser} isCompactMode={isCompactMode} />
 
-      <div className="persona-selector" role="group" aria-label="Select conversation mode">
-        <div className="persona-grid">
-          {Object.values(AppConfig.models.personas).map((p) => (
-            <button
-              key={p.id}
-              className={`persona-btn ${persona === p.id ? 'active' : ''}`}
-              onClick={() => setPersona(p.id)}
-              aria-pressed={persona === p.id}
-            >
-              <span className="persona-label">{p.label}</span>
-              <span className="persona-desc">{p.description}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* Cultural context selector for cross-cultural persona */}
-        {persona === 'crosscultural' && (
-          <div className="cultural-context-selector" role="group" aria-label="Select cultural context">
-            <label htmlFor="cultural-context">Cultural Context:</label>
-            <select
-              id="cultural-context"
-              className="cultural-context-dropdown"
-              value={culturalContext || 'general'}
-              onChange={(e) => {
-                setCulturalContext(e.target.value);
-              }}
-            >
-              <option value="general">General Cultural Awareness</option>
-              <option value="east_asian">East Asian (High-context)</option>
-              <option value="western">Western (Low-context)</option>
-              <option value="middle_eastern">Middle Eastern</option>
-              <option value="latin_american">Latin American</option>
-              <option value="formal_business">Formal Business Setting</option>
-            </select>
+      {!isCompactMode && (
+        <div className="persona-selector" role="group" aria-label="Select conversation mode">
+          <div className="persona-grid">
+            {Object.values(AppConfig.models.personas).map((p) => (
+              <button
+                key={p.id}
+                className={`persona-btn ${persona === p.id ? 'active' : ''}`}
+                onClick={() => setPersona(p.id)}
+                aria-pressed={persona === p.id}
+              >
+                <span className="persona-label">{p.label}</span>
+                <span className="persona-desc">{p.description}</span>
+              </button>
+            ))}
           </div>
-        )}
-      </div>
+
+          {persona === 'crosscultural' && (
+            <div className="cultural-context-selector" role="group" aria-label="Select cultural context">
+              <label htmlFor="cultural-context">Cultural Context:</label>
+              <select
+                id="cultural-context"
+                className="cultural-context-dropdown"
+                value={culturalContext || 'general'}
+                onChange={(e) => setCulturalContext(e.target.value)}
+              >
+                <option value="general">General Cultural Awareness</option>
+                <option value="east_asian">East Asian (High-context)</option>
+                <option value="western">Western (Low-context)</option>
+                <option value="middle_eastern">Middle Eastern</option>
+                <option value="latin_american">Latin American</option>
+                <option value="formal_business">Formal Business Setting</option>
+              </select>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="display-area" role="region" aria-label="Speech processing results">
-        <div className={`card transcript ${transcript ? 'visible' : ''}`} role="region" aria-labelledby="transcript-label">
-          <label id="transcript-label">Context</label>
-          <p id="transcript-content">{transcript || "Waiting for speech..."}</p>
-        </div>
+        {!isCompactMode && (
+          <div className={`card transcript ${transcript ? 'visible' : ''}`} role="region" aria-labelledby="transcript-label">
+            <div className="card-header">
+              <label id="transcript-label">Context</label>
+              <button className="btn-icon" onClick={handleClear} title="Clear Context">
+                <Trash2 size={14} />
+              </button>
+            </div>
+            <p id="transcript-content">{transcript || "Waiting for speech..."}</p>
+          </div>
+        )}
 
-        <div className={`card suggestion ${suggestion || processingStep === 'thinking' ? 'visible' : ''}`} role="region" aria-labelledby="suggestion-label">
-          <label id="suggestion-label">{AppConfig.models.personas[persona]?.label || 'Cue'}</label>
-          <p id="suggestion-content">{suggestion || (processingStep === 'thinking' ? "Thinking..." : "Listening for cues...")}</p>
+        <div className={`card suggestion ${suggestion || processingStep === 'thinking' ? 'visible' : ''} ${isCompactMode ? 'compact-suggestion' : ''}`} role="region" aria-labelledby="suggestion-label">
+          <div className="card-header">
+            <label id="suggestion-label">{AppConfig.models.personas[persona]?.label || 'Cue'}</label>
+            <div className="card-actions">
+              {suggestion && (
+                <>
+                  <button className="btn-icon" onClick={handleCopy} title="Copy to clipboard">
+                    {copied ? <Check size={14} color="#4CAF50" /> : <Copy size={14} />}
+                  </button>
+                  <button className="btn-icon" onClick={handleRefresh} title="New suggestion">
+                    <RefreshCw size={14} />
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+          <p id="suggestion-content" className={isCompactMode ? 'compact-text' : ''}>
+            {suggestion || (processingStep === 'thinking' ? "Thinking..." : "Listening for cues...")}
+          </p>
         </div>
       </div>
 
       <div className="controls" role="group" aria-label="Control buttons">
         <button
-          className={`btn-control pulse-btn ${vad.listening && !isVADMode ? 'active' : ''}`}
+          className={`btn-control pulse-btn ${vad.listening && !isVADMode ? 'active' : ''} ${isCompactMode ? 'compact' : ''}`}
           onClick={handleManualTrigger}
           disabled={!isReady || isVADMode || vad.loading || (vad.errored && !vadError)}
           title="Manual Trigger"
           aria-label="Manual speech trigger"
-          aria-describedby="pulse-description"
         >
           <div className="icon-circle" aria-hidden="true">
-            <Mic size={28} />
+            <Mic size={isCompactMode ? 20 : 28} />
           </div>
-          <span>Pulse</span>
+          {!isCompactMode && <span>Pulse</span>}
         </button>
-        <div id="pulse-description" className="sr-only">Manually trigger speech recognition</div>
 
         <button
-          className={`btn-control heartbeat-btn ${isVADMode ? 'active' : ''}`}
+          className={`btn-control heartbeat-btn ${isVADMode ? 'active' : ''} ${isCompactMode ? 'compact' : ''}`}
           onClick={toggleVAD}
           disabled={!isReady || vad.loading || (vad.errored && !vadError)}
           title="Continuous Mode"
           aria-label="Continuous speech detection"
-          aria-describedby="heartbeat-description"
         >
           <div className="icon-circle" aria-hidden="true">
-            <Heart size={28} fill={isVADMode ? "white" : "none"} />
+            <Heart size={isCompactMode ? 20 : 28} fill={isVADMode ? "white" : "none"} />
           </div>
-          <span>Heartbeat</span>
+          {!isCompactMode && <span>Heartbeat</span>}
         </button>
-        <div id="heartbeat-description" className="sr-only">Enable continuous speech detection</div>
       </div>
 
       {(vad.errored || vadError) && (
         <div className="error-recovery" role="alert" aria-live="assertive">
-          <p>{vadError || "Microphone access or VAD initialization error"}</p>
+          <p>{vadError || "Microphone access error"}</p>
           <button className="btn-retry" onClick={onReset} aria-label="Try again">
             <RefreshCw size={18} aria-hidden="true" />
             Try Again
