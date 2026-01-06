@@ -84,17 +84,24 @@ const VADContent = ({
   }, [initialError]);
 
   useEffect(() => {
+    if (vad.errored) {
+      console.error("VAD Object Errored State Detected");
+    }
+  }, [vad.errored]);
+
+  useEffect(() => {
     vadRef.current = vad;
   }, [vad]);
 
   const toggleVAD = () => {
-    if (!vad || vad.loading || vad.errored) return;
+    if (!vad || vad.loading || (vad.errored && !vadError)) return;
     if (isVADMode) {
       vad.pause();
       setIsVADMode(false);
       setStatus('Ready');
     } else {
       handleClear();
+      setVadError(null); // Clear any previous errors when trying to start
       vad.start();
       setIsVADMode(true);
       setStatus('Heartbeat Active');
@@ -102,12 +109,13 @@ const VADContent = ({
   };
 
   const handleManualTrigger = () => {
-    if (!vad || vad.loading || vad.errored) return;
+    if (!vad || vad.loading || (vad.errored && !vadError)) return;
     if (vad.listening && !isVADMode) {
       vad.pause();
       setStatus('Ready');
     } else {
       handleClear();
+      setVadError(null); // Clear any previous errors when trying to start
       vad.start();
       setStatus('Listening...');
     }
@@ -156,7 +164,7 @@ const VADContent = ({
         <button
           className={`btn-control pulse-btn ${vad.listening && !isVADMode ? 'active' : ''}`}
           onClick={handleManualTrigger}
-          disabled={!isReady || isVADMode || vad.loading || vad.errored || !!vadError}
+          disabled={!isReady || isVADMode || vad.loading || (vad.errored && !vadError)}
           title="Manual Trigger"
           aria-label="Manual speech trigger"
         >
@@ -169,7 +177,7 @@ const VADContent = ({
         <button
           className={`btn-control heartbeat-btn ${isVADMode ? 'active' : ''}`}
           onClick={toggleVAD}
-          disabled={!isReady || vad.loading || vad.errored || !!vadError}
+          disabled={!isReady || vad.loading || (vad.errored && !vadError)}
           title="Continuous Mode"
           aria-label="Continuous speech detection"
         >
@@ -182,7 +190,7 @@ const VADContent = ({
 
       {(vad.errored || vadError) && (
         <div className="error-recovery" role="alert">
-          <p>{vadError || "Microphone access error"}</p>
+          <p>{vadError || "Microphone access or VAD initialization error"}</p>
           <button className="btn-retry" onClick={onReset} aria-label="Try again">
             <RefreshCw size={18} aria-hidden="true" />
             Try Again
