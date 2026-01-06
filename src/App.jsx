@@ -1,15 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Mic, Loader2, Volume2, AlertCircle } from 'lucide-react';
 import { Analytics } from '@vercel/analytics/react';
 import { useMLWorker } from './hooks/useMLWorker';
 import VADContent from './components/VADContent';
 import ErrorBoundary from './ErrorBoundary';
 import { AppConfig } from './config';
+import { checkAssets } from './utils/diagnostics';
 
 import './App.css';
 
 const App = () => {
   const [hasInteracted, setHasInteracted] = useState(false);
+  const [assetError, setAssetError] = useState(null);
   const {
     status,
     progress,
@@ -17,7 +19,9 @@ const App = () => {
     transcript,
     suggestion,
     isProcessing,
+    processingStep,
     processAudio,
+    prewarmLLM,
     setTranscript,
     setSuggestion,
     setStatus,
@@ -30,10 +34,24 @@ const App = () => {
 
   const [micPermissionError, setMicPermissionError] = useState(null);
 
+  useEffect(() => {
+    const runDiagnostics = async () => {
+      const result = await checkAssets();
+      if (!result.allOk) {
+        console.error("Missing assets:", result.missing);
+        setAssetError(`Critical assets missing: ${result.missing.map(m => m.url.split('/').pop()).join(', ')}`);
+      }
+    };
+    runDiagnostics();
+  }, []);
+
   const handleStart = async () => {
     console.log("User clicked start. Transitioning to VAD content.");
     setMicPermissionError(null);
     
+    // Pre-warm LLM as soon as user shows intent to use the app
+    prewarmLLM();
+
     // On mobile, we want to be extra careful with memory spikes
     // A small delay allows any pending work to finish
     if (AppConfig.isMobile) {
@@ -107,6 +125,13 @@ const App = () => {
                 <p>Microphone access denied: {micPermissionError}</p>
               </div>
             )}
+
+            {assetError && (
+              <div className="error-box" role="alert" aria-live="assertive">
+                <AlertCircle size={20} aria-hidden="true" />
+                <p>{assetError}. Please ensure all required files are in the public directory.</p>
+              </div>
+            )}
           </main>
         ) : (
           <VADContent
@@ -115,6 +140,7 @@ const App = () => {
             transcript={transcript}
             suggestion={suggestion}
             isProcessing={isProcessing}
+            processingStep={processingStep}
             processAudio={processAudio}
             setTranscript={setTranscript}
             setSuggestion={setSuggestion}

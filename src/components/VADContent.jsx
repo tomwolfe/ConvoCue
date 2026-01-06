@@ -9,6 +9,7 @@ const VADContent = ({
   transcript,
   suggestion,
   isProcessing,
+  processingStep,
   processAudio,
   setStatus,
   initialError,
@@ -177,8 +178,8 @@ const VADContent = ({
 
         <div className={`card suggestion ${suggestion ? 'visible' : ''}`} role="region" aria-labelledby="suggestion-label">
           <label id="suggestion-label">Social Cue</label>
-          <p id="suggestion-content">{suggestion || "AI Brain is pondering..."}</p>
-          {isProcessing && !suggestion && (
+          <p id="suggestion-content">{suggestion || (processingStep === 'thinking' ? "AI Brain is pondering..." : "Waiting for cues...")}</p>
+          {processingStep === 'thinking' && !suggestion && (
              <div className="thinking-dots" aria-label="Processing, please wait" role="status">
                <span>.</span><span>.</span><span>.</span>
              </div>

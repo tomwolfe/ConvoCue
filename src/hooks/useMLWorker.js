@@ -8,6 +8,7 @@ export const useMLWorker = () => {
   const [transcript, setTranscript] = useState('');
   const [suggestion, setSuggestion] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [processingStep, setProcessingStep] = useState('none'); // 'none', 'transcribing', 'thinking'
   const [history, setHistory] = useState([]);
   const [persona, setPersona] = useState('social');
   
@@ -52,6 +53,7 @@ export const useMLWorker = () => {
             if (!text || text.trim().length === 0) {
               console.log("Empty transcription, resetting...");
               setIsProcessing(false);
+              setProcessingStep('none');
               setStatus('Ready');
               break;
             }
@@ -63,6 +65,7 @@ export const useMLWorker = () => {
             console.log("Transcription received:", sanitizedTranscript);
             if (sanitizedTranscript.trim().length > 1) {
               setStatus('Analyzing social cue...');
+              setProcessingStep('thinking');
               setSuggestion(''); // Clear suggestion before starting LLM
               
               // Add user turn to history and get the updated list to send to worker
@@ -107,6 +110,7 @@ export const useMLWorker = () => {
             const sanitizedSuggestion = text ? text.trim().substring(0, AppConfig.system.maxSuggestionLength) : '';
             setSuggestion(sanitizedSuggestion);
             setIsProcessing(false);
+            setProcessingStep('none');
             setStatus('Ready');
             
             // Add assistant turn to history maintaining extended context
@@ -144,6 +148,7 @@ export const useMLWorker = () => {
             console.error("Worker Logic Error:", error);
             setStatus(`Model Error: ${error}`);
             setIsProcessing(false);
+            setProcessingStep('none');
             setIsReady(false); // Mark as not ready if critical error
             break;
           default:
@@ -212,15 +217,28 @@ export const useMLWorker = () => {
     }
 
     setIsProcessing(true);
+    setProcessingStep('transcribing');
     setStatus('Transcribing...');
 
     // Use Transferables for zero-copy transfer of the audio buffer
-    worker.current.postMessage({
-      type: 'stt',
-      audio: audioBuffer,
-      taskId: `stt-${Date.now()}`
-    }, [audioBuffer.buffer]);
+    try {
+      worker.current.postMessage({
+        type: 'stt',
+        audio: audioBuffer,
+        taskId: `stt-${Date.now()}`
+      }, [audioBuffer.buffer]);
+    } catch (err) {
+      console.error("Error sending audio to worker:", err);
+      setIsProcessing(false);
+      setStatus('Processing failed');
+    }
   }, [isReady, isProcessing]);
+
+  const prewarmLLM = useCallback(() => {
+    if (worker.current && isReady) {
+      worker.current.postMessage({ type: 'prewarm_llm', taskId: `prewarm-${Date.now()}` });
+    }
+  }, [isReady]);
 
   const clearHistory = useCallback(() => {
     setHistory([]);
@@ -235,7 +253,9 @@ export const useMLWorker = () => {
     transcript,
     suggestion,
     isProcessing,
+    processingStep,
     processAudio,
+    prewarmLLM,
     setTranscript,
     setSuggestion,
     setStatus,

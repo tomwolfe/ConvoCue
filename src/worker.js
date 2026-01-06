@@ -52,12 +52,14 @@ class MLPipeline {
         if (!MLPipeline.llm) {
             console.log(`Loading LLM model (${AppConfig.models.llm.name}, ${AppConfig.models.llm.dtype})...`);
             try {
+                self.postMessage({ type: 'status', status: 'Waking up Social Brain...', progress: 0 });
                 MLPipeline.llm = await pipeline('text-generation', AppConfig.models.llm.name, {
                     progress_callback,
                     device: AppConfig.models.llm.device,
                     dtype: AppConfig.models.llm.dtype,
                 });
                 console.log("LLM model loaded successfully");
+                self.postMessage({ type: 'status', status: 'Social Brain ready', progress: 100 });
             } catch (err) {
                 console.error("CRITICAL: Failed to load LLM model:", err);
                 throw new Error(`LLM Load Failed: ${err.message}`);
@@ -72,7 +74,13 @@ class MLPipeline {
             try {
                 // In Transformers.js v3, we try to dispose the underlying session
                 if (MLPipeline.llm.model && MLPipeline.llm.model.session) {
-                    await MLPipeline.llm.model.session.release();
+                    if (Array.isArray(MLPipeline.llm.model.session)) {
+                        for (const s of MLPipeline.llm.model.session) {
+                            if (s && typeof s.release === 'function') await s.release();
+                        }
+                    } else if (typeof MLPipeline.llm.model.session.release === 'function') {
+                        await MLPipeline.llm.model.session.release();
+                    }
                 }
                 MLPipeline.llm = null;
                 console.log("LLM disposed");
@@ -90,7 +98,13 @@ const cleanupModels = async () => {
     if (MLPipeline.stt) {
         try {
             if (MLPipeline.stt.model && MLPipeline.stt.model.session) {
-                await MLPipeline.stt.model.session.release();
+                if (Array.isArray(MLPipeline.stt.model.session)) {
+                    for (const s of MLPipeline.stt.model.session) {
+                        if (s && typeof s.release === 'function') await s.release();
+                    }
+                } else if (typeof MLPipeline.stt.model.session.release === 'function') {
+                    await MLPipeline.stt.model.session.release();
+                }
             }
             MLPipeline.stt = null;
             console.log("STT model cleaned up");
@@ -99,6 +113,8 @@ const cleanupModels = async () => {
             MLPipeline.stt = null;
         }
     }
+    // Attempt to force garbage collection if possible (non-standard but helpful in some environments)
+    if (self.gc) self.gc();
 };
 
 // Memory monitoring function
@@ -197,13 +213,32 @@ self.onmessage = async (event) => {
 
     try {
         if (type === 'load') {
-            console.log("Worker: Starting load sequence (STT only for now)");
+            console.log("Worker: Starting load sequence");
             self.postMessage({ type: 'status', status: 'Waking up Speech Engine...', taskId });
 
             await pipelineManager.loadSTT((p) => throttledProgress(p, 'Speech Engine', taskId));
             
-            console.log("Worker: STT initialized. LLM will lazy load.");
+            // Check if we should pre-warm the LLM based on memory
+            const mem = checkMemoryUsage();
+            const shouldPrewarm = !AppConfig.isMobile || (mem && mem.usagePercent < 50);
+
+            if (shouldPrewarm) {
+                console.log("Worker: Pre-warming LLM as memory is sufficient");
+                await pipelineManager.loadLLM((p) => throttledProgress(p, 'Social Brain', taskId));
+            } else {
+                console.log("Worker: Skipping LLM pre-warm to save memory");
+            }
+
+            console.log("Worker: Initialization complete");
             self.postMessage({ type: 'ready', taskId });
+        }
+
+        if (type === 'prewarm_llm') {
+            if (!MLPipeline.llm) {
+                console.log("Worker: Explicit pre-warm request for LLM");
+                await pipelineManager.loadLLM((p) => throttledProgress(p, 'Social Brain', taskId));
+            }
+            self.postMessage({ type: 'prewarm_complete', taskId });
         }
 
         if (type === 'stt') {
