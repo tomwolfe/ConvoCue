@@ -26,6 +26,7 @@ header h1 {
 }
 
 .subtitle {
+  font-family: 'OpenDyslexic', sans-serif;
   font-size: 1.1rem;
   opacity: 0.7;
   margin: 0;
@@ -186,6 +187,37 @@ header h1 {
   border-radius: 50%;
 }
 
+.persona-selector {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding: 0.5rem 0 1rem;
+  width: 100%;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.persona-selector::-webkit-scrollbar {
+  display: none;
+}
+
+.persona-btn {
+  white-space: nowrap;
+  padding: 0.6rem 1rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  background: white;
+  border: 1px solid #E0E0E0;
+  box-shadow: none;
+  flex-direction: row;
+}
+
+.persona-btn.active {
+  background: #6C5CE7;
+  color: white;
+  border-color: #6C5CE7;
+}
+
 .display-area {
   flex: 1;
   display: flex;
@@ -325,6 +357,7 @@ header h1 {
 }
 
 .card p {
+  font-family: 'OpenDyslexic', sans-serif;
   font-size: 1.25rem;
   margin: 0;
   line-height: 1.5;

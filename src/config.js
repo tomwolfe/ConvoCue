@@ -21,6 +21,28 @@ export const AppConfig = {
       max_new_tokens: isMobile ? 64 : 128,
       temperature: 0.7,
       do_sample: true,
+    },
+    personas: {
+      social: {
+        id: 'social',
+        label: 'Social Coach',
+        prompt: 'You are a social coach. Give a 1-sentence validation and 1-sentence follow-up. Keep it short.'
+      },
+      professional: {
+        id: 'professional',
+        label: 'Professional',
+        prompt: 'You are a professional assistant. Suggest a concise, polite, and confident response for a workplace setting.'
+      },
+      friendly: {
+        id: 'friendly',
+        label: 'Warm Friend',
+        prompt: 'You are a warm, empathetic friend. Suggest a kind and supportive response.'
+      },
+      concise: {
+        id: 'concise',
+        label: 'Bullet Points',
+        prompt: 'Provide 3 very short, 2-3 word response options.'
+      }
     }
   },
 

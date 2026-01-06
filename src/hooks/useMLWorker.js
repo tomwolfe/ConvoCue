@@ -8,8 +8,16 @@ export const useMLWorker = () => {
   const [transcript, setTranscript] = useState('');
   const [suggestion, setSuggestion] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [history, setHistory] = useState([]);
+  const [persona, setPersona] = useState('social');
   
   const worker = useRef(null);
+  const historyRef = useRef([]);
+
+  // Sync historyRef with history state
+  useEffect(() => {
+    historyRef.current = history;
+  }, [history]);
 
   const initWorker = useCallback(() => {
     console.log("Initializing worker...");
@@ -50,22 +58,22 @@ export const useMLWorker = () => {
 
             // Validate and sanitize transcription
             const sanitizedTranscript = text.trim().substring(0, AppConfig.system.maxTranscriptLength);
-            if (!AppConfig.system.allowedTranscriptPattern.test(sanitizedTranscript)) {
-              console.warn("Transcription contains invalid characters, sanitizing...");
-              // Basic sanitization - remove potentially harmful characters
-              const cleanTranscript = sanitizedTranscript.replace(/[^a-zA-Z0-9\s.,!?'""-]/g, '');
-              setTranscript(cleanTranscript);
-            } else {
-              setTranscript(sanitizedTranscript);
-            }
+            setTranscript(sanitizedTranscript);
 
             console.log("Transcription received:", sanitizedTranscript);
             if (sanitizedTranscript.trim().length > 1) {
               setStatus('Analyzing social cue...');
               setSuggestion(''); // Clear suggestion before starting LLM
+              
+              // Add user turn to history and get the updated list to send to worker
+              const nextHistory = [...historyRef.current.slice(-4), { role: 'user', content: sanitizedTranscript }];
+              setHistory(nextHistory);
+
               newWorker.postMessage({
                 type: 'llm',
                 text: sanitizedTranscript,
+                persona: persona,
+                history: nextHistory,
                 taskId: `llm-${Date.now()}`
               });
             } else {
@@ -80,6 +88,12 @@ export const useMLWorker = () => {
             setSuggestion(sanitizedSuggestion);
             setIsProcessing(false);
             setStatus('Ready');
+            
+            // Add assistant turn to history
+            if (sanitizedSuggestion) {
+              setHistory(prev => [...prev.slice(-4), { role: 'assistant', content: sanitizedSuggestion }]);
+            }
+
             // Haptic feedback if available
             if (typeof navigator !== 'undefined' && navigator.vibrate) {
               navigator.vibrate(20);
@@ -172,6 +186,12 @@ export const useMLWorker = () => {
     }, [audioBuffer.buffer]);
   }, [isReady, isProcessing]);
 
+  const clearHistory = useCallback(() => {
+    setHistory([]);
+    setTranscript('');
+    setSuggestion('');
+  }, []);
+
   return {
     status,
     progress,
@@ -183,6 +203,11 @@ export const useMLWorker = () => {
     setTranscript,
     setSuggestion,
     setStatus,
-    resetWorker: initWorker
+    resetWorker: initWorker,
+    history,
+    setHistory,
+    persona,
+    setPersona,
+    clearHistory
   };
 };

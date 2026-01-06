@@ -14,6 +14,10 @@ const VADContent = ({
   setSuggestion,
   setStatus,
   initialError,
+  history,
+  persona,
+  setPersona,
+  clearHistory,
   onReset
 }) => {
   const [isVADMode, setIsVADMode] = useState(false);
@@ -35,8 +39,7 @@ const VADContent = ({
   const vadRef = useRef(null);
 
   const handleClear = () => {
-    setTranscript('');
-    setSuggestion('');
+    clearHistory();
     if (!isProcessing) setStatus('Ready');
   };
 
@@ -148,6 +151,19 @@ const VADContent = ({
         <span>
           {(vad.errored || vadError) ? `Mic Error` : (vad.loading ? "Warming up..." : status)}
         </span>
+      </div>
+
+      <div className="persona-selector" role="group" aria-label="Select conversation mode">
+        {Object.values(AppConfig.models.personas).map((p) => (
+          <button
+            key={p.id}
+            className={`persona-btn ${persona === p.id ? 'active' : ''}`}
+            onClick={() => setPersona(p.id)}
+            aria-pressed={persona === p.id}
+          >
+            {p.label}
+          </button>
+        ))}
       </div>
 
       <div className="display-area" role="region" aria-label="Speech processing results">

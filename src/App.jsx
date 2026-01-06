@@ -21,7 +21,11 @@ const App = () => {
     setTranscript,
     setSuggestion,
     setStatus,
-    resetWorker
+    resetWorker,
+    history,
+    persona,
+    setPersona,
+    clearHistory
   } = useMLWorker();
 
   const [micPermissionError, setMicPermissionError] = useState(null);
@@ -116,6 +120,10 @@ const App = () => {
             setSuggestion={setSuggestion}
             setStatus={setStatus}
             initialError={micPermissionError}
+            history={history}
+            persona={persona}
+            setPersona={setPersona}
+            clearHistory={clearHistory}
             onReset={() => {
               setHasInteracted(false);
               setMicPermissionError(null);

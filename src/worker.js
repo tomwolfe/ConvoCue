@@ -225,12 +225,12 @@ self.onmessage = async (event) => {
         }
 
         if (type === 'llm') {
+            const { text, persona = 'social', history = [] } = event.data;
+            
             // If memory is very tight, we might want to check again before loading LLM
             const preLLMMemory = checkMemoryUsage();
             if (preLLMMemory && preLLMMemory.usagePercent > AppConfig.system.memory.modelUnloadThreshold) {
                 console.warn("Memory too high to load LLM comfortably, attempting cleanup...");
-                // We don't want to dispose STT if we can help it as it's needed for every utterance
-                // but if we MUST, we could. For now, let's just proceed and hope for the best.
             }
 
             // Lazy load LLM if not present
@@ -244,14 +244,16 @@ self.onmessage = async (event) => {
                 throw new Error("Invalid input text for LLM processing");
             }
 
+            const personaConfig = AppConfig.models.personas[persona] || AppConfig.models.personas.social;
             const sanitizedText = text.trim().substring(0, AppConfig.system.maxTranscriptLength);
 
             const messages = [
-                { role: "system", content: "You are a social coach. Give a 1-sentence validation and 1-sentence follow-up. Keep it short." },
+                { role: "system", content: personaConfig.prompt },
+                ...history.map(msg => ({ role: msg.role, content: msg.content })),
                 { role: "user", content: sanitizedText },
             ];
 
-            console.log("Starting LLM generation with streaming...");
+            console.log(`Starting LLM generation for mode: ${persona} with ${history.length} history items`);
 
             const streamer = new TextStreamer(MLPipeline.llm.tokenizer, {
                 skip_prompt: true,
