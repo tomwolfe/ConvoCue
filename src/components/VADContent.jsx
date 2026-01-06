@@ -77,7 +77,14 @@ const VADContent = ({
     onVADReady,
     onError,
     workletURL: "/vad.worklet.bundle.min.js",
-    modelURL: "/silero_vad_v5.onnx",  // Updated to use the versioned model file
+    modelURL: "/silero_vad.onnx", 
+    model: "v5",
+    onnxWASMPaths: {
+      "ort-wasm-simd-threaded.wasm": "/ort-wasm-simd-threaded.wasm",
+      "ort-wasm-simd.wasm": "/ort-wasm-simd.wasm",
+      "ort-wasm-threaded.wasm": "/ort-wasm-threaded.wasm",
+      "ort-wasm.wasm": "/ort-wasm.wasm",
+    },
     positiveSpeechThreshold: 0.55,
     negativeSpeechThreshold: 0.35,
     minSpeechFrames: 4,
@@ -93,10 +100,11 @@ const VADContent = ({
 
   useEffect(() => {
     if (vad.errored && !vadError) {
-      console.error("VAD entered errored state. Checking console for worklet/model load errors.");
-      setVadError("VAD failed to initialize. Please check if silero_vad_v5.onnx, vad.worklet.bundle.min.js, and ort-wasm-simd-threaded.wasm are in the public folder.");
+      const detail = vad.error || "Unknown VAD initialization error";
+      console.error("VAD entered errored state:", detail);
+      setVadError(`VAD failed to initialize: ${detail}. Please ensure silero_vad_v5.onnx, vad.worklet.bundle.min.js, and ort-wasm-simd-threaded.wasm are in the public folder and match the required versions.`);
     }
-  }, [vad.errored, vadError]);
+  }, [vad.errored, vadError, vad.error]);
 
   useEffect(() => {
     vadRef.current = vad;
