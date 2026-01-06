@@ -18,7 +18,7 @@ const GlanceWidget = ({ suggestion, emotionData, isProcessing }) => {
 
   return (
     <div className={`glance-widget ${emotion}`} role="region" aria-label="Glance Feedback">
-      <p className="glance-suggestion">{displaySuggestion}</p>
+      <p className="glance-suggestion">{displaySuggestion ? decodeHTMLEntities(displaySuggestion) : displaySuggestion}</p>
       <div className="glance-indicators">
         {hasActionItem && (
           <div className="glance-badge action">
@@ -97,6 +97,15 @@ const AudioVisualizer = ({ isActive, analyser, isCompactMode }) => {
   );
 };
 
+// Function to decode HTML entities to fix double encoding issue
+const decodeHTMLEntities = (text) => {
+  if (typeof text !== 'string') return '';
+
+  const textArea = document.createElement('textarea');
+  textArea.innerHTML = text;
+  return textArea.textContent;
+};
+
 const VADContent = ({
   status,
   isReady,
@@ -144,7 +153,7 @@ const VADContent = ({
 
   const handleCopy = () => {
     if (suggestion) {
-      navigator.clipboard.writeText(suggestion);
+      navigator.clipboard.writeText(decodeHTMLEntities(suggestion));
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
@@ -320,7 +329,7 @@ const VADContent = ({
                 <Trash2 size={14} />
               </button>
             </div>
-            <p id="transcript-content">{transcript ? sanitizeAndTruncate(transcript, 300) : "Waiting for speech..."}</p>
+            <p id="transcript-content">{transcript ? decodeHTMLEntities(transcript) : "Waiting for speech..."}</p>
           </div>
         )}
 
@@ -377,7 +386,7 @@ const VADContent = ({
             )}
           </div>
           <p id="suggestion-content" className={isCompactMode ? 'compact-text' : ''}>
-            {suggestion ? sanitizeAndTruncate(suggestion, 300) : (processingStep === 'thinking' ? "Thinking..." : "Listening for cues...")}
+            {suggestion ? decodeHTMLEntities(suggestion) : (processingStep === 'thinking' ? "Thinking..." : "Listening for cues...")}
           </p>
         </div>
       </div>
