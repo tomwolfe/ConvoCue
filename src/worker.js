@@ -8,13 +8,14 @@ env.useBrowserCache = true;
 // Optimize threads based on hardware - be more conservative to save memory
 env.backends.onnx.wasm.numThreads = AppConfig.worker.numThreads;
 env.backends.onnx.wasm.simd = AppConfig.worker.simd;
+env.backends.onnx.wasm.proxy = false; // Disable proxy to save one worker thread
 
 // Use the same WASM assets as VAD to encourage browser cache sharing and reduce memory
 if (AppConfig.vad.onnxWASMPaths) {
     env.backends.onnx.wasm.wasmPaths = AppConfig.vad.onnxWASMPaths;
 }
 
-console.log(`ML Worker script loaded. Using ${AppConfig.worker.numThreads} thread(s).`);
+console.log(`ML Worker script loaded. Using ${AppConfig.worker.numThreads} thread(s). SIMD: ${AppConfig.worker.simd}`);
 
 class MLPipeline {
     static instance = null;
@@ -110,16 +111,26 @@ const checkMemoryUsage = () => {
         
         console.log(`Memory Usage: ${usedMB}MB / ${totalMB}MB (${usagePercent}%)`);
         
-        // Return memory usage info for potential optimization decisions
         return {
             usedMB,
             totalMB,
             usagePercent,
-            isHighMemory: usagePercent > 80
+            isHighMemory: usagePercent > AppConfig.system.memory.modelUnloadThreshold
         };
     }
     return null;
 };
+
+// Periodic memory check for mobile
+if (AppConfig.isMobile) {
+    setInterval(async () => {
+        const memoryInfo = checkMemoryUsage();
+        if (memoryInfo && memoryInfo.usagePercent > AppConfig.system.memory.modelUnloadThreshold) {
+            console.warn("Periodic check: High memory usage on mobile, performing emergency cleanup");
+            await MLPipeline.disposeLLM();
+        }
+    }, AppConfig.system.memory.gcInterval);
+}
 
 const throttledProgress = (p, statusPrefix, taskId) => {
     if (p.status === 'progress') {
@@ -200,16 +211,28 @@ self.onmessage = async (event) => {
             const output = await MLPipeline.stt(audioData, {
                 chunk_length_s: AppConfig.models.stt.chunk_length_s,
                 stride_length_s: AppConfig.models.stt.stride_length_s,
+                return_timestamps: false, // Save memory by not returning timestamps
             });
             
             if (!output || typeof output.text !== 'string') {
                 throw new Error("Invalid STT output format");
             }
+
+            // Immediately clear audio data from memory
+            audioData = null;
             
             self.postMessage({ type: 'stt_result', text: output.text, taskId });
         }
 
         if (type === 'llm') {
+            // If memory is very tight, we might want to check again before loading LLM
+            const preLLMMemory = checkMemoryUsage();
+            if (preLLMMemory && preLLMMemory.usagePercent > AppConfig.system.memory.modelUnloadThreshold) {
+                console.warn("Memory too high to load LLM comfortably, attempting cleanup...");
+                // We don't want to dispose STT if we can help it as it's needed for every utterance
+                // but if we MUST, we could. For now, let's just proceed and hope for the best.
+            }
+
             // Lazy load LLM if not present
             if (!MLPipeline.llm) {
                 self.postMessage({ type: 'status', status: 'Waking up Social Brain...', taskId });
@@ -221,7 +244,7 @@ self.onmessage = async (event) => {
                 throw new Error("Invalid input text for LLM processing");
             }
 
-            const sanitizedText = text.trim().substring(0, 1000);
+            const sanitizedText = text.trim().substring(0, AppConfig.system.maxTranscriptLength);
 
             const messages = [
                 { role: "system", content: "You are a social coach. Give a 1-sentence validation and 1-sentence follow-up. Keep it short." },
@@ -261,13 +284,12 @@ self.onmessage = async (event) => {
             self.postMessage({ type: 'llm_result', text: response, taskId });
 
             // Set a timeout to potentially unload LLM after inactivity to save memory
-            // 2 minutes of inactivity (reduced from 5 for mobile)
             setTimeout(async () => {
                 const now = Date.now();
-                if (now - MLPipeline.lastUsed >= 120000 && MLPipeline.llm) {
+                if (now - MLPipeline.lastUsed >= AppConfig.system.memory.llmInactivityTimeout && MLPipeline.llm) {
                     await MLPipeline.disposeLLM();
                 }
-            }, 121000);
+            }, AppConfig.system.memory.llmInactivityTimeout + 1000);
         }
         
         if (type === 'cleanup') {

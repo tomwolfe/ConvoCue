@@ -1,19 +1,24 @@
+// Device detection
+const isMobile = typeof navigator !== 'undefined' && /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
 // Configuration for ConvoCue application
 export const AppConfig = {
+  isMobile,
+  
   // Model configurations
   models: {
     stt: {
       name: 'onnx-community/whisper-tiny.en',
       device: 'wasm',
       dtype: 'q4',
-      chunk_length_s: 30,
-      stride_length_s: 5,
+      chunk_length_s: isMobile ? 15 : 30,
+      stride_length_s: isMobile ? 2 : 5,
     },
     llm: {
       name: 'HuggingFaceTB/SmolLM2-135M-Instruct',
       device: 'wasm',
       dtype: 'q4',
-      max_new_tokens: 128,
+      max_new_tokens: isMobile ? 64 : 128,
       temperature: 0.7,
       do_sample: true,
     }
@@ -21,9 +26,9 @@ export const AppConfig = {
 
   // VAD configurations
   vad: {
-    positiveSpeechThreshold: 0.55,
-    negativeSpeechThreshold: 0.35,
-    minSpeechFrames: 4,
+    positiveSpeechThreshold: 0.6,
+    negativeSpeechThreshold: 0.4,
+    minSpeechFrames: 3,
     model: "v5",
     workletURL: "/vad.worklet.bundle.min.js",
     modelURL: "/silero_vad_v5.onnx",
@@ -37,15 +42,15 @@ export const AppConfig = {
 
   // ML Worker configurations
   worker: {
-    numThreads: 1,
+    numThreads: 1, // Keep at 1 for both mobile and desktop to be safe
     simd: true,
   },
 
   // System configurations
   system: {
     // Maximum length for input validation
-    maxTranscriptLength: 1000,
-    maxSuggestionLength: 500,
+    maxTranscriptLength: isMobile ? 500 : 1000,
+    maxSuggestionLength: isMobile ? 250 : 500,
 
     // Validation patterns
     allowedTranscriptPattern: /^[a-zA-Z0-9\s.,!?'""-]+$/,
@@ -56,9 +61,10 @@ export const AppConfig = {
 
     // Performance and memory configurations
     memory: {
-      maxHeapSizeMB: 512,  // Maximum heap size to monitor
-      gcInterval: 300000,  // Garbage collection interval (5 minutes)
-      modelUnloadThreshold: 100, // Memory threshold to consider unloading models
+      maxHeapSizeMB: isMobile ? 250 : 512,
+      gcInterval: isMobile ? 30000 : 60000,
+      modelUnloadThreshold: isMobile ? 70 : 85,
+      llmInactivityTimeout: isMobile ? 20000 : 60000, // Very aggressive on mobile
     }
   }
 };

@@ -2,6 +2,23 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 
+// Optimize ONNX Runtime for memory-constrained devices
+// These settings affect the main thread (where VAD runs)
+import * as ort from 'onnxruntime-web';
+
+// Use a single thread to save memory on mobile
+ort.env.wasm.numThreads = 1;
+ort.env.wasm.simd = true;
+
+// Force the use of the same WASM paths as configured in AppConfig
+// This ensures consistency and helps with caching
+ort.env.wasm.wasmPaths = {
+  'ort-wasm-simd-threaded.wasm': '/ort-wasm-simd-threaded.wasm',
+  'ort-wasm-simd-threaded.mjs': '/ort-wasm-simd-threaded.mjs',
+  'ort-wasm-simd-threaded.jsep.wasm': '/ort-wasm-simd-threaded.jsep.wasm',
+  'ort-wasm-simd-threaded.jsep.mjs': '/ort-wasm-simd-threaded.jsep.mjs',
+};
+
 const rootElement = document.getElementById('root');
 
 if (rootElement) {

@@ -28,11 +28,18 @@ const App = () => {
 
   const handleStart = async () => {
     console.log("User clicked start. Transitioning to VAD content.");
-    // We'll let VAD handle the microphone request when the user actually
-    // starts a session (Pulse or Heartbeat). This avoids potential
-    // conflicts with stopping/starting tracks too quickly.
-    setHasInteracted(true);
     setMicPermissionError(null);
+    
+    // On mobile, we want to be extra careful with memory spikes
+    // A small delay allows any pending work to finish
+    if (AppConfig.isMobile) {
+      setStatus('Preparing Social Brain...');
+      setTimeout(() => {
+        setHasInteracted(true);
+      }, 300);
+    } else {
+      setHasInteracted(true);
+    }
   };
 
   return (
