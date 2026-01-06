@@ -24,28 +24,12 @@ const App = () => {
   const [micPermissionError, setMicPermissionError] = useState(null);
 
   const handleStart = async () => {
-    try {
-      // Explicitly request microphone access to ensure we have it
-      // and to satisfy browser requirements for user gesture.
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      // We don't need to keep the stream here, VAD will request its own, 
-      // but we need to stop this one so the light doesn't stay on unnecessarily
-      stream.getTracks().forEach(track => track.stop());
-      
-      setHasInteracted(true);
-      setMicPermissionError(null);
-    } catch (err) {
-      console.error("Microphone permission error:", err);
-      let errorMessage = "Microphone access denied.";
-      if (err.name === 'NotAllowedError') {
-        errorMessage = "Microphone access was denied. Please enable it in your browser settings.";
-      } else if (err.name === 'NotFoundError') {
-        errorMessage = "No microphone found on your device.";
-      } else {
-        errorMessage = err.message || "An error occurred while accessing the microphone.";
-      }
-      setMicPermissionError(errorMessage);
-    }
+    console.log("User clicked start. Transitioning to VAD content.");
+    // We'll let VAD handle the microphone request when the user actually
+    // starts a session (Pulse or Heartbeat). This avoids potential
+    // conflicts with stopping/starting tracks too quickly.
+    setHasInteracted(true);
+    setMicPermissionError(null);
   };
 
   return (

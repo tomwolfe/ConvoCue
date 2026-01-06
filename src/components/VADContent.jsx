@@ -50,15 +50,22 @@ const VADContent = ({
   }, []);
 
   const onError = useCallback((err) => {
-    console.error("VAD Error:", err);
+    console.error("VAD Error Details:", err);
+    if (err instanceof Error) {
+      console.error("Error name:", err.name);
+      console.error("Error message:", err.message);
+      console.error("Error stack:", err.stack);
+    }
     setVadError(err?.message || String(err));
   }, []);
 
   const onVADReady = useCallback(() => {
+    console.log("VAD is ready and loaded");
     setVadError(null);
   }, []);
 
   const onSpeechStart = useCallback(() => {
+    console.log("Speech started detection");
     setStatus('Listening...');
   }, [setStatus]);
 
@@ -69,8 +76,8 @@ const VADContent = ({
     onSpeechEnd,
     onVADReady,
     onError,
-    workletURL: "/vad.worklet.bundle.min.js",
-    modelURL: "/silero_vad.onnx",
+    workletURL: new URL('/vad.worklet.bundle.min.js', window.location.origin).href,
+    modelURL: new URL('/silero_vad.onnx', window.location.origin).href,
     positiveSpeechThreshold: 0.55,
     negativeSpeechThreshold: 0.35,
     minSpeechFrames: 4,
@@ -84,10 +91,11 @@ const VADContent = ({
   }, [initialError]);
 
   useEffect(() => {
-    if (vad.errored) {
-      console.error("VAD Object Errored State Detected");
+    if (vad.errored && !vadError) {
+      console.error("VAD entered errored state without calling onError");
+      setVadError("VAD failed to initialize. This could be due to high memory usage or a blocked worklet.");
     }
-  }, [vad.errored]);
+  }, [vad.errored, vadError]);
 
   useEffect(() => {
     vadRef.current = vad;

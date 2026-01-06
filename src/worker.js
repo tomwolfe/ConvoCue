@@ -4,12 +4,13 @@ import { pipeline, env } from '@huggingface/transformers';
 env.allowLocalModels = false;
 env.useBrowserCache = true;
 
-// Optimize threads based on hardware
-const numThreads = self.navigator.hardwareConcurrency ? Math.min(4, self.navigator.hardwareConcurrency) : 1;
+// Optimize threads based on hardware - be more conservative to save memory
+const numThreads = 1; 
 env.backends.onnx.wasm.numThreads = numThreads;
 env.backends.onnx.wasm.simd = true;
 
-console.log(`ML Worker script loaded with ${numThreads} threads`);
+// Force specific WASM paths if needed, but for now just log
+console.log(`ML Worker script loaded. Using ${numThreads} thread(s).`);
 
 class MLPipeline {
     static instance = null;
@@ -25,12 +26,12 @@ class MLPipeline {
 
     async loadSTT(progress_callback) {
         if (!MLPipeline.stt) {
-            console.log("Loading STT model (whisper-tiny.en)...");
+            console.log("Loading STT model (whisper-tiny.en, q4)...");
             try {
                 MLPipeline.stt = await pipeline('automatic-speech-recognition', 'onnx-community/whisper-tiny.en', {
                     progress_callback,
                     device: 'wasm',
-                    dtype: 'fp32',
+                    dtype: 'q4', 
                 });
                 console.log("STT model loaded successfully");
             } catch (err) {
@@ -42,9 +43,9 @@ class MLPipeline {
 
     async loadLLM(progress_callback) {
         if (!MLPipeline.llm) {
-            console.log("Loading LLM model (Qwen2.5-0.5B-Instruct)...");
+            console.log("Loading LLM model (SmolLM2-135M-Instruct, q4)...");
             try {
-                MLPipeline.llm = await pipeline('text-generation', 'onnx-community/Qwen2.5-0.5B-Instruct', {
+                MLPipeline.llm = await pipeline('text-generation', 'onnx-community/SmolLM2-135M-Instruct', {
                     progress_callback,
                     device: 'wasm',
                     dtype: 'q4', 
@@ -85,8 +86,14 @@ self.onmessage = async (event) => {
     const { type, audio, text, taskId } = event.data;
     const pipelineManager = await MLPipeline.getInstance();
 
+    // Log memory usage if available
+    if (self.performance && self.performance.memory) {
+        console.log(`Worker memory usage: ${Math.round(self.performance.memory.usedJSHeapSize / 1024 / 1024)}MB / ${Math.round(self.performance.memory.jsHeapSizeLimit / 1024 / 1024)}MB`);
+    }
+
     try {
         if (type === 'load') {
+            console.log("Worker: Starting load sequence");
             self.postMessage({ type: 'status', status: 'Waking up AI engines...', taskId });
             
             await pipelineManager.loadSTT((p) => throttledProgress(p, 'Speech Engine', taskId));
@@ -94,7 +101,10 @@ self.onmessage = async (event) => {
 
             await pipelineManager.loadLLM((p) => throttledProgress(p, 'Social Brain', taskId));
             
-            console.log("Worker fully initialized");
+            console.log("Worker: Fully initialized");
+            if (self.performance && self.performance.memory) {
+                console.log(`Worker memory after load: ${Math.round(self.performance.memory.usedJSHeapSize / 1024 / 1024)}MB`);
+            }
             self.postMessage({ type: 'ready', taskId });
         }
 

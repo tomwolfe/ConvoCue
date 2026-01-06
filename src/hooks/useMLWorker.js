@@ -20,6 +20,7 @@ export const useMLWorker = () => {
 
       newWorker.onmessage = (e) => {
         const { type, text, status: workerStatus, progress: workerProgress, error } = e.data;
+        console.log(`Worker message received: ${type}`, { status: workerStatus, progress: workerProgress, error });
 
         switch (type) {
           case 'status':
@@ -32,7 +33,7 @@ export const useMLWorker = () => {
             setIsReady(true);
             setProgress(100);
             setStatus('Ready');
-            console.log("Worker signaled ready");
+            console.log("Worker signaled ready. Models are loaded.");
             break;
           case 'stt_result':
             if (!text || text.trim().length === 0) {
