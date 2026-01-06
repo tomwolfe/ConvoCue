@@ -11,9 +11,9 @@ const GlanceWidget = ({ suggestion, emotionData, isProcessing }) => {
   const hasConflict = suggestion?.includes('[Diplomatic]');
   const isHighStakes = suggestion?.includes('[Strategic]');
 
-  // Clean and sanitize the suggestion for glance display
+  // Clean the suggestion for glance display (without re-sanitizing since it's already sanitized)
   const displaySuggestion = suggestion
-    ? sanitizeAndTruncate(suggestion.replace(/\[.*?\]/g, '').trim())
+    ? suggestion.replace(/\[.*?\]/g, '').trim()
     : isProcessing ? 'Thinking...' : 'Listening...';
 
   return (
@@ -343,7 +343,7 @@ const VADContent = ({
                   onClick={() => {
                     handleCopy();
                     // Submit positive feedback when suggestion is copied
-                    submitFeedback(suggestion, 'like', persona, culturalContext, transcript);
+                    submitFeedback(decodeHTMLEntities(suggestion), 'like', persona, culturalContext, transcript);
                   }}
                   title="Copy to clipboard"
                 >
@@ -359,7 +359,7 @@ const VADContent = ({
                 <div className="feedback-buttons">
                   <button
                     className="btn-icon feedback-btn"
-                    onClick={() => submitFeedback(suggestion, 'like', persona, culturalContext, transcript)}
+                    onClick={() => submitFeedback(decodeHTMLEntities(suggestion), 'like', persona, culturalContext, transcript)}
                     title="Like this suggestion"
                     aria-label="Like this suggestion"
                   >
@@ -367,7 +367,7 @@ const VADContent = ({
                   </button>
                   <button
                     className="btn-icon feedback-btn"
-                    onClick={() => submitFeedback(suggestion, 'dislike', persona, culturalContext, transcript)}
+                    onClick={() => submitFeedback(decodeHTMLEntities(suggestion), 'dislike', persona, culturalContext, transcript)}
                     title="Dislike this suggestion"
                     aria-label="Dislike this suggestion"
                   >
@@ -375,7 +375,7 @@ const VADContent = ({
                   </button>
                   <button
                     className="btn-icon feedback-btn"
-                    onClick={() => submitFeedback(suggestion, 'report', persona, culturalContext, transcript)}
+                    onClick={() => submitFeedback(decodeHTMLEntities(suggestion), 'report', persona, culturalContext, transcript)}
                     title="Report inappropriate content"
                     aria-label="Report inappropriate content"
                   >
