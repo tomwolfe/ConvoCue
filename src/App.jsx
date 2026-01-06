@@ -6,6 +6,7 @@ import { useMLWorker } from './hooks/useMLWorker';
 import './App.css';
 
 const App = () => {
+  const [hasInteracted, setHasInteracted] = useState(false);
   const {
     status,
     isReady,
@@ -18,6 +19,66 @@ const App = () => {
     setStatus
   } = useMLWorker();
 
+  if (!hasInteracted) {
+    return (
+      <div className="app-container">
+        <header>
+          <div className="logo-area">
+            <Volume2 size={40} color="#6C5CE7" />
+            <h1>ConvoCue</h1>
+          </div>
+          <p className="subtitle">Real-time social validation</p>
+        </header>
+        <main style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2rem', marginTop: '2rem' }}>
+          <div className={`status-badge ${!isReady ? 'processing' : ''}`}>
+            {!isReady ? <Loader2 className="animate-spin" size={16} /> : <div className="dot" />}
+            <span>{status}</span>
+          </div>
+          <button 
+            className="btn-pulse active" 
+            onClick={() => setHasInteracted(true)}
+            style={{ width: '220px', height: '220px', borderRadius: '50%', flexDirecton: 'column' }}
+            disabled={!isReady}
+          >
+            <div className="icon-circle" style={{ width: '80px', height: '80px' }}>
+              <Mic size={40} />
+            </div>
+            <span style={{ fontSize: '1.1rem' }}>Initialize Microphone</span>
+          </button>
+          <p style={{ textAlign: 'center', opacity: 0.6, maxWidth: '300px' }}>
+            To comply with browser security, please click to enable microphone and social analysis.
+          </p>
+        </main>
+      </div>
+    );
+  }
+
+  return (
+    <VADContent 
+      status={status}
+      isReady={isReady}
+      transcript={transcript}
+      suggestion={suggestion}
+      isProcessing={isProcessing}
+      processAudio={processAudio}
+      setTranscript={setTranscript}
+      setSuggestion={setSuggestion}
+      setStatus={setStatus}
+    />
+  );
+};
+
+const VADContent = ({ 
+  status, 
+  isReady, 
+  transcript, 
+  suggestion, 
+  isProcessing, 
+  processAudio, 
+  setTranscript, 
+  setSuggestion, 
+  setStatus 
+}) => {
   const [isVADMode, setIsVADMode] = useState(false);
   const isVADModeRef = useRef(isVADMode);
   
@@ -25,15 +86,15 @@ const App = () => {
     isVADModeRef.current = isVADMode;
   }, [isVADMode]);
 
-  // Use a ref for processAudio to keep the VAD callback stable 
-  // while still having access to the latest processAudio function
   const processAudioRef = useRef(processAudio);
   useEffect(() => {
     processAudioRef.current = processAudio;
   }, [processAudio]);
 
-  // VAD Implementation with stable options
-  const vad = useMicVAD({
+  const [vadError, setVadError] = useState(null);
+  const vadRef = useRef(null);
+
+  const vadOptions = React.useMemo(() => ({
     startOnLoad: false,
     onSpeechStart: () => {
       console.log("Speech detected...");
@@ -41,8 +102,8 @@ const App = () => {
     },
     onSpeechEnd: (audio) => {
       console.log("Speech ended, processing audio...");
-      if (!isVADModeRef.current) {
-        vad.pause();
+      if (!isVADModeRef.current && vadRef.current) {
+        vadRef.current.pause();
       }
       if (processAudioRef.current) {
         processAudioRef.current(audio);
@@ -50,16 +111,24 @@ const App = () => {
     },
     onVADReady: () => {
       console.log("VAD is ready");
+      setVadError(null);
     },
     onError: (err) => {
       console.error("VAD Error:", err);
+      setVadError(err.message || String(err));
     },
-    workletURL: "/vad.worklet.bundle.min.js",
-    modelURL: "/silero_vad.onnx",
-    positiveSpeechThreshold: 0.5, // Lower threshold slightly for better sensitivity
+    workletURL: "https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.30/dist/vad.worklet.bundle.min.js",
+    modelURL: "https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.30/dist/silero_vad.onnx",
+    positiveSpeechThreshold: 0.5,
     negativeSpeechThreshold: 0.35,
     minSpeechFrames: 3,
-  });
+  }), [setStatus]);
+
+  const vad = useMicVAD(vadOptions);
+
+  useEffect(() => {
+    vadRef.current = vad;
+  }, [vad]);
 
   const toggleVAD = () => {
     if (!vad) return;
@@ -100,10 +169,10 @@ const App = () => {
       </header>
 
       <main>
-        <div className={`status-badge ${isProcessing || vad.loading ? 'processing' : ''}`}>
-          {isProcessing || vad.loading ? <Loader2 className="animate-spin" size={16} /> : <div className="dot" />}
+        <div className={`status-badge ${isProcessing || vad.loading || vad.errored ? 'processing' : ''}`}>
+          {isProcessing || (vad.loading && !vad.errored) ? <Loader2 className="animate-spin" size={16} /> : <div className="dot" />}
           <span>
-            {vad.errored ? "Mic Error" : (vad.loading ? "VAD Loading..." : status)}
+            {vad.errored ? `Mic Error: ${vadError}` : (vad.loading ? "VAD Loading..." : status)}
           </span>
         </div>
 
@@ -142,6 +211,15 @@ const App = () => {
             <span>Heartbeat Mode</span>
           </button>
         </div>
+        
+        {vad.errored && (
+          <button 
+            onClick={() => window.location.reload()}
+            style={{ marginTop: '2rem', padding: '0.5rem 1rem', borderRadius: '8px', background: '#FF7675', color: 'white', border: 'none', cursor: 'pointer' }}
+          >
+            Retry initialization
+          </button>
+        )}
       </main>
     </div>
   );
