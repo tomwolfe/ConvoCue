@@ -49,12 +49,14 @@ const getMergedPersonas = () => {
   };
 
   try {
-    // Load custom personas from localStorage
-    const customPersonasStr = localStorage.getItem('convocue_custom_personas');
-    if (customPersonasStr) {
-      const customPersonas = JSON.parse(customPersonasStr);
-      // Merge custom personas with defaults
-      return { ...defaultPersonas, ...customPersonas };
+    // Load custom personas from localStorage if available (not available in Web Workers)
+    if (typeof localStorage !== 'undefined') {
+      const customPersonasStr = localStorage.getItem('convocue_custom_personas');
+      if (customPersonasStr) {
+        const customPersonas = JSON.parse(customPersonasStr);
+        // Merge custom personas with defaults
+        return { ...defaultPersonas, ...customPersonas };
+      }
     }
   } catch (e) {
     console.error('Error loading custom personas:', e);

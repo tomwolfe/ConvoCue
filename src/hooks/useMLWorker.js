@@ -33,10 +33,26 @@ export const useMLWorker = () => {
   
   const worker = useRef(null);
   const historyRef = useRef([]);
+  const personaRef = useRef(persona);
+  const culturalContextRef = useRef(culturalContext);
+  const transcriptRef = useRef(transcript);
 
+  // Sync refs with state
   useEffect(() => {
     historyRef.current = history;
   }, [history]);
+
+  useEffect(() => {
+    personaRef.current = persona;
+  }, [persona]);
+
+  useEffect(() => {
+    culturalContextRef.current = culturalContext;
+  }, [culturalContext]);
+
+  useEffect(() => {
+    transcriptRef.current = transcript;
+  }, [transcript]);
 
   const initWorker = useCallback(() => {
     console.log("Initializing worker...");
@@ -76,6 +92,7 @@ export const useMLWorker = () => {
 
             const sanitizedTranscript = text.trim().substring(0, AppConfig.system.maxTranscriptLength);
             setTranscript(sanitizedTranscript);
+            transcriptRef.current = sanitizedTranscript;
 
             if (sanitizedTranscript.trim().length > 1) {
               setStatus('Analyzing social cue...');
@@ -87,37 +104,36 @@ export const useMLWorker = () => {
 
               setHistory(nextHistory);
 
-              newWorker.postMessage({
-                type: 'llm',
-                text: sanitizedTranscript,
-                persona,
-                culturalContext,
-                history: nextHistory,
-                metadata,
-                preferences: getUserPreferences(),
-                taskId: `llm-${Date.now()}`
-              });
-            } else {
-              setIsProcessing(false);
-              setStatus('Ready');
-            }
-            break;
-          }
-          case 'llm_result': {
-            const sanitizedSuggestion = text ? text.trim().substring(0, AppConfig.system.maxSuggestionLength) : '';
-            const emotion = e.data.emotionData || null;
-            setEmotionData(emotion);
-
-            const enhancedSuggestion = enhanceResponse(
-              sanitizedSuggestion, 
-              persona, 
-              emotion, 
-              transcript, 
-              getUserPreferences(), 
-              getDislikedPhrases()
-            );
-
-            setSuggestion(enhancedSuggestion);
+                          newWorker.postMessage({
+                            type: 'llm',
+                            text: sanitizedTranscript,
+                            persona: personaRef.current,
+                            culturalContext: culturalContextRef.current,
+                            history: nextHistory,
+                            metadata,
+                            preferences: getUserPreferences(),
+                            taskId: `llm-${Date.now()}`
+                          });
+                          } else {
+                            setIsProcessing(false);
+                            setStatus('Ready');
+                          }
+                          break;
+                        }
+                        case 'llm_result': {
+                          const sanitizedSuggestion = text ? text.trim().substring(0, AppConfig.system.maxSuggestionLength) : '';
+                          const emotion = e.data.emotionData || null;
+                          setEmotionData(emotion);
+              
+                          const enhancedSuggestion = enhanceResponse(
+                            sanitizedSuggestion, 
+                            personaRef.current, 
+                            emotion, 
+                            transcriptRef.current, 
+                            getUserPreferences(), 
+                            getDislikedPhrases()
+                          );
+                          setSuggestion(enhancedSuggestion);
             setIsProcessing(false);
             setProcessingStep('none');
             setStatus('Ready');
@@ -174,7 +190,7 @@ export const useMLWorker = () => {
         setStatus('Could not create background worker');
       }, 0);
     }
-  }, [persona, culturalContext, transcript]);
+  }, []); // Removed persona, culturalContext, transcript dependencies
 
   const cleanupWorker = useCallback(() => {
     if (worker.current) {
