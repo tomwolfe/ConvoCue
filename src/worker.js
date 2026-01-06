@@ -1,13 +1,19 @@
-import { pipeline, env } from '@xenova/transformers';
+import { pipeline, env } from '@huggingface/transformers';
 
 // Configuration for on-device execution
 env.allowLocalModels = false;
 env.useBrowserCache = true;
 
-// Point to CDN for WASM files to avoid local path issues
-env.backends.onnx.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.0/dist/';
+// With v3, we can often rely on default paths, but let's ensure we are using a stable ORT backend
+// We'll use 1.18.0 which is highly compatible with Transformers.js v3
+const ORT_VERSION = '1.18.0';
+env.backends.onnx.wasm.wasmPaths = `https://cdn.jsdelivr.net/npm/onnxruntime-web@${ORT_VERSION}/dist/`;
 
-console.log("ML Worker script loaded");
+// Standard worker optimizations for stability
+env.backends.onnx.wasm.numThreads = 1;
+env.backends.onnx.wasm.simd = false;
+
+console.log("ML Worker script loaded with @huggingface/transformers");
 
 class MLPipeline {
     static instance = null;
@@ -23,21 +29,57 @@ class MLPipeline {
 
     async loadSTT(progress_callback) {
         if (!MLPipeline.stt) {
-            MLPipeline.stt = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny.en', {
-                progress_callback,
-            });
+            console.log("Loading STT model...");
+            try {
+                // Using onnx-community version for better v3 compatibility
+                MLPipeline.stt = await pipeline('automatic-speech-recognition', 'onnx-community/whisper-tiny.en', {
+                    progress_callback,
+                    device: 'wasm',
+                    dtype: 'fp32', // More stable in WASM than fp16/int8 for some whisper variants
+                });
+                console.log("STT model loaded successfully");
+            } catch (err) {
+                console.error("Failed to load STT model:", err);
+                throw err;
+            }
         }
     }
 
     async loadLLM(progress_callback) {
         if (!MLPipeline.llm) {
-            MLPipeline.llm = await pipeline('text-generation', 'Xenova/SmolLM2-360M-Instruct', {
-                progress_callback,
-                model_file_name: 'model_q4.onnx', // Use quantized version
-            });
+            console.log("Loading LLM model...");
+            try {
+                // Qwen3-0.6B is the latest optimized version
+                MLPipeline.llm = await pipeline('text-generation', 'onnx-community/Qwen3-0.6B-ONNX', {
+                    progress_callback,
+                    device: 'wasm',
+                    dtype: 'q4', // Quantized for performance
+                });
+                console.log("LLM model loaded successfully");
+            } catch (err) {
+                console.error("Failed to load LLM model:", err);
+                throw err;
+            }
         }
     }
 }
+
+let lastProgressTime = 0;
+const PROGRESS_THROTTLE = 150;
+
+const throttledProgress = (p, statusPrefix, taskId) => {
+    if (p.status === 'progress') {
+        const now = Date.now();
+        if (now - lastProgressTime > PROGRESS_THROTTLE || p.progress === 100) {
+            self.postMessage({ 
+                type: 'status', 
+                status: `${statusPrefix} (${p.file}): ${Math.round(p.progress ?? 0)}%`, 
+                taskId 
+            });
+            lastProgressTime = now;
+        }
+    }
+};
 
 self.onmessage = async (event) => {
     const { type, audio, text, taskId } = event.data;
@@ -45,16 +87,15 @@ self.onmessage = async (event) => {
 
     try {
         if (type === 'load') {
-            await pipelineManager.loadSTT((p) => {
-                if (p.status === 'progress') {
-                    self.postMessage({ type: 'status', status: `Loading Speech Engine: ${Math.round(p.progress ?? 0)}%`, taskId });
-                }
-            });
-            await pipelineManager.loadLLM((p) => {
-                if (p.status === 'progress') {
-                    self.postMessage({ type: 'status', status: `Loading AI Brain: ${Math.round(p.progress ?? 0)}%`, taskId });
-                }
-            });
+            console.log("Start loading pipelines...");
+            self.postMessage({ type: 'status', status: 'Initializing models...', taskId });
+            
+            await pipelineManager.loadSTT((p) => throttledProgress(p, 'Loading Speech Engine', taskId));
+            self.postMessage({ type: 'status', status: 'Speech Engine Ready. Loading AI Brain...', taskId });
+
+            await pipelineManager.loadLLM((p) => throttledProgress(p, 'Loading AI Brain', taskId));
+            
+            console.log("All pipelines ready");
             self.postMessage({ type: 'ready', taskId });
         }
 
@@ -72,26 +113,22 @@ self.onmessage = async (event) => {
             if (!MLPipeline.llm) await pipelineManager.loadLLM();
             
             const messages = [
-                { role: "system", content: "You are a social coach. Provide 1 brief validation and 1 short follow-up based on the transcript. Keep it under 20 words. No sarcasm." },
+                { role: "system", content: "You are a social coach. Give a 1-sentence validation and 1-sentence follow-up. Keep it short." },
                 { role: "user", content: text },
             ];
 
-            const prompt = MLPipeline.llm.tokenizer.apply_chat_template(messages, {
-                tokenize: false,
-                add_generation_prompt: true,
-            });
-
-            const output = await MLPipeline.llm(prompt, {
+            // Use the newer chat template application in v3
+            const output = await MLPipeline.llm(messages, {
                 max_new_tokens: 50,
                 temperature: 0.7,
                 do_sample: true,
-                top_k: 50,
             });
 
-            const response = output[0].generated_text.split('<|assistant|>').pop().trim();
+            const response = output[0].generated_text.at(-1).content.trim();
             self.postMessage({ type: 'llm_result', text: response, taskId });
         }
     } catch (error) {
+        console.error("Worker error:", error);
         self.postMessage({ type: 'error', error: error.message, taskId });
     }
 };

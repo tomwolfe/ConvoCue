@@ -8,7 +8,7 @@ export default defineConfig({
     format: 'es',
   },
   optimizeDeps: {
-    exclude: ['@xenova/transformers', 'onnxruntime-web']
+    exclude: ['@huggingface/transformers', 'onnxruntime-web']
   },
   build: {
     target: 'esnext',
