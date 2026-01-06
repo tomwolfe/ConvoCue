@@ -66,7 +66,27 @@ export const useMLWorker = () => {
               setSuggestion(''); // Clear suggestion before starting LLM
               
               // Add user turn to history and get the updated list to send to worker
-              const nextHistory = [...historyRef.current.slice(-4), { role: 'user', content: sanitizedTranscript }];
+              // Extended history to 10 turns for better context, with conversation summarization for long sessions
+              const currentHistory = [...historyRef.current, { role: 'user', content: sanitizedTranscript }];
+
+              // If history is getting long, summarize the conversation to maintain context while managing memory
+              let nextHistory;
+              if (currentHistory.length > 10) {
+                // Keep the last 6 messages and add a summary of earlier conversation
+                const earlierMessages = currentHistory.slice(0, -6);
+                const recentMessages = currentHistory.slice(-6);
+
+                // Create a summary of earlier conversation
+                const conversationSummary = `Previous conversation summary: ${earlierMessages.map(msg => `${msg.role}: ${msg.content}`).join(' | ')}`;
+
+                nextHistory = [
+                  { role: 'system', content: conversationSummary },
+                  ...recentMessages
+                ];
+              } else {
+                nextHistory = currentHistory;
+              }
+
               setHistory(nextHistory);
 
               newWorker.postMessage({
@@ -89,9 +109,25 @@ export const useMLWorker = () => {
             setIsProcessing(false);
             setStatus('Ready');
             
-            // Add assistant turn to history
+            // Add assistant turn to history maintaining extended context
             if (sanitizedSuggestion) {
-              setHistory(prev => [...prev.slice(-4), { role: 'assistant', content: sanitizedSuggestion }]);
+              setHistory(prev => {
+                const updatedHistory = [...prev, { role: 'assistant', content: sanitizedSuggestion }];
+
+                // Apply the same summarization logic when adding assistant responses
+                if (updatedHistory.length > 10) {
+                  const earlierMessages = updatedHistory.slice(0, -6);
+                  const recentMessages = updatedHistory.slice(-6);
+
+                  const conversationSummary = `Previous conversation summary: ${earlierMessages.map(msg => `${msg.role}: ${msg.content}`).join(' | ')}`;
+
+                  return [
+                    { role: 'system', content: conversationSummary },
+                    ...recentMessages
+                  ];
+                }
+                return updatedHistory;
+              });
             }
 
             // Haptic feedback if available
@@ -131,7 +167,7 @@ export const useMLWorker = () => {
         setStatus('Could not create background worker');
       }, 0);
     }
-  }, []);
+  }, [persona]);
 
   // Cleanup function for worker termination
   const cleanupWorker = useCallback(() => {

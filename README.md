@@ -1,16 +1,46 @@
-# React + Vite
+# ConvoCue - AI-Powered Conversation Assistant
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+ConvoCue is an AI-powered conversation assistant that listens to live conversations and suggests thoughtful, context-aware responses. The application runs entirely in the browser with all processing happening locally on your device, ensuring privacy and security.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Real-time Speech Recognition**: Uses Whisper Tiny for speech-to-text conversion in the browser
+- **AI Response Suggestions**: Employs SmolLM2 for generating context-aware responses
+- **Multiple Personas**: Choose from various conversation modes:
+  - Social Coach: Encouraging and supportive responses
+  - Professional: Workplace-appropriate suggestions
+  - Warm Friend: Empathetic and caring responses
+  - Bullet Points: Short, direct response options
+  - Cross-Cultural: Culturally sensitive communication
+  - Language Learning: Grammar correction and learning tips
+  - Meeting Mode: Professional meeting responses
+  - Emotional Support: Empathetic responses with emotional awareness
+- **Extended Conversation Memory**: Maintains context across longer conversations with summarization
+- **Privacy-First**: All processing happens locally in your browser
+- **Mobile-Optimized**: Designed to work efficiently on mobile devices
 
-## React Compiler
+## Use Cases
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Social anxiety support: Help users respond in conversations they find stressful
+- Cross-cultural communication: Suggest culturally appropriate phrasing
+- Professional settings: Meetings, sales calls, negotiations
+- Language learners: Real-time feedback and learning suggestions
+- Relationship coaching: Improve emotional intelligence in personal chats
 
-## Expanding the ESLint configuration
+## Technical Architecture
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- React frontend with Vite build system
+- Web Audio API with Voice Activity Detection (VAD)
+- Transformers.js for on-device AI inference
+- ONNX WebAssembly models for efficient processing
+- Client-side only processing for privacy
+
+## Getting Started
+
+1. Install dependencies: `npm install`
+2. Start development server: `npm run dev`
+3. Build for production: `npm run build`
+
+## Privacy
+
+All processing happens locally in your browser. No audio or conversation data is sent to any server.

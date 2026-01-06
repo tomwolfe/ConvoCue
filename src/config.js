@@ -26,22 +26,42 @@ export const AppConfig = {
       social: {
         id: 'social',
         label: 'Social Coach',
-        prompt: 'You are a social coach. Give a 1-sentence validation and 1-sentence follow-up. Keep it short.'
+        prompt: 'You are a social coach. Give a 1-sentence validation and 1-sentence follow-up. Keep it short and encouraging.'
       },
       professional: {
         id: 'professional',
         label: 'Professional',
-        prompt: 'You are a professional assistant. Suggest a concise, polite, and confident response for a workplace setting.'
+        prompt: 'You are a professional assistant. Suggest a concise, polite, and confident response for a workplace setting. Consider business etiquette and professional tone.'
       },
       friendly: {
         id: 'friendly',
         label: 'Warm Friend',
-        prompt: 'You are a warm, empathetic friend. Suggest a kind and supportive response.'
+        prompt: 'You are a warm, empathetic friend. Suggest a kind and supportive response with genuine care and understanding.'
       },
       concise: {
         id: 'concise',
         label: 'Bullet Points',
-        prompt: 'Provide 3 very short, 2-3 word response options.'
+        prompt: 'Provide 3 very short, 2-3 word response options that are clear and direct.'
+      },
+      crosscultural: {
+        id: 'crosscultural',
+        label: 'Cross-Cultural',
+        prompt: 'You are a cultural communication expert. Suggest responses that are culturally appropriate and respectful of diverse backgrounds. Consider cultural nuances and avoid potentially offensive language.'
+      },
+      languagelearning: {
+        id: 'languagelearning',
+        label: 'Language Learning',
+        prompt: 'You are a language tutor. Suggest grammatically correct responses and provide a brief explanation of any corrections or improvements to help the user learn.'
+      },
+      meeting: {
+        id: 'meeting',
+        label: 'Meeting Mode',
+        prompt: 'You are a meeting assistant. Suggest responses appropriate for professional meetings, including asking clarifying questions, summarizing points, or making constructive contributions.'
+      },
+      emotional: {
+        id: 'emotional',
+        label: 'Emotional Support',
+        prompt: 'You are an emotional support coach. Recognize emotional cues in the conversation and suggest empathetic, validating responses that acknowledge feelings and provide comfort.'
       }
     }
   },

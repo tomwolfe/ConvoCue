@@ -121,6 +121,25 @@ const checkMemoryUsage = () => {
     return null;
 };
 
+// Simple sentiment analysis function for emotional context
+const analyzeSentiment = (text) => {
+    const positiveWords = ['good', 'great', 'excellent', 'amazing', 'wonderful', 'fantastic', 'love', 'like', 'happy', 'pleased', 'satisfied', 'thank', 'thanks', 'awesome', 'brilliant', 'perfect', 'right', 'correct', 'agree', 'yes', 'ok', 'okay', 'fine', 'well'];
+    const negativeWords = ['bad', 'terrible', 'awful', 'hate', 'dislike', 'sad', 'angry', 'frustrated', 'disappointed', 'wrong', 'no', 'not', 'never', 'hurt', 'difficult', 'hard', 'problem', 'issue', 'concern', 'worry', 'stressed', 'anxious', 'upset', 'mad', 'annoyed'];
+
+    const words = text.toLowerCase().split(/\s+/);
+    let positiveCount = 0;
+    let negativeCount = 0;
+
+    for (const word of words) {
+        if (positiveWords.includes(word)) positiveCount++;
+        if (negativeWords.includes(word)) negativeCount++;
+    }
+
+    if (positiveCount > negativeCount) return 'positive';
+    if (negativeCount > positiveCount) return 'negative';
+    return 'neutral';
+};
+
 // Periodic memory check for mobile
 if (AppConfig.isMobile) {
     setInterval(async () => {
@@ -156,7 +175,7 @@ const throttledProgress = (p, statusPrefix, taskId) => {
 };
 
 self.onmessage = async (event) => {
-    const { type, audio, text, taskId } = event.data;
+    const { type, audio, taskId, text: _text } = event.data; // text is only used in LLM processing
     const pipelineManager = await MLPipeline.getInstance();
 
     // Check memory usage and log if high
@@ -247,43 +266,91 @@ self.onmessage = async (event) => {
             const personaConfig = AppConfig.models.personas[persona] || AppConfig.models.personas.social;
             const sanitizedText = text.trim().substring(0, AppConfig.system.maxTranscriptLength);
 
+            // Process history to handle conversation summaries appropriately
+            const processedHistory = [];
+            for (const msg of history) {
+                if (msg.role === 'system' && msg.content.startsWith('Previous conversation summary:')) {
+                    // For system messages containing conversation summaries, we can either:
+                    // 1. Include as a system message with context
+                    // 2. Or convert to a more structured format
+                    processedHistory.push({
+                        role: "system",
+                        content: `Context from earlier conversation: ${msg.content.substring('Previous conversation summary: '.length)}`
+                    });
+                } else {
+                    processedHistory.push({ role: msg.role, content: msg.content });
+                }
+            }
+
+            // Analyze emotional tone for emotional support persona
+            let emotionalContext = '';
+            if (persona === 'emotional') {
+                const sentiment = analyzeSentiment(sanitizedText);
+                emotionalContext = `Emotional analysis: The user's tone seems ${sentiment}. Please respond with appropriate empathy and emotional support.`;
+            }
+
             const messages = [
-                { role: "system", content: personaConfig.prompt },
-                ...history.map(msg => ({ role: msg.role, content: msg.content })),
+                { role: "system", content: personaConfig.prompt + (emotionalContext ? ` ${emotionalContext}` : '') },
+                ...processedHistory,
                 { role: "user", content: sanitizedText },
             ];
 
             console.log(`Starting LLM generation for mode: ${persona} with ${history.length} history items`);
 
-            const streamer = new TextStreamer(MLPipeline.llm.tokenizer, {
-                skip_prompt: true,
-                skip_special_tokens: true,
-                callback_function: (chunk) => {
-                    if (typeof chunk === 'string') {
-                        self.postMessage({ type: 'llm_chunk', text: chunk, taskId });
-                    }
-                },
-            });
+            try {
+                const streamer = new TextStreamer(MLPipeline.llm.tokenizer, {
+                    skip_prompt: true,
+                    skip_special_tokens: true,
+                    callback_function: (chunk) => {
+                        if (typeof chunk === 'string') {
+                            self.postMessage({ type: 'llm_chunk', text: chunk, taskId });
+                        }
+                    },
+                });
 
-            const output = await MLPipeline.llm(messages, {
-                max_new_tokens: AppConfig.models.llm.max_new_tokens,
-                temperature: AppConfig.models.llm.temperature,
-                do_sample: AppConfig.models.llm.do_sample,
-                streamer,
-            });
+                const output = await MLPipeline.llm(messages, {
+                    max_new_tokens: AppConfig.models.llm.max_new_tokens,
+                    temperature: AppConfig.models.llm.temperature,
+                    do_sample: AppConfig.models.llm.do_sample,
+                    streamer,
+                });
 
-            if (!output || !Array.isArray(output) || output.length === 0) {
-                throw new Error("Invalid LLM output format");
+                if (!output || !Array.isArray(output) || output.length === 0) {
+                    throw new Error("Invalid LLM output format");
+                }
+
+                const response = output[0].generated_text.at(-1)?.content?.trim() || '';
+
+                if (typeof response !== 'string') {
+                    throw new Error("Invalid LLM response format");
+                }
+
+                console.log("LLM Generation complete");
+                self.postMessage({ type: 'llm_result', text: response, taskId });
+            } catch (llmError) {
+                console.error("LLM generation failed:", llmError);
+
+                // Provide a fallback response based on the selected persona
+                const fallbackResponses = {
+                    social: "That sounds interesting. Could you tell me more about that?",
+                    professional: "Thank you for sharing. What are the next steps?",
+                    friendly: "I understand. How are you feeling about all this?",
+                    concise: ["Interesting", "Tell me more", "That makes sense"],
+                    crosscultural: "That's a thoughtful point. How does this align with your cultural perspective?",
+                    languagelearning: "I understand. The grammar looks good, but you could also say it this way...",
+                    meeting: "That's an important point. Should we discuss this further in our agenda?",
+                    emotional: "I hear you. That sounds challenging. How can I support you?"
+                };
+
+                const fallbackResponse = fallbackResponses[persona] || fallbackResponses.social;
+                const fallbackText = typeof fallbackResponse === 'string' ? fallbackResponse : fallbackResponse.join(', ');
+
+                self.postMessage({
+                    type: 'llm_result',
+                    text: `Response temporarily unavailable. Suggestion: ${fallbackText}`,
+                    taskId
+                });
             }
-
-            const response = output[0].generated_text.at(-1)?.content?.trim() || '';
-            
-            if (typeof response !== 'string') {
-                throw new Error("Invalid LLM response format");
-            }
-
-            console.log("LLM Generation complete");
-            self.postMessage({ type: 'llm_result', text: response, taskId });
 
             // Set a timeout to potentially unload LLM after inactivity to save memory
             setTimeout(async () => {

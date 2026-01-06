@@ -10,11 +10,8 @@ const VADContent = ({
   suggestion,
   isProcessing,
   processAudio,
-  setTranscript,
-  setSuggestion,
   setStatus,
   initialError,
-  history,
   persona,
   setPersona,
   clearHistory,
@@ -154,16 +151,19 @@ const VADContent = ({
       </div>
 
       <div className="persona-selector" role="group" aria-label="Select conversation mode">
-        {Object.values(AppConfig.models.personas).map((p) => (
-          <button
-            key={p.id}
-            className={`persona-btn ${persona === p.id ? 'active' : ''}`}
-            onClick={() => setPersona(p.id)}
-            aria-pressed={persona === p.id}
-          >
-            {p.label}
-          </button>
-        ))}
+        <div className="persona-grid">
+          {Object.values(AppConfig.models.personas).map((p) => (
+            <button
+              key={p.id}
+              className={`persona-btn ${persona === p.id ? 'active' : ''}`}
+              onClick={() => setPersona(p.id)}
+              aria-pressed={persona === p.id}
+              title={p.description || p.label}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="display-area" role="region" aria-label="Speech processing results">
