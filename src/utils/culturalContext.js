@@ -1,0 +1,361 @@
+/**
+ * Cultural context database for cross-cultural communication
+ */
+
+export const culturalContextDatabase = {
+  // Common cultural communication patterns
+  communicationStyles: {
+    'high-context': {
+      description: 'Indirect communication with emphasis on non-verbal cues',
+      cultures: ['Japan', 'China', 'Korea', 'Arab countries', 'India'],
+      tips: [
+        'Be patient with silence',
+        'Pay attention to non-verbal cues',
+        'Avoid direct confrontation',
+        'Build relationship before business',
+        'Use honorifics and formal language',
+        'Show respect for hierarchy'
+      ]
+    },
+    'low-context': {
+      description: 'Direct communication with explicit verbal messages',
+      cultures: ['USA', 'Germany', 'Switzerland', 'Scandinavian countries', 'Netherlands'],
+      tips: [
+        'Be direct and clear',
+        'State intentions explicitly',
+        'Value efficiency over relationship building',
+        'Ask clarifying questions directly',
+        'Get to the point quickly',
+        'Focus on facts and data'
+      ]
+    }
+  },
+
+  // Common cultural phrases and appropriate responses
+  culturalPhrases: {
+    'face-saving': [
+      {
+        situation: 'When someone makes a mistake',
+        inappropriate: 'You did that wrong',
+        appropriate: 'Let me help you with that',
+        culturalContext: 'In many Asian cultures, preserving dignity is important'
+      },
+      {
+        situation: 'Giving feedback',
+        inappropriate: 'This is terrible',
+        appropriate: 'There might be another way to approach this',
+        culturalContext: 'Indirect feedback is preferred in many cultures'
+      }
+    ],
+
+    'formality': [
+      {
+        situation: 'Meeting new people',
+        inappropriate: 'Hey buddy',
+        appropriate: 'Nice to meet you, [title if known]',
+        culturalContext: 'Many cultures value formal greetings initially'
+      }
+    ]
+  },
+
+  // Cultural greetings by region
+  greetings: {
+    'East Asia': {
+      'China': ['Ni Hao', 'Hello', 'How are you?'],
+      'Japan': ['Konnichiwa', 'Hello', 'How are you?'],
+      'Korea': ['Annyeonghaseyo', 'Hello', 'How are you?']
+    },
+    'South Asia': {
+      'India': ['Namaste', 'Hello', 'How are you?'],
+      'Pakistan': ['Assalamu Alaikum', 'Hello', 'How are you?']
+    },
+    'Middle East': {
+      'Arabic': ['As-salāmu ʿalaykum', 'Hello', 'How are you?'],
+      'Persian': ['Dorood', 'Hello', 'How are you?']
+    },
+    'Europe': {
+      'France': ['Bonjour', 'Hello', 'How are you?'],
+      'Germany': ['Guten Tag', 'Hello', 'How are you?'],
+      'Spain': ['Hola', 'Hello', 'How are you?'],
+      'Italy': ['Ciao', 'Hello', 'How are you?'],
+      'Russia': ['Zdravstvuyte', 'Hello', 'How are you?']
+    },
+    'Latin America': {
+      'Spanish': ['Hola', 'Hello', 'How are you?'],
+      'Portuguese': ['Olá', 'Hello', 'How are you?']
+    },
+    'English Speaking': {
+      'USA': ['Hello', 'Hi', 'How are you?'],
+      'UK': ['Hello', 'Good day', 'How do you do?'],
+      'Australia': ['G\'day', 'Hello', 'How are you?']
+    }
+  },
+
+  // Cultural taboos to avoid
+  taboos: [
+    {
+      culture: 'Japan',
+      taboos: ['Blowing nose in public', 'Pointing with chopsticks', 'Tipping'],
+      explanation: 'These actions are considered impolite or rude'
+    },
+    {
+      culture: 'Middle Eastern',
+      taboos: ['Using left hand for greeting', 'Discussing religion negatively', 'Public displays of affection'],
+      explanation: 'These actions can be offensive in many Middle Eastern cultures'
+    },
+    {
+      culture: 'Germany',
+      taboos: ['Being late', 'Interrupting', 'Complaining about government'],
+      explanation: 'Punctuality and order are highly valued'
+    },
+    {
+      culture: 'India',
+      taboos: ['Touching someone with feet', 'Eating with left hand', 'Disrespecting elders'],
+      explanation: 'Respect for hierarchy and traditions is important'
+    }
+  ],
+
+  // Business etiquette by culture
+  businessEtiquette: {
+    'East Asian': {
+      importance: 'High',
+      practices: [
+        'Exchange business cards respectfully',
+        'Show respect for seniority',
+        'Build personal relationships first',
+        'Be patient with decision-making process'
+      ]
+    },
+    'Western': {
+      importance: 'Medium',
+      practices: [
+        'Get to business quickly',
+        'Focus on results and efficiency',
+        'Direct communication is valued',
+        'Punctuality is essential'
+      ]
+    },
+    'Middle Eastern': {
+      importance: 'High',
+      practices: [
+        'Build personal relationships first',
+        'Show respect for traditions',
+        'Be patient with decision-making',
+        'Avoid scheduling during prayer times'
+      ]
+    }
+  }
+};
+
+/**
+ * Get cultural context for a specific situation
+ * @param {string} situation - The communication situation
+ * @param {string} targetCulture - Optional target culture
+ * @returns {object} Cultural context information
+ */
+export const getCulturalContext = (situation, targetCulture = null) => {
+  // Find relevant cultural information based on situation
+  const relevantPhrases = culturalContextDatabase.culturalPhrases[situation] || [];
+
+  if (targetCulture) {
+    // Filter for specific culture if provided
+    return {
+      situation,
+      targetCulture,
+      phrases: relevantPhrases,
+      communicationStyle: getCommunicationStyleForCulture(targetCulture),
+      businessEtiquette: getBusinessEtiquetteForCulture(targetCulture)
+    };
+  }
+
+  return {
+    situation,
+    phrases: relevantPhrases,
+    generalTips: culturalContextDatabase.communicationStyles['high-context'].tips.concat(
+      culturalContextDatabase.communicationStyles['low-context'].tips
+    )
+  };
+};
+
+/**
+ * Get appropriate communication style for a specific culture
+ * @param {string} culture - The target culture
+ * @returns {string} Communication style ('high-context' or 'low-context')
+ */
+export const getCommunicationStyleForCulture = (culture) => {
+  for (const [style, data] of Object.entries(culturalContextDatabase.communicationStyles)) {
+    if (data.cultures.includes(culture)) {
+      return style;
+    }
+  }
+  return 'low-context'; // Default to low-context
+};
+
+/**
+ * Get business etiquette for a specific culture
+ * @param {string} culture - The target culture
+ * @returns {object} Business etiquette information
+ */
+export const getBusinessEtiquetteForCulture = (culture) => {
+  for (const [region, etiquette] of Object.entries(culturalContextDatabase.businessEtiquette)) {
+    if (culturalContextDatabase.communicationStyles.highContext.cultures.includes(culture) && region === 'East Asian') {
+      return etiquette;
+    }
+    if (culturalContextDatabase.communicationStyles.lowContext.cultures.includes(culture) && region === 'Western') {
+      return etiquette;
+    }
+    if (['Arab countries', 'India'].includes(culture) && region === 'Middle Eastern') {
+      return etiquette;
+    }
+  }
+  return culturalContextDatabase.businessEtiquette.Western; // Default
+};
+
+/**
+ * Get appropriate greeting for a culture
+ * @param {string} culture - Target culture
+ * @returns {string} Appropriate greeting
+ */
+export const getGreetingForCulture = (culture) => {
+  for (const [region, cultures] of Object.entries(culturalContextDatabase.greetings)) {
+    if (cultures[culture]) {
+      return cultures[culture][0]; // Return the native greeting
+    }
+  }
+  return 'Hello'; // Default greeting
+};
+
+/**
+ * Check if a phrase might be culturally inappropriate
+ * @param {string} phrase - The phrase to check
+ * @param {string} targetCulture - Target culture for context
+ * @returns {object|null} Inappropriateness information or null if appropriate
+ */
+export const checkCulturalInappropriateness = (phrase, targetCulture) => {
+  // This is a simplified check - in a real implementation, this would be more sophisticated
+  const lowerPhrase = phrase.toLowerCase();
+
+  // Common patterns that might be inappropriate in certain cultures
+  const inappropriatePatterns = [
+    { pattern: /you did that wrong/i, cultures: ['East Asian'], suggestion: 'Consider rephrasing to be more indirect' },
+    { pattern: /stupid/i, cultures: ['most'], suggestion: 'Avoid using potentially offensive language' },
+    { pattern: /whatever/i, cultures: ['formal cultures'], suggestion: 'Use more respectful language' },
+    { pattern: /dude|bro/i, cultures: ['formal cultures'], suggestion: 'Use more respectful language' },
+    { pattern: /hurry up|faster/i, cultures: ['high-context'], suggestion: 'Be more patient and respectful' }
+  ];
+
+  for (const pattern of inappropriatePatterns) {
+    if (pattern.pattern.test(lowerPhrase) &&
+        (pattern.cultures.includes('most') || pattern.cultures.includes(targetCulture))) {
+      return {
+        issue: 'Potentially inappropriate',
+        suggestion: pattern.suggestion,
+        culture: targetCulture
+      };
+    }
+  }
+
+  return null;
+};
+
+/**
+ * Get language learning support for a specific language
+ * @param {string} language - Target language
+ * @returns {object} Language learning support information
+ */
+export const getLanguageLearningSupport = (language) => {
+  const languageSupport = {
+    'english': {
+      commonMistakes: [
+        { mistake: 'Using wrong prepositions', example: 'in the weekend' },
+        { mistake: 'Forgetting articles', example: 'I go store' },
+        { mistake: 'Wrong verb tenses', example: 'I go yesterday' }
+      ],
+      culturalNotes: [
+        'In American English, be direct but polite',
+        'In British English, be more formal and indirect',
+        'Use "please" and "thank you" frequently'
+      ]
+    },
+    'spanish': {
+      commonMistakes: [
+        { mistake: 'Gender agreement', example: 'la mesa rojo' },
+        { mistake: 'Ser vs. Estar', example: 'Estoy aburrido' },
+        { mistake: 'Formal vs. informal', example: 'Tú vs. Usted' }
+      ],
+      culturalNotes: [
+        'Use formal "usted" with elders or in professional settings',
+        'Physical contact is more common in greetings',
+        'Punctuality may be more flexible'
+      ]
+    },
+    'chinese': {
+      commonMistakes: [
+        { mistake: 'Tone errors', example: 'mā vs. má' },
+        { mistake: 'Missing measure words', example: 'three book' },
+        { mistake: 'Literal translations', example: 'head very pain' }
+      ],
+      culturalNotes: [
+        'Respect for hierarchy is important',
+        'Face-saving is crucial',
+        'Indirect communication is preferred'
+      ]
+    }
+  };
+
+  return languageSupport[language.toLowerCase()] || languageSupport.english;
+};
+
+/**
+ * Get professional meeting support for different contexts
+ * @param {string} context - Meeting context (e.g., 'business', 'academic', 'casual')
+ * @returns {object} Professional meeting support information
+ */
+export const getProfessionalMeetingSupport = (context) => {
+  const meetingSupport = {
+    'business': {
+      keyPhrases: [
+        'Thank you for your time',
+        'Let\'s circle back on this',
+        'I\'ll follow up with you',
+        'What are the next steps?'
+      ],
+      etiquette: [
+        'Arrive on time',
+        'Come prepared with agenda',
+        'Listen actively',
+        'Take notes if appropriate'
+      ]
+    },
+    'academic': {
+      keyPhrases: [
+        'Could you elaborate on that?',
+        'I have a different perspective',
+        'What are the implications?',
+        'How does this connect to...?'
+      ],
+      etiquette: [
+        'Respect for expertise',
+        'Constructive criticism',
+        'Evidence-based arguments',
+        'Open-mindedness'
+      ]
+    },
+    'casual': {
+      keyPhrases: [
+        'That\'s interesting',
+        'Tell me more about that',
+        'I see your point',
+        'What do you think?'
+      ],
+      etiquette: [
+        'Be genuine',
+        'Show interest in others',
+        'Share appropriately',
+        'Respect personal boundaries'
+      ]
+    }
+  };
+
+  return meetingSupport[context] || meetingSupport.business;
+};

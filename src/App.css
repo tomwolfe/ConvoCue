@@ -148,6 +148,31 @@ header.compact .subtitle {
 .persona-label { font-size: 0.75rem; font-weight: 700; margin-bottom: 2px; }
 .persona-desc { font-size: 0.6rem; color: var(--text-muted); line-height: 1.2; }
 
+.cultural-context-selector {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background: rgba(108, 92, 231, 0.05);
+  border-radius: 12px;
+  border: 1px solid var(--primary);
+}
+
+.cultural-context-selector label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 0.5rem;
+}
+
+.cultural-context-dropdown {
+  width: 100%;
+  padding: 0.5rem;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  background: white;
+  font-size: 0.8rem;
+}
+
 /* HUD Display Area */
 .display-area {
   flex: 1;

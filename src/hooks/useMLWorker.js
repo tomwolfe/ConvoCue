@@ -24,6 +24,15 @@ export const useMLWorker = () => {
     }
     return 'anxiety';
   });
+
+  const [culturalContext, setCulturalContext] = useState(() => {
+    // Initialize with user's preferred cultural context from local storage
+    // Check if localStorage is available (not available in test environments)
+    if (typeof localStorage !== 'undefined') {
+      return localStorage.getItem('selectedCulturalContext') || 'general';
+    }
+    return 'general';
+  });
   
   const worker = useRef(null);
   const historyRef = useRef([]);
@@ -91,6 +100,7 @@ export const useMLWorker = () => {
               type: 'llm',
               text: sanitizedTranscript,
               persona: persona,
+              culturalContext: culturalContext,
               history: nextHistory,
               taskId: `llm-${Date.now()}`
             });
@@ -253,6 +263,11 @@ export const useMLWorker = () => {
     savePersonaPreference(newPersona);
   }, [savePersonaPreference]);
 
+  const setCulturalContextFromUI = useCallback((newCulturalContext) => {
+    setCulturalContext(newCulturalContext);
+    localStorage.setItem('selectedCulturalContext', newCulturalContext);
+  }, []);
+
   return {
     status,
     progress,
@@ -271,6 +286,8 @@ export const useMLWorker = () => {
     setHistory,
     persona,
     setPersona: updatedSetPersona,
+    culturalContext,
+    setCulturalContext: setCulturalContextFromUI,
     clearHistory
   };
 };

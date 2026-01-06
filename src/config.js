@@ -51,19 +51,19 @@ export const AppConfig = {
         id: 'crosscultural',
         label: 'Cultural Guide',
         description: 'Culturally sensitive phrasing suggestions.',
-        prompt: 'Suggest a respectful response that avoids idioms and shows cultural awareness. If a specific culture is mentioned, adapt accordingly. Keep it brief.'
+        prompt: 'Suggest a respectful response that avoids idioms and shows cultural awareness. Consider high-context vs low-context communication styles. If a specific culture is mentioned, adapt accordingly with appropriate formality and respect. Keep it brief but culturally appropriate.'
       },
       languagelearning: {
         id: 'languagelearning',
         label: 'Language Tutor',
         description: 'Natural phrasing and grammar corrections.',
-        prompt: 'Suggest a more natural way to say what the user said, then ask a follow-up question. Be brief and encouraging.'
+        prompt: 'Suggest a more natural way to say what the user said, then ask a follow-up question. Be brief and encouraging. If specific language/culture is mentioned, incorporate cultural appropriateness.'
       },
       meeting: {
         id: 'meeting',
         label: 'Meeting Aide',
         description: 'Interjections and summaries for professional meetings.',
-        prompt: 'Suggest a concise interjection to help the user contribute to a meeting or summarize a point. Under 15 words.'
+        prompt: 'Suggest a concise interjection to help the user contribute to a meeting or summarize a point. Under 15 words. Consider professional formality and cultural appropriateness in diverse settings.'
       }
     }
   },

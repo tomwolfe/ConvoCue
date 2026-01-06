@@ -30,6 +30,8 @@ const App = () => {
     history,
     persona,
     setPersona,
+    culturalContext,
+    setCulturalContext,
     clearHistory
   } = useMLWorker();
 
@@ -168,6 +170,8 @@ const App = () => {
             history={history}
             persona={persona}
             setPersona={setPersona}
+            culturalContext={culturalContext}
+            setCulturalContext={setCulturalContext}
             clearHistory={clearHistory}
             onReset={() => {
               setHasInteracted(false);

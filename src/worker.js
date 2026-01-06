@@ -73,6 +73,117 @@ const analyzeEmotion = (text) => {
     };
 };
 
+// Cultural context analysis function for cross-cultural communication
+const analyzeCulturalContext = (text, selectedCulturalContext = 'general') => {
+    if (!text || typeof text !== 'string') {
+        return '';
+    }
+
+    const culturalIndicators = {
+        // Cultural context keywords
+        formality: ['sir', 'ma\'am', 'mr.', 'mrs.', 'dr.', 'professor', 'boss', 'manager'],
+        culturalGroups: ['american', 'british', 'chinese', 'japanese', 'korean', 'indian', 'arab', 'middle eastern',
+                       'european', 'french', 'german', 'spanish', 'italian', 'russian', 'latin american',
+                       'mexican', 'brazilian', 'african', 'nigerian', 'egyptian', 'australian'],
+        communicationStyles: ['direct', 'indirect', 'formal', 'informal', 'casual', 'professional', 'respectful'],
+        culturalTopics: ['culture', 'tradition', 'custom', 'etiquette', 'protocol', 'manners', 'courtesy', 'respect'],
+        highContext: ['relationship', 'trust', 'connection', 'understanding', 'feeling', 'intuition', 'non-verbal'],
+        lowContext: ['clear', 'explicit', 'direct', 'stated', 'defined', 'specific', 'detailed', 'precise']
+    };
+
+    const words = text.toLowerCase().split(/\s+/);
+    const detectedCulturalElements = [];
+
+    // Check for formality indicators
+    for (const word of words) {
+        const cleanWord = word.replace(/[^\w\s]/g, '').trim();
+        if (cleanWord && culturalIndicators.formality.includes(cleanWord)) {
+            detectedCulturalElements.push('formal_address');
+        }
+    }
+
+    // Check for cultural group references
+    for (const word of words) {
+        const cleanWord = word.replace(/[^\w\s]/g, '').trim();
+        if (cleanWord && culturalIndicators.culturalGroups.some(culture =>
+            culture.includes(cleanWord) || cleanWord.includes(culture))) {
+            detectedCulturalElements.push(`cultural_group_${cleanWord}`);
+        }
+    }
+
+    // Check for communication style references
+    for (const word of words) {
+        const cleanWord = word.replace(/[^\w\s]/g, '').trim();
+        if (cleanWord && culturalIndicators.communicationStyles.includes(cleanWord)) {
+            detectedCulturalElements.push(`communication_style_${cleanWord}`);
+        }
+    }
+
+    // Check for cultural topics
+    for (const word of words) {
+        const cleanWord = word.replace(/[^\w\s]/g, '').trim();
+        if (cleanWord && culturalIndicators.culturalTopics.includes(cleanWord)) {
+            detectedCulturalElements.push(`cultural_topic_${cleanWord}`);
+        }
+    }
+
+    // Determine if high-context or low-context communication is preferred
+    let contextPreference = '';
+    const highContextCount = words.filter(word => culturalIndicators.highContext.includes(word.replace(/[^\w\s]/g, '').trim())).length;
+    const lowContextCount = words.filter(word => culturalIndicators.lowContext.includes(word.replace(/[^\w\s]/g, '').trim())).length;
+
+    if (highContextCount > lowContextCount) {
+        contextPreference = 'high-context communication preferred (indirect, relationship-focused)';
+    } else if (lowContextCount > highContextCount) {
+        contextPreference = 'low-context communication preferred (direct, explicit)';
+    }
+
+    // Add specific cultural context guidance based on user selection
+    let specificCulturalGuidance = '';
+    if (selectedCulturalContext !== 'general') {
+        const culturalGuidanceMap = {
+            'east_asian': 'Apply high-context communication principles with respect for hierarchy and indirectness.',
+            'western': 'Apply low-context communication principles with directness and clarity.',
+            'middle_eastern': 'Apply respect for traditions and appropriate formality.',
+            'latin_american': 'Apply emphasis on relationship-building and personal connection.',
+            'formal_business': 'Apply professional formality and appropriate business etiquette.'
+        };
+
+        specificCulturalGuidance = culturalGuidanceMap[selectedCulturalContext] || '';
+    }
+
+    if (detectedCulturalElements.length === 0 && !contextPreference && !specificCulturalGuidance) {
+        return '';
+    }
+
+    const culturalNotes = [];
+    if (detectedCulturalElements.length > 0) {
+        culturalNotes.push(`Detected cultural elements: ${detectedCulturalElements.join(', ')}.`);
+    }
+    if (contextPreference) {
+        culturalNotes.push(`Context preference: ${contextPreference}.`);
+    }
+    if (specificCulturalGuidance) {
+        culturalNotes.push(specificCulturalGuidance);
+    }
+
+    return `Cultural context analysis: ${culturalNotes.join(' ')}. When responding, consider appropriate cultural sensitivity, formality levels, and communication styles.`;
+};
+
+// Get cultural context for fallback responses based on selected cultural context
+const getCulturalContextForFallback = (culturalContext) => {
+    const culturalContextMap = {
+        'general': 'Consider general cultural sensitivity and appropriate formality.',
+        'east_asian': 'Use high-context communication style with respect for hierarchy and indirectness.',
+        'western': 'Use low-context communication style with directness and clarity.',
+        'middle_eastern': 'Maintain respect for traditions and show appropriate formality.',
+        'latin_american': 'Emphasize relationship-building and personal connection.',
+        'formal_business': 'Use professional formality and appropriate business etiquette.'
+    };
+
+    return culturalContextMap[culturalContext] || culturalContextMap['general'];
+};
+
 class MLPipeline {
     static instance = null;
     static stt = null;
@@ -316,8 +427,8 @@ self.onmessage = async (event) => {
         }
 
         if (type === 'llm') {
-            const { text, persona = 'social', history = [] } = event.data;
-            
+            const { text, persona = 'social', history = [], culturalContext = 'general' } = event.data;
+
             // If memory is very tight, we might want to check again before loading LLM
             const preLLMMemory = checkMemoryUsage();
             if (preLLMMemory && preLLMMemory.usagePercent > AppConfig.system.memory.modelUnloadThreshold) {
@@ -358,9 +469,15 @@ self.onmessage = async (event) => {
                 emotionalContext = `Emotional analysis: The user's tone seems to express ${emotionResult.emotion} with ${Math.round(emotionResult.confidence * 100)}% confidence. Please respond with appropriate empathy and emotional awareness.`;
             }
 
+            // Analyze cultural context for cross-cultural and related personas
+            let culturalContextAnalysis = '';
+            if (persona === 'crosscultural' || persona === 'languagelearning' || persona === 'meeting') {
+                culturalContextAnalysis = analyzeCulturalContext(sanitizedText, culturalContext);
+            }
+
             // Construct messages array, ensuring the latest user message is present exactly once
             const messages = [
-                { role: "system", content: personaConfig.prompt + (emotionalContext ? ` ${emotionalContext}` : '') },
+                { role: "system", content: personaConfig.prompt + (emotionalContext ? ` ${emotionalContext}` : '') + (culturalContextAnalysis ? ` ${culturalContextAnalysis}` : '') },
                 ...processedHistory,
             ];
 
@@ -370,7 +487,7 @@ self.onmessage = async (event) => {
                 messages.push({ role: "user", content: sanitizedText });
             }
 
-            console.log(`Starting LLM generation for mode: ${persona} with ${messages.length} total messages`);
+            console.log(`Starting LLM generation for mode: ${persona} with ${messages.length} total messages and cultural context: ${culturalContext}`);
 
             try {
                 const streamer = new TextStreamer(MLPipeline.llm.tokenizer, {
@@ -511,6 +628,14 @@ self.onmessage = async (event) => {
                 const emotionResult = analyzeEmotion(sanitizedText);
                 if (emotionResult.emotion !== 'neutral' && emotionResult.confidence > 0.5) {
                     fallbackText += ` (I sense you're feeling ${emotionResult.emotion})`;
+                }
+
+                // Add cultural context to fallback if applicable
+                if (persona === 'crosscultural' && culturalContext !== 'general') {
+                    const culturalContextText = getCulturalContextForFallback(culturalContext);
+                    if (culturalContextText) {
+                        fallbackText += ` ${culturalContextText}`;
+                    }
                 }
 
                 self.postMessage({
