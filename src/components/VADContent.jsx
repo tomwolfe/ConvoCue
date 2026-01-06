@@ -77,6 +77,7 @@ const VADContent = ({
   setCulturalContext,
   clearHistory,
   isCompactMode,
+  isSubtleMode,
   onReset
 }) => {
   const [isVADMode, setIsVADMode] = useState(false);

@@ -48,4 +48,28 @@ describe('Emotion Analysis', () => {
     expect(result.emotion).toBe('neutral');
     expect(result.confidence).toBe(0);
   });
+
+  it('detects negated emotions correctly', () => {
+    const text = 'I am not happy about this';
+    const result = analyzeEmotion(text);
+
+    expect(result.emotion).toBe('neutral'); // Should detect negation and reduce happiness
+    expect(result.confidence).toBeLessThan(0.5); // Lower confidence due to negation
+  });
+
+  it('detects emotions in longer text with higher confidence', () => {
+    const text = 'I am extremely happy and thrilled about this wonderful and amazing opportunity';
+    const result = analyzeEmotion(text);
+
+    expect(result.emotion).toBe('joy');
+    expect(result.confidence).toBeGreaterThan(0.5); // Higher confidence due to longer text with multiple emotion words
+  });
+
+  it('detects emotions in phrases correctly', () => {
+    const text = 'I feel really excited about this';
+    const result = analyzeEmotion(text);
+
+    expect(result.emotion).toBe('joy');
+    expect(result.confidence).toBeGreaterThan(0);
+  });
 });

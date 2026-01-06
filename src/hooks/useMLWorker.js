@@ -149,6 +149,9 @@ export const useMLWorker = () => {
             setProcessingStep('none');
             setIsReady(false); // Mark as not ready if critical error
             break;
+          case 'cleanup_complete':
+            console.log("Worker cleanup completed successfully");
+            break;
           default:
             console.warn("Unknown worker message type:", type);
             break;
@@ -160,6 +163,7 @@ export const useMLWorker = () => {
         setTimeout(() => {
           setStatus('Worker failed to initialize. Try refreshing.');
           setIsProcessing(false);
+          setIsReady(false); // Mark as not ready if worker fails
         }, 0);
       };
 

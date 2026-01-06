@@ -18,32 +18,66 @@ if (AppConfig.vad.onnxWASMPaths) {
 console.log(`ML Worker script loaded. Using ${AppConfig.worker.numThreads} thread(s). SIMD: ${AppConfig.worker.simd}`);
 
 // Enhanced emotional analysis function for more nuanced emotional context
+const emotionWords = {
+    joy: ['happy', 'joy', 'excited', 'wonderful', 'amazing', 'fantastic', 'love', 'pleased', 'delighted', 'thrilled', 'cheerful', 'delighted', 'ecstatic', 'glad', 'jubilant', 'merry', 'overjoyed', 'pleased', 'tickled', 'blissful', 'content', 'grateful', 'optimistic', 'playful', 'satisfied', 'upbeat'],
+    sadness: ['sad', 'depressed', 'unhappy', 'miserable', 'sorrow', 'gloomy', 'heartbroken', 'melancholy', 'despair', 'grief', 'mourn', 'sorrowful', 'tearful', 'tragic', 'upset', 'woeful', 'despondent', 'downcast', 'forlorn', 'grieved', 'heavy-hearted', 'lonely', 'mournful'],
+    anger: ['angry', 'mad', 'furious', 'irate', 'enraged', 'annoyed', 'irritated', 'offended', 'hostile', 'aggressive', 'infuriated', 'livid', 'outraged', 'resentful', 'seething', 'vexed', 'choleric', 'cross', 'fuming', 'indignant', 'irate', 'provoked', 'raging'],
+    fear: ['afraid', 'scared', 'frightened', 'anxious', 'nervous', 'worried', 'panicked', 'terrified', 'apprehensive', 'dread', 'fearful', 'horrified', 'petrified', 'startled', 'timid', 'trepidation', 'alarmed', 'concerned', 'daunted', 'dreadful', 'fright', 'hysterical', 'panicky'],
+    surprise: ['surprised', 'shocked', 'amazed', 'astonished', 'astounded', 'stunned', 'flabbergasted', 'dumbfounded', 'speechless', 'unbelievable', 'incredible', 'unexpected', 'startled', 'wonder', 'baffled', 'bewildered', 'dumbstruck', 'flummoxed', 'gobsmacked', 'staggered', 'thunderstruck'],
+    disgust: ['disgusted', 'revolted', 'nauseated', 'sickened', 'repulsed', 'horrified', 'appalled', 'grossed', 'offended', 'repugnant', 'sick', 'turned off', 'vile', 'wretched', 'abhorrent', 'contemptuous', 'loathing', 'nauseous', 'repellent', 'revolting', 'sickening']
+};
+
 const analyzeEmotion = (text) => {
     if (!text || typeof text !== 'string') {
         return { emotion: 'neutral', confidence: 0 };
     }
 
-    const emotionWords = {
-        joy: ['happy', 'joy', 'excited', 'wonderful', 'amazing', 'fantastic', 'love', 'pleased', 'delighted', 'thrilled', 'cheerful', 'delighted', 'ecstatic', 'glad', 'jubilant', 'merry', 'overjoyed', 'pleased', 'tickled'],
-        sadness: ['sad', 'depressed', 'unhappy', 'miserable', 'sorrow', 'gloomy', 'heartbroken', 'melancholy', 'despair', 'grief', 'mourn', 'sorrowful', 'tearful', 'tragic', 'upset', 'woeful'],
-        anger: ['angry', 'mad', 'furious', 'irate', 'enraged', 'annoyed', 'irritated', 'offended', 'hostile', 'aggressive', 'infuriated', 'livid', 'outraged', 'resentful', 'seething', 'vexed'],
-        fear: ['afraid', 'scared', 'frightened', 'anxious', 'nervous', 'worried', 'panicked', 'terrified', 'apprehensive', 'dread', 'fearful', 'horrified', 'petrified', 'startled', 'timid', 'trepidation'],
-        surprise: ['surprised', 'shocked', 'amazed', 'astonished', 'astounded', 'stunned', 'flabbergasted', 'dumbfounded', 'speechless', 'unbelievable', 'incredible', 'unexpected', 'startled', 'wonder'],
-        disgust: ['disgusted', 'revolted', 'nauseated', 'sickened', 'repulsed', 'horrified', 'appalled', 'grossed', 'offended', 'repugnant', 'sick', 'turned off', 'vile', 'wretched']
-    };
+    // Normalize text: remove extra whitespace, convert to lowercase
+    const normalizedText = text.toLowerCase().replace(/\s+/g, ' ').trim();
 
-    const words = text.toLowerCase().split(/\s+/);
+    // Split into words and phrases for more context
+    const words = normalizedText.split(/\s+/);
+    const phrases = extractPhrases(normalizedText);
+
     const emotionScores = {};
 
-    // Calculate scores for each emotion
+    // Calculate scores for each emotion based on individual words
     for (const [emotion, wordList] of Object.entries(emotionWords)) {
         let score = 0;
+
+        // Score individual words
         for (const word of words) {
             const cleanWord = word.replace(/[^\w\s]/g, '').trim();
             if (cleanWord && wordList.includes(cleanWord)) {
                 score++;
             }
         }
+
+        // Score phrases (which often carry more emotional weight)
+        for (const phrase of phrases) {
+            for (const emotionWord of wordList) {
+                if (phrase.includes(emotionWord)) {
+                    // Phrases get higher weight than individual words
+                    score += 1.5;
+                }
+            }
+        }
+
+        // Apply negation detection (e.g., "not happy", "not sad")
+        const negationWords = ['not', 'no', 'never', 'nothing', 'nowhere', 'neither', 'nor', 'none', 'nobody', 'nothing', 'hardly', 'scarcely', 'barely', 'doesn\'t', 'don\'t', 'won\'t', 'can\'t', 'couldn\'t', 'shouldn\'t', 'wouldn\'t', 'isn\'t', 'aren\'t', 'wasn\'t', 'weren\'t'];
+        for (const negation of negationWords) {
+            if (normalizedText.includes(negation)) {
+                // Look for negation followed by emotion words within a certain distance
+                const negationIndex = normalizedText.indexOf(negation);
+                for (const emotionWord of wordList) {
+                    const emotionIndex = normalizedText.indexOf(emotionWord);
+                    if (emotionIndex > negationIndex && emotionIndex - negationIndex < 10) { // Within 10 characters
+                        score = Math.max(0, score - 1); // Reduce score for negated emotions
+                    }
+                }
+            }
+        }
+
         emotionScores[emotion] = score;
     }
 
@@ -65,12 +99,45 @@ const analyzeEmotion = (text) => {
 
     // Calculate confidence based on the ratio of dominant emotion to total emotion words
     const totalEmotionWords = Object.values(emotionScores).reduce((sum, val) => sum + val, 0);
-    const confidence = totalEmotionWords > 0 ? maxScore / totalEmotionWords : 0;
+    let confidence = totalEmotionWords > 0 ? maxScore / totalEmotionWords : 0;
+
+    // Adjust confidence based on text length and complexity
+    const textLength = normalizedText.length;
+    if (textLength < 10) {
+        // Short texts may have less reliable emotion detection
+        confidence *= 0.7;
+    } else if (textLength > 50) {
+        // Longer texts may have more nuanced emotions
+        confidence = Math.min(1.0, confidence * 1.2);
+    }
 
     return {
         emotion: dominantEmotion,
         confidence: Math.min(confidence, 1.0) // Cap at 1.0
     };
+};
+
+// Extracts common phrases from text for more contextual emotion analysis
+const extractPhrases = (text) => {
+    // Simple phrase extraction based on common emotional expressions
+    const phrasePatterns = [
+        /\b(?:i am|i'm|i feel|i'm feeling|i feel like)\s+(\w+)\b/gi,
+        /\b(?:very|really|extremely|quite|so|super|incredibly)\s+(\w+)\b/gi,
+        /\b(?:feeling|feels|felt)\s+(\w+)\b/gi,
+        /\b(?:getting|get|gets)\s+(\w+)\b/gi,
+        /\b(?:becoming|become|becomes)\s+(\w+)\b/gi,
+        /\b(?:kind of|sort of|a little|somewhat)\s+(\w+)\b/gi
+    ];
+
+    const phrases = [];
+    for (const pattern of phrasePatterns) {
+        let match;
+        while ((match = pattern.exec(text)) !== null) {
+            phrases.push(match[0]);
+        }
+    }
+
+    return phrases;
 };
 
 // Cultural context analysis function for cross-cultural communication
@@ -79,86 +146,111 @@ const analyzeCulturalContext = (text, selectedCulturalContext = 'general') => {
         return '';
     }
 
+    // Normalize text for analysis
+    const normalizedText = text.toLowerCase().replace(/\s+/g, ' ').trim();
+    const words = normalizedText.split(/\s+/);
+
+    // Cultural indicators and patterns
     const culturalIndicators = {
-        // Cultural context keywords
-        formality: ['sir', 'ma\'am', 'mr.', 'mrs.', 'dr.', 'professor', 'boss', 'manager'],
-        culturalGroups: ['american', 'british', 'chinese', 'japanese', 'korean', 'indian', 'arab', 'middle eastern',
-                       'european', 'french', 'german', 'spanish', 'italian', 'russian', 'latin american',
-                       'mexican', 'brazilian', 'african', 'nigerian', 'egyptian', 'australian'],
-        communicationStyles: ['direct', 'indirect', 'formal', 'informal', 'casual', 'professional', 'respectful'],
-        culturalTopics: ['culture', 'tradition', 'custom', 'etiquette', 'protocol', 'manners', 'courtesy', 'respect'],
-        highContext: ['relationship', 'trust', 'connection', 'understanding', 'feeling', 'intuition', 'non-verbal'],
-        lowContext: ['clear', 'explicit', 'direct', 'stated', 'defined', 'specific', 'detailed', 'precise']
+        // Formality indicators
+        formality: {
+            words: ['sir', 'ma\'am', 'mr.', 'mrs.', 'dr.', 'professor', 'boss', 'manager', 'executive', 'director'],
+            phrases: ['please', 'thank you', 'excuse me', 'pardon me', 'if you would', 'would you please']
+        },
+        // Cultural group references
+        culturalGroups: {
+            eastAsian: ['chinese', 'japanese', 'korean', 'vietnamese', 'thai', 'malaysian', 'singaporean', 'filipino', 'indonesian'],
+            western: ['american', 'british', 'canadian', 'australian', 'european', 'french', 'german', 'spanish', 'italian', 'dutch'],
+            middleEastern: ['arab', 'middle eastern', 'saudi', 'emirati', 'qatari', 'kuwaiti', 'egyptian', 'lebanese', 'jordanian', 'iraqi'],
+            latinAmerican: ['mexican', 'brazilian', 'argentine', 'chilean', 'colombian', 'peruvian', 'venezuelan', 'ecuadorian', 'salvadoran'],
+            african: ['nigerian', 'kenyan', 'south african', 'ghanaian', 'ugandan', 'moroccan', 'ethiopian', 'tanzanian']
+        },
+        // Communication style indicators
+        communicationStyles: {
+            highContext: ['relationship', 'trust', 'connection', 'understanding', 'feeling', 'intuition', 'non-verbal', 'indirect', 'implied'],
+            lowContext: ['clear', 'explicit', 'direct', 'stated', 'defined', 'specific', 'detailed', 'precise', 'straightforward']
+        },
+        // Cultural topics
+        culturalTopics: ['culture', 'tradition', 'custom', 'etiquette', 'protocol', 'manners', 'courtesy', 'respect', 'values', 'beliefs', 'practices']
     };
 
-    const words = text.toLowerCase().split(/\s+/);
     const detectedCulturalElements = [];
+    let contextPreference = '';
+    let specificCulturalGuidance = '';
 
     // Check for formality indicators
     for (const word of words) {
         const cleanWord = word.replace(/[^\w\s]/g, '').trim();
-        if (cleanWord && culturalIndicators.formality.includes(cleanWord)) {
-            detectedCulturalElements.push('formal_address');
+        if (cleanWord && culturalIndicators.formality.words.includes(cleanWord)) {
+            detectedCulturalElements.push(`formal_address_${cleanWord}`);
+        }
+    }
+
+    // Check for phrases indicating formality
+    for (const phrase of culturalIndicators.formality.phrases) {
+        if (normalizedText.includes(phrase.toLowerCase())) {
+            detectedCulturalElements.push(`formal_phrase_${phrase.replace(/\s+/g, '_')}`);
         }
     }
 
     // Check for cultural group references
-    for (const word of words) {
-        const cleanWord = word.replace(/[^\w\s]/g, '').trim();
-        if (cleanWord && culturalIndicators.culturalGroups.some(culture =>
-            culture.includes(cleanWord) || cleanWord.includes(culture))) {
-            detectedCulturalElements.push(`cultural_group_${cleanWord}`);
+    for (const [region, groupWords] of Object.entries(culturalIndicators.culturalGroups)) {
+        for (const word of words) {
+            const cleanWord = word.replace(/[^\w\s]/g, '').trim();
+            if (cleanWord && groupWords.some(culture =>
+                culture.includes(cleanWord) || cleanWord.includes(culture))) {
+                detectedCulturalElements.push(`cultural_group_${region}_${cleanWord}`);
+            }
         }
     }
 
-    // Check for communication style references
+    // Check for communication style indicators
+    let highContextCount = 0;
+    let lowContextCount = 0;
+
     for (const word of words) {
         const cleanWord = word.replace(/[^\w\s]/g, '').trim();
-        if (cleanWord && culturalIndicators.communicationStyles.includes(cleanWord)) {
-            detectedCulturalElements.push(`communication_style_${cleanWord}`);
+        if (cleanWord) {
+            if (culturalIndicators.communicationStyles.highContext.includes(cleanWord)) {
+                highContextCount++;
+                detectedCulturalElements.push(`high_context_${cleanWord}`);
+            }
+            if (culturalIndicators.communicationStyles.lowContext.includes(cleanWord)) {
+                lowContextCount++;
+                detectedCulturalElements.push(`low_context_${cleanWord}`);
+            }
         }
     }
 
-    // Check for cultural topics
-    for (const word of words) {
-        const cleanWord = word.replace(/[^\w\s]/g, '').trim();
-        if (cleanWord && culturalIndicators.culturalTopics.includes(cleanWord)) {
-            detectedCulturalElements.push(`cultural_topic_${cleanWord}`);
-        }
-    }
-
-    // Determine if high-context or low-context communication is preferred
-    let contextPreference = '';
-    const highContextCount = words.filter(word => culturalIndicators.highContext.includes(word.replace(/[^\w\s]/g, '').trim())).length;
-    const lowContextCount = words.filter(word => culturalIndicators.lowContext.includes(word.replace(/[^\w\s]/g, '').trim())).length;
-
+    // Determine context preference based on detected indicators
     if (highContextCount > lowContextCount) {
         contextPreference = 'high-context communication preferred (indirect, relationship-focused)';
     } else if (lowContextCount > highContextCount) {
         contextPreference = 'low-context communication preferred (direct, explicit)';
     }
 
-    // Add specific cultural context guidance based on user selection
-    let specificCulturalGuidance = '';
+    // Add specific cultural guidance based on user selection
     if (selectedCulturalContext !== 'general') {
         const culturalGuidanceMap = {
-            'east_asian': 'Apply high-context communication principles with respect for hierarchy and indirectness.',
-            'western': 'Apply low-context communication principles with directness and clarity.',
-            'middle_eastern': 'Apply respect for traditions and appropriate formality.',
-            'latin_american': 'Apply emphasis on relationship-building and personal connection.',
-            'formal_business': 'Apply professional formality and appropriate business etiquette.'
+            'east_asian': 'Apply high-context communication principles with respect for hierarchy and indirectness. Consider face-saving and group harmony.',
+            'western': 'Apply low-context communication principles with directness and clarity. Focus on individual achievement and explicit communication.',
+            'middle_eastern': 'Apply respect for traditions, hospitality, and appropriate formality. Consider relationship-building before business.',
+            'latin_american': 'Emphasize relationship-building, personal connection, and warmth. Formality may vary by country.',
+            'formal_business': 'Apply professional formality and appropriate business etiquette. Use structured communication.'
         };
 
         specificCulturalGuidance = culturalGuidanceMap[selectedCulturalContext] || '';
     }
 
+    // If no cultural elements detected and no specific guidance needed, return empty string
     if (detectedCulturalElements.length === 0 && !contextPreference && !specificCulturalGuidance) {
         return '';
     }
 
+    // Build cultural analysis string
     const culturalNotes = [];
     if (detectedCulturalElements.length > 0) {
-        culturalNotes.push(`Detected cultural elements: ${detectedCulturalElements.join(', ')}.`);
+        culturalNotes.push(`Detected cultural elements: ${Array.from(new Set(detectedCulturalElements)).join(', ')}.`);
     }
     if (contextPreference) {
         culturalNotes.push(`Context preference: ${contextPreference}.`);
@@ -174,11 +266,11 @@ const analyzeCulturalContext = (text, selectedCulturalContext = 'general') => {
 const getCulturalContextForFallback = (culturalContext) => {
     const culturalContextMap = {
         'general': 'Consider general cultural sensitivity and appropriate formality.',
-        'east_asian': 'Use high-context communication style with respect for hierarchy and indirectness.',
-        'western': 'Use low-context communication style with directness and clarity.',
-        'middle_eastern': 'Maintain respect for traditions and show appropriate formality.',
-        'latin_american': 'Emphasize relationship-building and personal connection.',
-        'formal_business': 'Use professional formality and appropriate business etiquette.'
+        'east_asian': 'Use high-context communication style with respect for hierarchy, face-saving, and group harmony.',
+        'western': 'Use low-context communication style with directness, clarity, and focus on individual achievement.',
+        'middle_eastern': 'Maintain respect for traditions, show appropriate formality, and emphasize relationship-building.',
+        'latin_american': 'Emphasize relationship-building, personal connection, and warmth with appropriate formality.',
+        'formal_business': 'Use professional formality and appropriate business etiquette with structured communication.'
     };
 
     return culturalContextMap[culturalContext] || culturalContextMap['general'];
@@ -642,6 +734,10 @@ self.onmessage = async (event) => {
                     }
                 }
 
+                // Add error context to the fallback response
+                const errorContext = llmError.message || 'processing error';
+                console.warn(`LLM fallback triggered due to: ${errorContext}`);
+
                 self.postMessage({
                     type: 'llm_result',
                     text: fallbackText,
@@ -674,3 +770,18 @@ self.onterminate = () => {
     console.log("Worker terminating, cleaning up models...");
     cleanupModels();
 };
+
+// Handle unhandled errors in the worker
+self.addEventListener('error', (event) => {
+    console.error('Unhandled worker error:', event.error);
+    // Try to send error message to main thread if possible
+    try {
+        self.postMessage({
+            type: 'error',
+            error: `Unhandled worker error: ${event.error.message || 'Unknown error'}`,
+            taskId: `error-${Date.now()}`
+        });
+    } catch (e) {
+        console.error('Failed to send error to main thread:', e);
+    }
+});

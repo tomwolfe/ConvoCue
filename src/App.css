@@ -62,6 +62,11 @@ header.compact .subtitle {
   border-color: var(--primary);
 }
 
+.subtle-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
 /* Compact View Styles */
 .app-container.compact-view {
   max-width: 380px;
@@ -383,6 +388,44 @@ header.compact .subtitle {
 @font-face {
   font-family: 'OpenDyslexic';
   src: url('/OpenDyslexic-Regular.otf') format('opentype');
+}
+
+/* Subtle Mode */
+.subtle-mode .suggestion {
+  background: transparent;
+  padding: 0.5rem;
+  border-radius: 8px;
+  border-left: 2px solid transparent;
+  box-shadow: none;
+  font-size: 0.9rem;
+  font-weight: 400;
+  opacity: 0.7;
+  transform: scale(0.95);
+}
+
+.subtle-mode .suggestion label {
+  display: none;
+}
+
+.subtle-mode .suggestion p {
+  font-size: 0.9rem;
+  font-weight: 400;
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+.subtle-mode .card-header {
+  opacity: 0.5;
+}
+
+.subtle-mode .btn-icon {
+  opacity: 0.5;
+}
+
+.subtle-mode .status-badge {
+  opacity: 0.7;
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }

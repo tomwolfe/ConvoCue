@@ -14,6 +14,7 @@ const App = () => {
   const [assetError, setAssetError] = useState(null);
   const [isDyslexicFriendly, setIsDyslexicFriendly] = useState(false);
   const [isCompactMode, setIsCompactMode] = useState(false);
+  const [isSubtleMode, setIsSubtleMode] = useState(false);
   const {
     status,
     progress,
@@ -56,6 +57,14 @@ const App = () => {
   }, [isCompactMode]);
 
   useEffect(() => {
+    if (isSubtleMode) {
+      document.body.classList.add('subtle-mode');
+    } else {
+      document.body.classList.remove('subtle-mode');
+    }
+  }, [isSubtleMode]);
+
+  useEffect(() => {
     const runDiagnostics = async () => {
       const result = await checkAssets();
       if (!result.allOk) {
@@ -96,7 +105,7 @@ const App = () => {
               <h1>ConvoCue</h1>
             </div>
             <div className="header-actions">
-              <button 
+              <button
                 className={`btn-settings ${isCompactMode ? 'active' : ''}`}
                 onClick={() => setIsCompactMode(!isCompactMode)}
                 aria-label="Toggle Compact Mode"
@@ -104,7 +113,15 @@ const App = () => {
               >
                 <Activity size={18} />
               </button>
-              <button 
+              <button
+                className={`btn-settings ${isSubtleMode ? 'active' : ''}`}
+                onClick={() => setIsSubtleMode(!isSubtleMode)}
+                aria-label="Toggle Subtle Mode"
+                title="Toggle Subtle Mode"
+              >
+                <span className="subtle-icon">✨</span>
+              </button>
+              <button
                 className={`btn-settings ${isDyslexicFriendly ? 'active' : ''}`}
                 onClick={() => setIsDyslexicFriendly(!isDyslexicFriendly)}
                 aria-label="Toggle Dyslexic Friendly Font"
@@ -195,6 +212,7 @@ const App = () => {
             setCulturalContext={setCulturalContext}
             clearHistory={clearHistory}
             isCompactMode={isCompactMode}
+            isSubtleMode={isSubtleMode}
             onReset={() => {
               setHasInteracted(false);
               setMicPermissionError(null);
