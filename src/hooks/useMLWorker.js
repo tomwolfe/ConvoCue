@@ -86,18 +86,10 @@ export const useMLWorker = () => {
             }
             break;
           }
-          case 'llm_chunk': {
-            // Validate and sanitize chunk before adding
-            if (typeof text === 'string') {
-              const safeChunk = text.substring(0, AppConfig.system.maxSuggestionLength);
-              setSuggestion(prev => {
-                const newSuggestion = (prev || '') + safeChunk;
-                // Limit total length
-                return newSuggestion.substring(0, AppConfig.system.maxSuggestionLength);
-              });
-            }
+          case 'memory_warning':
+            console.warn("Worker is running low on memory:", e.data.memoryInfo);
+            // Optionally update UI to show a warning
             break;
-          }
           case 'error':
             console.error("Worker Logic Error:", error);
             setStatus(`Model Error: ${error}`);
