@@ -43,9 +43,9 @@ class MLPipeline {
 
     async loadLLM(progress_callback) {
         if (!MLPipeline.llm) {
-            console.log("Loading LLM model (SmolLM2-135M-Instruct, q4)...");
+            console.log("Loading LLM model (HuggingFaceTB/SmolLM2-135M-Instruct, q4)...");
             try {
-                MLPipeline.llm = await pipeline('text-generation', 'onnx-community/SmolLM2-135M-Instruct', {
+                MLPipeline.llm = await pipeline('text-generation', 'HuggingFaceTB/SmolLM2-135M-Instruct', {
                     progress_callback,
                     device: 'wasm',
                     dtype: 'q4', 
