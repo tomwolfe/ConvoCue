@@ -3,7 +3,7 @@ import { useMicVAD } from '@ricky0123/vad-react';
 import { Mic, Heart, Loader2, AlertCircle, RefreshCw, Trash2, Activity, Copy, Check, ThumbsUp, ThumbsDown, Flag, Zap, Info, ShieldAlert } from 'lucide-react';
 import { AppConfig } from '../config';
 import { submitFeedback } from '../utils/feedback';
-import { sanitizeAndTruncate } from '../utils/sanitization';
+import { sanitizeAndTruncate, decodeHTMLEntities } from '../utils/sanitization';
 
 const GlanceWidget = ({ suggestion, emotionData, isProcessing }) => {
   const emotion = emotionData?.emotion || 'neutral';
@@ -95,15 +95,6 @@ const AudioVisualizer = ({ isActive, analyser, isCompactMode }) => {
       <canvas ref={canvasRef} width={isCompactMode ? "150" : "300"} height={isCompactMode ? "20" : "40"} />
     </div>
   );
-};
-
-// Function to decode HTML entities to fix double encoding issue
-const decodeHTMLEntities = (text) => {
-  if (typeof text !== 'string') return '';
-
-  const textArea = document.createElement('textarea');
-  textArea.innerHTML = text;
-  return textArea.textContent;
 };
 
 const VADContent = ({

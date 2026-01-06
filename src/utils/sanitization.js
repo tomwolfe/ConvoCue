@@ -13,13 +13,14 @@ export const sanitizeText = (text) => {
   }
   
   // Remove potentially dangerous characters/sequences
+  // MUST replace ampersand first to avoid double-encoding
   return text
+    .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#x27;')
-    .replace(/\//g, '&#x2F;')
-    .replace(/&/g, '&amp;');
+    .replace(/\//g, '&#x2F;');
 };
 
 /**
@@ -67,4 +68,31 @@ export const validatePersona = (persona) => {
     description: typeof persona.description === 'string' ? sanitizeText(persona.description) : '',
     prompt: typeof persona.prompt === 'string' ? sanitizeText(persona.prompt) : ''
   };
+};
+
+/**
+ * Decodes HTML entities back to plain text
+ * @param {string} text - Text with HTML entities
+ * @returns {string} Decoded plain text
+ */
+export const decodeHTMLEntities = (text) => {
+  if (typeof text !== 'string' || !text) {
+    return '';
+  }
+
+  // Use the browser's DOM to decode entities
+  if (typeof document !== 'undefined') {
+    const textArea = document.createElement('textarea');
+    textArea.innerHTML = text;
+    return textArea.textContent;
+  }
+  
+  // Fallback for non-browser environments (basic entities)
+  return text
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#x27;/g, "'")
+    .replace(/&#x2F;/g, '/');
 };

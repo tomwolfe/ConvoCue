@@ -155,6 +155,14 @@ describe('VADContent Component', () => {
     });
   });
 
+  it('decodes HTML entities in suggestions', () => {
+    render(
+      <VADContent {...defaultProps} suggestion="What&#x27;s on your mind?" />
+    );
+
+    expect(screen.getByText("What's on your mind?")).toBeInTheDocument();
+  });
+
   it('disables controls when not ready', () => {
     render(
       <VADContent {...defaultProps} isReady={false} />
