@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Mic, Loader2, Volume2, AlertCircle, Activity, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { Mic, Loader2, Volume2, AlertCircle, Activity, ThumbsUp, ThumbsDown, BookOpen, Settings } from 'lucide-react';
 import { Analytics } from '@vercel/analytics/react';
 import { useMLWorker } from './hooks/useMLWorker';
 import VADContent from './components/VADContent';
+import Tutorial from './components/Tutorial';
+import PersonaCustomization from './components/PersonaCustomization';
 import ErrorBoundary from './ErrorBoundary';
 import { AppConfig } from './config';
 import { checkAssets } from './utils/diagnostics';
@@ -15,6 +17,9 @@ const App = () => {
   const [isDyslexicFriendly, setIsDyslexicFriendly] = useState(false);
   const [isCompactMode, setIsCompactMode] = useState(false);
   const [isSubtleMode, setIsSubtleMode] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [hasSeenTutorial, setHasSeenTutorial] = useState(false);
+  const [showPersonaCustomization, setShowPersonaCustomization] = useState(false);
   const {
     status,
     progress,
@@ -65,6 +70,15 @@ const App = () => {
   }, [isSubtleMode]);
 
   useEffect(() => {
+    // Check if user has seen tutorial before
+    const seenTutorial = localStorage.getItem('convocue_tutorial_seen');
+    if (!seenTutorial) {
+      setHasSeenTutorial(false);
+      setShowTutorial(true);
+    } else {
+      setHasSeenTutorial(true);
+    }
+
     const runDiagnostics = async () => {
       const result = await checkAssets();
       if (!result.allOk) {
@@ -78,7 +92,7 @@ const App = () => {
   const handleStart = async () => {
     console.log("User clicked start. Transitioning to VAD content.");
     setMicPermissionError(null);
-    
+
     // Pre-warm LLM as soon as user shows intent to use the app
     prewarmLLM();
 
@@ -94,10 +108,86 @@ const App = () => {
     }
   };
 
+  const handleTutorialComplete = () => {
+    setShowTutorial(false);
+    setHasSeenTutorial(true);
+    localStorage.setItem('convocue_tutorial_seen', 'true');
+  };
+
+  const showTutorialHandler = () => {
+    setShowTutorial(true);
+  };
+
+  const showPersonaCustomizationHandler = () => {
+    setShowPersonaCustomization(true);
+  };
+
+  const handleSavePersona = (newPersona) => {
+    try {
+      // Load existing custom personas from localStorage
+      const customPersonasStr = localStorage.getItem('convocue_custom_personas');
+      const customPersonas = customPersonasStr ? JSON.parse(customPersonasStr) : {};
+
+      // Add/update the persona
+      customPersonas[newPersona.id] = {
+        id: newPersona.id,
+        label: newPersona.label,
+        description: newPersona.description,
+        prompt: newPersona.prompt
+      };
+
+      // Save back to localStorage
+      localStorage.setItem('convocue_custom_personas', JSON.stringify(customPersonas));
+
+      // Show success message
+      alert(`Persona "${newPersona.label}" saved successfully!`);
+      setShowPersonaCustomization(false);
+    } catch (error) {
+      console.error('Error saving persona:', error);
+      alert('Error saving persona. Please try again.');
+    }
+  };
+
+  const handleDeletePersona = (personaId) => {
+    try {
+      // Load existing custom personas from localStorage
+      const customPersonasStr = localStorage.getItem('convocue_custom_personas');
+      const customPersonas = customPersonasStr ? JSON.parse(customPersonasStr) : {};
+
+      // Remove the persona
+      delete customPersonas[personaId];
+
+      // Save back to localStorage
+      localStorage.setItem('convocue_custom_personas', JSON.stringify(customPersonas));
+
+      alert(`Persona deleted successfully!`);
+    } catch (error) {
+      console.error('Error deleting persona:', error);
+      alert('Error deleting persona. Please try again.');
+    }
+  };
+
   return (
     <ErrorBoundary>
       <Analytics />
       <div className={`app-container ${isCompactMode ? 'compact-view' : ''}`} role="main" aria-label="ConvoCue Application">
+        {showTutorial && (
+          <Tutorial
+            onComplete={handleTutorialComplete}
+            isCompactMode={isCompactMode}
+          />
+        )}
+        {showPersonaCustomization && (
+          <PersonaCustomization
+            isOpen={showPersonaCustomization}
+            onClose={() => setShowPersonaCustomization(false)}
+            personas={AppConfig.models.personas}
+            onSavePersona={handleSavePersona}
+            onDeletePersona={handleDeletePersona}
+            currentPersona={persona}
+            setCurrentPersona={setPersona}
+          />
+        )}
         <header role="banner" className={hasInteracted ? 'compact' : ''}>
           <div className="header-top">
             <div className="logo-area">
@@ -120,6 +210,22 @@ const App = () => {
                 title="Toggle Subtle Mode"
               >
                 <span className="subtle-icon">✨</span>
+              </button>
+              <button
+                className="btn-settings"
+                onClick={showTutorialHandler}
+                aria-label="Show Tutorial"
+                title="Show Tutorial"
+              >
+                <BookOpen size={18} />
+              </button>
+              <button
+                className="btn-settings"
+                onClick={showPersonaCustomizationHandler}
+                aria-label="Customize Personas"
+                title="Customize Personas"
+              >
+                <Settings size={18} />
               </button>
               <button
                 className={`btn-settings ${isDyslexicFriendly ? 'active' : ''}`}

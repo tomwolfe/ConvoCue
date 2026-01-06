@@ -19,21 +19,78 @@ console.log(`ML Worker script loaded. Using ${AppConfig.worker.numThreads} threa
 
 // Enhanced emotional analysis function for more nuanced emotional context
 const emotionWords = {
-    joy: ['happy', 'joy', 'excited', 'wonderful', 'amazing', 'fantastic', 'love', 'pleased', 'delighted', 'thrilled', 'cheerful', 'delighted', 'ecstatic', 'glad', 'jubilant', 'merry', 'overjoyed', 'pleased', 'tickled', 'blissful', 'content', 'grateful', 'optimistic', 'playful', 'satisfied', 'upbeat'],
-    sadness: ['sad', 'depressed', 'unhappy', 'miserable', 'sorrow', 'gloomy', 'heartbroken', 'melancholy', 'despair', 'grief', 'mourn', 'sorrowful', 'tearful', 'tragic', 'upset', 'woeful', 'despondent', 'downcast', 'forlorn', 'grieved', 'heavy-hearted', 'lonely', 'mournful'],
-    anger: ['angry', 'mad', 'furious', 'irate', 'enraged', 'annoyed', 'irritated', 'offended', 'hostile', 'aggressive', 'infuriated', 'livid', 'outraged', 'resentful', 'seething', 'vexed', 'choleric', 'cross', 'fuming', 'indignant', 'irate', 'provoked', 'raging'],
-    fear: ['afraid', 'scared', 'frightened', 'anxious', 'nervous', 'worried', 'panicked', 'terrified', 'apprehensive', 'dread', 'fearful', 'horrified', 'petrified', 'startled', 'timid', 'trepidation', 'alarmed', 'concerned', 'daunted', 'dreadful', 'fright', 'hysterical', 'panicky'],
-    surprise: ['surprised', 'shocked', 'amazed', 'astonished', 'astounded', 'stunned', 'flabbergasted', 'dumbfounded', 'speechless', 'unbelievable', 'incredible', 'unexpected', 'startled', 'wonder', 'baffled', 'bewildered', 'dumbstruck', 'flummoxed', 'gobsmacked', 'staggered', 'thunderstruck'],
-    disgust: ['disgusted', 'revolted', 'nauseated', 'sickened', 'repulsed', 'horrified', 'appalled', 'grossed', 'offended', 'repugnant', 'sick', 'turned off', 'vile', 'wretched', 'abhorrent', 'contemptuous', 'loathing', 'nauseous', 'repellent', 'revolting', 'sickening']
+    joy: ['happy', 'joy', 'excited', 'wonderful', 'amazing', 'fantastic', 'love', 'pleased', 'delighted', 'thrilled', 'cheerful', 'delighted', 'ecstatic', 'glad', 'jubilant', 'merry', 'overjoyed', 'pleased', 'tickled', 'blissful', 'content', 'grateful', 'optimistic', 'playful', 'satisfied', 'upbeat', 'elated', 'gleeful', 'radiant', 'uplifted', 'buoyant', 'jovial', 'mirthful', 'zestful', 'ebullient', 'jubilant', 'sanguine', 'jaunty', 'sprightly'],
+    sadness: ['sad', 'depressed', 'unhappy', 'miserable', 'sorrow', 'gloomy', 'heartbroken', 'melancholy', 'despair', 'grief', 'mourn', 'sorrowful', 'tearful', 'tragic', 'upset', 'woeful', 'despondent', 'downcast', 'forlorn', 'grieved', 'heavy-hearted', 'lonely', 'mournful', 'dejected', 'desolate', 'doleful', 'dreary', 'lamentable', 'lugubrious', 'mournful', 'piteous', 'saddened', 'sullen', 'woebegone', 'bereaved', 'disconsolate', 'grievous', 'plaintive'],
+    anger: ['angry', 'mad', 'furious', 'irate', 'enraged', 'annoyed', 'irritated', 'offended', 'hostile', 'aggressive', 'infuriated', 'livid', 'outraged', 'resentful', 'seething', 'vexed', 'choleric', 'cross', 'fuming', 'indignant', 'irate', 'provoked', 'raging', 'incensed', 'ireful', 'wrathful', 'choleric', 'implacable', 'inflamed', 'ire', 'livid', 'mad', 'nettled', 'offended', 'peeved', 'rankled', 'seething', 'simmering', 'stormy', 'tempestuous'],
+    fear: ['afraid', 'scared', 'frightened', 'anxious', 'nervous', 'worried', 'panicked', 'terrified', 'apprehensive', 'dread', 'fearful', 'horrified', 'petrified', 'startled', 'timid', 'trepidation', 'alarmed', 'concerned', 'daunted', 'dreadful', 'fright', 'hysterical', 'panicky', 'apprehensive', 'cowardly', 'dismayed', 'frightened', 'intimidated', 'leery', 'lethophobic', 'phobic', 'skittish', 'spooked', 'startled', 'timorous', 'trepid', 'unnerved', 'wary', 'worrisome'],
+    surprise: ['surprised', 'shocked', 'amazed', 'astonished', 'astounded', 'stunned', 'flabbergasted', 'dumbfounded', 'speechless', 'unbelievable', 'incredible', 'unexpected', 'startled', 'wonder', 'baffled', 'bewildered', 'dumbstruck', 'flummoxed', 'gobsmacked', 'staggered', 'thunderstruck', 'agog', 'amazed', 'astound', 'bemused', 'bewildered', 'confounded', 'dazzled', 'dumfounded', 'flummoxed', 'gobsmacked', 'intrigued', 'marveled', 'perplexed', 'stumped', 'thunderstruck', 'wonder', 'stupefied'],
+    disgust: ['disgusted', 'revolted', 'nauseated', 'sickened', 'repulsed', 'horrified', 'appalled', 'grossed', 'offended', 'repugnant', 'sick', 'turned off', 'vile', 'wretched', 'abhorrent', 'contemptuous', 'loathing', 'nauseous', 'repellent', 'revolting', 'sickening', 'abominated', 'anted', 'detested', 'loathe', 'odious', 'repugnant', 'repulsive', 'reviling', 'scornful', 'shocking', 'sickening', 'unsavory', 'vile', 'vomit', 'wretched', 'yucky']
+};
+
+// More sophisticated sentiment analysis using valence, arousal, and dominance (VAD) model
+const analyzeSentimentVAD = (text) => {
+    // Valence (positive/negative), Arousal (calm/excited), Dominance (controlled/in control)
+    const vadWords = {
+        'love': { valence: 0.8, arousal: 0.6, dominance: 0.5 },
+        'hate': { valence: 0.1, arousal: 0.8, dominance: 0.7 },
+        'happy': { valence: 0.8, arousal: 0.5, dominance: 0.4 },
+        'sad': { valence: 0.2, arousal: 0.3, dominance: 0.2 },
+        'angry': { valence: 0.1, arousal: 0.9, dominance: 0.8 },
+        'excited': { valence: 0.7, arousal: 0.9, dominance: 0.6 },
+        'calm': { valence: 0.6, arousal: 0.2, dominance: 0.5 },
+        'scared': { valence: 0.2, arousal: 0.8, dominance: 0.1 },
+        'confident': { valence: 0.7, arousal: 0.4, dominance: 0.9 },
+        'nervous': { valence: 0.3, arousal: 0.7, dominance: 0.2 },
+        'peaceful': { valence: 0.8, arousal: 0.1, dominance: 0.4 },
+        'frustrated': { valence: 0.2, arousal: 0.7, dominance: 0.3 },
+        'hopeful': { valence: 0.7, arousal: 0.5, dominance: 0.6 },
+        'disappointed': { valence: 0.2, arousal: 0.4, dominance: 0.3 },
+        'grateful': { valence: 0.9, arousal: 0.4, dominance: 0.5 },
+        'anxious': { valence: 0.3, arousal: 0.8, dominance: 0.2 },
+        'relaxed': { valence: 0.7, arousal: 0.2, dominance: 0.4 },
+        'overwhelmed': { valence: 0.2, arousal: 0.9, dominance: 0.1 }
+    };
+
+    if (!text || typeof text !== 'string') {
+        return { valence: 0.5, arousal: 0.5, dominance: 0.5 };
+    }
+
+    const normalizedText = text.toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    const words = normalizedText.split(/\s+/).filter(w => w.length > 0);
+
+    let totalValence = 0, totalArousal = 0, totalDominance = 0;
+    let wordCount = 0;
+
+    for (const word of words) {
+        if (vadWords[word]) {
+            totalValence += vadWords[word].valence;
+            totalArousal += vadWords[word].arousal;
+            totalDominance += vadWords[word].dominance;
+            wordCount++;
+        }
+    }
+
+    if (wordCount === 0) {
+        return { valence: 0.5, arousal: 0.5, dominance: 0.5 };
+    }
+
+    return {
+        valence: totalValence / wordCount,
+        arousal: totalArousal / wordCount,
+        dominance: totalDominance / wordCount
+    };
 };
 
 const analyzeEmotion = (text) => {
     if (!text || typeof text !== 'string') {
-        return { emotion: 'neutral', confidence: 0 };
+        return { emotion: 'neutral', confidence: 0, valence: 0.5, arousal: 0.5, dominance: 0.5 };
     }
 
     // Normalize text: remove extra whitespace, convert to lowercase
     const normalizedText = text.toLowerCase().replace(/\s+/g, ' ').trim();
+
+    // Get VAD scores for more nuanced emotional analysis
+    const vadScores = analyzeSentimentVAD(text);
 
     // Split into words and phrases for more context
     const words = normalizedText.split(/\s+/);
@@ -94,7 +151,13 @@ const analyzeEmotion = (text) => {
 
     // If no strong emotion detected, use neutral
     if (maxScore === 0) {
-        return { emotion: 'neutral', confidence: 0 };
+        return {
+            emotion: 'neutral',
+            confidence: 0,
+            valence: vadScores.valence,
+            arousal: vadScores.arousal,
+            dominance: vadScores.dominance
+        };
     }
 
     // Calculate confidence based on the ratio of dominant emotion to total emotion words
@@ -113,7 +176,10 @@ const analyzeEmotion = (text) => {
 
     return {
         emotion: dominantEmotion,
-        confidence: Math.min(confidence, 1.0) // Cap at 1.0
+        confidence: Math.min(confidence, 1.0), // Cap at 1.0
+        valence: vadScores.valence,
+        arousal: vadScores.arousal,
+        dominance: vadScores.dominance
     };
 };
 
@@ -578,7 +644,20 @@ self.onmessage = async (event) => {
             let emotionalContext = '';
             const emotionResult = analyzeEmotion(sanitizedText);
             if (emotionResult.emotion !== 'neutral' && emotionResult.confidence > 0.3) {
-                emotionalContext = `Emotional analysis: The user's tone seems to express ${emotionResult.emotion} with ${Math.round(emotionResult.confidence * 100)}% confidence. Please respond with appropriate empathy and emotional awareness.`;
+                // Create more nuanced emotional context using VAD scores
+                const valenceDesc = emotionResult.valence > 0.7 ? 'very positive' :
+                                  emotionResult.valence > 0.5 ? 'somewhat positive' :
+                                  emotionResult.valence > 0.3 ? 'somewhat negative' : 'very negative';
+
+                const arousalDesc = emotionResult.arousal > 0.7 ? 'highly energetic' :
+                                  emotionResult.arousal > 0.5 ? 'moderately energetic' :
+                                  emotionResult.arousal > 0.3 ? 'calm' : 'very calm';
+
+                const dominanceDesc = emotionResult.dominance > 0.7 ? 'very assertive' :
+                                    emotionResult.dominance > 0.5 ? 'moderately assertive' :
+                                    emotionResult.dominance > 0.3 ? 'somewhat submissive' : 'very submissive';
+
+                emotionalContext = `Emotional analysis: The user's tone seems to express ${emotionResult.emotion} with ${Math.round(emotionResult.confidence * 100)}% confidence. Valence (positive/negative): ${valenceDesc}. Arousal (calm/excited): ${arousalDesc}. Dominance (controlled/in control): ${dominanceDesc}. Please respond with appropriate empathy and emotional awareness.`;
             }
 
             // Analyze cultural context for cross-cultural and related personas
@@ -670,8 +749,16 @@ self.onmessage = async (event) => {
                     throw new Error("Echo detected");
                 }
 
+                // Enhance response based on user preferences and emotional context
+                const enhancedResponse = adjustResponseForUser(response, persona, emotionResult);
+
                 console.log("LLM Generation complete. Response length:", response.length);
-                self.postMessage({ type: 'llm_result', text: response, taskId });
+                self.postMessage({
+                    type: 'llm_result',
+                    text: enhancedResponse,
+                    taskId,
+                    emotionData: emotionResult  // Include emotion data for potential use in main thread
+                });
             } catch (llmError) {
                 console.error("LLM generation failed:", llmError);
 
@@ -740,7 +827,20 @@ self.onmessage = async (event) => {
                 // Add emotional context to fallback if available
                 const emotionResult = analyzeEmotion(sanitizedText);
                 if (emotionResult.emotion !== 'neutral' && emotionResult.confidence > 0.5) {
-                    fallbackText += ` (I sense you're feeling ${emotionResult.emotion})`;
+                    // Use more nuanced emotional context based on VAD scores
+                    const emotionalPrefixes = {
+                        joy: ["That sounds wonderful!", "How delightful!", "That's great to hear!"],
+                        sadness: ["I'm sorry to hear that.", "That sounds difficult.", "I understand this is tough."],
+                        anger: ["I can sense your frustration.", "That sounds really frustrating.", "I understand your concern."],
+                        fear: ["I understand your concern.", "That sounds concerning.", "I can see why you'd be worried."],
+                        surprise: ["That's unexpected!", "Really? That's surprising!", "Wow, I didn't expect that!"],
+                        disgust: ["I understand your reaction.", "That sounds unpleasant.", "I can see why that would bother you."]
+                    };
+
+                    const prefixes = emotionalPrefixes[emotionResult.emotion] || ["I sense you're feeling something important."];
+                    const randomPrefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+
+                    fallbackText = `${randomPrefix} ${fallbackText}`;
                 }
 
                 // Add cultural context to fallback if applicable
@@ -786,6 +886,94 @@ self.onmessage = async (event) => {
 self.onterminate = () => {
     console.log("Worker terminating, cleaning up models...");
     cleanupModels();
+};
+
+// Response enhancement utilities for use in the worker
+const getUserPreferences = () => {
+  try {
+    // In a worker context, we need to access localStorage differently
+    // For now, we'll simulate the functionality or use a simpler approach
+    // In a real implementation, we might pass preferences from the main thread
+
+    // Simulate getting preferences from main thread via message
+    // This would require coordination with the main thread
+    return {
+      preferredLength: 'medium', // 'short', 'medium', 'long'
+      preferredTone: 'balanced', // 'formal', 'casual', 'balanced'
+      preferredStyle: 'adaptive' // 'directive', 'supportive', 'adaptive'
+    };
+  } catch (e) {
+    console.error('Failed to determine user preferences:', e);
+    return {
+      preferredLength: 'medium',
+      preferredTone: 'balanced',
+      preferredStyle: 'adaptive'
+    };
+  }
+};
+
+const adjustResponseForUser = (response, persona, emotionData) => {
+  const preferences = getUserPreferences();
+
+  // Adjust length based on user preference
+  let adjustedResponse = response;
+
+  if (preferences.preferredLength === 'short' && response.length > 50) {
+    // Truncate to first sentence if too long
+    const sentences = response.split(/(?<=[.!?])\s+/);
+    if (sentences.length > 1) {
+      adjustedResponse = sentences[0];
+    } else if (response.length > 60) {
+      // If it's one long sentence, truncate to ~60 chars
+      adjustedResponse = response.substring(0, 60).trim() + '...';
+    }
+  } else if (preferences.preferredLength === 'long' && response.length < 40) {
+    // Expand short responses with follow-up if user prefers longer responses
+    if (persona === 'anxiety') {
+      adjustedResponse += " I'm here to listen and help if you'd like to share more.";
+    } else if (persona === 'relationship') {
+      adjustedResponse += " What are your thoughts on this? I'm interested to hear more.";
+    }
+  }
+
+  // Adjust tone based on user preference
+  if (preferences.preferredTone === 'formal' && persona !== 'professional') {
+    // Make more formal if user prefers it
+    adjustedResponse = adjustedResponse
+      .replace(/\b(i|we|you|they)\b/g, (match) => match.charAt(0).toUpperCase() + match.slice(1))
+      .replace(/\bim\b/gi, 'I am')
+      .replace(/\bcant\b/gi, 'cannot')
+      .replace(/\bwont\b/gi, 'will not');
+  } else if (preferences.preferredTone === 'casual' && persona === 'professional') {
+    // Make more casual if user prefers it
+    adjustedResponse = adjustedResponse
+      .replace(/\bI am\b/gi, 'I\'m')
+      .replace(/\bcannot\b/gi, 'cannot')
+      .replace(/\bwill not\b/gi, 'won\'t');
+  }
+
+  // Add emotional awareness if emotion detected
+  if (emotionData && emotionData.emotion !== 'neutral' && emotionData.confidence > 0.4) {
+    const emotionalAcknowledge = getEmotionalAcknowledgment(emotionData.emotion);
+    if (!adjustedResponse.toLowerCase().includes(emotionalAcknowledge.toLowerCase())) {
+      adjustedResponse = `${emotionalAcknowledge} ${adjustedResponse}`;
+    }
+  }
+
+  return adjustedResponse;
+};
+
+const getEmotionalAcknowledgment = (emotion) => {
+  const acknowledgments = {
+    joy: "That sounds positive!",
+    sadness: "I understand this might be difficult.",
+    anger: "I can sense some frustration.",
+    fear: "I understand your concern.",
+    surprise: "That's interesting!",
+    disgust: "I understand your reaction."
+  };
+
+  return acknowledgments[emotion] || "I hear what you're saying.";
 };
 
 // Handle unhandled errors in the worker

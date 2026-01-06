@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { AppConfig } from '../config';
 import { manageConversationHistory } from '../utils/conversation';
+import { enhanceResponse } from '../utils/responseEnhancement';
 
 export const useMLWorker = () => {
   const [status, setStatus] = useState('Initializing Models...');
@@ -113,15 +114,22 @@ export const useMLWorker = () => {
           case 'llm_result': {
             // Validate and sanitize suggestion
             const sanitizedSuggestion = text ? text.trim().substring(0, AppConfig.system.maxSuggestionLength) : '';
-            setSuggestion(sanitizedSuggestion);
+
+            // Get emotion data from the message if available
+            const emotionData = e.data.emotionData || null;
+
+            // Enhance response based on user preferences and emotional context
+            const enhancedSuggestion = enhanceResponse(sanitizedSuggestion, persona, emotionData);
+
+            setSuggestion(enhancedSuggestion);
             setIsProcessing(false);
             setProcessingStep('none');
             setStatus('Ready');
-            
+
             // Add assistant turn to history using conversation management utility
-            if (sanitizedSuggestion) {
+            if (enhancedSuggestion) {
               setHistory(prev => {
-                const updatedHistory = [...prev, { role: 'assistant', content: sanitizedSuggestion }];
+                const updatedHistory = [...prev, { role: 'assistant', content: enhancedSuggestion }];
                 return manageConversationHistory(updatedHistory, AppConfig.system.maxHistoryLength || 6);
               });
             }

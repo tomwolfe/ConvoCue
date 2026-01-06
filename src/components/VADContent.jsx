@@ -204,10 +204,13 @@ const VADContent = ({
     }
   };
 
+  // Determine if we should show minimal UI based on subtle mode and active listening
+  const showMinimalUI = isSubtleMode && (vad.listening || isProcessing);
+
   return (
-    <main className={`vad-container ${isCompactMode ? 'compact-layout' : ''}`} role="main">
+    <main className={`vad-container ${isCompactMode ? 'compact-layout' : ''} ${showMinimalUI ? 'minimal-ui' : ''}`} role="main">
       <div
-        className={`status-badge ${isProcessing || vad.loading || vad.errored || vadError ? 'processing' : ''} ${vad.errored || vadError ? 'error' : ''}`}
+        className={`status-badge ${isProcessing || vad.loading || vad.errored || vadError ? 'processing' : ''} ${vad.errored || vadError ? 'error' : ''} ${showMinimalUI ? 'minimal' : ''}`}
         role="status"
         aria-live="polite"
       >
@@ -218,14 +221,16 @@ const VADContent = ({
         ) : (
           <div className="dot" aria-hidden="true" />
         )}
-        <span>
-          {(vad.errored || vadError) ? `Mic Error` : (vad.loading ? "Warming up..." : status)}
-        </span>
+        {!showMinimalUI && (
+          <span>
+            {(vad.errored || vadError) ? `Mic Error` : (vad.loading ? "Warming up..." : status)}
+          </span>
+        )}
       </div>
 
       <AudioVisualizer isActive={vad.listening} analyser={vad.analyser} isCompactMode={isCompactMode} />
 
-      {!isCompactMode && (
+      {!showMinimalUI && !isCompactMode && (
         <div className="persona-selector" role="group" aria-label="Select conversation mode">
           <div className="persona-grid">
             {Object.values(AppConfig.models.personas).map((p) => (
@@ -263,7 +268,7 @@ const VADContent = ({
       )}
 
       <div className="display-area" role="region" aria-label="Speech processing results">
-        {!isCompactMode && (
+        {!showMinimalUI && !isCompactMode && (
           <div className={`card transcript ${transcript ? 'visible' : ''}`} role="region" aria-labelledby="transcript-label">
             <div className="card-header">
               <label id="transcript-label">Context</label>
@@ -275,59 +280,57 @@ const VADContent = ({
           </div>
         )}
 
-        <div className={`card suggestion ${suggestion || processingStep === 'thinking' ? 'visible' : ''} ${isCompactMode ? 'compact-suggestion' : ''}`} role="region" aria-labelledby="suggestion-label">
+        <div className={`card suggestion ${suggestion || processingStep === 'thinking' ? 'visible' : ''} ${isCompactMode ? 'compact-suggestion' : ''} ${showMinimalUI ? 'minimal-suggestion' : ''}`} role="region" aria-labelledby="suggestion-label">
           <div className="card-header">
-            <label id="suggestion-label">{AppConfig.models.personas[persona]?.label || 'Cue'}</label>
-            <div className="card-actions">
-              {suggestion && (
-                <>
+            {!showMinimalUI && <label id="suggestion-label">{AppConfig.models.personas[persona]?.label || 'Cue'}</label>}
+            {!showMinimalUI && suggestion && (
+              <div className="card-actions">
+                <button
+                  className="btn-icon"
+                  onClick={() => {
+                    handleCopy();
+                    // Submit positive feedback when suggestion is copied
+                    submitFeedback(suggestion, 'like', persona, culturalContext, transcript);
+                  }}
+                  title="Copy to clipboard"
+                >
+                  {copied ? <Check size={14} color="#4CAF50" /> : <Copy size={14} />}
+                </button>
+                <button
+                  className="btn-icon"
+                  onClick={handleRefresh}
+                  title="New suggestion"
+                >
+                  <RefreshCw size={14} />
+                </button>
+                <div className="feedback-buttons">
                   <button
-                    className="btn-icon"
-                    onClick={() => {
-                      handleCopy();
-                      // Submit positive feedback when suggestion is copied
-                      submitFeedback(suggestion, 'like', persona, culturalContext, transcript);
-                    }}
-                    title="Copy to clipboard"
+                    className="btn-icon feedback-btn"
+                    onClick={() => submitFeedback(suggestion, 'like', persona, culturalContext, transcript)}
+                    title="Like this suggestion"
+                    aria-label="Like this suggestion"
                   >
-                    {copied ? <Check size={14} color="#4CAF50" /> : <Copy size={14} />}
+                    <ThumbsUp size={14} />
                   </button>
                   <button
-                    className="btn-icon"
-                    onClick={handleRefresh}
-                    title="New suggestion"
+                    className="btn-icon feedback-btn"
+                    onClick={() => submitFeedback(suggestion, 'dislike', persona, culturalContext, transcript)}
+                    title="Dislike this suggestion"
+                    aria-label="Dislike this suggestion"
                   >
-                    <RefreshCw size={14} />
+                    <ThumbsDown size={14} />
                   </button>
-                  <div className="feedback-buttons">
-                    <button
-                      className="btn-icon feedback-btn"
-                      onClick={() => submitFeedback(suggestion, 'like', persona, culturalContext, transcript)}
-                      title="Like this suggestion"
-                      aria-label="Like this suggestion"
-                    >
-                      <ThumbsUp size={14} />
-                    </button>
-                    <button
-                      className="btn-icon feedback-btn"
-                      onClick={() => submitFeedback(suggestion, 'dislike', persona, culturalContext, transcript)}
-                      title="Dislike this suggestion"
-                      aria-label="Dislike this suggestion"
-                    >
-                      <ThumbsDown size={14} />
-                    </button>
-                    <button
-                      className="btn-icon feedback-btn"
-                      onClick={() => submitFeedback(suggestion, 'report', persona, culturalContext, transcript)}
-                      title="Report inappropriate content"
-                      aria-label="Report inappropriate content"
-                    >
-                      <Flag size={14} />
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
+                  <button
+                    className="btn-icon feedback-btn"
+                    onClick={() => submitFeedback(suggestion, 'report', persona, culturalContext, transcript)}
+                    title="Report inappropriate content"
+                    aria-label="Report inappropriate content"
+                  >
+                    <Flag size={14} />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
           <p id="suggestion-content" className={isCompactMode ? 'compact-text' : ''}>
             {suggestion || (processingStep === 'thinking' ? "Thinking..." : "Listening for cues...")}
@@ -335,33 +338,35 @@ const VADContent = ({
         </div>
       </div>
 
-      <div className="controls" role="group" aria-label="Control buttons">
-        <button
-          className={`btn-control pulse-btn ${vad.listening && !isVADMode ? 'active' : ''} ${isCompactMode ? 'compact' : ''}`}
-          onClick={handleManualTrigger}
-          disabled={!isReady || isVADMode || vad.loading || (vad.errored && !vadError)}
-          title="Manual Trigger"
-          aria-label="Manual speech trigger"
-        >
-          <div className="icon-circle" aria-hidden="true">
-            <Mic size={isCompactMode ? 20 : 28} />
-          </div>
-          {!isCompactMode && <span>Pulse</span>}
-        </button>
+      {!showMinimalUI && (
+        <div className="controls" role="group" aria-label="Control buttons">
+          <button
+            className={`btn-control pulse-btn ${vad.listening && !isVADMode ? 'active' : ''} ${isCompactMode ? 'compact' : ''}`}
+            onClick={handleManualTrigger}
+            disabled={!isReady || isVADMode || vad.loading || (vad.errored && !vadError)}
+            title="Manual Trigger"
+            aria-label="Manual speech trigger"
+          >
+            <div className="icon-circle" aria-hidden="true">
+              <Mic size={isCompactMode ? 20 : 28} />
+            </div>
+            {!isCompactMode && <span>Pulse</span>}
+          </button>
 
-        <button
-          className={`btn-control heartbeat-btn ${isVADMode ? 'active' : ''} ${isCompactMode ? 'compact' : ''}`}
-          onClick={toggleVAD}
-          disabled={!isReady || vad.loading || (vad.errored && !vadError)}
-          title="Continuous Mode"
-          aria-label="Continuous speech detection"
-        >
-          <div className="icon-circle" aria-hidden="true">
-            <Heart size={isCompactMode ? 20 : 28} fill={isVADMode ? "white" : "none"} />
-          </div>
-          {!isCompactMode && <span>Heartbeat</span>}
-        </button>
-      </div>
+          <button
+            className={`btn-control heartbeat-btn ${isVADMode ? 'active' : ''} ${isCompactMode ? 'compact' : ''}`}
+            onClick={toggleVAD}
+            disabled={!isReady || vad.loading || (vad.errored && !vadError)}
+            title="Continuous Mode"
+            aria-label="Continuous speech detection"
+          >
+            <div className="icon-circle" aria-hidden="true">
+              <Heart size={isCompactMode ? 20 : 28} fill={isVADMode ? "white" : "none"} />
+            </div>
+            {!isCompactMode && <span>Heartbeat</span>}
+          </button>
+        </div>
+      )}
 
       {(vad.errored || vadError) && (
         <div className="error-recovery" role="alert" aria-live="assertive">

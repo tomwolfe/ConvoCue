@@ -1,10 +1,72 @@
 // Device detection
 const isMobile = typeof navigator !== 'undefined' && /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
+// Helper function to merge custom personas with default ones
+const getMergedPersonas = () => {
+  const defaultPersonas = {
+    anxiety: {
+      id: 'anxiety',
+      label: 'Social Anxiety',
+      description: 'Confidence boosts and low-pressure follow-up questions.',
+      prompt: 'The user is feeling anxious. Provide a warm, validating confidence boost or a simple, open-ended but low-pressure follow-up question. Avoid complex topics. Keep it under 12 words.'
+    },
+    relationship: {
+      id: 'relationship',
+      label: 'EQ Coach',
+      description: 'Relationship coaching: empathy and active listening.',
+      prompt: 'Focus on emotional intelligence. Suggest a response that uses active listening or validates the other person\'s feelings. Use "I" statements where appropriate. Keep it under 20 words.'
+    },
+    professional: {
+      id: 'professional',
+      label: 'Professional',
+      description: 'Confident, clear, and workplace-appropriate cues.',
+      prompt: 'Provide a concise, professional response that demonstrates competence and clarity. Focus on next steps or constructive input. Keep it under 15 words.'
+    },
+    concise: {
+      id: 'concise',
+      label: 'Quick Replies',
+      description: '3-4 word options for fast-paced chats.',
+      prompt: 'Give three short (2-4 words) response options separated by " | ". Use natural spoken English.'
+    },
+    crosscultural: {
+      id: 'crosscultural',
+      label: 'Cultural Guide',
+      description: 'Culturally sensitive phrasing suggestions.',
+      prompt: 'Suggest a respectful response that avoids idioms and shows cultural awareness. Consider high-context vs low-context communication styles. If a specific culture is mentioned, adapt accordingly with appropriate formality and respect. Keep it brief but culturally appropriate.'
+    },
+    languagelearning: {
+      id: 'languagelearning',
+      label: 'Language Tutor',
+      description: 'Natural phrasing and grammar corrections.',
+      prompt: 'Suggest a more natural way to say what the user said, then ask a follow-up question. Be brief and encouraging. If specific language/culture is mentioned, incorporate cultural appropriateness.'
+    },
+    meeting: {
+      id: 'meeting',
+      label: 'Meeting Aide',
+      description: 'Interjections and summaries for professional meetings.',
+      prompt: 'Suggest a concise interjection to help the user contribute to a meeting or summarize a point. Under 15 words. Consider professional formality and cultural appropriateness in diverse settings.'
+    }
+  };
+
+  try {
+    // Load custom personas from localStorage
+    const customPersonasStr = localStorage.getItem('convocue_custom_personas');
+    if (customPersonasStr) {
+      const customPersonas = JSON.parse(customPersonasStr);
+      // Merge custom personas with defaults
+      return { ...defaultPersonas, ...customPersonas };
+    }
+  } catch (e) {
+    console.error('Error loading custom personas:', e);
+  }
+
+  return defaultPersonas;
+};
+
 // Configuration for ConvoCue application
 export const AppConfig = {
   isMobile,
-  
+
   // Model configurations
   models: {
     stt: {
@@ -22,50 +84,7 @@ export const AppConfig = {
       temperature: 0.7,
       do_sample: true,
     },
-    personas: {
-      anxiety: {
-        id: 'anxiety',
-        label: 'Social Anxiety',
-        description: 'Confidence boosts and low-pressure follow-up questions.',
-        prompt: 'The user is feeling anxious. Provide a warm, validating confidence boost or a simple, open-ended but low-pressure follow-up question. Avoid complex topics. Keep it under 12 words.'
-      },
-      relationship: {
-        id: 'relationship',
-        label: 'EQ Coach',
-        description: 'Relationship coaching: empathy and active listening.',
-        prompt: 'Focus on emotional intelligence. Suggest a response that uses active listening or validates the other person\'s feelings. Use "I" statements where appropriate. Keep it under 20 words.'
-      },
-      professional: {
-        id: 'professional',
-        label: 'Professional',
-        description: 'Confident, clear, and workplace-appropriate cues.',
-        prompt: 'Provide a concise, professional response that demonstrates competence and clarity. Focus on next steps or constructive input. Keep it under 15 words.'
-      },
-      concise: {
-        id: 'concise',
-        label: 'Quick Replies',
-        description: '3-4 word options for fast-paced chats.',
-        prompt: 'Give three short (2-4 words) response options separated by " | ". Use natural spoken English.'
-      },
-      crosscultural: {
-        id: 'crosscultural',
-        label: 'Cultural Guide',
-        description: 'Culturally sensitive phrasing suggestions.',
-        prompt: 'Suggest a respectful response that avoids idioms and shows cultural awareness. Consider high-context vs low-context communication styles. If a specific culture is mentioned, adapt accordingly with appropriate formality and respect. Keep it brief but culturally appropriate.'
-      },
-      languagelearning: {
-        id: 'languagelearning',
-        label: 'Language Tutor',
-        description: 'Natural phrasing and grammar corrections.',
-        prompt: 'Suggest a more natural way to say what the user said, then ask a follow-up question. Be brief and encouraging. If specific language/culture is mentioned, incorporate cultural appropriateness.'
-      },
-      meeting: {
-        id: 'meeting',
-        label: 'Meeting Aide',
-        description: 'Interjections and summaries for professional meetings.',
-        prompt: 'Suggest a concise interjection to help the user contribute to a meeting or summarize a point. Under 15 words. Consider professional formality and cultural appropriateness in diverse settings.'
-      }
-    }
+    personas: getMergedPersonas()
   },
 
   // VAD configurations
