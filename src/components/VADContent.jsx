@@ -2,16 +2,15 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useMicVAD } from '@ricky0123/vad-react';
 import { Mic, Heart, Loader2, AlertCircle, RefreshCw, Trash2 } from 'lucide-react';
 
-const VADContent = ({ 
-  status, 
-  progress,
-  isReady, 
-  transcript, 
-  suggestion, 
-  isProcessing, 
-  processAudio, 
-  setTranscript, 
-  setSuggestion, 
+const VADContent = ({
+  status,
+  isReady,
+  transcript,
+  suggestion,
+  isProcessing,
+  processAudio,
+  setTranscript,
+  setSuggestion,
   setStatus,
   initialError
 }) => {
@@ -108,13 +107,17 @@ const VADContent = ({
 
   return (
     <main className="vad-container">
-      <div className={`status-badge ${isProcessing || vad.loading || vad.errored || vadError ? 'processing' : ''} ${vad.errored || vadError ? 'error' : ''}`}>
+      <div
+        className={`status-badge ${isProcessing || vad.loading || vad.errored || vadError ? 'processing' : ''} ${vad.errored || vadError ? 'error' : ''}`}
+        role="status"
+        aria-live="polite"
+      >
         {isProcessing || (vad.loading && !vad.errored && !vadError) ? (
-          <Loader2 className="animate-spin" size={16} />
+          <Loader2 className="animate-spin" size={16} aria-hidden="true" />
         ) : (vad.errored || vadError) ? (
-          <AlertCircle size={16} />
+          <AlertCircle size={16} aria-hidden="true" />
         ) : (
-          <div className="dot" />
+          <div className="dot" aria-hidden="true" />
         )}
         <span>
           {(vad.errored || vadError) ? `Mic Error` : (vad.loading ? "Warming up..." : status)}
@@ -122,56 +125,58 @@ const VADContent = ({
       </div>
 
       <div className="display-area">
-        <div className={`card transcript ${transcript ? 'visible' : ''}`}>
+        <div className={`card transcript ${transcript ? 'visible' : ''}`} aria-label="Transcript">
           <div className="card-header">
             <label>You said</label>
-            {transcript && <button className="btn-icon" onClick={handleClear}><Trash2 size={14} /></button>}
+            {transcript && <button className="btn-icon" onClick={handleClear} aria-label="Clear transcript"><Trash2 size={14} /></button>}
           </div>
           <p>{transcript || "Waiting for speech..."}</p>
         </div>
-        
-        <div className={`card suggestion ${suggestion ? 'visible' : ''}`}>
+
+        <div className={`card suggestion ${suggestion ? 'visible' : ''}`} aria-label="Social Cue Suggestion">
           <label>Social Cue</label>
           <p>{suggestion || "AI Brain is pondering..."}</p>
           {isProcessing && !suggestion && (
-             <div className="thinking-dots">
+             <div className="thinking-dots" aria-label="Processing">
                <span>.</span><span>.</span><span>.</span>
              </div>
           )}
         </div>
       </div>
 
-      <div className="controls">
-        <button 
+      <div className="controls" role="group" aria-label="Control buttons">
+        <button
           className={`btn-control pulse-btn ${vad.listening && !isVADMode ? 'active' : ''}`}
           onClick={handleManualTrigger}
           disabled={!isReady || isVADMode || vad.loading || vad.errored || !!vadError}
           title="Manual Trigger"
+          aria-label="Manual speech trigger"
         >
-          <div className="icon-circle">
+          <div className="icon-circle" aria-hidden="true">
             <Mic size={28} />
           </div>
           <span>Pulse</span>
         </button>
 
-        <button 
+        <button
           className={`btn-control heartbeat-btn ${isVADMode ? 'active' : ''}`}
           onClick={toggleVAD}
           disabled={!isReady || vad.loading || vad.errored || !!vadError}
           title="Continuous Mode"
+          aria-label="Continuous speech detection"
         >
-          <div className="icon-circle">
+          <div className="icon-circle" aria-hidden="true">
             <Heart size={28} fill={isVADMode ? "white" : "none"} />
           </div>
           <span>Heartbeat</span>
         </button>
       </div>
-      
+
       {(vad.errored || vadError) && (
-        <div className="error-recovery">
+        <div className="error-recovery" role="alert">
           <p>{vadError || "Microphone access error"}</p>
-          <button className="btn-retry" onClick={() => window.location.reload()}>
-            <RefreshCw size={18} />
+          <button className="btn-retry" onClick={() => window.location.reload()} aria-label="Try again">
+            <RefreshCw size={18} aria-hidden="true" />
             Try Again
           </button>
         </div>

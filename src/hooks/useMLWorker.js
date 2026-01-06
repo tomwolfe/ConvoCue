@@ -20,7 +20,7 @@ export const useMLWorker = () => {
 
       newWorker.onmessage = (e) => {
         const { type, text, status: workerStatus, progress: workerProgress, error } = e.data;
-        
+
         switch (type) {
           case 'status':
             setStatus(workerStatus);
@@ -45,8 +45,8 @@ export const useMLWorker = () => {
             setTranscript(text);
             if (text.trim().length > 1) {
               setStatus('Analyzing social cue...');
-              newWorker.postMessage({ 
-                type: 'llm', 
+              newWorker.postMessage({
+                type: 'llm',
                 text,
                 taskId: `llm-${Date.now()}`
               });
@@ -78,14 +78,20 @@ export const useMLWorker = () => {
 
       newWorker.onerror = (e) => {
         console.error("Worker Script Error:", e);
-        setStatus('Worker failed to initialize. Try refreshing.');
-        setIsProcessing(false);
+        // Use setTimeout to avoid calling setState synchronously in effect
+        setTimeout(() => {
+          setStatus('Worker failed to initialize. Try refreshing.');
+          setIsProcessing(false);
+        }, 0);
       };
 
       newWorker.postMessage({ type: 'load', taskId: 'initial-load' });
     } catch (err) {
       console.error("Failed to create worker:", err);
-      setStatus('Could not create background worker');
+      // Use setTimeout to avoid calling setState synchronously in effect
+      setTimeout(() => {
+        setStatus('Could not create background worker');
+      }, 0);
     }
 
     return () => {

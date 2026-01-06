@@ -31,6 +31,6 @@ test('renders ConvoCue heading', () => {
 
 test('renders Enable Microphone button', () => {
   render(<App />);
-  const buttonElement = screen.getByText(/Enable Microphone/i);
+  const buttonElement = screen.getByRole('button', { name: /Enable Microphone/i });
   expect(buttonElement).toBeInTheDocument();
 });
