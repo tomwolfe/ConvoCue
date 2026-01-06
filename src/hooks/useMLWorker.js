@@ -68,37 +68,20 @@ export const useMLWorker = () => {
               setProcessingStep('thinking');
               setSuggestion(''); // Clear suggestion before starting LLM
               
-              // Add user turn to history and get the updated list to send to worker
-              // Extended history to 10 turns for better context, with conversation summarization for long sessions
-              const currentHistory = [...historyRef.current, { role: 'user', content: sanitizedTranscript }];
+            // Maintain a sliding window of history to keep context relevant and within token limits
+            // For a 135M model, keeping the last 5-6 turns is usually more effective than long summaries
+            const currentHistory = [...historyRef.current, { role: 'user', content: sanitizedTranscript }];
+            const nextHistory = currentHistory.slice(-6); // Keep last 6 messages
 
-              // If history is getting long, summarize the conversation to maintain context while managing memory
-              let nextHistory;
-              if (currentHistory.length > 10) {
-                // Keep the last 6 messages and add a summary of earlier conversation
-                const earlierMessages = currentHistory.slice(0, -6);
-                const recentMessages = currentHistory.slice(-6);
+            setHistory(nextHistory);
 
-                // Create a summary of earlier conversation
-                const conversationSummary = `Previous conversation summary: ${earlierMessages.map(msg => `${msg.role}: ${msg.content}`).join(' | ')}`;
-
-                nextHistory = [
-                  { role: 'system', content: conversationSummary },
-                  ...recentMessages
-                ];
-              } else {
-                nextHistory = currentHistory;
-              }
-
-              setHistory(nextHistory);
-
-              newWorker.postMessage({
-                type: 'llm',
-                text: sanitizedTranscript,
-                persona: persona,
-                history: nextHistory,
-                taskId: `llm-${Date.now()}`
-              });
+            newWorker.postMessage({
+              type: 'llm',
+              text: sanitizedTranscript,
+              persona: persona,
+              history: nextHistory,
+              taskId: `llm-${Date.now()}`
+            });
             } else {
               setIsProcessing(false);
               setStatus('Ready');
@@ -113,24 +96,11 @@ export const useMLWorker = () => {
             setProcessingStep('none');
             setStatus('Ready');
             
-            // Add assistant turn to history maintaining extended context
+            // Add assistant turn to history maintaining sliding window
             if (sanitizedSuggestion) {
               setHistory(prev => {
                 const updatedHistory = [...prev, { role: 'assistant', content: sanitizedSuggestion }];
-
-                // Apply the same summarization logic when adding assistant responses
-                if (updatedHistory.length > 10) {
-                  const earlierMessages = updatedHistory.slice(0, -6);
-                  const recentMessages = updatedHistory.slice(-6);
-
-                  const conversationSummary = `Previous conversation summary: ${earlierMessages.map(msg => `${msg.role}: ${msg.content}`).join(' | ')}`;
-
-                  return [
-                    { role: 'system', content: conversationSummary },
-                    ...recentMessages
-                  ];
-                }
-                return updatedHistory;
+                return updatedHistory.slice(-6); // Maintain same window size
               });
             }
 

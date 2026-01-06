@@ -1,8 +1,8 @@
 import { AppConfig } from '../config';
 
 export const checkAssets = async () => {
-  // Skip diagnostics in test environment to avoid noise
-  if (typeof process !== 'undefined' && process.env.NODE_ENV === 'test') {
+  // Skip diagnostics in test environment or non-browser environments
+  if (typeof window === 'undefined' || (window && window.__VITEST__)) {
     return { allOk: true, missing: [] };
   }
 

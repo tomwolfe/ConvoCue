@@ -12,6 +12,7 @@ import './App.css';
 const App = () => {
   const [hasInteracted, setHasInteracted] = useState(false);
   const [assetError, setAssetError] = useState(null);
+  const [isDyslexicFriendly, setIsDyslexicFriendly] = useState(false);
   const {
     status,
     progress,
@@ -33,6 +34,14 @@ const App = () => {
   } = useMLWorker();
 
   const [micPermissionError, setMicPermissionError] = useState(null);
+
+  useEffect(() => {
+    if (isDyslexicFriendly) {
+      document.body.classList.add('dyslexic-mode');
+    } else {
+      document.body.classList.remove('dyslexic-mode');
+    }
+  }, [isDyslexicFriendly]);
 
   useEffect(() => {
     const runDiagnostics = async () => {
@@ -69,9 +78,19 @@ const App = () => {
       <Analytics />
       <div className="app-container" role="main" aria-label="ConvoCue Application">
         <header role="banner">
-          <div className="logo-area">
-            <Volume2 size={40} color="#6C5CE7" aria-hidden="true" />
-            <h1>ConvoCue</h1>
+          <div className="header-top">
+            <div className="logo-area">
+              <Volume2 size={40} color="#6C5CE7" aria-hidden="true" />
+              <h1>ConvoCue</h1>
+            </div>
+            <button 
+              className={`btn-settings ${isDyslexicFriendly ? 'active' : ''}`}
+              onClick={() => setIsDyslexicFriendly(!isDyslexicFriendly)}
+              aria-label="Toggle Dyslexic Friendly Font"
+              title="Toggle Dyslexic Friendly Font"
+            >
+              Abc
+            </button>
           </div>
           <p className="subtitle">Real-time social validation</p>
         </header>

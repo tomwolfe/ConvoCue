@@ -1,7 +1,64 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useMicVAD } from '@ricky0123/vad-react';
-import { Mic, Heart, Loader2, AlertCircle, RefreshCw, Trash2 } from 'lucide-react';
+import { Mic, Heart, Loader2, AlertCircle, RefreshCw, Trash2, Activity } from 'lucide-react';
 import { AppConfig } from '../config';
+
+const AudioVisualizer = ({ isActive, analyser }) => {
+  const canvasRef = useRef(null);
+  const animationRef = useRef(null);
+
+  useEffect(() => {
+    if (!isActive || !analyser || !canvasRef.current) {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+      return;
+    }
+
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+
+    const draw = () => {
+      animationRef.current = requestAnimationFrame(draw);
+      analyser.getByteFrequencyData(dataArray);
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      const barWidth = (canvas.width / bufferLength) * 2.5;
+      let barHeight;
+      let x = 0;
+
+      for (let i = 0; i < bufferLength; i++) {
+        barHeight = (dataArray[i] / 255) * canvas.height;
+
+        const blue = 231;
+        const green = 92;
+        const red = 108;
+        
+        ctx.fillStyle = `rgba(${red}, ${green}, ${blue}, ${barHeight / canvas.height + 0.2})`;
+        ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+
+        x += barWidth + 1;
+      }
+    };
+
+    draw();
+
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, [isActive, analyser]);
+
+  return (
+    <div className={`audio-visualizer ${isActive ? 'active' : ''}`}>
+      <canvas ref={canvasRef} width="300" height="40" />
+    </div>
+  );
+};
 
 const VADContent = ({
   status,
@@ -151,6 +208,8 @@ const VADContent = ({
         </span>
       </div>
 
+      <AudioVisualizer isActive={vad.listening} analyser={vad.analyser} />
+
       <div className="persona-selector" role="group" aria-label="Select conversation mode">
         <div className="persona-grid">
           {Object.values(AppConfig.models.personas).map((p) => (
@@ -159,9 +218,9 @@ const VADContent = ({
               className={`persona-btn ${persona === p.id ? 'active' : ''}`}
               onClick={() => setPersona(p.id)}
               aria-pressed={persona === p.id}
-              title={p.description || p.label}
             >
-              {p.label}
+              <span className="persona-label">{p.label}</span>
+              <span className="persona-desc">{p.description}</span>
             </button>
           ))}
         </div>
