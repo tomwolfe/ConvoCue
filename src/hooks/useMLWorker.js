@@ -129,6 +129,7 @@ export const useMLWorker = () => {
                           }
                           break;
                         }
+                        case 'llm_result': {
                           const rawSuggestion = text ? text.trim() : '';
                           const emotion = e.data.emotionData || null;
                           setEmotionData(emotion);
