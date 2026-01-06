@@ -1,9 +1,10 @@
 /**
- * Conversation utilities for managing context and summarization
+ * @fileoverview Conversation utilities for managing context and summarization
  */
 
 /**
  * Summarizes a conversation history into a concise summary
+ *
  * @param {Array} history - Array of conversation messages [{role, content}]
  * @returns {string} - Concise summary of the conversation
  */
@@ -44,6 +45,7 @@ export const summarizeConversation = (history) => {
 
 /**
  * Extracts key topics from conversation messages
+ *
  * @param {Array} messages - Array of conversation messages
  * @returns {Array} - Array of key topics
  */
@@ -79,6 +81,7 @@ const extractConversationTopics = (messages) => {
 
 /**
  * Manages conversation history with summarization when it gets too long
+ *
  * @param {Array} history - Current conversation history
  * @param {number} maxHistoryLength - Maximum number of messages to keep
  * @returns {Array} - Trimmed history with optional summary

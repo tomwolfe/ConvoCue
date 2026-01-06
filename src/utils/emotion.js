@@ -1,5 +1,15 @@
 /**
- * Optimized emotional analysis using a pre-computed lookup map for O(1) word checks.
+ * @fileoverview Optimized emotional analysis using a pre-computed lookup map for O(1) word checks.
+ */
+
+/**
+ * Analyzes emotions in text and returns the dominant emotion.
+ * Optimized for performance in real-time streaming contexts.
+ *
+ * @param {string} text - The text to analyze for emotions
+ * @returns {Object} An object containing the emotion and confidence level
+ * @property {string} emotion - The dominant emotion detected ('joy', 'sadness', 'anger', 'fear', 'surprise', 'disgust', or 'neutral')
+ * @property {number} confidence - Confidence level between 0 and 1
  */
 
 const emotionWords = {

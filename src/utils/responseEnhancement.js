@@ -1,9 +1,10 @@
 /**
- * Response enhancement utilities using user feedback data
+ * @fileoverview Response enhancement utilities using user feedback data
  */
 
 /**
  * Gets user's preferred response patterns based on feedback history
+ *
  * @returns {object} Preferred response characteristics
  */
 export const getUserPreferences = () => {
@@ -60,6 +61,7 @@ export const getUserPreferences = () => {
 
 /**
  * Adjusts a response based on user preferences and feedback patterns
+ *
  * @param {string} response - Original response to adjust
  * @param {string} persona - Current persona being used
  * @param {object} emotionData - Emotional analysis data
@@ -220,6 +222,7 @@ const applyProfessionalInsights = (response, input) => {
 
 /**
  * Enhances a response based on user preferences, emotional context, and feedback patterns
+ *
  * @param {string} response - Original response to enhance
  * @param {string} persona - Current persona being used
  * @param {object} emotionData - Optional emotional analysis data

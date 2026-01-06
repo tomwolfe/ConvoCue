@@ -122,6 +122,22 @@ const throttledProgress = (p, statusPrefix, taskId) => {
     }
 };
 
+// Sanitize text to prevent potential XSS issues
+const sanitizeText = (text) => {
+    if (!text || typeof text !== 'string') {
+        return '';
+    }
+
+    // Remove potential script tags and other dangerous content
+    return text
+        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+        .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
+        .replace(/javascript:/gi, '')
+        .replace(/vbscript:/gi, '')
+        .replace(/on\w+\s*=/gi, '')
+        .substring(0, AppConfig.system.maxTranscriptLength); // Also enforce length limit
+};
+
 let cachedSystemPrompt = { key: null, content: null };
 
 self.onmessage = async (event) => {
@@ -155,8 +171,10 @@ self.onmessage = async (event) => {
                 stride_length_s: AppConfig.models.stt.stride_length_s,
                 return_timestamps: false,
             });
-            
-            self.postMessage({ type: 'stt_result', text: output.text, metadata: { rms, duration }, taskId });
+
+            // Sanitize the output text to prevent potential XSS issues
+            const sanitizedText = sanitizeText(output.text);
+            self.postMessage({ type: 'stt_result', text: sanitizedText, metadata: { rms, duration }, taskId });
         }
 
         if (type === 'llm') {
@@ -218,7 +236,9 @@ self.onmessage = async (event) => {
                 response = Array.isArray(gen) ? gen[gen.length - 1].content : gen;
             }
 
-            self.postMessage({ type: 'llm_result', text: response.trim(), emotionData, taskId });
+            // Sanitize the response before sending it back
+            const sanitizedResponse = sanitizeText(response.trim());
+            self.postMessage({ type: 'llm_result', text: sanitizedResponse, emotionData, taskId });
         }
         
         if (type === 'cleanup') {

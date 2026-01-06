@@ -202,9 +202,13 @@ const VADContent = ({
       const detail = vad.error || "Unknown VAD initialization error";
       // This is a legitimate case where we need to update state based on external system errors
       // The VAD system reports errors that need to be reflected in the UI state
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setVadError(`VAD failed to initialize: ${detail}`);
-      vadErrorSetRef.current = true;
+      setVadError(prevError => {
+        if (!prevError) {
+          vadErrorSetRef.current = true;
+          return `VAD failed to initialize: ${detail}`;
+        }
+        return prevError;
+      });
     }
   }, [vad.errored, vad.error]);
 

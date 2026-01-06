@@ -1,9 +1,10 @@
 /**
- * User feedback utilities for collecting and managing user preferences
+ * @fileoverview User feedback utilities for collecting and managing user preferences
  */
 
 /**
  * Submit feedback for a suggestion
+ *
  * @param {string} suggestion - The suggestion that was provided
  * @param {string} feedbackType - The type of feedback ('like', 'dislike', 'report')
  * @param {string} persona - The persona used for the suggestion
