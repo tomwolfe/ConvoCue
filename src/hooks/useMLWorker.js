@@ -10,7 +10,7 @@ export const useMLWorker = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStep, setProcessingStep] = useState('none'); // 'none', 'transcribing', 'thinking'
   const [history, setHistory] = useState([]);
-  const [persona, setPersona] = useState('social');
+  const [persona, setPersona] = useState('anxiety');
   
   const worker = useRef(null);
   const historyRef = useRef([]);

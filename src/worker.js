@@ -298,7 +298,7 @@ self.onmessage = async (event) => {
                 throw new Error("Invalid input text for LLM processing");
             }
 
-            const personaConfig = AppConfig.models.personas[persona] || AppConfig.models.personas.social;
+            const personaConfig = AppConfig.models.personas[persona] || AppConfig.models.personas.anxiety;
             const sanitizedText = text.trim().substring(0, AppConfig.system.maxTranscriptLength);
 
             // Process history and ensure we don't duplicate the current message
@@ -410,17 +410,16 @@ self.onmessage = async (event) => {
 
                 // Provide a fallback response based on the selected persona
                 const fallbackResponses = {
-                    social: "That sounds interesting. Could you tell me more about that?",
+                    anxiety: "That sounds interesting. Could you tell me more about that?",
                     professional: "Thank you for sharing. What are the next steps?",
-                    friendly: "I understand. How are you feeling about all this?",
+                    relationship: "I understand. How are you feeling about all this?",
                     concise: ["Interesting", "Tell me more", "That makes sense"],
                     crosscultural: "That's a thoughtful point. How does this align with your cultural perspective?",
                     languagelearning: "I understand. The grammar looks good, but you could also say it this way...",
                     meeting: "That's an important point. Should we discuss this further in our agenda?",
-                    emotional: "I hear you. That sounds challenging. How can I support you?"
                 };
 
-                const fallbackResponse = fallbackResponses[persona] || fallbackResponses.social;
+                const fallbackResponse = fallbackResponses[persona] || fallbackResponses.anxiety;
                 let fallbackText;
                 if (typeof fallbackResponse === 'string') {
                     fallbackText = fallbackResponse;
