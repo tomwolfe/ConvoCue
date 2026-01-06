@@ -4,14 +4,10 @@ import { pipeline, env } from '@huggingface/transformers';
 env.allowLocalModels = false;
 env.useBrowserCache = true;
 
-// With v3, we can often rely on default paths, but let's ensure we are using a stable ORT backend
-// We'll use 1.18.0 which is highly compatible with Transformers.js v3
-const ORT_VERSION = '1.18.0';
-env.backends.onnx.wasm.wasmPaths = `https://cdn.jsdelivr.net/npm/onnxruntime-web@${ORT_VERSION}/dist/`;
-
-// Standard worker optimizations for stability
+// Transformers.js v3 handles WASM paths automatically, but we can ensure stability
+// by only setting threads if needed. SIMD should be enabled for modern browsers.
 env.backends.onnx.wasm.numThreads = 1;
-env.backends.onnx.wasm.simd = false;
+env.backends.onnx.wasm.simd = true; // Enable SIMD for significantly better performance
 
 console.log("ML Worker script loaded with @huggingface/transformers");
 
@@ -31,11 +27,11 @@ class MLPipeline {
         if (!MLPipeline.stt) {
             console.log("Loading STT model...");
             try {
-                // Using onnx-community version for better v3 compatibility
+                // Using whisper-tiny.en which is lightweight
                 MLPipeline.stt = await pipeline('automatic-speech-recognition', 'onnx-community/whisper-tiny.en', {
                     progress_callback,
                     device: 'wasm',
-                    dtype: 'fp32', // More stable in WASM than fp16/int8 for some whisper variants
+                    dtype: 'fp32',
                 });
                 console.log("STT model loaded successfully");
             } catch (err) {
@@ -49,11 +45,11 @@ class MLPipeline {
         if (!MLPipeline.llm) {
             console.log("Loading LLM model...");
             try {
-                // Qwen3-0.6B is the latest optimized version
-                MLPipeline.llm = await pipeline('text-generation', 'onnx-community/Qwen3-0.6B-ONNX', {
+                // Qwen2.5-0.5B-Instruct is very capable for its size
+                MLPipeline.llm = await pipeline('text-generation', 'onnx-community/Qwen2.5-0.5B-Instruct', {
                     progress_callback,
                     device: 'wasm',
-                    dtype: 'q4', // Quantized for performance
+                    dtype: 'q4', 
                 });
                 console.log("LLM model loaded successfully");
             } catch (err) {
@@ -64,20 +60,27 @@ class MLPipeline {
     }
 }
 
-let lastProgressTime = 0;
-const PROGRESS_THROTTLE = 150;
-
 const throttledProgress = (p, statusPrefix, taskId) => {
+    // Report progress for all statuses to avoid getting "stuck" at 100% 
+    // while the next file is initiating or the model is compiling.
     if (p.status === 'progress') {
-        const now = Date.now();
-        if (now - lastProgressTime > PROGRESS_THROTTLE || p.progress === 100) {
-            self.postMessage({ 
-                type: 'status', 
-                status: `${statusPrefix} (${p.file}): ${Math.round(p.progress ?? 0)}%`, 
-                taskId 
-            });
-            lastProgressTime = now;
-        }
+        self.postMessage({ 
+            type: 'status', 
+            status: `${statusPrefix} (${p.file}): ${Math.round(p.progress ?? 0)}%`, 
+            taskId 
+        });
+    } else if (p.status === 'initiate') {
+        self.postMessage({ 
+            type: 'status', 
+            status: `${statusPrefix}: Initializing ${p.file}...`, 
+            taskId 
+        });
+    } else if (p.status === 'done') {
+        self.postMessage({ 
+            type: 'status', 
+            status: `${statusPrefix}: Finished loading ${p.file}`, 
+            taskId 
+        });
     }
 };
 
@@ -90,10 +93,10 @@ self.onmessage = async (event) => {
             console.log("Start loading pipelines...");
             self.postMessage({ type: 'status', status: 'Initializing models...', taskId });
             
-            await pipelineManager.loadSTT((p) => throttledProgress(p, 'Loading Speech Engine', taskId));
+            await pipelineManager.loadSTT((p) => throttledProgress(p, 'Speech Engine', taskId));
             self.postMessage({ type: 'status', status: 'Speech Engine Ready. Loading AI Brain...', taskId });
 
-            await pipelineManager.loadLLM((p) => throttledProgress(p, 'Loading AI Brain', taskId));
+            await pipelineManager.loadLLM((p) => throttledProgress(p, 'AI Brain', taskId));
             
             console.log("All pipelines ready");
             self.postMessage({ type: 'ready', taskId });

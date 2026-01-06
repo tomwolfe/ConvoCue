@@ -32,7 +32,11 @@ export const useMLWorker = () => {
             setTranscript(text);
             if (text.trim().length > 2) {
               setStatus('Thinking...');
-              worker.current.postMessage({ type: 'llm', text });
+              worker.current.postMessage({ 
+                type: 'llm', 
+                text,
+                taskId: `llm-${Date.now()}`
+              });
             } else {
               setIsProcessing(false);
               setStatus('Ready');
@@ -61,7 +65,7 @@ export const useMLWorker = () => {
         setStatus('Worker Failed to Load');
       };
 
-      worker.current.postMessage({ type: 'load' });
+      worker.current.postMessage({ type: 'load', taskId: 'initial-load' });
     } catch (err) {
       console.error("Failed to create worker:", err);
       setStatus('Worker Creation Failed');
@@ -75,10 +79,14 @@ export const useMLWorker = () => {
   }, []);
 
   const processAudio = useCallback((audioBuffer) => {
-    if (!isReady || isProcessing) return;
+    if (!isReady || isProcessing || !worker.current) return;
     setIsProcessing(true);
     setStatus('Transcribing...');
-    worker.current.postMessage({ type: 'stt', audio: audioBuffer });
+    worker.current.postMessage({ 
+      type: 'stt', 
+      audio: audioBuffer,
+      taskId: `stt-${Date.now()}` 
+    });
   }, [isReady, isProcessing]);
 
   return {
