@@ -19,7 +19,8 @@ const App = () => {
     processAudio,
     setTranscript,
     setSuggestion,
-    setStatus
+    setStatus,
+    resetWorker
   } = useMLWorker();
 
   const [micPermissionError, setMicPermissionError] = useState(null);
@@ -109,6 +110,7 @@ const App = () => {
             onReset={() => {
               setHasInteracted(false);
               setMicPermissionError(null);
+              resetWorker();
             }}
           />
         )}

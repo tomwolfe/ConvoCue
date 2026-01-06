@@ -1,4 +1,4 @@
-import { pipeline, env } from '@huggingface/transformers';
+import { pipeline, env, TextStreamer } from '@huggingface/transformers';
 
 // Configuration for on-device execution
 env.allowLocalModels = false;
@@ -141,15 +141,25 @@ self.onmessage = async (event) => {
                 { role: "user", content: text },
             ];
 
-            // Use the newer chat template application in v3
+            console.log("Starting LLM generation with streaming...");
+            
+            const streamer = new TextStreamer(MLPipeline.llm.tokenizer, {
+                skip_prompt: true,
+                skip_special_tokens: true,
+                callback_function: (text) => {
+                    self.postMessage({ type: 'llm_chunk', text, taskId });
+                },
+            });
+
             const output = await MLPipeline.llm(messages, {
-                max_new_tokens: 50,
+                max_new_tokens: 128,
                 temperature: 0.7,
                 do_sample: true,
+                streamer,
             });
 
             const response = output[0].generated_text.at(-1).content.trim();
-            console.log("LLM Result:", response);
+            console.log("LLM Generation complete");
             self.postMessage({ type: 'llm_result', text: response, taskId });
         }
     } catch (error) {

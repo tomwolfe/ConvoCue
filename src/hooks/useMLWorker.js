@@ -10,8 +10,12 @@ export const useMLWorker = () => {
   
   const worker = useRef(null);
 
-  useEffect(() => {
+  const initWorker = useCallback(() => {
     console.log("Initializing worker...");
+    if (worker.current) {
+      worker.current.terminate();
+    }
+
     try {
       const newWorker = new Worker(new URL('../worker.js', import.meta.url), {
         type: 'module'
@@ -46,6 +50,7 @@ export const useMLWorker = () => {
             setTranscript(text);
             if (text.trim().length > 1) {
               setStatus('Analyzing social cue...');
+              setSuggestion(''); // Clear suggestion before starting LLM
               newWorker.postMessage({
                 type: 'llm',
                 text,
@@ -65,6 +70,9 @@ export const useMLWorker = () => {
               navigator.vibrate(20);
             }
             break;
+          case 'llm_chunk':
+            setSuggestion(prev => prev + text);
+            break;
           case 'error':
             console.error("Worker Logic Error:", error);
             setStatus(`Model Error: ${error}`);
@@ -79,7 +87,6 @@ export const useMLWorker = () => {
 
       newWorker.onerror = (e) => {
         console.error("Worker Script Error:", e);
-        // Use setTimeout to avoid calling setState synchronously in effect
         setTimeout(() => {
           setStatus('Worker failed to initialize. Try refreshing.');
           setIsProcessing(false);
@@ -89,18 +96,20 @@ export const useMLWorker = () => {
       newWorker.postMessage({ type: 'load', taskId: 'initial-load' });
     } catch (err) {
       console.error("Failed to create worker:", err);
-      // Use setTimeout to avoid calling setState synchronously in effect
       setTimeout(() => {
         setStatus('Could not create background worker');
       }, 0);
     }
+  }, []);
 
+  useEffect(() => {
+    initWorker();
     return () => {
       if (worker.current) {
         worker.current.terminate();
       }
     };
-  }, []);
+  }, [initWorker]);
 
   const processAudio = useCallback((audioBuffer) => {
     if (!isReady || isProcessing || !worker.current) return;
@@ -125,6 +134,7 @@ export const useMLWorker = () => {
     processAudio,
     setTranscript,
     setSuggestion,
-    setStatus
+    setStatus,
+    resetWorker: initWorker
   };
 };

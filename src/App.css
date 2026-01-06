@@ -256,10 +256,16 @@ header h1 {
 .pulse-btn.active .icon-circle {
   background: #FFEAA7;
   color: #D6A31E;
+  box-shadow: 0 0 0 4px rgba(255, 234, 167, 0.4);
 }
 
 .heartbeat-btn.active {
   background: #FF7675;
+  color: white;
+}
+
+.heartbeat-btn.active .icon-circle {
+  background: rgba(255,255,255,0.2);
   color: white;
 }
 
@@ -296,14 +302,16 @@ header h1 {
   padding: 1.5rem;
   border-radius: 24px;
   box-shadow: 0 10px 25px rgba(0,0,0,0.04);
-  opacity: 0.5;
-  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  opacity: 0;
+  transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   transform: translateY(10px);
+  pointer-events: none;
 }
 
 .card.visible {
   opacity: 1;
   transform: translateY(0);
+  pointer-events: auto;
 }
 
 .card label {
@@ -320,6 +328,8 @@ header h1 {
   font-size: 1.25rem;
   margin: 0;
   line-height: 1.5;
+  min-height: 1.5em;
+  transition: all 0.2s ease;
 }
 
 .suggestion {
@@ -373,20 +383,37 @@ button:active {
   transform: scale(0.92);
 }
 
-.btn-pulse.active .icon-circle {
-  background: #FFEAA7;
-  color: #D6A31E;
-  box-shadow: 0 0 0 4px rgba(255, 234, 167, 0.4);
+@keyframes animate-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
-.btn-heartbeat.active {
-  background: #FF7675;
-  color: white;
+.animate-spin {
+  animation: animate-spin 1s linear infinite;
 }
 
-.btn-heartbeat.active .icon-circle {
-  background: rgba(255,255,255,0.2);
-  color: white;
+.progress-container {
+  width: 100%;
+  max-width: 300px;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: -1rem;
+  margin-bottom: 2rem;
+}
+
+.progress-bar {
+  height: 100%;
+  background: #6C5CE7;
+  transition: width 0.3s ease;
+}
+
+@font-face {
+  font-family: 'OpenDyslexic';
+  src: url('/OpenDyslexic-Regular.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
 }
 
 @keyframes animate-spin {
