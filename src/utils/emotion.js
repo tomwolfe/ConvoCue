@@ -1,4 +1,11 @@
 /**
+ * @typedef {import('../types/emotion').EmotionWords} EmotionWords
+ * @typedef {import('../types/emotion').VadScores} VadScores
+ * @typedef {import('../types/emotion').EmotionAnalysisResult} EmotionAnalysisResult
+ * @typedef {import('../types/emotion').SentimentAnalysisResult} SentimentAnalysisResult
+ */
+
+/**
  * Enhanced emotional analysis function for more nuanced emotional context
  */
 
@@ -13,6 +20,8 @@ export const emotionWords = {
 
 /**
  * More sophisticated sentiment analysis using valence, arousal, and dominance (VAD) model
+ * @param {string} text - Input text to analyze
+ * @returns {VadScores} VAD scores for the text
  */
 export const analyzeSentimentVAD = (text) => {
     // Valence (positive/negative), Arousal (calm/excited), Dominance (controlled/in control)
@@ -70,7 +79,7 @@ export const analyzeSentimentVAD = (text) => {
 /**
  * Analyzes emotions in text and returns the dominant emotion
  * @param {string} text - Input text to analyze
- * @returns {Object} - Object with emotion, confidence, valence, arousal, dominance
+ * @returns {EmotionAnalysisResult} - Object with emotion, confidence, valence, arousal, dominance
  */
 export const analyzeEmotion = (text) => {
     if (!text || typeof text !== 'string') {

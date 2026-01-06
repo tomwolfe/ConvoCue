@@ -18,7 +18,17 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {
-            return 'vendor';
+            if (id.includes('@huggingface/transformers')) {
+              return 'transformers';
+            } else if (id.includes('@ricky0123/vad-web') || id.includes('@ricky0123/vad-react')) {
+              return 'vad';
+            } else if (id.includes('lucide-react')) {
+              return 'icons';
+            } else if (id.includes('onnxruntime-web')) {
+              return 'onnx';
+            } else {
+              return 'vendor';
+            }
           }
         }
       }

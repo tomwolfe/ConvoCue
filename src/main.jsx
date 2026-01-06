@@ -27,23 +27,42 @@ if (rootElement) {
     root.render(<App />);
   } catch (error) {
     console.error('Failed to render the app:', error);
-    rootElement.innerHTML = `
-      <div style="padding: 20px; color: red; font-family: sans-serif;">
-        <h1>Failed to mount React</h1>
-        <pre>${error.message}</pre>
-      </div>
-    `;
+    const errorContainer = document.createElement('div');
+    errorContainer.style.padding = '20px';
+    errorContainer.style.color = 'red';
+    errorContainer.style.fontFamily = 'sans-serif';
+
+    const title = document.createElement('h1');
+    title.textContent = 'Failed to mount React';
+    errorContainer.appendChild(title);
+
+    const message = document.createElement('pre');
+    message.textContent = error.message || 'Unknown error';
+    errorContainer.appendChild(message);
+
+    rootElement.appendChild(errorContainer);
   }
 }
 
 window.onerror = function(message, source, lineno, colno, _error) {
-  if (rootElement && rootElement.innerHTML === '') {
-    rootElement.innerHTML = `
-      <div style="padding: 20px; color: red; font-family: sans-serif;">
-        <h1>Runtime Error</h1>
-        <pre>${message}</pre>
-        <pre>${source}:${lineno}:${colno}</pre>
-      </div>
-    `;
+  if (rootElement && rootElement.children.length === 0) {
+    const errorContainer = document.createElement('div');
+    errorContainer.style.padding = '20px';
+    errorContainer.style.color = 'red';
+    errorContainer.style.fontFamily = 'sans-serif';
+
+    const title = document.createElement('h1');
+    title.textContent = 'Runtime Error';
+    errorContainer.appendChild(title);
+
+    const messageElement = document.createElement('pre');
+    messageElement.textContent = message || 'Unknown error';
+    errorContainer.appendChild(messageElement);
+
+    const locationElement = document.createElement('pre');
+    locationElement.textContent = `${source}:${lineno}:${colno}`;
+    errorContainer.appendChild(locationElement);
+
+    rootElement.appendChild(errorContainer);
   }
 };

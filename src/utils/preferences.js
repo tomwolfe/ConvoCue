@@ -2,6 +2,8 @@
  * Centralized preferences management for ConvoCue
  */
 
+import { logError, validateInput } from './errorHandling';
+
 const PREFERENCES_KEY = 'convocue_preferences';
 const FEEDBACK_KEY = 'convocue_feedback';
 const CUSTOM_PERSONAS_KEY = 'convocue_custom_personas';
@@ -15,9 +17,15 @@ const CULTURAL_CONTEXT_KEY = 'selectedCulturalContext';
 export const getPreferences = () => {
   try {
     const prefs = localStorage.getItem(PREFERENCES_KEY);
-    return prefs ? JSON.parse(prefs) : {};
+    if (prefs) {
+      const parsed = JSON.parse(prefs);
+      // Validate the parsed preferences
+      const validation = validateInput(parsed, 'object');
+      return validation.isValid ? parsed : {};
+    }
+    return {};
   } catch (e) {
-    console.error('Error reading preferences:', e);
+    logError(e, { context: 'getPreferences', key: PREFERENCES_KEY });
     return {};
   }
 };
@@ -28,11 +36,22 @@ export const getPreferences = () => {
  */
 export const savePreferences = (prefs) => {
   try {
+    // Validate the preferences before saving
+    const validation = validateInput(prefs, 'object');
+    if (!validation.isValid) {
+      logError('Invalid preferences object', {
+        context: 'savePreferences',
+        errors: validation.errors,
+        prefs
+      });
+      return;
+    }
+
     const currentPrefs = getPreferences();
     const newPrefs = { ...currentPrefs, ...prefs };
     localStorage.setItem(PREFERENCES_KEY, JSON.stringify(newPrefs));
   } catch (e) {
-    console.error('Error saving preferences:', e);
+    logError(e, { context: 'savePreferences', key: PREFERENCES_KEY });
   }
 };
 
@@ -43,9 +62,15 @@ export const savePreferences = (prefs) => {
 export const getFeedbackHistory = () => {
   try {
     const history = localStorage.getItem(FEEDBACK_KEY);
-    return history ? JSON.parse(history) : [];
+    if (history) {
+      const parsed = JSON.parse(history);
+      // Validate the parsed history
+      const validation = validateInput(parsed, 'array', { itemValidator: { type: 'object' } });
+      return validation.isValid ? parsed : [];
+    }
+    return [];
   } catch (e) {
-    console.error('Error reading feedback history:', e);
+    logError(e, { context: 'getFeedbackHistory', key: FEEDBACK_KEY });
     return [];
   }
 };
@@ -56,6 +81,17 @@ export const getFeedbackHistory = () => {
  */
 export const saveFeedback = (feedback) => {
   try {
+    // Validate the feedback before saving
+    const validation = validateInput(feedback, 'object');
+    if (!validation.isValid) {
+      logError('Invalid feedback object', {
+        context: 'saveFeedback',
+        errors: validation.errors,
+        feedback
+      });
+      return;
+    }
+
     const history = getFeedbackHistory();
     history.push({
       ...feedback,
@@ -63,7 +99,7 @@ export const saveFeedback = (feedback) => {
     });
     localStorage.setItem(FEEDBACK_KEY, JSON.stringify(history));
   } catch (e) {
-    console.error('Error saving feedback:', e);
+    logError(e, { context: 'saveFeedback', key: FEEDBACK_KEY });
   }
 };
 
@@ -74,9 +110,15 @@ export const saveFeedback = (feedback) => {
 export const getCustomPersonas = () => {
   try {
     const personas = localStorage.getItem(CUSTOM_PERSONAS_KEY);
-    return personas ? JSON.parse(personas) : {};
+    if (personas) {
+      const parsed = JSON.parse(personas);
+      // Validate the parsed personas
+      const validation = validateInput(parsed, 'object');
+      return validation.isValid ? parsed : {};
+    }
+    return {};
   } catch (e) {
-    console.error('Error reading custom personas:', e);
+    logError(e, { context: 'getCustomPersonas', key: CUSTOM_PERSONAS_KEY });
     return {};
   }
 };
@@ -87,11 +129,24 @@ export const getCustomPersonas = () => {
  */
 export const saveCustomPersona = (persona) => {
   try {
+    // Validate the persona before saving
+    const validation = validateInput(persona, 'object', {
+      requiredKeys: ['id', 'label', 'description', 'prompt']
+    });
+    if (!validation.isValid) {
+      logError('Invalid persona object', {
+        context: 'saveCustomPersona',
+        errors: validation.errors,
+        persona
+      });
+      return;
+    }
+
     const personas = getCustomPersonas();
     personas[persona.id] = persona;
     localStorage.setItem(CUSTOM_PERSONAS_KEY, JSON.stringify(personas));
   } catch (e) {
-    console.error('Error saving custom persona:', e);
+    logError(e, { context: 'saveCustomPersona', key: CUSTOM_PERSONAS_KEY });
   }
 };
 
@@ -101,11 +156,22 @@ export const saveCustomPersona = (persona) => {
  */
 export const deleteCustomPersona = (personaId) => {
   try {
+    // Validate the personaId before deleting
+    const validation = validateInput(personaId, 'string', { minLength: 1 });
+    if (!validation.isValid) {
+      logError('Invalid persona ID', {
+        context: 'deleteCustomPersona',
+        errors: validation.errors,
+        personaId
+      });
+      return;
+    }
+
     const personas = getCustomPersonas();
     delete personas[personaId];
     localStorage.setItem(CUSTOM_PERSONAS_KEY, JSON.stringify(personas));
   } catch (e) {
-    console.error('Error deleting custom persona:', e);
+    logError(e, { context: 'deleteCustomPersona', key: CUSTOM_PERSONAS_KEY, personaId });
   }
 };
 
@@ -114,14 +180,24 @@ export const deleteCustomPersona = (personaId) => {
  * @returns {boolean} True if tutorial seen
  */
 export const hasSeenTutorial = () => {
-  return localStorage.getItem(TUTORIAL_SEEN_KEY) === 'true';
+  try {
+    const value = localStorage.getItem(TUTORIAL_SEEN_KEY);
+    return value === 'true';
+  } catch (e) {
+    logError(e, { context: 'hasSeenTutorial', key: TUTORIAL_SEEN_KEY });
+    return false;
+  }
 };
 
 /**
  * Set tutorial as seen
  */
 export const setTutorialSeen = () => {
-  localStorage.setItem(TUTORIAL_SEEN_KEY, 'true');
+  try {
+    localStorage.setItem(TUTORIAL_SEEN_KEY, 'true');
+  } catch (e) {
+    logError(e, { context: 'setTutorialSeen', key: TUTORIAL_SEEN_KEY });
+  }
 };
 
 /**
@@ -129,7 +205,13 @@ export const setTutorialSeen = () => {
  * @returns {string} Selected cultural context
  */
 export const getSelectedCulturalContext = () => {
-  return localStorage.getItem(CULTURAL_CONTEXT_KEY) || 'general';
+  try {
+    const value = localStorage.getItem(CULTURAL_CONTEXT_KEY);
+    return value || 'general';
+  } catch (e) {
+    logError(e, { context: 'getSelectedCulturalContext', key: CULTURAL_CONTEXT_KEY });
+    return 'general';
+  }
 };
 
 /**
@@ -137,7 +219,22 @@ export const getSelectedCulturalContext = () => {
  * @param {string} context - Cultural context to set
  */
 export const setSelectedCulturalContext = (context) => {
-  localStorage.setItem(CULTURAL_CONTEXT_KEY, context);
+  try {
+    // Validate the context before setting
+    const validation = validateInput(context, 'string', { minLength: 1, maxLength: 50 });
+    if (!validation.isValid) {
+      logError('Invalid cultural context', {
+        context: 'setSelectedCulturalContext',
+        errors: validation.errors,
+        context
+      });
+      return;
+    }
+
+    localStorage.setItem(CULTURAL_CONTEXT_KEY, context);
+  } catch (e) {
+    logError(e, { context: 'setSelectedCulturalContext', key: CULTURAL_CONTEXT_KEY, context });
+  }
 };
 
 /**
@@ -147,7 +244,7 @@ export const setSelectedCulturalContext = (context) => {
 export const getUserPreferences = () => {
   try {
     const feedbackHistory = getFeedbackHistory();
-    
+
     if (feedbackHistory.length === 0) {
       return {
         preferredLength: 'medium', // 'short', 'medium', 'long'
@@ -158,7 +255,7 @@ export const getUserPreferences = () => {
 
     // Analyze feedback to determine user preferences
     const likedSuggestions = feedbackHistory.filter(f => f.feedbackType === 'like');
-    
+
     // Determine preferred length based on liked suggestions
     let preferredLength = 'medium';
     if (likedSuggestions.length > 0) {
@@ -172,7 +269,7 @@ export const getUserPreferences = () => {
     likedSuggestions.forEach(f => {
       personaCounts[f.persona] = (personaCounts[f.persona] || 0) + 1;
     });
-    
+
     let preferredTone = 'balanced';
     if (personaCounts.professional > (personaCounts.anxiety || 0) + (personaCounts.relationship || 0)) {
       preferredTone = 'formal';
@@ -186,7 +283,7 @@ export const getUserPreferences = () => {
       preferredStyle: 'adaptive'
     };
   } catch (e) {
-    console.error('Failed to determine user preferences:', e);
+    logError(e, { context: 'getUserPreferences' });
     return {
       preferredLength: 'medium',
       preferredTone: 'balanced',
@@ -225,7 +322,7 @@ export const getDislikedPhrases = () => {
       .filter(([phrase, count]) => count >= 2) // At least 2 dislikes
       .map(([phrase]) => phrase);
   } catch (e) {
-    console.error('Failed to get disliked phrases:', e);
+    logError(e, { context: 'getDislikedPhrases' });
     return [];
   }
 };

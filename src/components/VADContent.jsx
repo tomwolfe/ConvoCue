@@ -3,6 +3,7 @@ import { useMicVAD } from '@ricky0123/vad-react';
 import { Mic, Heart, Loader2, AlertCircle, RefreshCw, Trash2, Activity, Copy, Check, ThumbsUp, ThumbsDown, Flag, Zap, Info, ShieldAlert } from 'lucide-react';
 import { AppConfig } from '../config';
 import { submitFeedback } from '../utils/feedback';
+import { sanitizeAndTruncate } from '../utils/sanitization';
 
 const GlanceWidget = ({ suggestion, emotionData, isProcessing }) => {
   const emotion = emotionData?.emotion || 'neutral';
@@ -10,9 +11,9 @@ const GlanceWidget = ({ suggestion, emotionData, isProcessing }) => {
   const hasConflict = suggestion?.includes('[Diplomatic]');
   const isHighStakes = suggestion?.includes('[Strategic]');
 
-  // Clean the suggestion for glance display
+  // Clean and sanitize the suggestion for glance display
   const displaySuggestion = suggestion
-    ? suggestion.replace(/\[.*?\]/g, '').trim()
+    ? sanitizeAndTruncate(suggestion.replace(/\[.*?\]/g, '').trim())
     : isProcessing ? 'Thinking...' : 'Listening...';
 
   return (
@@ -319,7 +320,7 @@ const VADContent = ({
                 <Trash2 size={14} />
               </button>
             </div>
-            <p id="transcript-content">{transcript || "Waiting for speech..."}</p>
+            <p id="transcript-content">{transcript ? sanitizeAndTruncate(transcript, 300) : "Waiting for speech..."}</p>
           </div>
         )}
 
@@ -376,7 +377,7 @@ const VADContent = ({
             )}
           </div>
           <p id="suggestion-content" className={isCompactMode ? 'compact-text' : ''}>
-            {suggestion || (processingStep === 'thinking' ? "Thinking..." : "Listening for cues...")}
+            {suggestion ? sanitizeAndTruncate(suggestion, 300) : (processingStep === 'thinking' ? "Thinking..." : "Listening for cues...")}
           </p>
         </div>
       </div>

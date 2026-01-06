@@ -1,3 +1,8 @@
+/**
+ * @typedef {import('./types/index').AppConfigType} AppConfigType
+ * @typedef {import('./types/index').PersonaConfig} PersonaConfig
+ */
+
 // Device detection
 const isMobile = typeof navigator !== 'undefined' && /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
@@ -65,7 +70,10 @@ const getMergedPersonas = () => {
   return defaultPersonas;
 };
 
-// Configuration for ConvoCue application
+/**
+ * Configuration for ConvoCue application
+ * @type {AppConfigType}
+ */
 export const AppConfig = {
   isMobile,
 
@@ -108,7 +116,7 @@ export const AppConfig = {
   // ML Worker configurations
   worker: {
     // Dynamically set threads based on hardware, but cap for mobile to prevent memory pressure
-    numThreads: isMobile 
+    numThreads: isMobile
       ? Math.min(2, (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 1)
       : Math.min(4, (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 2),
     simd: true,

@@ -8,10 +8,12 @@ import PersonaCustomization from './components/PersonaCustomization';
 import ErrorBoundary from './ErrorBoundary';
 import { AppConfig } from './config';
 import { checkAssets } from './utils/diagnostics';
-import { 
-  hasSeenTutorial, 
-  setTutorialSeen, 
-  saveCustomPersona, 
+import { sanitizeAndTruncate } from './utils/sanitization';
+import { logError, validateInput } from './utils/errorHandling';
+import {
+  hasSeenTutorial,
+  setTutorialSeen,
+  saveCustomPersona,
   deleteCustomPersona as removeCustomPersona,
   getCustomPersonas
 } from './utils/preferences';
@@ -221,14 +223,14 @@ const App = () => {
             {micPermissionError && (
               <div className="error-box" role="alert" aria-live="assertive">
                 <AlertCircle size={20} aria-hidden="true" />
-                <p>Microphone access denied: {micPermissionError}</p>
+                <p>Microphone access denied: {sanitizeAndTruncate(micPermissionError, 200)}</p>
               </div>
             )}
 
             {assetError && (
               <div className="error-box" role="alert" aria-live="assertive">
                 <AlertCircle size={20} aria-hidden="true" />
-                <p>{assetError}. Please ensure all required files are in the public directory.</p>
+                <p>{sanitizeAndTruncate(assetError, 300)}. Please ensure all required files are in the public directory.</p>
               </div>
             )}
           </main>

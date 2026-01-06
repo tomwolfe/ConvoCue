@@ -1,16 +1,25 @@
+/**
+ * @typedef {import('../types/index').MLWorkerType} MLWorkerType
+ * @typedef {import('../types/index').AudioMetadata} AudioMetadata
+ */
+
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { AppConfig } from '../config';
 import { manageConversationHistory } from '../utils/conversation';
 import { enhanceResponse } from '../utils/responseEnhancement';
-import { 
-  getPreferences, 
-  savePreferences, 
-  getSelectedCulturalContext, 
+import {
+  getPreferences,
+  savePreferences,
+  getSelectedCulturalContext,
   setSelectedCulturalContext as saveCulturalContext,
   getUserPreferences,
   getDislikedPhrases
 } from '../utils/preferences';
 
+/**
+ * Custom hook for managing ML worker operations
+ * @returns {MLWorkerType} ML worker state and methods
+ */
 export const useMLWorker = () => {
   const [status, setStatus] = useState('Initializing Models...');
   const [progress, setProgress] = useState(0);

@@ -4,6 +4,54 @@ import { analyzeEmotion } from './utils/emotion';
 import { analyzeCulturalContext, getCulturalContextForFallback } from './utils/culturalContext';
 import { adjustResponseForUser } from './utils/responseEnhancement';
 
+// Sanitization functions for the worker context
+const sanitizeText = (text) => {
+  if (typeof text !== 'string') {
+    return '';
+  }
+
+  // Remove potentially dangerous characters/sequences
+  return text
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
+    .replace(/\//g, '&#x2F;')
+    .replace(/&/g, '&amp;');
+};
+
+const sanitizeAndTruncate = (text, maxLength = 500) => {
+  if (typeof text !== 'string') {
+    return '';
+  }
+
+  const truncated = text.substring(0, maxLength);
+  return sanitizeText(truncated);
+};
+
+// Error handling functions for the worker context
+const createWorkerError = (message, context = 'worker') => {
+  return {
+    message: sanitizeText(message || 'Unknown error'),
+    context: sanitizeText(context),
+    timestamp: new Date().toISOString()
+  };
+};
+
+const safeExecuteWorker = (fn, context = 'safeExecuteWorker') => {
+  try {
+    return {
+      success: true,
+      data: fn()
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: createWorkerError(error.message || 'Unknown error', context)
+    };
+  }
+};
+
 // Configuration for on-device execution
 env.allowLocalModels = false;
 env.useBrowserCache = true;
@@ -234,7 +282,8 @@ self.onmessage = async (event) => {
             
             if (!output || typeof output.text !== 'string') throw new Error("Invalid STT output format");
             audioData = null;
-            self.postMessage({ type: 'stt_result', text: output.text, metadata: { rms, duration }, taskId });
+            const sanitizedText = sanitizeAndTruncate(output.text, AppConfig.system.maxTranscriptLength);
+            self.postMessage({ type: 'stt_result', text: sanitizedText, metadata: { rms, duration }, taskId });
         }
 
         if (type === 'llm') {
@@ -309,7 +358,8 @@ self.onmessage = async (event) => {
                     skip_special_tokens: true,
                     callback_function: (chunk) => {
                         if (typeof chunk === 'string' && chunk.length > 0) {
-                            self.postMessage({ type: 'llm_chunk', text: chunk, taskId });
+                            const sanitizedChunk = sanitizeText(chunk);
+                            self.postMessage({ type: 'llm_chunk', text: sanitizedChunk, taskId });
                         }
                     },
                 });
@@ -337,8 +387,9 @@ self.onmessage = async (event) => {
                 if (!response || response.toLowerCase().includes(sanitizedText.toLowerCase())) throw new Error("Invalid or echo response");
 
                 const enhancedResponse = adjustResponseForUser(response, persona, emotionResult, preferences);
+                const sanitizedResponse = sanitizeAndTruncate(enhancedResponse, AppConfig.system.maxSuggestionLength);
 
-                self.postMessage({ type: 'llm_result', text: enhancedResponse, taskId, emotionData: emotionResult });
+                self.postMessage({ type: 'llm_result', text: sanitizedResponse, taskId, emotionData: emotionResult });
             } catch (llmError) {
                 console.error("LLM generation failed:", llmError);
                 const enhancedFallbackResponses = {
@@ -368,7 +419,8 @@ self.onmessage = async (event) => {
                     fallbackText += ` ${getCulturalContextForFallback(culturalContext)}`;
                 }
 
-                self.postMessage({ type: 'llm_result', text: fallbackText, taskId });
+                const sanitizedFallback = sanitizeAndTruncate(fallbackText, AppConfig.system.maxSuggestionLength);
+                self.postMessage({ type: 'llm_result', text: sanitizedFallback, taskId });
             }
 
             setTimeout(async () => {
@@ -384,7 +436,8 @@ self.onmessage = async (event) => {
         }
     } catch (error) {
         console.error("Worker error:", error);
-        self.postMessage({ type: 'error', error: error.message, taskId });
+        const sanitizedError = sanitizeText(error.message || 'Unknown error');
+        self.postMessage({ type: 'error', error: sanitizedError, taskId });
     }
 };
 
