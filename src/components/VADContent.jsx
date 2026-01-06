@@ -76,8 +76,8 @@ const VADContent = ({
     onSpeechEnd,
     onVADReady,
     onError,
-    workletURL: new URL('/vad.worklet.bundle.min.js', window.location.origin).href,
-    modelURL: new URL('/silero_vad.onnx', window.location.origin).href,
+    workletURL: "/vad.worklet.bundle.min.js",
+    modelURL: "/silero_vad.onnx",
     positiveSpeechThreshold: 0.55,
     negativeSpeechThreshold: 0.35,
     minSpeechFrames: 4,
@@ -86,14 +86,15 @@ const VADContent = ({
   // Handle initial error if it's a microphone permission error
   useEffect(() => {
     if (initialError) {
+      console.log("Setting VAD error from initialError:", initialError);
       setVadError(initialError);
     }
   }, [initialError]);
 
   useEffect(() => {
     if (vad.errored && !vadError) {
-      console.error("VAD entered errored state without calling onError");
-      setVadError("VAD failed to initialize. This could be due to high memory usage or a blocked worklet.");
+      console.error("VAD entered errored state. Checking console for worklet/model load errors.");
+      setVadError("VAD failed to initialize. Please check if silero_vad.onnx and vad.worklet.bundle.min.js are in the public folder.");
     }
   }, [vad.errored, vadError]);
 

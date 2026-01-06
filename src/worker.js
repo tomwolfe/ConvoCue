@@ -26,7 +26,7 @@ class MLPipeline {
 
     async loadSTT(progress_callback) {
         if (!MLPipeline.stt) {
-            console.log("Loading STT model (whisper-tiny.en, q4)...");
+            console.log("Loading STT model (whisper-tiny.en, q4) from Hugging Face...");
             try {
                 MLPipeline.stt = await pipeline('automatic-speech-recognition', 'onnx-community/whisper-tiny.en', {
                     progress_callback,
@@ -43,7 +43,7 @@ class MLPipeline {
 
     async loadLLM(progress_callback) {
         if (!MLPipeline.llm) {
-            console.log("Loading LLM model (HuggingFaceTB/SmolLM2-135M-Instruct, q4)...");
+            console.log("Loading LLM model (HuggingFaceTB/SmolLM2-135M-Instruct, q4) from Hugging Face...");
             try {
                 MLPipeline.llm = await pipeline('text-generation', 'HuggingFaceTB/SmolLM2-135M-Instruct', {
                     progress_callback,
