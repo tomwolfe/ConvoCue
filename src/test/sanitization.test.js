@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sanitizeText, sanitizeAndTruncate } from '../utils/sanitization';
+import { sanitizeText, sanitizeAndTruncate, decodeHTMLEntities } from '../utils/sanitization';
 
 describe('sanitization utilities', () => {
   describe('sanitizeText', () => {
@@ -34,6 +34,21 @@ describe('sanitization utilities', () => {
       const result = sanitizeAndTruncate(longText, 50);
       expect(result.length).toBeLessThanOrEqual(50 + 8); // +8 for escaped chars if any
       expect(result).toContain('&lt;p&gt;');
+    });
+  });
+
+  describe('decodeHTMLEntities', () => {
+    it('should decode basic entities', () => {
+      expect(decodeHTMLEntities('Fish &amp; Chips')).toBe('Fish & Chips');
+      expect(decodeHTMLEntities('What&#x27;s')).toBe("What's");
+      expect(decodeHTMLEntities('&lt;script&gt;')).toBe('<script>');
+    });
+
+    it('should handle non-browser fallback', () => {
+      const originalDocument = global.document;
+      delete global.document;
+      expect(decodeHTMLEntities('What&#x27;s')).toBe("What's");
+      global.document = originalDocument;
     });
   });
 });

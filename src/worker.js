@@ -387,9 +387,8 @@ self.onmessage = async (event) => {
                 if (!response || response.toLowerCase().includes(sanitizedText.toLowerCase())) throw new Error("Invalid or echo response");
 
                 const enhancedResponse = adjustResponseForUser(response, persona, emotionResult, preferences);
-                const sanitizedResponse = sanitizeAndTruncate(enhancedResponse, AppConfig.system.maxSuggestionLength);
-
-                self.postMessage({ type: 'llm_result', text: sanitizedResponse, taskId, emotionData: emotionResult });
+                
+                self.postMessage({ type: 'llm_result', text: enhancedResponse, taskId, emotionData: emotionResult });
             } catch (llmError) {
                 console.error("LLM generation failed:", llmError);
                 const enhancedFallbackResponses = {
@@ -418,9 +417,8 @@ self.onmessage = async (event) => {
                 if (persona === 'crosscultural' && culturalContext !== 'general') {
                     fallbackText += ` ${getCulturalContextForFallback(culturalContext)}`;
                 }
-
-                const sanitizedFallback = sanitizeAndTruncate(fallbackText, AppConfig.system.maxSuggestionLength);
-                self.postMessage({ type: 'llm_result', text: sanitizedFallback, taskId });
+                
+                self.postMessage({ type: 'llm_result', text: fallbackText, taskId });
             }
 
             setTimeout(async () => {

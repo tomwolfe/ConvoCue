@@ -7,9 +7,9 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { AppConfig } from '../config';
 import { manageConversationHistory } from '../utils/conversation';
 import { enhanceResponse } from '../utils/responseEnhancement';
+import { sanitizeAndTruncate } from '../utils/sanitization';
 import {
-  getPreferences,
-  savePreferences,
+  getPreferences,  savePreferences,
   getSelectedCulturalContext,
   setSelectedCulturalContext as saveCulturalContext,
   getUserPreferences,
@@ -129,20 +129,22 @@ export const useMLWorker = () => {
                           }
                           break;
                         }
-                        case 'llm_result': {
-                          const sanitizedSuggestion = text ? text.trim().substring(0, AppConfig.system.maxSuggestionLength) : '';
+                          const rawSuggestion = text ? text.trim() : '';
                           const emotion = e.data.emotionData || null;
                           setEmotionData(emotion);
               
                           const enhancedSuggestion = enhanceResponse(
-                            sanitizedSuggestion, 
+                            rawSuggestion, 
                             personaRef.current, 
                             emotion, 
                             transcriptRef.current, 
                             getUserPreferences(), 
                             getDislikedPhrases()
                           );
-                          setSuggestion(enhancedSuggestion);
+                          
+                          // Sanitize final output for rendering
+                          const sanitizedSuggestion = sanitizeAndTruncate(enhancedSuggestion, AppConfig.system.maxSuggestionLength);
+                          setSuggestion(sanitizedSuggestion);
             setIsProcessing(false);
             setProcessingStep('none');
             setStatus('Ready');
