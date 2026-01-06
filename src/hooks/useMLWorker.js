@@ -1,330 +1,200 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useReducer, useEffect, useRef, useCallback } from 'react';
 import { AppConfig } from '../config';
 import { manageConversationHistory } from '../utils/conversation';
-import { enhanceResponse } from '../utils/responseEnhancement';
+import { enhanceResponse, getUserPreferences } from '../utils/responseEnhancement';
+
+const initialState = {
+  status: 'Initializing Models...',
+  progress: 0,
+  isReady: false,
+  transcript: '',
+  suggestion: '',
+  emotionData: null,
+  isProcessing: false,
+  processingStep: 'none',
+  history: [],
+  error: null,
+  persona: 'anxiety',
+  culturalContext: 'general'
+};
+
+function workerReducer(state, action) {
+  switch (action.type) {
+    case 'SET_STATUS':
+      return { ...state, status: action.status, progress: action.progress ?? state.progress };
+    case 'SET_READY':
+      return { ...state, isReady: true, status: 'Ready', progress: 100 };
+    case 'START_STT':
+      return { ...state, isProcessing: true, processingStep: 'transcribing', status: 'Transcribing...' };
+    case 'STT_RESULT':
+      return { ...state, transcript: action.text, status: 'Analyzing social cue...', processingStep: 'thinking', suggestion: '' };
+    case 'SET_TRANSCRIPT':
+      return { ...state, transcript: action.text };
+    case 'SET_SUGGESTION':
+      return { ...state, suggestion: action.text };
+    case 'LLM_CHUNK':
+      return { ...state, suggestion: state.suggestion + action.text };
+    case 'LLM_RESULT':
+      return { 
+        ...state, 
+        suggestion: action.text, 
+        emotionData: action.emotionData || state.emotionData,
+        isProcessing: false, 
+        processingStep: 'none', 
+        status: 'Ready' 
+      };
+    case 'SET_HISTORY':
+      return { ...state, history: action.history };
+    case 'ADD_TO_HISTORY': {
+      const updatedHistory = [...state.history, action.message];
+      return { ...state, history: manageConversationHistory(updatedHistory, AppConfig.system.maxHistoryLength) };
+    }
+    case 'SET_PERSONA':
+      return { ...state, persona: action.persona };
+    case 'SET_CULTURAL_CONTEXT':
+      return { ...state, culturalContext: action.culturalContext };
+    case 'RESET_PROCESSING':
+      return { ...state, isProcessing: false, processingStep: 'none', status: 'Ready' };
+    case 'SET_ERROR':
+      return { ...state, error: action.error, status: `Model Error: ${action.error}`, isProcessing: false, isReady: false };
+    case 'CLEAR_HISTORY':
+      return { ...state, history: [], transcript: '', suggestion: '' };
+    default:
+      return state;
+  }
+}
+
+const getStoredPreferences = () => {
+  try {
+    const prefs = localStorage.getItem('convocue_preferences');
+    return prefs ? JSON.parse(prefs) : {};
+  } catch (e) {
+    return {};
+  }
+};
 
 export const useMLWorker = () => {
-  const [status, setStatus] = useState('Initializing Models...');
-  const [progress, setProgress] = useState(0);
-  const [isReady, setIsReady] = useState(false);
-  const [transcript, setTranscript] = useState('');
-  const [suggestion, setSuggestion] = useState('');
-  const [emotionData, setEmotionData] = useState(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [processingStep, setProcessingStep] = useState('none'); // 'none', 'transcribing', 'thinking'
-  const [history, setHistory] = useState([]);
-  const [persona, setPersona] = useState(() => {
-    // Initialize with user's preferred persona from local storage
-    try {
-      const savedPreferences = localStorage.getItem('convocue_preferences');
-      if (savedPreferences) {
-        const preferences = JSON.parse(savedPreferences);
-        return preferences.preferredPersona || 'anxiety';
-      }
-    } catch (e) {
-      console.error('Error loading preferred persona:', e);
-    }
-    return 'anxiety';
-  });
-
-  const [culturalContext, setCulturalContext] = useState(() => {
-    // Initialize with user's preferred cultural context from local storage
-    // Check if localStorage is available (not available in test environments)
-    if (typeof localStorage !== 'undefined') {
-      return localStorage.getItem('selectedCulturalContext') || 'general';
-    }
-    return 'general';
+  const [state, dispatch] = useReducer(workerReducer, {
+    ...initialState,
+    persona: getStoredPreferences().preferredPersona || 'anxiety',
+    culturalContext: localStorage.getItem('selectedCulturalContext') || 'general'
   });
   
   const worker = useRef(null);
-  const historyRef = useRef([]);
+  const stateRef = useRef(state);
 
-  // Sync historyRef with history state
   useEffect(() => {
-    historyRef.current = history;
-  }, [history]);
+    stateRef.current = state;
+  }, [state]);
 
   const initWorker = useCallback(() => {
-    console.log("Initializing worker...");
-    if (worker.current) {
-      worker.current.terminate();
-    }
+    if (worker.current) worker.current.terminate();
 
     try {
-      const newWorker = new Worker(new URL('../worker.js', import.meta.url), {
-        type: 'module'
-      });
+      const newWorker = new Worker(new URL('../worker.js', import.meta.url), { type: 'module' });
       worker.current = newWorker;
 
       newWorker.onmessage = (e) => {
-        const { type, text, status: workerStatus, progress: workerProgress, error } = e.data;
-        console.log(`Worker message received: ${type}`, { status: workerStatus, progress: workerProgress, error });
+        const { type, text, status, progress, error, metadata, emotionData } = e.data;
 
         switch (type) {
           case 'status':
-            setStatus(workerStatus);
-            if (workerProgress !== undefined) {
-              setProgress(Math.round(workerProgress));
-            }
+            dispatch({ type: 'SET_STATUS', status, progress });
             break;
           case 'ready':
-            setIsReady(true);
-            setProgress(100);
-            setStatus('Ready');
-            console.log("Worker signaled ready. Models are loaded.");
+            dispatch({ type: 'SET_READY' });
             break;
-          case 'stt_result': {
-            const { metadata } = e.data;
-            if (!text || text.trim().length === 0) {
-              console.log("Empty transcription, resetting...");
-              setIsProcessing(false);
-              setProcessingStep('none');
-              setStatus('Ready');
+          case 'stt_result':
+            if (!text?.trim()) {
+              dispatch({ type: 'RESET_PROCESSING' });
               break;
             }
-
-            // Validate and sanitize transcription
-            const sanitizedTranscript = text.trim().substring(0, AppConfig.system.maxTranscriptLength);
-            setTranscript(sanitizedTranscript);
-
-            console.log("Transcription received:", sanitizedTranscript, "Metadata:", metadata);
-            if (sanitizedTranscript.trim().length > 1) {
-              setStatus('Analyzing social cue...');
-              setProcessingStep('thinking');
-              setSuggestion(''); // Clear suggestion before starting LLM
-              
-            // Use conversation management utility to maintain context with summarization
-            const currentHistory = [...historyRef.current, { role: 'user', content: sanitizedTranscript }];
-            const nextHistory = manageConversationHistory(currentHistory, AppConfig.system.maxHistoryLength || 6);
-
-            setHistory(nextHistory);
-
+            const cleanText = text.trim();
+            dispatch({ type: 'STT_RESULT', text: cleanText });
+            
             newWorker.postMessage({
               type: 'llm',
-              text: sanitizedTranscript,
-              persona: persona,
-              culturalContext: culturalContext,
-              history: nextHistory,
-              metadata: metadata,
+              text: cleanText,
+              history: stateRef.current.history,
+              persona: stateRef.current.persona,
+              culturalContext: stateRef.current.culturalContext,
+              metadata,
+              preferences: getUserPreferences(),
               taskId: `llm-${Date.now()}`
             });
-            } else {
-              setIsProcessing(false);
-              setStatus('Ready');
-            }
+            dispatch({ type: 'ADD_TO_HISTORY', message: { role: 'user', content: cleanText } });
             break;
-          }
-          case 'llm_result': {
-            // Validate and sanitize suggestion
-            const sanitizedSuggestion = text ? text.trim().substring(0, AppConfig.system.maxSuggestionLength) : '';
-
-            // Get emotion data from the message if available
-            const emotion = e.data.emotionData || null;
-            setEmotionData(emotion);
-
-            // Enhance response based on user preferences and emotional context
-            // Pass the current transcript to enhanceResponse for deeper context (e.g. professional insights)
-            const enhancedSuggestion = enhanceResponse(sanitizedSuggestion, persona, emotion, transcript);
-
-            setSuggestion(enhancedSuggestion);
-            setIsProcessing(false);
-            setProcessingStep('none');
-            setStatus('Ready');
-
-            // Add assistant turn to history using conversation management utility
-            if (enhancedSuggestion) {
-              setHistory(prev => {
-                const updatedHistory = [...prev, { role: 'assistant', content: enhancedSuggestion }];
-                return manageConversationHistory(updatedHistory, AppConfig.system.maxHistoryLength || 6);
-              });
-            }
-
-            // Haptic feedback if available
-            if (typeof navigator !== 'undefined' && navigator.vibrate) {
-              navigator.vibrate(20);
-            }
+          case 'llm_chunk':
+            dispatch({ type: 'LLM_CHUNK', text });
             break;
-          }
-          case 'llm_chunk': {
-            if (text) {
-              setSuggestion(prev => prev + text);
+          case 'llm_result':
+            const enhanced = enhanceResponse(text, stateRef.current.persona, emotionData, stateRef.current.transcript);
+            dispatch({ type: 'LLM_RESULT', text: enhanced, emotionData });
+            if (enhanced) {
+              dispatch({ type: 'ADD_TO_HISTORY', message: { role: 'assistant', content: enhanced } });
             }
-            break;
-          }
-          case 'memory_warning':
-            console.warn("Worker is running low on memory:", e.data.memoryInfo);
-            // Optionally update UI to show a warning
+            if (navigator.vibrate) navigator.vibrate(20);
             break;
           case 'error':
-            console.error("Worker Logic Error:", error);
-            setStatus(`Model Error: ${error}`);
-            setIsProcessing(false);
-            setProcessingStep('none');
-            setIsReady(false); // Mark as not ready if critical error
-            break;
-          case 'cleanup_complete':
-            console.log("Worker cleanup completed successfully");
-            break;
-          default:
-            console.warn("Unknown worker message type:", type);
+            dispatch({ type: 'SET_ERROR', error });
             break;
         }
       };
 
-      newWorker.onerror = (e) => {
-        console.error("Worker Script Error:", e);
-        setTimeout(() => {
-          setStatus('Worker failed to initialize. Try refreshing.');
-          setIsProcessing(false);
-          setIsReady(false); // Mark as not ready if worker fails
-        }, 0);
-      };
-
-      newWorker.postMessage({ type: 'load', taskId: 'initial-load' });
+      newWorker.postMessage({ type: 'load' });
     } catch (err) {
-      console.error("Failed to create worker:", err);
-      setTimeout(() => {
-        setStatus('Could not create background worker');
-      }, 0);
-    }
-  }, [persona, culturalContext]);
-
-  // Cleanup function for worker termination
-  const cleanupWorker = useCallback(() => {
-    if (worker.current) {
-      // Send cleanup command to worker to free model resources
-      worker.current.postMessage({ type: 'cleanup', taskId: `cleanup-${Date.now()}` });
-
-      // Wait a bit for cleanup to complete, then terminate
-      setTimeout(() => {
-        if (worker.current) {
-          worker.current.terminate();
-          worker.current = null;
-        }
-      }, 100);
+      dispatch({ type: 'SET_ERROR', error: 'Worker creation failed' });
     }
   }, []);
 
   useEffect(() => {
     initWorker();
-    return () => {
-      cleanupWorker();
-    };
-  }, [initWorker, cleanupWorker]);
+    return () => worker.current?.terminate();
+  }, [initWorker]);
 
   const processAudio = useCallback((audioBuffer) => {
-    if (!isReady || isProcessing || !worker.current) return;
-
-    // Input validation
-    if (!audioBuffer) {
-      console.error("processAudio: audioBuffer is null or undefined");
-      setStatus('Invalid audio input');
-      return;
-    }
-
-    // Additional validation for audio buffer
-    if (!(audioBuffer instanceof Float32Array) &&
-        !(audioBuffer.buffer instanceof ArrayBuffer) &&
-        !Array.isArray(audioBuffer)) {
-      console.error("processAudio: Invalid audio buffer format");
-      setStatus('Invalid audio format');
-      return;
-    }
-
-    setIsProcessing(true);
-    setProcessingStep('transcribing');
-    setStatus('Transcribing...');
-
-    // Use Transferables for zero-copy transfer of the audio buffer
-    try {
-      worker.current.postMessage({
-        type: 'stt',
-        audio: audioBuffer,
-        taskId: `stt-${Date.now()}`
-      }, [audioBuffer.buffer]);
-    } catch (err) {
-      console.error("Error sending audio to worker:", err);
-      setIsProcessing(false);
-      setStatus('Processing failed');
-    }
-  }, [isReady, isProcessing]);
-
-  const prewarmLLM = useCallback(() => {
-    if (worker.current && isReady) {
-      worker.current.postMessage({ type: 'prewarm_llm', taskId: `prewarm-${Date.now()}` });
-    }
-  }, [isReady]);
+    if (!state.isReady || state.isProcessing || !worker.current) return;
+    dispatch({ type: 'START_STT' });
+    worker.current.postMessage({ type: 'stt', audio: audioBuffer }, [audioBuffer.buffer]);
+  }, [state.isReady, state.isProcessing]);
 
   const refreshSuggestion = useCallback(() => {
-    if (transcript && !isProcessing && worker.current) {
-      setIsProcessing(true);
-      setProcessingStep('thinking');
-      setSuggestion('');
-      setStatus('Refreshing cue...');
-      
-      worker.current.postMessage({
-        type: 'llm',
-        text: transcript,
-        persona: persona,
-        culturalContext: culturalContext,
-        history: historyRef.current,
-        taskId: `llm-refresh-${Date.now()}`
-      });
-    }
-  }, [transcript, isProcessing, persona, culturalContext]);
+    if (!state.transcript || state.isProcessing || !worker.current) return;
+    dispatch({ type: 'SET_STATUS', status: 'Refreshing cue...' });
+    worker.current.postMessage({
+      type: 'llm',
+      text: state.transcript,
+      history: state.history,
+      persona: state.persona,
+      culturalContext: state.culturalContext,
+      preferences: getUserPreferences(),
+      taskId: `refresh-${Date.now()}`
+    });
+  }, [state.transcript, state.isProcessing, state.history, state.persona, state.culturalContext]);
 
-  const clearHistory = useCallback(() => {
-    setHistory([]);
-    setTranscript('');
-    setSuggestion('');
-  }, []);
-
-  const savePersonaPreference = useCallback((newPersona) => {
+  const setPersona = useCallback((persona) => {
     try {
-      let preferences = {};
-      const savedPreferences = localStorage.getItem('convocue_preferences');
-      if (savedPreferences) {
-        preferences = JSON.parse(savedPreferences);
-      }
-      preferences.preferredPersona = newPersona;
-      localStorage.setItem('convocue_preferences', JSON.stringify(preferences));
-    } catch (e) {
-      console.error('Error saving persona preference:', e);
-    }
-  }, []);
-
-  const updatedSetPersona = useCallback((newPersona) => {
-    setPersona(newPersona);
-    savePersonaPreference(newPersona);
-  }, [savePersonaPreference]);
-
-  const setCulturalContextFromUI = useCallback((newCulturalContext) => {
-    setCulturalContext(newCulturalContext);
-    localStorage.setItem('selectedCulturalContext', newCulturalContext);
+      const prefs = getStoredPreferences();
+      prefs.preferredPersona = persona;
+      localStorage.setItem('convocue_preferences', JSON.stringify(prefs));
+    } catch (e) {}
+    dispatch({ type: 'SET_PERSONA', persona });
   }, []);
 
   return {
-    status,
-    progress,
-    isReady,
-    transcript,
-    suggestion,
-    emotionData,
-    isProcessing,
-    processingStep,
+    ...state,
     processAudio,
-    prewarmLLM,
     refreshSuggestion,
-    setTranscript,
-    setSuggestion,
-    setStatus,
-    resetWorker: initWorker,
-    history,
-    setHistory,
-    persona,
-    setPersona: updatedSetPersona,
-    culturalContext,
-    setCulturalContext: setCulturalContextFromUI,
-    clearHistory
+    prewarmLLM: () => worker.current?.postMessage({ type: 'prewarm_llm' }),
+    setTranscript: (text) => dispatch({ type: 'SET_TRANSCRIPT', text }),
+    setSuggestion: (text) => dispatch({ type: 'SET_SUGGESTION', text }),
+    setStatus: (status) => dispatch({ type: 'SET_STATUS', status }),
+    setPersona,
+    setCulturalContext: (context) => {
+      localStorage.setItem('selectedCulturalContext', context);
+      dispatch({ type: 'SET_CULTURAL_CONTEXT', culturalContext: context });
+    },
+    clearHistory: () => dispatch({ type: 'CLEAR_HISTORY' }),
+    resetWorker: initWorker
   };
 };
