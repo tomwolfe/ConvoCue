@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useMicVAD } from '@ricky0123/vad-react';
-import { Mic, Heart, Loader2, AlertCircle, RefreshCw, Trash2, Activity, Copy, Check } from 'lucide-react';
+import { Mic, Heart, Loader2, AlertCircle, RefreshCw, Trash2, Activity, Copy, Check, ThumbsUp, ThumbsDown, Flag } from 'lucide-react';
 import { AppConfig } from '../config';
+import { submitFeedback } from '../utils/feedback';
 
 const AudioVisualizer = ({ isActive, analyser, isCompactMode }) => {
   const canvasRef = useRef(null);
@@ -280,12 +281,50 @@ const VADContent = ({
             <div className="card-actions">
               {suggestion && (
                 <>
-                  <button className="btn-icon" onClick={handleCopy} title="Copy to clipboard">
+                  <button
+                    className="btn-icon"
+                    onClick={() => {
+                      handleCopy();
+                      // Submit positive feedback when suggestion is copied
+                      submitFeedback(suggestion, 'like', persona, culturalContext, transcript);
+                    }}
+                    title="Copy to clipboard"
+                  >
                     {copied ? <Check size={14} color="#4CAF50" /> : <Copy size={14} />}
                   </button>
-                  <button className="btn-icon" onClick={handleRefresh} title="New suggestion">
+                  <button
+                    className="btn-icon"
+                    onClick={handleRefresh}
+                    title="New suggestion"
+                  >
                     <RefreshCw size={14} />
                   </button>
+                  <div className="feedback-buttons">
+                    <button
+                      className="btn-icon feedback-btn"
+                      onClick={() => submitFeedback(suggestion, 'like', persona, culturalContext, transcript)}
+                      title="Like this suggestion"
+                      aria-label="Like this suggestion"
+                    >
+                      <ThumbsUp size={14} />
+                    </button>
+                    <button
+                      className="btn-icon feedback-btn"
+                      onClick={() => submitFeedback(suggestion, 'dislike', persona, culturalContext, transcript)}
+                      title="Dislike this suggestion"
+                      aria-label="Dislike this suggestion"
+                    >
+                      <ThumbsDown size={14} />
+                    </button>
+                    <button
+                      className="btn-icon feedback-btn"
+                      onClick={() => submitFeedback(suggestion, 'report', persona, culturalContext, transcript)}
+                      title="Report inappropriate content"
+                      aria-label="Report inappropriate content"
+                    >
+                      <Flag size={14} />
+                    </button>
+                  </div>
                 </>
               )}
             </div>
