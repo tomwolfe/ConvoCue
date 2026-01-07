@@ -42,16 +42,16 @@ The conversation history is now managed internally by the `conversationManager`:
 
 ### 3. Event-Driven Updates
 
-Components receive conversation updates through the `convocue_conversation_updated` event:
+Components receive conversation updates through the `convocue:conversation_updated` event:
 
 ```javascript
 // In useMLWorker hook
-const handleConversationUpdate = (event) => {
-  if (event.detail && event.detail.turns) {
-    dispatch({ type: 'SET_CONVERSATION_TURNS', turns: event.detail.turns });
+const handleConversationUpdate = (data) => {
+  if (data && data.turns) {
+    dispatch({ type: 'SET_CONVERSATION_TURNS', turns: data.turns });
   }
 };
-window.addEventListener('convocue_conversation_updated', handleConversationUpdate);
+eventBus.on(EVENTS.CONVERSATION_UPDATED, handleConversationUpdate);
 ```
 
 ### 4. Sentiment Analysis Integration
@@ -90,7 +90,7 @@ const conversationHistory = (history || []).map(m => ({
 
 - **Responsibility:** Manages conversation state and receives updates via events
 - **Integration:** Uses `getConversationHistory()` to initialize state
-- **Updates:** Responds to `convocue_conversation_updated` events
+- **Updates:** Responds to `convocue:conversation_updated` events
 
 ### Worker Processing
 

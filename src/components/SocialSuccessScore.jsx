@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { TrendingUp, Users, Heart, Award, ChevronDown, ChevronUp, Info, HelpCircle } from 'lucide-react';
 import { calculateSocialSuccessScore, getHistoricalScores } from '../utils/feedbackAnalytics';
 import { secureLocalStorageGet } from '../utils/encryption';
+import { eventBus, EVENTS } from '../utils/eventBus';
 
 const SocialSuccessScore = ({ conversationTurns, settings }) => {
   const [metrics, setMetrics] = useState(null);
@@ -28,10 +29,10 @@ const SocialSuccessScore = ({ conversationTurns, settings }) => {
       updateMetrics();
     };
 
-    window.addEventListener('convocue_feedback_submitted', handleFeedbackUpdate);
+    eventBus.on(EVENTS.FEEDBACK_SUBMITTED, handleFeedbackUpdate);
 
     return () => {
-      window.removeEventListener('convocue_feedback_submitted', handleFeedbackUpdate);
+      eventBus.off(EVENTS.FEEDBACK_SUBMITTED, handleFeedbackUpdate);
     };
   }, [conversationTurns]);
 

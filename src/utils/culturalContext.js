@@ -2,7 +2,15 @@
  * Cultural context database for cross-cultural communication
  */
 
-import culturalContextDatabase from './culturalContext.json';
+import fundamentals from './culturalContext/cultural-fundamentals.json';
+import interaction from './culturalContext/cultural-interaction.json';
+import intelligence from './culturalContext/cultural-intelligence.json';
+
+const culturalContextDatabase = {
+  ...fundamentals,
+  ...interaction,
+  ...intelligence
+};
 
 export { culturalContextDatabase };
 

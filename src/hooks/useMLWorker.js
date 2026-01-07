@@ -1,11 +1,7 @@
-import { useReducer, useEffect, useRef, useCallback, useState } from 'react';
-import { AppConfig } from '../config';
-import { manageConversationHistory, optimizeConversationHistory, isMemoryLimitApproaching, aggressiveMemoryManagement } from '../utils/conversation';
-import { enhanceResponse, getInferredPreferences } from '../utils/responseEnhancement';
-import { getConversationHistory } from '../conversationManager';
-import { secureLocalStorageGet, secureLocalStorageSet } from '../utils/encryption';
-import { getManualPreferences, saveUserPreferences } from '../utils/preferences';
-import { eventBus, EVENTS } from '../utils/eventBus';
+import { useReducer, useEffect, useRef, useCallback } from 'react';
+import { enhanceResponse } from '../utils/responseEnhancement';
+import { useConversation } from './useConversation';
+import { useAppPreferences } from './useAppPreferences';
 
 const initialState = {
   status: 'Initializing Models...',
@@ -14,15 +10,11 @@ const initialState = {
   transcript: '',
   suggestion: '',
   emotionData: null,
-  conversationSentiment: null,
   isProcessing: false,
   processingStep: 'none',
-  history: [],
-  conversationTurns: [],
   error: null,
   persona: 'anxiety',
-  culturalContext: 'general',
-  lastMessageTime: 0
+  culturalContext: 'general'
 };
 
 function workerReducer(state, action) {
@@ -50,46 +42,16 @@ function workerReducer(state, action) {
         processingStep: 'none', 
         status: 'Ready' 
       };
-    case 'SET_HISTORY':
-      return { ...state, history: action.history };
-    case 'ADD_TO_HISTORY': {
-      const updatedHistory = [...state.history, action.message];
-
-      // Check if memory limit is approaching and use optimized management if needed
-      if (isMemoryLimitApproaching(updatedHistory)) {
-        // Use more aggressive memory management for constrained environments
-        if (AppConfig.system.lowMemoryMode()) {
-          return { ...state, history: aggressiveMemoryManagement(updatedHistory, {
-            maxLength: AppConfig.system.maxHistoryLength,
-            maxTokens: AppConfig.system.maxTokenCount || 4000,
-            compressOlderThanMinutes: 5,
-            enableCompression: true
-          })};
-        } else {
-          return { ...state, history: optimizeConversationHistory(updatedHistory, AppConfig.system.maxHistoryLength, 5) };
-        }
-      }
-
-      return { ...state, history: manageConversationHistory(updatedHistory, AppConfig.system.maxHistoryLength) };
-    }
-    case 'SET_CONVERSATION_TURNS':
-      return { ...state, conversationTurns: action.turns };
-    case 'UPDATE_CONVERSATION_TURNS':
-      return { ...state, conversationTurns: action.turns, history: action.history };
-    case 'SET_CONVERSATION_SENTIMENT':
-      return { ...state, conversationSentiment: action.sentiment };
     case 'SET_PERSONA':
       return { ...state, persona: action.persona };
     case 'SET_CULTURAL_CONTEXT':
       return { ...state, culturalContext: action.culturalContext };
-    case 'SET_LAST_MESSAGE_TIME':
-      return { ...state, lastMessageTime: action.time };
     case 'RESET_PROCESSING':
       return { ...state, isProcessing: false, processingStep: 'none', status: 'Ready' };
     case 'SET_ERROR':
       return { ...state, error: action.error, status: `Model Error: ${action.error}`, isProcessing: false, isReady: false };
-    case 'CLEAR_HISTORY':
-      return { ...state, history: [], conversationTurns: [], transcript: '', suggestion: '' };
+    case 'CLEAR_INTERACTION':
+      return { ...state, transcript: '', suggestion: '' };
     default:
       return state;
   }
@@ -97,70 +59,32 @@ function workerReducer(state, action) {
 
 export const useMLWorker = () => {
   const [state, dispatch] = useReducer(workerReducer, initialState);
+  const { 
+    history, 
+    conversationTurns, 
+    conversationSentiment, 
+    lastMessageTime,
+    addMessage, 
+    setSentiment, 
+    updateLastMessageTime, 
+    clearHistory 
+  } = useConversation();
+
+  const {
+    settings,
+    prefsCache,
+    updatePersona,
+    updateCulturalContext
+  } = useAppPreferences(dispatch);
   
   const worker = useRef(null);
   const stateRef = useRef(state);
-  const prefsCache = useRef(null);
-  const [settings, setSettings] = useState({
-    enablePersonalization: true,
-    enableSpeakerDetection: true,
-    enableSentimentAnalysis: true,
-    privacyMode: false,
-    isSubtleMode: false,
-    showAnalytics: true
-  });
-
-  // Pre-fetch and cache preferences and settings
-  useEffect(() => {
-    const fetchData = async () => {
-      // Get both manual and inferred preferences
-      const manualPrefs = await getManualPreferences();
-      const inferredPrefs = await getInferredPreferences();
-      prefsCache.current = { ...manualPrefs, ...inferredPrefs };
-      
-      const savedSettings = await secureLocalStorageGet('convocue_settings');
-      if (savedSettings) setSettings(savedSettings);
-      
-      const savedContext = await secureLocalStorageGet('selectedCulturalContext', 'general');
-      dispatch({ type: 'SET_CULTURAL_CONTEXT', culturalContext: savedContext });
-
-      const savedPersona = manualPrefs.preferredPersona || 'anxiety';
-      dispatch({ type: 'SET_PERSONA', persona: savedPersona });
-
-      // Initialize conversation turns from the global manager
-      const currentTurns = getConversationHistory();
-      if (currentTurns && currentTurns.length > 0) {
-        dispatch({ type: 'SET_CONVERSATION_TURNS', turns: currentTurns });
-      }
-    };
-    fetchData();
-    
-    // Listen for preference changes
-    const handlePrefsChange = (manualPrefs) => {
-      const inferredPrefs = getInferredPreferences();
-      prefsCache.current = { ...manualPrefs, ...inferredPrefs };
-    };
-    eventBus.on(EVENTS.PREFERENCES_CHANGED, handlePrefsChange);
-    eventBus.on(EVENTS.SETTINGS_CHANGED, handlePrefsChange); // Settings also impact prefs
-    
-    // Listen for conversation turn updates from the conversation manager
-    const handleConversationUpdate = (data) => {
-      if (data && data.turns) {
-        dispatch({ type: 'SET_CONVERSATION_TURNS', turns: data.turns });
-      }
-    };
-    eventBus.on(EVENTS.CONVERSATION_UPDATED, handleConversationUpdate);
-
-    return () => {
-      eventBus.off(EVENTS.PREFERENCES_CHANGED, handlePrefsChange);
-      eventBus.off(EVENTS.SETTINGS_CHANGED, handlePrefsChange);
-      eventBus.off(EVENTS.CONVERSATION_UPDATED, handleConversationUpdate);
-    };
-  }, []);
+  const historyRef = useRef(history);
 
   useEffect(() => {
     stateRef.current = state;
-  }, [state]);
+    historyRef.current = history;
+  }, [state, history]);
 
   const initWorker = useCallback(() => {
     if (worker.current) {
@@ -188,10 +112,9 @@ export const useMLWorker = () => {
             }
             const cleanText = text.trim();
 
-            // "Banter Mode" / Aggregation Logic
+            // aggregation Logic
             const isShort = cleanText.split(' ').length < 3;
-            const lastMessageTime = stateRef.current.lastMessageTime || 0;
-            const timeSinceLast = Date.now() - lastMessageTime;
+            const timeSinceLast = Date.now() - (lastMessageTime || 0);
 
             dispatch({ type: 'STT_RESULT', text: cleanText });
 
@@ -200,7 +123,7 @@ export const useMLWorker = () => {
                 newWorker.postMessage({
                     type: 'llm',
                     text: cleanText,
-                    history: stateRef.current.history,
+                    history: historyRef.current,
                     persona: stateRef.current.persona,
                     culturalContext: stateRef.current.culturalContext,
                     metadata,
@@ -208,14 +131,13 @@ export const useMLWorker = () => {
                     settings: settings,
                     taskId: `llm-${Date.now()}`
                 });
-                dispatch({ type: 'SET_LAST_MESSAGE_TIME', time: Date.now() });
+                updateLastMessageTime();
 
-                // Determine speaker role from metadata if available
                 const speakerRole = metadata?.turnInfo?.turn?.speaker || 'user';
-                dispatch({ type: 'ADD_TO_HISTORY', message: { role: speakerRole, content: cleanText } });
+                addMessage(speakerRole, cleanText);
             } else {
                 const speakerRole = metadata?.turnInfo?.turn?.speaker || 'user';
-                dispatch({ type: 'ADD_TO_HISTORY', message: { role: speakerRole, content: cleanText } });
+                addMessage(speakerRole, cleanText);
                 dispatch({ type: 'RESET_PROCESSING' });
             }
             break;
@@ -224,14 +146,21 @@ export const useMLWorker = () => {
             dispatch({ type: 'LLM_CHUNK', text });
             break;
           case 'llm_result': {
-            const enhanced = await enhanceResponse(text, stateRef.current.persona, emotionData, stateRef.current.transcript, stateRef.current.history);
+            const enhanced = await enhanceResponse(
+              text, 
+              stateRef.current.persona, 
+              emotionData, 
+              stateRef.current.transcript, 
+              historyRef.current
+            );
             dispatch({ type: 'LLM_RESULT', text: enhanced, emotionData });
+            
             if (event.data.conversationSentiment) {
-              dispatch({ type: 'SET_CONVERSATION_SENTIMENT', sentiment: event.data.conversationSentiment });
+              setSentiment(event.data.conversationSentiment);
             }
 
             if (enhanced) {
-              dispatch({ type: 'ADD_TO_HISTORY', message: { role: 'assistant', content: enhanced } });
+              addMessage('assistant', enhanced);
             }
             if (navigator.vibrate) navigator.vibrate(20);
             break;
@@ -246,9 +175,8 @@ export const useMLWorker = () => {
     } catch (error) {
       dispatch({ type: 'SET_ERROR', error: 'Worker creation failed' });
     }
-  }, [settings]);
+  }, [settings, addMessage, setSentiment, updateLastMessageTime, lastMessageTime, prefsCache]);
 
-  // Proper cleanup function to terminate worker when component unmounts or settings change
   useEffect(() => {
     return () => {
       if (worker.current) {
@@ -289,40 +217,32 @@ export const useMLWorker = () => {
     worker.current.postMessage({
       type: 'llm',
       text: state.transcript,
-      history: state.history,
+      history: history,
       persona: state.persona,
       culturalContext: state.culturalContext,
       preferences: preferences,
       settings: settings,
       taskId: `refresh-${Date.now()}`
     });
-  }, [state.transcript, state.isProcessing, state.history, state.persona, state.culturalContext, settings]);
-
-  const setPersona = useCallback(async (persona) => {
-    try {
-      const prefs = await getManualPreferences();
-      prefs.preferredPersona = persona;
-      await saveUserPreferences(prefs);
-    } catch (error) {
-      console.error('Failed to save persona preference:', error);
-    }
-    dispatch({ type: 'SET_PERSONA', persona });
-  }, []);
+  }, [state.transcript, state.isProcessing, history, state.persona, state.culturalContext, settings, prefsCache]);
 
   return {
     ...state,
+    history,
+    conversationTurns,
+    conversationSentiment,
     processAudio,
     refreshSuggestion,
     prewarmLLM: () => worker.current?.postMessage({ type: 'prewarm_llm' }),
     setTranscript: (text) => dispatch({ type: 'SET_TRANSCRIPT', text }),
     setSuggestion: (text) => dispatch({ type: 'SET_SUGGESTION', text }),
     setStatus: (status) => dispatch({ type: 'SET_STATUS', status }),
-    setPersona,
-    setCulturalContext: async (context) => {
-      await secureLocalStorageSet('selectedCulturalContext', context);
-      dispatch({ type: 'SET_CULTURAL_CONTEXT', culturalContext: context });
+    setPersona: updatePersona,
+    setCulturalContext: updateCulturalContext,
+    clearHistory: () => {
+      clearHistory();
+      dispatch({ type: 'CLEAR_INTERACTION' });
     },
-    clearHistory: () => dispatch({ type: 'CLEAR_HISTORY' }),
     resetWorker: initWorker,
     settings: settings
   };

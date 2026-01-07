@@ -1,0 +1,66 @@
+{
+  "communicationStyles": {
+    "high-context": {
+      "description": "Indirect communication with emphasis on non-verbal cues",
+      "cultures": ["Japan", "China", "Korea", "Arab countries", "India", "Vietnam", "Thailand", "Indonesia", "Malaysia"],
+      "tips": [
+        "Be patient with silence",
+        "Pay attention to non-verbal cues",
+        "Avoid direct confrontation",
+        "Build relationship before business",
+        "Use honorifics and formal language",
+        "Show respect for hierarchy",
+        "Pay attention to face-saving",
+        "Use indirect language",
+        "Read between the lines"
+      ]
+    },
+    "low-context": {
+      "description": "Direct communication with explicit verbal messages",
+      "cultures": ["USA", "Germany", "Switzerland", "Scandinavian countries", "Netherlands", "Australia", "New Zealand", "Canada"],
+      "tips": [
+        "Be direct and clear",
+        "State intentions explicitly",
+        "Value efficiency over relationship building",
+        "Ask clarifying questions directly",
+        "Get to the point quickly",
+        "Focus on facts and data",
+        "Be concise",
+        "Value time efficiency",
+        "Express disagreement openly if needed"
+      ]
+    },
+    "medium-context": {
+      "description": "Moderate directness with some indirect elements",
+      "cultures": ["France", "Italy", "Spain", "Russia", "Brazil", "Mexico"],
+      "tips": [
+        "Balance directness with politeness",
+        "Build some relationship before business",
+        "Use appropriate formalities",
+        "Show personal interest",
+        "Be aware of hierarchy",
+        "Allow for some indirect communication"
+      ]
+    }
+  },
+  "communicationPreferences": {
+    "formal": ["Japan", "Korea", "Germany", "France", "Middle Eastern countries"],
+    "informal": ["USA", "Australia", "Canada", "Scandinavian countries"],
+    "relationship-focused": ["Latin America", "Middle East", "East Asia", "India"],
+    "task-focused": ["Germany", "Switzerland", "Netherlands", "USA"],
+    "high-touch": ["Latin America", "Middle East", "Southern Europe"],
+    "low-touch": ["Northern Europe", "Japan", "Korea"]
+  },
+  "timeConcepts": {
+    "monochronic": {
+      "cultures": ["Germany", "Switzerland", "USA", "Scandinavian countries", "UK"],
+      "characteristics": ["Punctuality is crucial", "One task at a time", "Schedules are important", "Time is linear"],
+      "businessTips": ["Be on time", "Stick to agenda", "Respect schedules", "Value efficiency"]
+    },
+    "polychronic": {
+      "cultures": ["Latin America", "Middle East", "Africa", "South Asia"],
+      "characteristics": ["Relationships over schedules", "Multiple tasks simultaneously", "Flexible timing", "Time is fluid"],
+      "businessTips": ["Allow extra time", "Build relationships", "Be flexible", "Expect interruptions"]
+    }
+  }
+}
