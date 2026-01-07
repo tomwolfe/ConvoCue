@@ -489,11 +489,21 @@ export class ConversationTurnManager {
       this.currentTurn.speaker = correctSpeaker;
       this.currentTurn.overridden = true;
       this.lastSpeaker = correctSpeaker;
+      
+      // Update profile with the features from this turn
+      if (this.currentTurn.audioFeatures) {
+        this.profiles[correctSpeaker].update(this.currentTurn.audioFeatures);
+      }
     } else {
       const turn = this.turns.find(t => t.id === turnId);
       if (turn) {
         turn.speaker = correctSpeaker;
         turn.overridden = true;
+        
+        // Update profile with the features from this turn
+        if (turn.audioFeatures) {
+          this.profiles[correctSpeaker].update(turn.audioFeatures);
+        }
       }
     }
   }

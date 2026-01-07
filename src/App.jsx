@@ -17,8 +17,7 @@ const App = () => {
   const [isDyslexicFriendly, setIsDyslexicFriendly] = useState(false);
   const [isCompactMode, setIsCompactMode] = useState(false);
   const [isSubtleMode, setIsSubtleMode] = useState(false);
-  const [showTutorial, setShowTutorial] = useState(false);
-  const [hasSeenTutorial, setHasSeenTutorial] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem('convocue_tutorial_seen'));
   const [showPersonaCustomization, setShowPersonaCustomization] = useState(false);
   const {
     status,
@@ -27,6 +26,7 @@ const App = () => {
     transcript,
     suggestion,
     emotionData,
+    conversationSentiment,
     isProcessing,
     processingStep,
     processAudio,
@@ -37,6 +37,7 @@ const App = () => {
     setStatus,
     resetWorker,
     history,
+    conversationTurns,
     persona,
     setPersona,
     culturalContext,
@@ -71,15 +72,6 @@ const App = () => {
   }, [isSubtleMode]);
 
   useEffect(() => {
-    // Check if user has seen tutorial before
-    const seenTutorial = localStorage.getItem('convocue_tutorial_seen');
-    if (!seenTutorial) {
-      setHasSeenTutorial(false);
-      setShowTutorial(true);
-    } else {
-      setHasSeenTutorial(true);
-    }
-
     const runDiagnostics = async () => {
       const result = await checkAssets();
       if (!result.allOk) {
@@ -111,7 +103,6 @@ const App = () => {
 
   const handleTutorialComplete = () => {
     setShowTutorial(false);
-    setHasSeenTutorial(true);
     localStorage.setItem('convocue_tutorial_seen', 'true');
   };
 

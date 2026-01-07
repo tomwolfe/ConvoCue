@@ -100,6 +100,20 @@ export const useMLWorker = () => {
   
   const worker = useRef(null);
   const stateRef = useRef(state);
+  const prefsCache = useRef(null);
+
+  // Pre-fetch and cache preferences
+  useEffect(() => {
+    const fetchPrefs = async () => {
+      prefsCache.current = await getUserPreferences();
+    };
+    fetchPrefs();
+    
+    // Listen for feedback submissions to refresh cache
+    const handleFeedback = () => fetchPrefs();
+    window.addEventListener('convocue_feedback_submitted', handleFeedback);
+    return () => window.removeEventListener('convocue_feedback_submitted', handleFeedback);
+  }, []);
 
   useEffect(() => {
     stateRef.current = state;
@@ -112,8 +126,8 @@ export const useMLWorker = () => {
       const newWorker = new Worker(new URL('../worker.js', import.meta.url), { type: 'module' });
       worker.current = newWorker;
 
-      newWorker.onmessage = async (e) => {
-        const { type, text, status, progress, error, metadata, emotionData } = e.data;
+      newWorker.onmessage = async (event) => {
+        const { type, text, status, progress, metadata, emotionData } = event.data;
 
         switch (type) {
           case 'status':
@@ -122,7 +136,7 @@ export const useMLWorker = () => {
           case 'ready':
             dispatch({ type: 'SET_READY' });
             break;
-          case 'stt_result':
+          case 'stt_result': {
             if (!text?.trim()) {
               dispatch({ type: 'RESET_PROCESSING' });
               break;
@@ -154,7 +168,6 @@ export const useMLWorker = () => {
             // 2. OR it's been a while since the last interaction (> 5s)
             // 3. OR the transcript ends with a question mark
             if (!isShort || timeSinceLast > 5000 || cleanText.includes('?')) {
-                const prefs = await getUserPreferences();
                 newWorker.postMessage({
                     type: 'llm',
                     text: cleanText,
@@ -162,7 +175,7 @@ export const useMLWorker = () => {
                     persona: stateRef.current.persona,
                     culturalContext: stateRef.current.culturalContext,
                     metadata,
-                    preferences: prefs,
+                    preferences: prefsCache.current,
                     taskId: `llm-${Date.now()}`
                 });
                 dispatch({ type: 'SET_LAST_MESSAGE_TIME', time: Date.now() });
@@ -179,19 +192,20 @@ export const useMLWorker = () => {
                 dispatch({ type: 'SET_READY' }); // Go back to ready state but keep the transcript
             }
             break;
+          }
           case 'llm_chunk':
             dispatch({ type: 'LLM_CHUNK', text });
             break;
-          case 'llm_result':
+          case 'llm_result': {
             const enhanced = await enhanceResponse(text, stateRef.current.persona, emotionData, stateRef.current.transcript, stateRef.current.history);
             dispatch({ type: 'LLM_RESULT', text: enhanced, emotionData });
-            if (e.data.conversationSentiment) {
-              dispatch({ type: 'SET_CONVERSATION_SENTIMENT', sentiment: e.data.conversationSentiment });
+            if (event.data.conversationSentiment) {
+              dispatch({ type: 'SET_CONVERSATION_SENTIMENT', sentiment: event.data.conversationSentiment });
             }
 
             // Handle performance metrics from the worker
-            if (e.data.metadata?.performance) {
-              const { llmProcessingTime, sentimentAnalysisTime } = e.data.metadata.performance;
+            if (event.data.metadata?.performance) {
+              const { llmProcessingTime, sentimentAnalysisTime } = event.data.metadata.performance;
 
               // Log performance metrics for monitoring
               if (llmProcessingTime > 5000 || sentimentAnalysisTime > 1000) {
@@ -205,14 +219,15 @@ export const useMLWorker = () => {
             }
             if (navigator.vibrate) navigator.vibrate(20);
             break;
+          }
           case 'error':
-            dispatch({ type: 'SET_ERROR', error });
+            dispatch({ type: 'SET_ERROR', error: event.data.error });
             break;
         }
       };
 
       newWorker.postMessage({ type: 'load' });
-    } catch (err) {
+    } catch (error) {
       dispatch({ type: 'SET_ERROR', error: 'Worker creation failed' });
     }
   }, []);
@@ -231,14 +246,13 @@ export const useMLWorker = () => {
   const refreshSuggestion = useCallback(async () => {
     if (!state.transcript || state.isProcessing || !worker.current) return;
     dispatch({ type: 'SET_STATUS', status: 'Refreshing cue...' });
-    const prefs = await getUserPreferences();
     worker.current.postMessage({
       type: 'llm',
       text: state.transcript,
       history: state.history,
       persona: state.persona,
       culturalContext: state.culturalContext,
-      preferences: prefs,
+      preferences: prefsCache.current,
       taskId: `refresh-${Date.now()}`
     });
   }, [state.transcript, state.isProcessing, state.history, state.persona, state.culturalContext]);
@@ -248,7 +262,9 @@ export const useMLWorker = () => {
       const prefs = getStoredPreferences();
       prefs.preferredPersona = persona;
       localStorage.setItem('convocue_preferences', JSON.stringify(prefs));
-    } catch (e) {}
+    } catch (error) {
+      console.error('Failed to save persona preference:', error);
+    }
     dispatch({ type: 'SET_PERSONA', persona });
   }, []);
 

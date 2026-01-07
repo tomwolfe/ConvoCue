@@ -35,6 +35,11 @@ export const submitFeedback = async (suggestion, feedbackType, persona, cultural
     // Keep only the last 100 feedback entries to prevent storage bloat
     const trimmedHistory = feedbackHistory.slice(-100);
     await secureLocalStorageSet('convocue_feedback', trimmedHistory);
+
+    // Dispatch event to notify listeners (e.g., useMLWorker hook) that feedback was submitted
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('convocue_feedback_submitted'));
+    }
   } catch (e) {
     console.error('Failed to save feedback to localStorage:', e);
   }
@@ -148,12 +153,14 @@ export const getDislikedPhrases = async () => {
     // Extract common phrases or patterns from disliked suggestions
     // This is a simple implementation - in a real system you'd want more sophisticated analysis
     const phraseCounts = {};
+    const stopWords = new Set(['that', 'this', 'there', 'their', 'with', 'from', 'your', 'about', 'would', 'could', 'should', 'which']);
 
     dislikedSuggestions.forEach(suggestion => {
       const words = suggestion.toLowerCase().split(/\s+/);
       words.forEach(word => {
-        if (word.length > 3) { // Ignore short words
-          phraseCounts[word] = (phraseCounts[word] || 0) + 1;
+        const cleanWord = word.replace(/[^\w]/g, '');
+        if (cleanWord.length > 3 && !stopWords.has(cleanWord)) {
+          phraseCounts[cleanWord] = (phraseCounts[cleanWord] || 0) + 1;
         }
       });
     });

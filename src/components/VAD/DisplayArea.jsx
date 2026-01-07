@@ -4,26 +4,29 @@ import { AppConfig } from '../../config';
 import { submitFeedback } from '../../utils/feedback';
 import { overrideSpeakerForTurn } from '../../conversationManager';
 
-const GlanceWidget = ({ suggestion, emotionData, isProcessing }) => {
+const GlanceWidget = ({ suggestion, isProcessing }) => {
   // ... (keeping internal for now as it's small)
+  if (!suggestion || isProcessing) return null;
+  return (
+    <div className="glance-widget pulse-light">
+      <p>{suggestion}</p>
+    </div>
+  );
 };
 
 const DisplayArea = ({
   transcript,
   suggestion,
   processingStep,
-  isProcessing,
-  persona,
-  culturalContext,
   handleClear,
   handleCopy,
   handleRefresh,
   copied,
   isCompactMode,
   showMinimalUI,
-  emotionData,
-  conversationTurns = [],
-  conversationSentiment = null
+  persona,
+  culturalContext,
+  conversationTurns = []
 }) => {
   // Format conversation turns for display
   const formattedConversation = conversationTurns.slice(-5).map((turn, index) => (

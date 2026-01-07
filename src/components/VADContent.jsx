@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useMicVAD } from '@ricky0123/vad-react';
 import { Loader2, AlertCircle, RefreshCw, Zap, ShieldAlert, Info } from 'lucide-react';
 import { AppConfig } from '../config';
-import { processConversationTurn, getConversationHistory } from '../conversationManager';
+import { processConversationTurn } from '../conversationManager';
 import PersonaSelector from './VAD/PersonaSelector';
 import DisplayArea from './VAD/DisplayArea';
 import ControlPanel from './VAD/ControlPanel';
@@ -105,14 +105,14 @@ const VADContent = ({
   transcript,
   suggestion,
   emotionData,
-  conversationSentiment,
   isProcessing,
   processingStep,
   processAudio,
   refreshSuggestion,
+  setTranscript,
+  setSuggestion,
   setStatus,
   initialError,
-  history,
   conversationTurns,
   persona,
   setPersona,
@@ -138,6 +138,8 @@ const VADContent = ({
 
   const handleClear = () => {
     clearHistory();
+    setTranscript('');
+    setSuggestion('');
     if (!isProcessing) setStatus('Ready');
   };
 
@@ -300,16 +302,14 @@ const VADContent = ({
           suggestion={suggestion}
           processingStep={processingStep}
           isProcessing={isProcessing}
-          persona={persona}
-          culturalContext={culturalContext}
           handleClear={handleClear}
           handleCopy={handleCopy}
           handleRefresh={handleRefresh}
           copied={copied}
           isCompactMode={isCompactMode}
           showMinimalUI={showMinimalUI}
-          emotionData={emotionData}
-          conversationSentiment={conversationSentiment}
+          persona={persona}
+          culturalContext={culturalContext}
           conversationTurns={conversationTurns}
         />
       </div>

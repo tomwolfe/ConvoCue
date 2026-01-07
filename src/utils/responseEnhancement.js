@@ -367,6 +367,14 @@ export const enhanceResponse = async (response, persona, emotionData = null, inp
   // Apply learned preferences from feedback
   enhancedResponse = applyLearnedPreferences(enhancedResponse, preferences);
 
+  // Safety Valve: If enhancement changed the response too radically, fallback
+  // This prevents "hallucinations" or weird artifacts from rule-based rephrasing
+  const lengthRatio = enhancedResponse.length / Math.max(1, response.length);
+  if (lengthRatio > 2.0 || lengthRatio < 0.3) {
+    console.warn("Safety valve triggered: Enhancement was too aggressive. Falling back to original.");
+    return response;
+  }
+
   // Check for disliked phrases and try to avoid them
   if (await hasDislikedPhrases(enhancedResponse)) {
     // For now, just log that we detected disliked phrases

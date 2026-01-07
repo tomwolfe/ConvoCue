@@ -154,6 +154,27 @@ const sanitizeText = (text) => {
 // Conversation turn management in worker
 let conversationTurnManager = null;
 
+// Performance tracking for adaptive downgrading
+const performanceStats = {
+    audioProcessingTimes: [],
+    llmProcessingTimes: [],
+    mode: 'optimal' // 'optimal', 'balanced', 'minimal'
+};
+
+const updatePerformanceMode = (time, type) => {
+    const list = type === 'audio' ? performanceStats.audioProcessingTimes : performanceStats.llmProcessingTimes;
+    list.push(time);
+    if (list.length > 5) list.shift();
+
+    const avg = list.reduce((a, b) => a + b, 0) / list.length;
+    
+    if (type === 'audio') {
+        if (avg > 300) performanceStats.mode = 'minimal';
+        else if (avg > 150) performanceStats.mode = 'balanced';
+        else performanceStats.mode = 'optimal';
+    }
+};
+
 // Initialize conversation turn manager
 const initConversationTurnManager = () => {
     if (!conversationTurnManager) {
@@ -204,9 +225,19 @@ self.onmessage = async (event) => {
 
             // Process the text through conversation turn manager
             const turnManager = initConversationTurnManager();
-            const speakerDetectionStartTime = performance.now();
-            const turnInfo = turnManager.processAudio(audioData, sanitizedText);
-            const speakerDetectionTime = performance.now() - speakerDetectionStartTime;
+            let turnInfo = null;
+            let speakerDetectionTime = 0;
+
+            if (performanceStats.mode !== 'minimal') {
+                const speakerDetectionStartTime = performance.now();
+                turnInfo = turnManager.processAudio(audioData, sanitizedText);
+                speakerDetectionTime = performance.now() - speakerDetectionStartTime;
+            } else {
+                // Simplified turn management for minimal mode
+                turnInfo = { turn: { speaker: 'unknown' }, isLikelyNewSpeaker: false };
+            }
+
+            updatePerformanceMode(audioProcessingTime, 'audio');
 
             // Send STT result back to main thread with performance metrics
             self.postMessage({
@@ -218,7 +249,8 @@ self.onmessage = async (event) => {
                     turnInfo,
                     performance: {
                         audioProcessingTime,
-                        speakerDetectionTime
+                        speakerDetectionTime,
+                        mode: performanceStats.mode
                     }
                 },
                 taskId
@@ -274,11 +306,12 @@ self.onmessage = async (event) => {
             const timeSinceLastLLM = Date.now() - (MLPipeline.lastLLMCallTime || 0);
             const isHighFrequency = timeSinceLastLLM < 2000;
             
-            // Skip deep sentiment analysis for very short or high-frequency utterances to save resources
+            // Skip deep sentiment analysis for very short or high-frequency utterances
+            // OR if we are in minimal performance mode
             let conversationSentiment = { overallSentiment: 'neutral', emotionalTrend: 'stable' };
             let sentimentAnalysisTime = 0;
 
-            if (!isShortUtterance || !isHighFrequency) {
+            if (performanceStats.mode !== 'minimal' && (!isShortUtterance || !isHighFrequency)) {
                 const sentimentAnalysisStartTime = performance.now();
                 conversationSentiment = analyzeConversationSentiment(history || []);
                 sentimentAnalysisTime = performance.now() - sentimentAnalysisStartTime;
