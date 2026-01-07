@@ -22,6 +22,8 @@ describe('personalization utility', () => {
   it('generates a correct summary and uses caching', async () => {
     analyzeFeedbackTrends.mockResolvedValue({
       improvementAreas: [{ issue: 'longResponses' }],
+      recentImprovementAreas: [],
+      trendingPreferences: { 'tone': { trend: 'increasing' } },
       preferredPersonas: { 'concise': { satisfaction: 0.9 } }
     });
     calculateSocialSuccessScore.mockResolvedValue({

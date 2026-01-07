@@ -9,23 +9,24 @@ import ControlPanel from './VAD/ControlPanel';
 import SocialSuccessScore from './SocialSuccessScore';
 import { getMergedPersonas } from '../utils/preferences';
 import { submitSubtleModeFeedback } from '../utils/feedback';
+import { parseSemanticTags } from '../utils/intentRecognition';
 
 const GlanceWidget = ({ suggestion, emotionData, isProcessing }) => {
   const [feedbackGiven, setFeedbackGiven] = useState(false);
   const [showExplanation, setShowExplanation] = useState(false);
   const emotion = emotionData?.emotion || 'neutral';
 
-  const hasActionItem = suggestion?.includes('[Action Item]');
-  const hasConflict = suggestion?.includes('[Diplomatic]');
-  const isHighStakes = suggestion?.includes('[Strategic]');
-  const isLanguageTip = suggestion?.includes('[Natural Phrasing]');
-  const isSocialTip = suggestion?.includes('[Social Tip]');
-  const isNegotiation = suggestion?.includes('[Negotiation]');
+  const { cleanText: displaySuggestion, tags } = React.useMemo(() => {
+    if (!suggestion) return { cleanText: isProcessing ? 'Thinking...' : 'Listening...', tags: [] };
+    return parseSemanticTags(suggestion);
+  }, [suggestion, isProcessing]);
 
-  // Clean the suggestion for glance display
-  const displaySuggestion = suggestion
-    ? suggestion.replace(/\[.*?\]/g, '').trim()
-    : isProcessing ? 'Thinking...' : 'Listening...';
+  const hasActionItem = tags.some(t => t.key === 'action');
+  const hasConflict = tags.some(t => t.key === 'conflict');
+  const isStrategic = tags.some(t => t.key === 'strategic');
+  const isLanguageTip = tags.some(t => t.key === 'language');
+  const isSocialTip = tags.some(t => t.key === 'social');
+  const hasEmpathy = tags.some(t => t.key === 'empathy');
 
   const handleFeedback = async (type) => {
     if (feedbackGiven || !displaySuggestion || isProcessing) return;
@@ -119,12 +120,8 @@ const GlanceWidget = ({ suggestion, emotionData, isProcessing }) => {
 
   // Determine explanation based on tags in the original suggestion
   const getExplanation = () => {
-    if (hasActionItem) return "Detected action items in the conversation that need follow-up.";
-    if (hasConflict) return "Detected potential conflict that requires diplomatic handling.";
-    if (isHighStakes) return "Detected a high-stakes situation requiring strategic communication.";
-    if (isLanguageTip) return "Detected opportunity to improve language phrasing for better communication.";
-    if (isSocialTip) return "Detected social nuance that could improve the interaction.";
-    if (isNegotiation) return "Detected negotiation elements requiring tactical communication.";
+    const activeTag = tags[0];
+    if (activeTag) return activeTag.description;
 
     // If no specific tag, provide a general explanation
     return `This cue was generated based on the current conversation context and your selected persona. It's designed to guide your communication subtly.`;
@@ -142,36 +139,12 @@ const GlanceWidget = ({ suggestion, emotionData, isProcessing }) => {
     >
       <p className="glance-suggestion" title={tooltipText}>{displaySuggestion}</p>
       <div className="glance-indicators">
-        {hasActionItem && (
-          <div className="glance-badge action" title="Action item detected" aria-label="Action item detected" role="status">
-            <Zap size={14} aria-hidden="true" /> <span>Action</span>
+        {tags.map(tag => (
+          <div key={tag.key} className={`glance-badge ${tag.variant}`} title={tag.description} aria-label={tag.label} role="status">
+            {tag.key === 'conflict' ? <ShieldAlert size={14} aria-hidden="true" /> : <Zap size={14} aria-hidden="true" />}
+            <span>{tag.label}</span>
           </div>
-        )}
-        {hasConflict && (
-          <div className="glance-badge conflict" title="Potential conflict detected" aria-label="Potential conflict detected" role="status">
-            <ShieldAlert size={14} aria-hidden="true" /> <span>Conflict</span>
-          </div>
-        )}
-        {isHighStakes && (
-          <div className="glance-badge strategic" title="Strategic situation detected" aria-label="Strategic situation detected" role="status">
-            <Info size={14} aria-hidden="true" /> <span>Strategic</span>
-          </div>
-        )}
-        {isLanguageTip && (
-          <div className="glance-badge language" title="Language learning suggestion" aria-label="Language learning suggestion" role="status">
-            <Zap size={14} aria-hidden="true" /> <span>Language</span>
-          </div>
-        )}
-        {isSocialTip && (
-          <div className="glance-badge social" title="Social intelligence tip" aria-label="Social intelligence tip" role="status">
-            <ThumbsUp size={14} aria-hidden="true" /> <span>Social</span>
-          </div>
-        )}
-        {isNegotiation && (
-          <div className="glance-badge strategic" title="Negotiation insight" aria-label="Negotiation insight detected" role="status">
-            <Zap size={14} aria-hidden="true" /> <span>Negotiation</span>
-          </div>
-        )}
+        ))}
         {/* Explanation tooltip */}
         {showExplanation && !isProcessing && displaySuggestion !== 'Listening...' && (
           <div className="glance-explanation-tooltip">

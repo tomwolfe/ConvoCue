@@ -1,8 +1,20 @@
-import React from 'react';
-import { Trash2, Copy, Check, RefreshCw, ThumbsUp, ThumbsDown, Flag, User, Users } from 'lucide-react';
+import React, { useMemo } from 'react';
+import { Trash2, Copy, Check, RefreshCw, ThumbsUp, ThumbsDown, Flag, User, Users, AlertTriangle, Zap, Target, MessageCircle, Heart } from 'lucide-react';
 import { AppConfig } from '../../config';
 import { submitFeedback } from '../../utils/feedback';
 import { overrideSpeakerForTurn } from '../../conversationManager';
+import { parseSemanticTags } from '../../utils/intentRecognition';
+
+const TagIcon = ({ name, size = 14 }) => {
+  switch (name) {
+    case 'AlertTriangle': return <AlertTriangle size={size} />;
+    case 'Zap': return <Zap size={size} />;
+    case 'Target': return <Target size={size} />;
+    case 'MessageCircle': return <MessageCircle size={size} />;
+    case 'Heart': return <Heart size={size} />;
+    default: return null;
+  }
+};
 
 const DisplayArea = ({
   transcript,
@@ -21,6 +33,9 @@ const DisplayArea = ({
 }) => {
   // Determine if feedback should be enabled based on settings
   const isPersonalizationEnabled = settings.enablePersonalization !== false && !settings.privacyMode;
+
+  // Parse semantic tags for visual indicators
+  const { cleanText, tags } = useMemo(() => parseSemanticTags(suggestion), [suggestion]);
 
   // Format conversation turns for display
   const formattedConversation = conversationTurns.slice(-5).map((turn, index) => (
@@ -80,7 +95,19 @@ const DisplayArea = ({
 
       <div className={`card suggestion ${suggestion || processingStep === 'thinking' ? 'visible' : ''} ${processingStep === 'thinking' ? 'thinking' : ''} ${isCompactMode ? 'compact-suggestion' : ''} ${showMinimalUI ? 'minimal-suggestion' : ''}`} role="region" aria-labelledby="suggestion-label">
         <div className="card-header">
-          {!showMinimalUI && <label id="suggestion-label">{AppConfig.models.personas[persona]?.label || 'Cue'}</label>}
+          {!showMinimalUI && (
+            <div className="flex items-center gap-2">
+              <label id="suggestion-label">{AppConfig.models.personas[persona]?.label || 'Cue'}</label>
+              <div className="glance-indicators">
+                {tags.map((tag) => (
+                  <span key={tag.key} className={`glance-badge ${tag.variant}`} title={tag.description}>
+                    <TagIcon name={tag.icon} size={10} />
+                    {tag.label}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
           {!showMinimalUI && suggestion && (
             <div className="card-actions">
               <button
@@ -132,7 +159,7 @@ const DisplayArea = ({
           )}
         </div>
         <p id="suggestion-content" className={isCompactMode ? 'compact-text' : ''}>
-          {suggestion || (processingStep === 'thinking' ? "Thinking..." : "Listening for cues...")}
+          {cleanText || (processingStep === 'thinking' ? "Thinking..." : "Listening for cues...")}
         </p>
       </div>
     </div>

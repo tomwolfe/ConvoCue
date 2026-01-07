@@ -318,8 +318,8 @@ self.onmessage = async (event) => {
                     contextInstruction += `Preference: ${preferences.preferredLength} length. `;
                 }
 
-                // Standardized Intent Tagging for Haptics
-                contextInstruction += "IMPORTANT: Always include semantic tags in square brackets for specific cues: [conflict] for de-escalation, [action item] for follow-ups, [strategic] for negotiations, [social tip] for etiquette, [empathy] for emotional support. ";
+                // Standardized Intent Tagging for Haptics & UI
+                contextInstruction += "IMPORTANT: Always include semantic tags in square brackets for specific cues: [conflict] for de-escalation, [action item] for follow-ups, [strategic] for negotiations, [social tip] for etiquette, [language tip] for phrasing, [empathy] for emotional support. ";
 
                 cachedSystemPrompt = {
                     key: promptKey,

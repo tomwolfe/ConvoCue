@@ -23,6 +23,7 @@ export const analyzeFeedbackTrends = async (feedbackHistory = null) => {
       overallSatisfaction: 0,
       trendingPreferences: {},
       improvementAreas: [],
+      recentImprovementAreas: [],
       preferredPersonas: {},
       feedbackVolume: 0
     };
@@ -44,14 +45,13 @@ export const analyzeFeedbackTrends = async (feedbackHistory = null) => {
 
   // Identify improvement areas (frequently disliked)
   const improvementAreas = findImprovementAreas(feedbackHistory);
-
-  // Analyze preferred personas
-  const preferredPersonas = calculatePersonaPreferences(feedbackHistory);
+  const recentImprovementAreas = findImprovementAreas(recentFeedback);
 
   return {
     overallSatisfaction,
     trendingPreferences,
     improvementAreas,
+    recentImprovementAreas,
     preferredPersonas,
     feedbackVolume: feedbackHistory.length
   };

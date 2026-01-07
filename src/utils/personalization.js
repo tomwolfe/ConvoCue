@@ -47,9 +47,20 @@ export const getCommunicationProfileSummary = async () => {
     }
 
     // Add improvement areas from feedback analytics
-    if (feedbackAnalysis.improvementAreas.length > 0) {
+    if (feedbackAnalysis.recentImprovementAreas.length > 0) {
+      const topRecent = feedbackAnalysis.recentImprovementAreas[0];
+      summary += `Current Focus: User recently found ${topRecent.issue} unhelpful. `;
+    } else if (feedbackAnalysis.improvementAreas.length > 0) {
       const topIssue = feedbackAnalysis.improvementAreas[0];
-      summary += `Focus Area: User finds ${topIssue.issue} unhelpful. `;
+      summary += `Focus Area: User historically finds ${topIssue.issue} unhelpful. `;
+    }
+
+    // Add trending preferences
+    const increasingTrends = Object.entries(feedbackAnalysis.trendingPreferences)
+      .filter(([_, data]) => data.trend === 'increasing');
+    
+    if (increasingTrends.length > 0) {
+      summary += `Trending: User is responding better to ${increasingTrends.map(([k]) => k).join(', ')}. `;
     }
 
     // Add preferred persona

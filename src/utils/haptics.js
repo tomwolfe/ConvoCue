@@ -1,6 +1,4 @@
-/**
- * @fileoverview Haptic feedback utilities for subtle communication cues
- */
+import { parseSemanticTags } from './intentRecognition';
 
 let lastVibrationTime = 0;
 const COOLDOWN_MS = 1500;
@@ -34,22 +32,23 @@ export const provideHapticFeedback = (suggestion) => {
   const now = Date.now();
   if (now - lastVibrationTime < COOLDOWN_MS) return;
 
+  const { tags } = parseSemanticTags(suggestion);
   const lowerSuggestion = suggestion.toLowerCase();
   let pattern = VIBRATION_PATTERNS.SUCCESS;
 
-  // Determine pattern based on tags or keywords
-  if (lowerSuggestion.includes('[conflict]') || lowerSuggestion.includes('de-escalate')) {
+  // Prioritize patterns based on tags
+  if (tags.some(t => t.key === 'conflict') || lowerSuggestion.includes('de-escalate')) {
     pattern = VIBRATION_PATTERNS.CONFLICT;
-  } else if (lowerSuggestion.includes('[action item]') || lowerSuggestion.includes('follow up')) {
+  } else if (tags.some(t => t.key === 'action') || lowerSuggestion.includes('follow up')) {
     pattern = VIBRATION_PATTERNS.ACTION;
-  } else if (lowerSuggestion.includes('[strategic]') || lowerSuggestion.includes('[negotiation]')) {
+  } else if (tags.some(t => t.key === 'strategic') || lowerSuggestion.includes('[negotiation]')) {
     pattern = VIBRATION_PATTERNS.TRANSITION;
-  } else if (lowerSuggestion.includes('[social tip]') || lowerSuggestion.includes('[natural phrasing]')) {
+  } else if (tags.some(t => t.key === 'social') || lowerSuggestion.includes('[natural phrasing]')) {
     pattern = VIBRATION_PATTERNS.SUGGESTION;
+  } else if (tags.some(t => t.key === 'empathy') || lowerSuggestion.includes('understand') || lowerSuggestion.includes('feel')) {
+    pattern = VIBRATION_PATTERNS.EMPATHY;
   } else if (lowerSuggestion.includes('smile') || lowerSuggestion.includes('great') || lowerSuggestion.includes('good')) {
     pattern = VIBRATION_PATTERNS.SUCCESS;
-  } else if (lowerSuggestion.includes('understand') || lowerSuggestion.includes('feel')) {
-    pattern = VIBRATION_PATTERNS.EMPATHY;
   }
 
   if (navigator.vibrate(pattern)) {
