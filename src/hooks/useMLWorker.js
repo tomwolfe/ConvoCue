@@ -80,11 +80,13 @@ export const useMLWorker = () => {
   const worker = useRef(null);
   const stateRef = useRef(state);
   const historyRef = useRef(history);
+  const lastMessageTimeRef = useRef(lastMessageTime);
 
   useEffect(() => {
     stateRef.current = state;
     historyRef.current = history;
-  }, [state, history]);
+    lastMessageTimeRef.current = lastMessageTime;
+  }, [state, history, lastMessageTime]);
 
   const initWorker = useCallback(() => {
     if (worker.current) {
@@ -114,7 +116,7 @@ export const useMLWorker = () => {
 
             // aggregation Logic
             const isShort = cleanText.split(' ').length < 3;
-            const timeSinceLast = Date.now() - (lastMessageTime || 0);
+            const timeSinceLast = Date.now() - (lastMessageTimeRef.current || 0);
 
             dispatch({ type: 'STT_RESULT', text: cleanText });
 
@@ -175,7 +177,7 @@ export const useMLWorker = () => {
     } catch (error) {
       dispatch({ type: 'SET_ERROR', error: 'Worker creation failed' });
     }
-  }, [settings, addMessage, setSentiment, updateLastMessageTime, lastMessageTime, prefsCache]);
+  }, [settings, addMessage, setSentiment, updateLastMessageTime, prefsCache]);
 
   useEffect(() => {
     return () => {
