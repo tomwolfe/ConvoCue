@@ -15,8 +15,12 @@ describe('Subtle Mode (Quick Cues)', () => {
     
     // Result should be a single word or very short phrase from the curated list
     expect(result.split(' ').length).toBeLessThanOrEqual(5);
-    // Based on input 'nervous', it should probably pick an 'emotion' or 'uncertainty' cue
-    const expectedCues = ['Calm', 'Breathe', 'Relax', 'Focus', 'Center', 'Ground', 'Quiet', 'Hmm', 'Unsure', 'Thoughtful', 'Reflect', 'Consider', 'Ponder', 'Wonder'];
+    // Based on input 'nervous' and 'meeting', it should pick an 'emotion', 'strategic', or 'uncertainty' cue
+    const expectedCues = [
+      'Calm', 'Breathe', 'Relax', 'Focus', 'Center', 'Ground', 'Quiet', 'Hmm', 'Unsure', 'Thoughtful', 'Reflect', 'Consider', 'Ponder', 'Wonder',
+      'Acknowledge', 'Validate', 'Empathize', 'Listen', 'Support', 'Understand',
+      'Strategic', 'Consider implications', 'Think long-term', 'Plan ahead', 'Evaluate', 'Assess'
+    ];
     expect(expectedCues).toContain(result);
   });
 
@@ -36,7 +40,10 @@ describe('Subtle Mode (Quick Cues)', () => {
     
     const result = await enhanceResponse(response, 'professional', null, input, mockHistory, { isSubtleMode: true });
     
-    const strategicCues = ['Lean in', 'Hold eye contact', 'Lower volume', 'Slow down', 'Wait for silence', 'Mirror', 'Pause for effect'];
+    const strategicCues = [
+      'Lean in', 'Hold eye contact', 'Lower volume', 'Slow down', 'Wait for silence', 'Mirror', 'Pause for effect',
+      'Strategic', 'Consider implications', 'Think long-term', 'Plan ahead', 'Evaluate', 'Assess'
+    ];
     expect(strategicCues).toContain(result);
   });
 

@@ -3,10 +3,8 @@
  */
 
 import { secureLocalStorageGet, secureLocalStorageSet } from './encryption';
-
+import { eventBus, EVENTS } from './eventBus';
 import { AppConfig } from '../config';
-
-
 
 const PREFERENCE_KEY = 'convocue_preferences';
 
@@ -105,17 +103,12 @@ export const getManualPreferences = async () => {
  */
 
 export const saveUserPreferences = async (preferences) => {
-
   try {
-
     await secureLocalStorageSet(PREFERENCE_KEY, preferences);
-
+    eventBus.emit(EVENTS.PREFERENCES_CHANGED, preferences);
   } catch (error) {
-
     console.error('Error saving user preferences:', error);
-
   }
-
 };
 
 

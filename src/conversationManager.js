@@ -1,74 +1,70 @@
-/**
- * @fileoverview Conversation turn management for the main thread
- */
-
 import { ConversationTurnManager } from './utils/speakerDetection';
+import { eventBus, EVENTS } from './utils/eventBus';
 
-// Create a global conversation manager instance
 const conversationManager = new ConversationTurnManager();
 
 /**
- * Gets the global conversation turn manager instance
- * @returns {ConversationTurnManager} The conversation turn manager
+ * Get the singleton instance of ConversationTurnManager
+ * @returns {ConversationTurnManager} The conversation manager instance
  */
 export const getConversationManager = () => {
   return conversationManager;
 };
 
 /**
- * Processes audio and text to manage conversation turns
- * @param {Float32Array} audioData - Audio data from the microphone
- * @param {string} detectedText - Text from speech recognition
+ * Process audio data and detect speaker
+ * @param {Float32Array} audioData - The audio data to process
+ * @param {string} detectedText - Optional detected text for the turn
  * @returns {Object} Turn information
  */
 export const processConversationTurn = (audioData, detectedText = '') => {
   const turn = conversationManager.processAudio(audioData, detectedText);
   // Notify listeners that conversation turns have been updated
-  window.dispatchEvent(new CustomEvent('convocue_conversation_updated', { 
-    detail: { turns: conversationManager.getConversationHistory() } 
-  }));
+  eventBus.emit(EVENTS.CONVERSATION_UPDATED, {
+    turns: conversationManager.getConversationHistory()
+  });
   return turn;
 };
 
 /**
- * Gets the current conversation history
- * @returns {Array} Array of conversation messages with speaker information
+ * Get the current conversation history
+ * @returns {Array} Array of conversation turns
  */
 export const getConversationHistory = () => {
   return conversationManager.getConversationHistory();
 };
 
 /**
- * Resets the conversation manager
+ * Reset the conversation manager
  */
 export const resetConversationManager = () => {
   conversationManager.reset();
-  window.dispatchEvent(new CustomEvent('convocue_conversation_updated', { 
-    detail: { turns: [] } 
-  }));
+  eventBus.emit(EVENTS.CONVERSATION_UPDATED, {
+    turns: []
+  });
 };
 
 /**
- * Allows manual override of speaker attribution for a specific turn
- * @param {number} turnId - ID of the turn to modify
+ * Override the speaker for a specific turn
+ * @param {string} turnId - The ID of the turn to override
  * @param {string} correctSpeaker - The correct speaker ('user' or 'other')
  */
 export const overrideSpeakerForTurn = (turnId, correctSpeaker) => {
   const result = conversationManager.overrideSpeaker(turnId, correctSpeaker);
-  window.dispatchEvent(new CustomEvent('convocue_conversation_updated', { 
-    detail: { turns: conversationManager.getConversationHistory() } 
-  }));
+  eventBus.emit(EVENTS.CONVERSATION_UPDATED, {
+    turns: conversationManager.getConversationHistory()
+  });
   return result;
 };
 
 /**
- * Updates the last speaker without processing new audio
+ * Update the last speaker in the conversation
  * @param {string} speaker - The speaker to set as last speaker
  */
 export const updateLastSpeaker = (speaker) => {
   const result = conversationManager.updateLastSpeaker(speaker);
-  window.dispatchEvent(new CustomEvent('convocue_conversation_updated', { 
-    detail: { turns: conversationManager.getConversationHistory() } 
-  }));
+  eventBus.emit(EVENTS.CONVERSATION_UPDATED, {
+    turns: conversationManager.getConversationHistory()
+  });
   return result;
 };

@@ -280,22 +280,31 @@ export const enhanceResponse = async (response, persona, emotionData = null, inp
   const preferences = await getInferredPreferences();
   const isSubtleMode = options.isSubtleMode || preferences.isSubtleMode;
   let enhancedResponse = response;
+  const transformations = [];
 
   // 1. Specialized Persona Logic (Apply BEFORE general adjustments)
   if (!isSubtleMode) {
     if (persona === 'languagelearning') {
       const targetLanguage = detectLanguageFromContext(options.culturalContext || 'general');
+      const prev = enhancedResponse;
       enhancedResponse = applyLanguageLearningSupport(enhancedResponse, input, targetLanguage);
+      if (prev !== enhancedResponse) transformations.push('language_learning');
     } else if (persona === 'relationship') {
+      const prev = enhancedResponse;
       enhancedResponse = applySocialNuance(enhancedResponse, input);
+      if (prev !== enhancedResponse) transformations.push('social_nuance');
     } else if (persona === 'professional' || persona === 'meeting') {
+      const prev = enhancedResponse;
       enhancedResponse = applyProfessionalInsights(enhancedResponse, input);
+      if (prev !== enhancedResponse) transformations.push('professional_insights');
     }
     
     // Apply cultural refinement if a specific culture is detected or set
     const targetCulture = options.culturalContext || 'general';
     if (targetCulture !== 'general') {
+      const prev = enhancedResponse;
       enhancedResponse = applyCulturalRefinement(enhancedResponse, targetCulture);
+      if (prev !== enhancedResponse) transformations.push('cultural_refinement');
     }
   }
 
@@ -303,6 +312,7 @@ export const enhanceResponse = async (response, persona, emotionData = null, inp
   if (isSubtleMode) {
     // In subtle mode, we want extremely brief cues from a curated list
     enhancedResponse = generateQuickCue(enhancedResponse, input, conversationHistory);
+    transformations.push('subtle_mode_cue');
   } else if (preferences.preferredLength === 'short' && enhancedResponse.length > 50) {
     // Truncate to first sentence if too long
     const sentences = enhancedResponse.split(/(?<=[.!?])\s+/);
@@ -312,18 +322,23 @@ export const enhanceResponse = async (response, persona, emotionData = null, inp
       // If it's one long sentence, truncate to ~60 chars
       enhancedResponse = enhancedResponse.substring(0, 60).trim() + '...';
     }
+    transformations.push('length_shortening');
   } else if (preferences.preferredLength === 'long' && enhancedResponse.length < 40) {
     // Expand short responses with follow-up if user prefers longer responses
+    const prev = enhancedResponse;
     if (persona === 'anxiety') {
       enhancedResponse += " I'm here to listen and help if you'd like to share more.";
     } else if (persona === 'relationship') {
       enhancedResponse += " What are your thoughts on this? I'm interested to hear more.";
     }
+    if (prev !== enhancedResponse) transformations.push('length_expansion');
   }
 
   // 3. Adjust tone based on user preference (bypass if subtle)
   if (!isSubtleMode) {
+    const prev = enhancedResponse;
     enhancedResponse = applyToneAdjustment(enhancedResponse, preferences.preferredTone, persona);
+    if (prev !== enhancedResponse) transformations.push('tone_adjustment');
   }
 
   // 4. Add emotional awareness if emotion detected (bypass if subtle)
@@ -331,17 +346,29 @@ export const enhanceResponse = async (response, persona, emotionData = null, inp
     const emotionalAcknowledge = getEmotionalAcknowledgment(emotionData.emotion);
     if (!enhancedResponse.toLowerCase().includes(emotionalAcknowledge.toLowerCase())) {
       enhancedResponse = `${emotionalAcknowledge} ${enhancedResponse}`;
+      transformations.push('emotional_awareness');
     }
   }
 
   // 5. Apply conversation context awareness (bypass if subtle)
   if (!isSubtleMode && conversationHistory && conversationHistory.length > 0) {
+    const prev = enhancedResponse;
     enhancedResponse = applyConversationContext(enhancedResponse, conversationHistory, persona);
+    if (prev !== enhancedResponse) transformations.push('context_awareness');
   }
 
   // 6. Apply learned preferences from feedback (bypass if subtle)
   if (!isSubtleMode) {
+    const prev = enhancedResponse;
     enhancedResponse = applyLearnedPreferences(enhancedResponse, preferences);
+    if (prev !== enhancedResponse) transformations.push('learned_preferences');
+  }
+
+  // Logging for auditability
+  if (transformations.length > 0) {
+    console.debug(`[ResponseEnhancement] Transformations: ${transformations.join(', ')}`);
+    console.debug(`[ResponseEnhancement] Original: "${response}"`);
+    console.debug(`[ResponseEnhancement] Enhanced: "${enhancedResponse}"`);
   }
 
   // Safety Valve
@@ -403,32 +430,35 @@ const applySocialNuance = (response, input) => {
 const applyCulturalRefinement = (response, culture) => {
   const style = getCommunicationStyleForCulture(culture);
   let refined = response;
-  
-  if (style === 'high-context') {
-    // Make more indirect and polite
-    refined = refined
-      .replace(/\b(no|never|wrong)\b/gi, 'that might be difficult')
-      .replace(/\b(must|should|have to)\b/gi, 'perhaps we could')
-      .replace(/\b(i want|i need)\b/gi, 'I would appreciate it if we could');
-    
-    // Add a polite preamble if it's a short direct response
-    if (refined.length < 30 && !refined.includes('With respect')) {
-      refined = `With respect, ${refined.charAt(0).toLowerCase() + refined.slice(1)}`;
-    }
-  } else if (style === 'low-context') {
-    // Ensure clarity and directness
-    // Replace ambiguous phrases with direct ones
-    refined = refined
-      .replace(/it seems like maybe we could/gi, 'we should')
-      .replace(/perhaps it might be better to/gi, 'it is better to')
-      .replace(/i was wondering if/gi, 'can we');
 
-    if (refined.length > 100) {
-      const sentences = refined.split(/(?<=[.!?])\s+/);
-      refined = `${sentences[0]} (Directly speaking: ${sentences[0]})`;
+  const replacements = {
+    'high-context': [
+      { pattern: /\b(no|never|wrong)\b/gi, alternatives: ['that might be difficult', 'that is a challenge', 'perhaps not quite'] },
+      { pattern: /\b(must|should|have to)\b/gi, alternatives: ['perhaps we could', 'it might be helpful to', 'may I suggest'] },
+      { pattern: /\b(i want|i need)\b/gi, alternatives: ['I would appreciate it if we could', 'it would be helpful if', 'if possible, could we'] }
+    ],
+    'low-context': [
+      { pattern: /it seems like maybe we could/gi, alternatives: ['we should', 'I recommend'] },
+      { pattern: /perhaps it might be better to/gi, alternatives: ['it is better to', 'let\'s'] },
+      { pattern: /i was wondering if/gi, alternatives: ['can we', 'should we'] }
+    ]
+  };
+
+  const getRandomReplacement = (alts) => alts[Math.floor(Math.random() * alts.length)];
+
+  if (replacements[style]) {
+    replacements[style].forEach(({ pattern, alternatives }) => {
+      // 70% chance to apply to avoid being too repetitive/robotic
+      if (Math.random() > 0.3) {
+        refined = refined.replace(pattern, () => getRandomReplacement(alternatives));
+      }
+    });
+
+    if (style === 'high-context' && refined.length < 40 && !refined.includes('With respect')) {
+      const preambles = ['With respect, ', 'I was thinking, ', 'Perhaps, '];
+      refined = getRandomReplacement(preambles) + refined.charAt(0).toLowerCase() + refined.slice(1);
     }
   } else if (style === 'medium-context') {
-    // Balance directness
     refined = refined.replace(/\b(wrong|bad)\b/gi, 'not quite right');
   }
 

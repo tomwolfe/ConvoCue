@@ -3,6 +3,7 @@ import { X, Info, ChevronDown, ChevronUp } from 'lucide-react';
 import { resetPersonalizationData } from '../utils/feedback';
 import { secureLocalStorageGet, secureLocalStorageSet } from '../utils/encryption';
 import { getSocialSuccessWeights, saveSocialSuccessWeights } from '../utils/feedbackAnalytics';
+import { eventBus, EVENTS } from '../utils/eventBus';
 
 const Settings = ({ isOpen, onClose }) => {
   const [settings, setSettings] = useState({
@@ -59,7 +60,7 @@ const Settings = ({ isOpen, onClose }) => {
     await secureLocalStorageSet('convocue_settings', newSettings);
 
     // Dispatch event to notify listeners
-    window.dispatchEvent(new CustomEvent('convocue_settings_changed', { detail: newSettings }));
+    eventBus.emit(EVENTS.SETTINGS_CHANGED, newSettings);
   };
 
   const handleWeightChange = async (key, value) => {
@@ -113,7 +114,7 @@ const Settings = ({ isOpen, onClose }) => {
       setSettings(defaultSettings);
       
       // Notify other components
-      window.dispatchEvent(new CustomEvent('convocue_settings_changed', { detail: defaultSettings }));
+      eventBus.emit(EVENTS.SETTINGS_CHANGED, defaultSettings);
       
       alert('Personalization data has been reset.');
     }

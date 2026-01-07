@@ -143,33 +143,33 @@ const GlanceWidget = ({ suggestion, emotionData, isProcessing }) => {
       <p className="glance-suggestion" title={tooltipText}>{displaySuggestion}</p>
       <div className="glance-indicators">
         {hasActionItem && (
-          <div className="glance-badge action" title="Action item detected">
-            <Zap size={14} /> <span>Action</span>
+          <div className="glance-badge action" title="Action item detected" aria-label="Action item detected" role="status">
+            <Zap size={14} aria-hidden="true" /> <span>Action</span>
           </div>
         )}
         {hasConflict && (
-          <div className="glance-badge conflict" title="Potential conflict detected">
-            <ShieldAlert size={14} /> <span>Conflict</span>
+          <div className="glance-badge conflict" title="Potential conflict detected" aria-label="Potential conflict detected" role="status">
+            <ShieldAlert size={14} aria-hidden="true" /> <span>Conflict</span>
           </div>
         )}
         {isHighStakes && (
-          <div className="glance-badge strategic" title="Strategic situation detected">
-            <Info size={14} /> <span>Strategic</span>
+          <div className="glance-badge strategic" title="Strategic situation detected" aria-label="Strategic situation detected" role="status">
+            <Info size={14} aria-hidden="true" /> <span>Strategic</span>
           </div>
         )}
         {isLanguageTip && (
-          <div className="glance-badge language" title="Language learning suggestion">
-            <Zap size={14} /> <span>Language</span>
+          <div className="glance-badge language" title="Language learning suggestion" aria-label="Language learning suggestion" role="status">
+            <Zap size={14} aria-hidden="true" /> <span>Language</span>
           </div>
         )}
         {isSocialTip && (
-          <div className="glance-badge social" title="Social intelligence tip">
-            <ThumbsUp size={14} /> <span>Social</span>
+          <div className="glance-badge social" title="Social intelligence tip" aria-label="Social intelligence tip" role="status">
+            <ThumbsUp size={14} aria-hidden="true" /> <span>Social</span>
           </div>
         )}
         {isNegotiation && (
-          <div className="glance-badge strategic" title="Negotiation insight">
-            <Zap size={14} /> <span>Negotiation</span>
+          <div className="glance-badge strategic" title="Negotiation insight" aria-label="Negotiation insight detected" role="status">
+            <Zap size={14} aria-hidden="true" /> <span>Negotiation</span>
           </div>
         )}
         {/* Explanation tooltip */}

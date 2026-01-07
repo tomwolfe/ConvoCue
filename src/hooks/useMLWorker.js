@@ -5,7 +5,7 @@ import { enhanceResponse, getInferredPreferences } from '../utils/responseEnhanc
 import { getConversationHistory } from '../conversationManager';
 import { secureLocalStorageGet, secureLocalStorageSet } from '../utils/encryption';
 import { getManualPreferences, saveUserPreferences } from '../utils/preferences';
-import { monitorAndOptimizeHistory, getPerformanceSummary, logPerformanceMetric } from '../utils/performanceMonitoring';
+import { eventBus, EVENTS } from '../utils/eventBus';
 
 const initialState = {
   status: 'Initializing Models...',
@@ -136,24 +136,25 @@ export const useMLWorker = () => {
     fetchData();
     
     // Listen for preference changes
-    const handlePrefsChange = async () => {
-      const manualPrefs = await getManualPreferences();
-      const inferredPrefs = await getInferredPreferences();
+    const handlePrefsChange = (manualPrefs) => {
+      const inferredPrefs = getInferredPreferences();
       prefsCache.current = { ...manualPrefs, ...inferredPrefs };
     };
-    window.addEventListener('convocue_preferences_changed', handlePrefsChange);
+    eventBus.on(EVENTS.PREFERENCES_CHANGED, handlePrefsChange);
+    eventBus.on(EVENTS.SETTINGS_CHANGED, handlePrefsChange); // Settings also impact prefs
     
     // Listen for conversation turn updates from the conversation manager
-    const handleConversationUpdate = (event) => {
-      if (event.detail && event.detail.turns) {
-        dispatch({ type: 'SET_CONVERSATION_TURNS', turns: event.detail.turns });
+    const handleConversationUpdate = (data) => {
+      if (data && data.turns) {
+        dispatch({ type: 'SET_CONVERSATION_TURNS', turns: data.turns });
       }
     };
-    window.addEventListener('convocue_conversation_updated', handleConversationUpdate);
+    eventBus.on(EVENTS.CONVERSATION_UPDATED, handleConversationUpdate);
 
     return () => {
-      window.removeEventListener('convocue_preferences_changed', handlePrefsChange);
-      window.removeEventListener('convocue_conversation_updated', handleConversationUpdate);
+      eventBus.off(EVENTS.PREFERENCES_CHANGED, handlePrefsChange);
+      eventBus.off(EVENTS.SETTINGS_CHANGED, handlePrefsChange);
+      eventBus.off(EVENTS.CONVERSATION_UPDATED, handleConversationUpdate);
     };
   }, []);
 

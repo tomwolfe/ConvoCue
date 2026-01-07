@@ -2,6 +2,7 @@
  * @fileoverview User feedback utilities for collecting and managing user preferences
  */
 import { secureLocalStorageGet, secureLocalStorageSet } from './encryption';
+import { eventBus, EVENTS } from './eventBus';
 
 /**
  * Submit feedback for a suggestion
@@ -38,7 +39,7 @@ export const submitFeedback = async (suggestion, feedbackType, persona, cultural
 
     // Dispatch event to notify listeners (e.g., useMLWorker hook) that feedback was submitted
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('convocue_feedback_submitted'));
+      eventBus.emit(EVENTS.FEEDBACK_SUBMITTED);
     }
   } catch (e) {
     console.error('Failed to save feedback to localStorage:', e);
@@ -70,7 +71,7 @@ export const submitSubtleModeFeedback = async (cue, feedbackType) => {
     await secureLocalStorageSet('convocue_subtle_feedback', trimmed);
     
     // Notify analytics if they care about subtle feedback
-    window.dispatchEvent(new CustomEvent('convocue_subtle_feedback_submitted', { detail: feedback }));
+    eventBus.emit(EVENTS.SUBTLE_FEEDBACK_SUBMITTED, feedback);
   } catch (e) {
     console.error('Failed to save subtle feedback:', e);
   }
@@ -218,7 +219,7 @@ export const clearFeedbackData = async () => {
     
     // Dispatch event to notify listeners
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('convocue_feedback_submitted'));
+      eventBus.emit(EVENTS.FEEDBACK_SUBMITTED);
     }
   } catch (e) {
     console.error('Failed to clear feedback data:', e);

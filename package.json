@@ -16,6 +16,7 @@
     "@ricky0123/vad-web": "^0.0.30",
     "@vercel/analytics": "^1.6.1",
     "lucide-react": "^0.562.0",
+    "mitt": "^3.0.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },
