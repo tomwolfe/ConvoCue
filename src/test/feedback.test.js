@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { submitFeedback, getFeedbackStats, getPreferredPersonaFromFeedback, getDislikedPhrases, clearFeedbackData } from '../utils/feedback';
+import { decryptData } from '../utils/encryption';
 
 describe('Feedback Utilities', () => {
   beforeEach(() => {
@@ -13,11 +14,13 @@ describe('Feedback Utilities', () => {
   });
 
   describe('submitFeedback', () => {
-    it('stores feedback in localStorage', () => {
-      submitFeedback('Great suggestion!', 'like', 'anxiety', 'general', 'How are you?', 'How are you?');
+    it('stores feedback in localStorage securely', async () => {
+      await submitFeedback('Great suggestion!', 'like', 'anxiety', 'general', 'How are you?', 'How are you?');
       
       const encryptedData = localStorage.getItem('convocue_feedback');
-      const stored = JSON.parse(decodeURIComponent(atob(encryptedData)));
+      expect(encryptedData).not.toBeNull();
+      
+      const stored = await decryptData(encryptedData);
       expect(stored).toHaveLength(1);
       expect(stored[0]).toMatchObject({
         suggestion: 'Great suggestion!',
@@ -29,14 +32,14 @@ describe('Feedback Utilities', () => {
       });
     });
 
-    it('maintains only last 100 feedback entries', () => {
+    it('maintains only last 100 feedback entries', async () => {
       // Add 105 feedback entries
       for (let i = 0; i < 105; i++) {
-        submitFeedback(`Suggestion ${i}`, 'like', 'anxiety', 'general', `Transcript ${i}`, `Transcript ${i}`);
+        await submitFeedback(`Suggestion ${i}`, 'like', 'anxiety', 'general', `Transcript ${i}`, `Transcript ${i}`);
       }
       
       const encryptedData = localStorage.getItem('convocue_feedback');
-      const stored = JSON.parse(decodeURIComponent(atob(encryptedData)));
+      const stored = await decryptData(encryptedData);
       expect(stored).toHaveLength(100);
       // Should contain the last 100 entries (from index 5 to 104)
       expect(stored[0].suggestion).toBe('Suggestion 5');
@@ -45,8 +48,8 @@ describe('Feedback Utilities', () => {
   });
 
   describe('getFeedbackStats', () => {
-    it('returns empty stats when no feedback exists', () => {
-      const stats = getFeedbackStats();
+    it('returns empty stats when no feedback exists', async () => {
+      const stats = await getFeedbackStats();
       
       expect(stats.totalFeedback).toBe(0);
       expect(stats.likes).toBe(0);
@@ -56,13 +59,13 @@ describe('Feedback Utilities', () => {
       expect(stats.byCulturalContext).toEqual({});
     });
 
-    it('calculates correct stats for mixed feedback', () => {
-      submitFeedback('Good', 'like', 'anxiety', 'general', 'Test', 'Test');
-      submitFeedback('Bad', 'dislike', 'professional', 'general', 'Test', 'Test');
-      submitFeedback('Report', 'report', 'anxiety', 'east_asian', 'Test', 'Test');
-      submitFeedback('Also good', 'like', 'anxiety', 'general', 'Test', 'Test');
+    it('calculates correct stats for mixed feedback', async () => {
+      await submitFeedback('Good', 'like', 'anxiety', 'general', 'Test', 'Test');
+      await submitFeedback('Bad', 'dislike', 'professional', 'general', 'Test', 'Test');
+      await submitFeedback('Report', 'report', 'anxiety', 'east_asian', 'Test', 'Test');
+      await submitFeedback('Also good', 'like', 'anxiety', 'general', 'Test', 'Test');
       
-      const stats = getFeedbackStats();
+      const stats = await getFeedbackStats();
       
       expect(stats.totalFeedback).toBe(4);
       expect(stats.likes).toBe(2);
@@ -74,56 +77,56 @@ describe('Feedback Utilities', () => {
   });
 
   describe('getPreferredPersonaFromFeedback', () => {
-    it('returns null when no feedback exists', () => {
-      const preferred = getPreferredPersonaFromFeedback();
+    it('returns null when no feedback exists', async () => {
+      const preferred = await getPreferredPersonaFromFeedback();
       expect(preferred).toBeNull();
     });
 
-    it('returns persona with most positive feedback', () => {
+    it('returns persona with most positive feedback', async () => {
       // Add some positive feedback for anxiety persona
-      submitFeedback('Good', 'like', 'anxiety', 'general', 'Test', 'Test');
-      submitFeedback('Also good', 'like', 'anxiety', 'general', 'Test', 'Test');
-      submitFeedback('Another good', 'like', 'anxiety', 'general', 'Test', 'Test');
+      await submitFeedback('Good', 'like', 'anxiety', 'general', 'Test', 'Test');
+      await submitFeedback('Also good', 'like', 'anxiety', 'general', 'Test', 'Test');
+      await submitFeedback('Another good', 'like', 'anxiety', 'general', 'Test', 'Test');
 
       // Add some negative feedback for professional persona
-      submitFeedback('Bad', 'dislike', 'professional', 'general', 'Test', 'Test');
-      submitFeedback('Worse', 'dislike', 'professional', 'general', 'Test', 'Test');
+      await submitFeedback('Bad', 'dislike', 'professional', 'general', 'Test', 'Test');
+      await submitFeedback('Worse', 'dislike', 'professional', 'general', 'Test', 'Test');
       
-      const preferred = getPreferredPersonaFromFeedback();
+      const preferred = await getPreferredPersonaFromFeedback();
       expect(preferred).toBe('anxiety');
     });
 
-    it('returns null when no persona has significant preference', () => {
+    it('returns null when no persona has significant preference', async () => {
       // Add just one like (not enough to establish preference)
-      submitFeedback('Good', 'like', 'anxiety', 'general', 'Test', 'Test');
+      await submitFeedback('Good', 'like', 'anxiety', 'general', 'Test', 'Test');
       
-      const preferred = getPreferredPersonaFromFeedback();
+      const preferred = await getPreferredPersonaFromFeedback();
       expect(preferred).toBeNull();
     });
   });
 
   describe('getDislikedPhrases', () => {
-    it('returns empty array when no negative feedback exists', () => {
-      const disliked = getDislikedPhrases();
+    it('returns empty array when no negative feedback exists', async () => {
+      const disliked = await getDislikedPhrases();
       expect(disliked).toEqual([]);
     });
 
-    it('returns phrases from frequently disliked suggestions', () => {
+    it('returns phrases from frequently disliked suggestions', async () => {
       // Add suggestions with the word "terrible" that receive dislike feedback
-      submitFeedback('This is terrible advice', 'dislike', 'anxiety', 'general', 'Test', 'Test');
-      submitFeedback('That was terrible input', 'dislike', 'anxiety', 'general', 'Test', 'Test');
-      submitFeedback('Something terrible happened', 'dislike', 'anxiety', 'general', 'Test', 'Test');
+      await submitFeedback('This is terrible advice', 'dislike', 'anxiety', 'general', 'Test', 'Test');
+      await submitFeedback('That was terrible input', 'dislike', 'anxiety', 'general', 'Test', 'Test');
+      await submitFeedback('Something terrible happened', 'dislike', 'anxiety', 'general', 'Test', 'Test');
       // Add one with "terrible" that gets liked (should not count)
-      submitFeedback('Not terrible at all', 'like', 'anxiety', 'general', 'Test', 'Test');
+      await submitFeedback('Not terrible at all', 'like', 'anxiety', 'general', 'Test', 'Test');
       
-      const disliked = getDislikedPhrases();
+      const disliked = await getDislikedPhrases();
       expect(disliked).toContain('terrible');
     });
   });
 
   describe('clearFeedbackData', () => {
-    it('removes all feedback data from localStorage', () => {
-      submitFeedback('Test', 'like', 'anxiety', 'general', 'Test', 'Test');
+    it('removes all feedback data from localStorage', async () => {
+      await submitFeedback('Test', 'like', 'anxiety', 'general', 'Test', 'Test');
       expect(localStorage.getItem('convocue_feedback')).not.toBeNull();
       
       clearFeedbackData();

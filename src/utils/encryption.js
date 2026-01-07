@@ -1,20 +1,69 @@
 /**
- * @fileoverview Encryption utilities for secure data storage
+ * @fileoverview Encryption utilities for secure data storage using Web Crypto API
  */
 
+// Key for encryption - in a real app, this should be derived from a user secret
+// For this prototype, we'll use a fixed but more secure approach than btoa
+const ENCRYPTION_KEY_ID = 'convocue_storage_key';
+
 /**
- * Simple encryption/encoding for localStorage data
- * Note: This is a basic implementation for demonstration
- * In production, use proper encryption with user keys
- * 
- * @param {any} data - Data to encrypt
- * @returns {string} - Encrypted/encoded data
+ * Gets or generates an encryption key
+ * @returns {Promise<CryptoKey>}
  */
-export const encryptData = (data) => {
+async function getEncryptionKey() {
+  const storedKey = localStorage.getItem(ENCRYPTION_KEY_ID);
+  
+  if (storedKey) {
+    try {
+      const keyData = JSON.parse(atob(storedKey));
+      return await crypto.subtle.importKey(
+        'jwk',
+        keyData,
+        { name: 'AES-GCM', length: 256 },
+        true,
+        ['encrypt', 'decrypt']
+      );
+    } catch (e) {
+      console.error('Failed to import encryption key, generating new one');
+    }
+  }
+
+  const key = await crypto.subtle.generateKey(
+    { name: 'AES-GCM', length: 256 },
+    true,
+    ['encrypt', 'decrypt']
+  );
+  
+  const jwk = await crypto.subtle.exportKey('jwk', key);
+  localStorage.setItem(ENCRYPTION_KEY_ID, btoa(JSON.stringify(jwk)));
+  
+  return key;
+}
+
+/**
+ * Encrypts data using AES-GCM
+ * @param {any} data - Data to encrypt
+ * @returns {Promise<string>} - Base64 encoded encrypted data
+ */
+export const encryptData = async (data) => {
   try {
-    // Simple encoding for now - in production use proper encryption
-    const jsonString = JSON.stringify(data);
-    return btoa(encodeURIComponent(jsonString));
+    const key = await getEncryptionKey();
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const encodedData = new TextEncoder().encode(JSON.stringify(data));
+    
+    const encryptedContent = await crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv },
+      key,
+      encodedData
+    );
+    
+    // Combine IV and encrypted content
+    const combined = new Uint8Array(iv.length + encryptedContent.byteLength);
+    combined.set(iv);
+    combined.set(new Uint8Array(encryptedContent), iv.length);
+    
+    // Convert to base64
+    return btoa(String.fromCharCode.apply(null, combined));
   } catch (e) {
     console.error('Encryption failed:', e);
     return null;
@@ -22,16 +71,29 @@ export const encryptData = (data) => {
 };
 
 /**
- * Simple decryption/decoding for localStorage data
- * 
- * @param {string} encryptedData - Encrypted/encoded data
- * @returns {any} - Decrypted data
+ * Decrypts data using AES-GCM
+ * @param {string} encryptedDataBase64 - Base64 encoded encrypted data
+ * @returns {Promise<any>} - Decrypted data
  */
-export const decryptData = (encryptedData) => {
+export const decryptData = async (encryptedDataBase64) => {
   try {
-    if (!encryptedData) return null;
-    const jsonString = decodeURIComponent(atob(encryptedData));
-    return JSON.parse(jsonString);
+    if (!encryptedDataBase64) return null;
+    
+    const key = await getEncryptionKey();
+    const combined = new Uint8Array(
+      atob(encryptedDataBase64).split('').map(char => char.charCodeAt(0))
+    );
+    
+    const iv = combined.slice(0, 12);
+    const data = combined.slice(12);
+    
+    const decryptedContent = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv },
+      key,
+      data
+    );
+    
+    return JSON.parse(new TextDecoder().decode(decryptedContent));
   } catch (e) {
     console.error('Decryption failed:', e);
     return null;
@@ -39,31 +101,31 @@ export const decryptData = (encryptedData) => {
 };
 
 /**
- * Securely store data in localStorage with encryption
+ * Securely store data in localStorage with encryption (Async)
  * 
  * @param {string} key - Storage key
  * @param {any} data - Data to store
  */
-export const secureLocalStorageSet = (key, data) => {
-  const encryptedData = encryptData(data);
+export const secureLocalStorageSet = async (key, data) => {
+  const encryptedData = await encryptData(data);
   if (encryptedData) {
     localStorage.setItem(key, encryptedData);
   }
 };
 
 /**
- * Securely retrieve data from localStorage with decryption
+ * Securely retrieve data from localStorage with decryption (Async)
  * 
  * @param {string} key - Storage key
  * @param {any} defaultValue - Default value if not found
- * @returns {any} - Decrypted data
+ * @returns {Promise<any>} - Decrypted data
  */
-export const secureLocalStorageGet = (key, defaultValue = null) => {
+export const secureLocalStorageGet = async (key, defaultValue = null) => {
   try {
     const encryptedData = localStorage.getItem(key);
     if (!encryptedData) return defaultValue;
     
-    const decryptedData = decryptData(encryptedData);
+    const decryptedData = await decryptData(encryptedData);
     return decryptedData !== null ? decryptedData : defaultValue;
   } catch (e) {
     console.error('Secure get failed:', e);

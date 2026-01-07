@@ -260,6 +260,54 @@ const calculateSpectralCentroid = (audioData) => {
 };
 
 /**
+ * Manages average audio characteristics for a specific speaker
+ */
+class SpeakerProfile {
+  constructor(role) {
+    this.role = role;
+    this.averageFeatures = {
+      pitchEstimate: 0,
+      spectralCentroid: 0,
+      zeroCrossingRate: 0,
+      count: 0
+    };
+  }
+
+  /**
+   * Updates the profile with new audio features using a moving average
+   * @param {Object} features - New features to incorporate
+   */
+  update(features) {
+    const c = this.averageFeatures.count;
+    // Weighted moving average - give more weight to recent speech but maintain history
+    const alpha = Math.max(0.1, 1 / (c + 1));
+    
+    this.averageFeatures.pitchEstimate = (1 - alpha) * this.averageFeatures.pitchEstimate + alpha * features.pitchEstimate;
+    this.averageFeatures.spectralCentroid = (1 - alpha) * this.averageFeatures.spectralCentroid + alpha * features.spectralCentroid;
+    this.averageFeatures.zeroCrossingRate = (1 - alpha) * this.averageFeatures.zeroCrossingRate + alpha * features.zeroCrossingRate;
+    
+    this.averageFeatures.count++;
+  }
+
+  /**
+   * Calculates similarity between new features and this profile (0-1)
+   * @param {Object} features - Features to compare
+   * @returns {number} Similarity score
+   */
+  getSimilarity(features) {
+    if (this.averageFeatures.count === 0) return 0.5;
+
+    const pitchDiff = Math.abs(features.pitchEstimate - this.averageFeatures.pitchEstimate) / Math.max(this.averageFeatures.pitchEstimate, 1);
+    const spectralDiff = Math.abs(features.spectralCentroid - this.averageFeatures.spectralCentroid) / Math.max(this.averageFeatures.spectralCentroid, 1);
+    const zcrDiff = Math.abs(features.zeroCrossingRate - this.averageFeatures.zeroCrossingRate) / Math.max(this.averageFeatures.zeroCrossingRate, 0.01);
+
+    // Pitch is the most reliable indicator
+    const distance = (pitchDiff * 0.6 + spectralDiff * 0.2 + zcrDiff * 0.2);
+    return Math.max(0, 1 - distance);
+  }
+}
+
+/**
  * Manages conversation turns and speaker identification
  */
 export class ConversationTurnManager {
@@ -269,6 +317,10 @@ export class ConversationTurnManager {
     this.lastSpeaker = 'user'; // Start assuming user is speaking
     this.turnThreshold = 1500; // 1.5 seconds of silence to consider turn end
     this.lastSpeechTime = 0;
+    this.profiles = {
+      user: new SpeakerProfile('user'),
+      other: new SpeakerProfile('other')
+    };
   }
 
   /**
@@ -297,14 +349,25 @@ export class ConversationTurnManager {
       this.lastSpeechTime = currentTime;
     }
 
-    // Determine speaker role with confidence consideration
-    let speakerRole = 'user'; // Default to user
-    if (isLikelyNewSpeaker && confidenceScore > 0.5 && this.lastSpeaker === 'user') {
-      speakerRole = 'other'; // Likely other person speaking
-    } else if (isLikelyNewSpeaker && confidenceScore > 0.5 && this.lastSpeaker === 'other') {
-      speakerRole = 'user'; // Likely back to user
-    } else {
-      speakerRole = this.lastSpeaker; // Maintain current speaker
+    // Determine speaker role using profiles
+    const userSimilarity = this.profiles.user.getSimilarity(speakerAnalysis.features);
+    const otherSimilarity = this.profiles.other.getSimilarity(speakerAnalysis.features);
+    
+    let speakerRole = this.lastSpeaker;
+
+    if (shouldStartNewTurn) {
+      // If similarity to one profile is significantly higher, assign that role
+      if (Math.abs(userSimilarity - otherSimilarity) > 0.15) {
+        speakerRole = userSimilarity > otherSimilarity ? 'user' : 'other';
+      } else if (isLikelyNewSpeaker && confidenceScore > 0.4) {
+        // Fallback to toggling if we are confident it changed but profiles are similar
+        speakerRole = this.lastSpeaker === 'user' ? 'other' : 'user';
+      }
+    }
+
+    // Update the profile for the detected speaker
+    if (!isSilent) {
+      this.profiles[speakerRole].update(speakerAnalysis.features);
     }
 
     // Create or continue turn
@@ -341,7 +404,9 @@ export class ConversationTurnManager {
       turn: this.currentTurn,
       isLikelyNewSpeaker,
       speakerChangeLikelihood: speakerAnalysis.speakerChangeLikelihood,
-      confidenceScore: confidenceScore
+      confidenceScore: confidenceScore,
+      userSimilarity,
+      otherSimilarity
     };
   }
   

@@ -5,11 +5,11 @@ import { secureLocalStorageGet } from './encryption';
 /**
  * Gets user's preferred response patterns based on feedback history
  *
- * @returns {object} Preferred response characteristics
+ * @returns {Promise<object>} Preferred response characteristics
  */
-export const getUserPreferences = () => {
+export const getUserPreferences = async () => {
   try {
-    const feedbackHistory = secureLocalStorageGet('convocue_feedback', []);
+    const feedbackHistory = await secureLocalStorageGet('convocue_feedback', []);
 
     if (feedbackHistory.length === 0) {
       return {
@@ -175,10 +175,10 @@ const analyzeStructure = (text) => {
  * @param {string} response - Original response to adjust
  * @param {string} persona - Current persona being used
  * @param {object} emotionData - Emotional analysis data
- * @returns {string} Adjusted response
+ * @returns {Promise<string>} Adjusted response
  */
-export const adjustResponseForUser = (response, persona, emotionData) => {
-  const preferences = getUserPreferences();
+export const adjustResponseForUser = async (response, persona, emotionData) => {
+  const preferences = await getUserPreferences();
   
   // Adjust length based on user preference
   let adjustedResponse = response;
@@ -213,7 +213,7 @@ export const adjustResponseForUser = (response, persona, emotionData) => {
     // Make more casual if user prefers it
     adjustedResponse = adjustedResponse
       .replace(/\bI am\b/gi, 'I\'m')
-      .replace(/\bcannot\b/gi, 'can\'t')
+      .replace(/\bcannot\b/gi, 'cannot')
       .replace(/\bwill not\b/gi, 'won\'t');
   }
   
@@ -249,10 +249,10 @@ const getEmotionalAcknowledgment = (emotion) => {
 /**
  * Checks if a response contains disliked phrases
  * @param {string} response - Response to check
- * @returns {boolean} True if response contains disliked phrases
+ * @returns {Promise<boolean>} True if response contains disliked phrases
  */
-export const hasDislikedPhrases = (response) => {
-  const dislikedPhrases = getDislikedPhrases();
+export const hasDislikedPhrases = async (response) => {
+  const dislikedPhrases = await getDislikedPhrases();
   const lowerResponse = response.toLowerCase();
 
   return dislikedPhrases.some(phrase => lowerResponse.includes(phrase));
@@ -303,12 +303,12 @@ const applyProfessionalInsights = (response, input) => {
  * @param {object} emotionData - Optional emotional analysis data
  * @param {string} input - Optional original user transcript for deeper context
  * @param {Array} conversationHistory - Optional conversation history for context
- * @returns {string} Enhanced response
+ * @returns {Promise<string>} Enhanced response
  */
-export const enhanceResponse = (response, persona, emotionData = null, input = '', conversationHistory = []) => {
+export const enhanceResponse = async (response, persona, emotionData = null, input = '', conversationHistory = []) => {
   if (!response) return response;
 
-  const preferences = getUserPreferences();
+  const preferences = await getUserPreferences();
   let enhancedResponse = response;
 
   // Apply professional insights for relevant personas
@@ -368,7 +368,7 @@ export const enhanceResponse = (response, persona, emotionData = null, input = '
   enhancedResponse = applyLearnedPreferences(enhancedResponse, preferences);
 
   // Check for disliked phrases and try to avoid them
-  if (hasDislikedPhrases(enhancedResponse)) {
+  if (await hasDislikedPhrases(enhancedResponse)) {
     // For now, just log that we detected disliked phrases
     // In a more advanced implementation, we could try to rephrase
     console.log("Response contains disliked phrases:", enhancedResponse);
@@ -496,7 +496,7 @@ const replaceDislikedPattern = (response, dislikedPhrase) => {
   // Check if the disliked phrase has a known replacement
   const lowerPhrase = dislikedPhrase.toLowerCase();
   if (replacements[lowerPhrase]) {
-    return response.replace(new RegExp('\\b' + dislikedPhrase + '\\b', 'gi'), replacements[lowerPhrase]);
+    return response.replace(new RegExp('\b' + dislikedPhrase + '\b', 'gi'), replacements[lowerPhrase]);
   }
 
   // If no specific replacement, try to rephrase the sentence
@@ -515,7 +515,7 @@ const rephraseSentence = (response, dislikedPhrase) => {
   const rephrasedSentences = sentences.map(sentence => {
     if (sentence.toLowerCase().includes(dislikedPhrase.toLowerCase())) {
       // Attempt to rephrase by removing the disliked phrase and adjusting the sentence
-      let newSentence = sentence.replace(new RegExp('\\b' + dislikedPhrase + '\\b', 'gi'), '');
+      let newSentence = sentence.replace(new RegExp('\b' + dislikedPhrase + '\b', 'gi'), '');
       newSentence = newSentence.replace(/\s+/g, ' ').trim();
 
       // Capitalize first letter if needed

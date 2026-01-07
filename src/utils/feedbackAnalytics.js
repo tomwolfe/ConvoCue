@@ -6,12 +6,12 @@ import { secureLocalStorageGet } from './encryption';
 /**
  * Analyzes feedback trends over time to identify evolving user preferences
  * @param {Array} feedbackHistory - Array of feedback objects
- * @returns {Object} Analysis of feedback trends
+ * @returns {Promise<Object>} Analysis of feedback trends
  */
-export const analyzeFeedbackTrends = (feedbackHistory = null) => {
+export const analyzeFeedbackTrends = async (feedbackHistory = null) => {
   if (!feedbackHistory) {
     try {
-      feedbackHistory = secureLocalStorageGet('convocue_feedback', []);
+      feedbackHistory = await secureLocalStorageGet('convocue_feedback', []);
     } catch (e) {
       console.error('Failed to load feedback history:', e);
       feedbackHistory = [];

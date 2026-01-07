@@ -269,10 +269,22 @@ self.onmessage = async (event) => {
                 };
             }
 
-            // Analyze conversation sentiment
-            const sentimentAnalysisStartTime = performance.now();
-            const conversationSentiment = analyzeConversationSentiment(history || []);
-            const sentimentAnalysisTime = performance.now() - sentimentAnalysisStartTime;
+            // Resource Governor: Throttling and conditional execution
+            const isShortUtterance = sanitizedText.split(/\s+/).length < 3;
+            const timeSinceLastLLM = Date.now() - (MLPipeline.lastLLMCallTime || 0);
+            const isHighFrequency = timeSinceLastLLM < 2000;
+            
+            // Skip deep sentiment analysis for very short or high-frequency utterances to save resources
+            let conversationSentiment = { overallSentiment: 'neutral', emotionalTrend: 'stable' };
+            let sentimentAnalysisTime = 0;
+
+            if (!isShortUtterance || !isHighFrequency) {
+                const sentimentAnalysisStartTime = performance.now();
+                conversationSentiment = analyzeConversationSentiment(history || []);
+                sentimentAnalysisTime = performance.now() - sentimentAnalysisStartTime;
+            }
+
+            MLPipeline.lastLLMCallTime = Date.now();
 
             // Dynamic Context (Not cached)
             let dynamicContext = "";

@@ -112,7 +112,7 @@ export const useMLWorker = () => {
       const newWorker = new Worker(new URL('../worker.js', import.meta.url), { type: 'module' });
       worker.current = newWorker;
 
-      newWorker.onmessage = (e) => {
+      newWorker.onmessage = async (e) => {
         const { type, text, status, progress, error, metadata, emotionData } = e.data;
 
         switch (type) {
@@ -154,6 +154,7 @@ export const useMLWorker = () => {
             // 2. OR it's been a while since the last interaction (> 5s)
             // 3. OR the transcript ends with a question mark
             if (!isShort || timeSinceLast > 5000 || cleanText.includes('?')) {
+                const prefs = await getUserPreferences();
                 newWorker.postMessage({
                     type: 'llm',
                     text: cleanText,
@@ -161,7 +162,7 @@ export const useMLWorker = () => {
                     persona: stateRef.current.persona,
                     culturalContext: stateRef.current.culturalContext,
                     metadata,
-                    preferences: getUserPreferences(),
+                    preferences: prefs,
                     taskId: `llm-${Date.now()}`
                 });
                 dispatch({ type: 'SET_LAST_MESSAGE_TIME', time: Date.now() });
@@ -182,7 +183,7 @@ export const useMLWorker = () => {
             dispatch({ type: 'LLM_CHUNK', text });
             break;
           case 'llm_result':
-            const enhanced = enhanceResponse(text, stateRef.current.persona, emotionData, stateRef.current.transcript, stateRef.current.history);
+            const enhanced = await enhanceResponse(text, stateRef.current.persona, emotionData, stateRef.current.transcript, stateRef.current.history);
             dispatch({ type: 'LLM_RESULT', text: enhanced, emotionData });
             if (e.data.conversationSentiment) {
               dispatch({ type: 'SET_CONVERSATION_SENTIMENT', sentiment: e.data.conversationSentiment });
@@ -227,16 +228,17 @@ export const useMLWorker = () => {
     worker.current.postMessage({ type: 'stt', audio: audioBuffer }, [audioBuffer.buffer]);
   }, [state.isReady, state.isProcessing]);
 
-  const refreshSuggestion = useCallback(() => {
+  const refreshSuggestion = useCallback(async () => {
     if (!state.transcript || state.isProcessing || !worker.current) return;
     dispatch({ type: 'SET_STATUS', status: 'Refreshing cue...' });
+    const prefs = await getUserPreferences();
     worker.current.postMessage({
       type: 'llm',
       text: state.transcript,
       history: state.history,
       persona: state.persona,
       culturalContext: state.culturalContext,
-      preferences: getUserPreferences(),
+      preferences: prefs,
       taskId: `refresh-${Date.now()}`
     });
   }, [state.transcript, state.isProcessing, state.history, state.persona, state.culturalContext]);

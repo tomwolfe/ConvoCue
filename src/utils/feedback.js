@@ -13,7 +13,7 @@ import { secureLocalStorageGet, secureLocalStorageSet } from './encryption';
  * @param {string} transcript - The original transcript
  * @param {string} originalInput - The original user input that led to the suggestion
  */
-export const submitFeedback = (suggestion, feedbackType, persona, culturalContext, transcript, originalInput = '') => {
+export const submitFeedback = async (suggestion, feedbackType, persona, culturalContext, transcript, originalInput = '') => {
   // Create feedback object
   const feedback = {
     suggestion,
@@ -29,12 +29,12 @@ export const submitFeedback = (suggestion, feedbackType, persona, culturalContex
 
   // Store feedback in localStorage with encryption
   try {
-    const feedbackHistory = secureLocalStorageGet('convocue_feedback', []);
+    const feedbackHistory = await secureLocalStorageGet('convocue_feedback', []);
     feedbackHistory.push(feedback);
 
     // Keep only the last 100 feedback entries to prevent storage bloat
     const trimmedHistory = feedbackHistory.slice(-100);
-    secureLocalStorageSet('convocue_feedback', trimmedHistory);
+    await secureLocalStorageSet('convocue_feedback', trimmedHistory);
   } catch (e) {
     console.error('Failed to save feedback to localStorage:', e);
   }
@@ -45,11 +45,11 @@ export const submitFeedback = (suggestion, feedbackType, persona, culturalContex
 
 /**
  * Get feedback statistics for analysis
- * @returns {object} Feedback statistics
+ * @returns {Promise<object>} Feedback statistics
  */
-export const getFeedbackStats = () => {
+export const getFeedbackStats = async () => {
   try {
-    const feedbackHistory = secureLocalStorageGet('convocue_feedback', []);
+    const feedbackHistory = await secureLocalStorageGet('convocue_feedback', []);
 
     if (feedbackHistory.length === 0) {
       return {
@@ -93,11 +93,11 @@ export const getFeedbackStats = () => {
 
 /**
  * Get user's preferred persona based on feedback history
- * @returns {string|null} Preferred persona or null if no preference detected
+ * @returns {Promise<string|null>} Preferred persona or null if no preference detected
  */
-export const getPreferredPersonaFromFeedback = () => {
+export const getPreferredPersonaFromFeedback = async () => {
   try {
-    const feedbackHistory = secureLocalStorageGet('convocue_feedback', []);
+    const feedbackHistory = await secureLocalStorageGet('convocue_feedback', []);
 
     if (feedbackHistory.length === 0) {
       return null;
@@ -134,11 +134,11 @@ export const getPreferredPersonaFromFeedback = () => {
 
 /**
  * Get commonly disliked phrases to avoid in suggestions
- * @returns {Array} Array of phrases that received negative feedback
+ * @returns {Promise<Array>} Array of phrases that received negative feedback
  */
-export const getDislikedPhrases = () => {
+export const getDislikedPhrases = async () => {
   try {
-    const feedbackHistory = secureLocalStorageGet('convocue_feedback', []);
+    const feedbackHistory = await secureLocalStorageGet('convocue_feedback', []);
 
     // Get all suggestions that received dislike feedback
     const dislikedSuggestions = feedbackHistory
@@ -174,6 +174,7 @@ export const getDislikedPhrases = () => {
 export const clearFeedbackData = () => {
   try {
     localStorage.removeItem('convocue_feedback'); // Remove the old unencrypted data
+    localStorage.removeItem('convocue_storage_key'); // Also clear the encryption key
   } catch (e) {
     console.error('Failed to clear feedback data:', e);
   }
