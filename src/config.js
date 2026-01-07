@@ -138,6 +138,19 @@ export const AppConfig = {
       gcInterval: isMobile ? 30000 : 60000,
       modelUnloadThreshold: isMobile ? 70 : 85,
       llmInactivityTimeout: isMobile ? 20000 : 60000, // Very aggressive on mobile
-    }
+    },
+
+    // Low memory mode detection
+    lowMemoryMode: () => {
+      // Check for low memory conditions
+      const memory = typeof navigator !== 'undefined' ? navigator.deviceMemory : null;
+      const hardwareConcurrency = typeof navigator !== 'undefined' ? navigator.hardwareConcurrency : null;
+
+      // Consider low memory if device has <= 4GB RAM or <= 2 cores
+      return (memory && memory <= 4) || (hardwareConcurrency && hardwareConcurrency <= 2);
+    },
+
+    // Maximum token count for conversation history
+    maxTokenCount: 4000
   }
 };

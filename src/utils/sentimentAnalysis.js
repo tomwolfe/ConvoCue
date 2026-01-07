@@ -94,12 +94,13 @@ const getSentimentScoreFromEmotion = (emotion, confidence, text = '') => {
 };
 
 /**
- * Detects sarcasm in text
+ * Detects sarcasm in text with improved accuracy
  * @param {string} text - Input text to analyze
  * @returns {boolean} True if sarcasm is detected
  */
 const detectSarcasm = (text) => {
   const lowerText = text.toLowerCase();
+  const words = lowerText.split(/\s+/);
 
   // Common sarcasm indicators
   const sarcasmIndicators = [
@@ -107,7 +108,8 @@ const detectSarcasm = (text) => {
     'oh boy', 'big surprise', 'like i care', 'as if', 'right',
     'totally', 'obviously', 'clearly', 'of course', 'no way',
     'oh really', 'how nice', 'that\'s just perfect', 'just my luck',
-    'oh good', 'great idea', 'brilliant', 'marvelous', 'lovely'
+    'oh good', 'great idea', 'brilliant', 'marvelous', 'lovely',
+    'cool story bro', 'thanks a lot', 'like that\'s going to happen', 'right, like that\'s true'
   ];
 
   // Check for sarcasm patterns
@@ -118,8 +120,8 @@ const detectSarcasm = (text) => {
   }
 
   // Check for exaggerated positive words in negative contexts
-  const positiveWords = ['amazing', 'incredible', 'fantastic', 'wonderful', 'perfect'];
-  const negativeContexts = ['not ', 'never ', 'no ', 'nothing', 'bad', 'wrong', 'terrible'];
+  const positiveWords = ['amazing', 'incredible', 'fantastic', 'wonderful', 'perfect', 'awesome', 'brilliant'];
+  const negativeContexts = ['not ', 'never ', 'no ', 'nothing', 'bad', 'wrong', 'terrible', 'awful', 'hate', 'don\'t'];
 
   for (const posWord of positiveWords) {
     for (const negContext of negativeContexts) {
@@ -135,12 +137,64 @@ const detectSarcasm = (text) => {
     }
   }
 
-  // Check for question marks in positive statements (indicative of sarcasm)
-  if (lowerText.includes('?') && positiveWords.some(word => lowerText.includes(word))) {
+  // Check for contradiction patterns (positive followed by negative or vice versa)
+  const contradictionDetected = detectContradictionPattern(words);
+  if (contradictionDetected) {
     return true;
   }
 
+  // Check for exaggerated punctuation (multiple exclamation points or question marks)
+  const exclamationCount = (text.match(/!/g) || []).length;
+  const questionCount = (text.match(/\?/g) || []).length;
+  if (exclamationCount > 2 || questionCount > 1) {
+    // Check if this is in context of positive words
+    if (positiveWords.some(word => lowerText.includes(word))) {
+      return true;
+    }
+  }
+
+  // Check for specific sarcastic patterns
+  const sarcasticPatterns = [
+    /sarcasm|being sarcastic/i,
+    /oh\s+really/i,
+    /like\s+that's\s+new/i,
+    /tell\s+me\s+about\s+it/i,
+    /i'm\s+sure/i,
+    /as\s+if\s+i\s+care/i
+  ];
+
+  for (const pattern of sarcasticPatterns) {
+    if (pattern.test(text)) {
+      return true;
+    }
+  }
+
   return false;
+};
+
+/**
+ * Detects contradiction patterns in text that may indicate sarcasm
+ * @param {Array} words - Array of words from the text
+ * @returns {boolean} True if contradiction pattern detected
+ */
+const detectContradictionPattern = (words) => {
+  const positiveIndicators = ['love', 'great', 'perfect', 'amazing', 'fantastic', 'wonderful', 'best'];
+  const negativeIndicators = ['not', 'never', 'no', 'hate', 'terrible', 'awful', 'worst', 'don\'t'];
+
+  let hasPositive = false;
+  let hasNegative = false;
+
+  for (const word of words) {
+    if (positiveIndicators.includes(word)) {
+      hasPositive = true;
+    }
+    if (negativeIndicators.includes(word)) {
+      hasNegative = true;
+    }
+  }
+
+  // If both positive and negative indicators exist, it might be sarcasm
+  return hasPositive && hasNegative;
 };
 
 /**

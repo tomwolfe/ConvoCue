@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Mic, Loader2, Volume2, AlertCircle, Activity, ThumbsUp, ThumbsDown, BookOpen, Settings } from 'lucide-react';
+import { Mic, Loader2, Volume2, AlertCircle, Activity, ThumbsUp, ThumbsDown, BookOpen, Settings as SettingsIcon } from 'lucide-react';
 import { Analytics } from '@vercel/analytics/react';
 import { useMLWorker } from './hooks/useMLWorker';
 import VADContent from './components/VADContent';
 import Tutorial from './components/Tutorial';
 import PersonaCustomization from './components/PersonaCustomization';
+import PrivacyConsent from './components/PrivacyConsent';
+import AppSettings from './components/Settings';
 import ErrorBoundary from './ErrorBoundary';
 import { AppConfig } from './config';
 import { checkAssets } from './utils/diagnostics';
@@ -19,6 +21,7 @@ const App = () => {
   const [isSubtleMode, setIsSubtleMode] = useState(false);
   const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem('convocue_tutorial_seen'));
   const [showPersonaCustomization, setShowPersonaCustomization] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const {
     status,
     progress,
@@ -159,9 +162,15 @@ const App = () => {
     }
   };
 
+  const handlePrivacyConsent = () => {
+    // Callback function when privacy consent is given
+    console.log("Privacy consent given or acknowledged");
+  };
+
   return (
     <ErrorBoundary>
       <Analytics />
+      <PrivacyConsent onConsentGiven={handlePrivacyConsent} />
       <div className={`app-container ${isCompactMode ? 'compact-view' : ''}`} role="main" aria-label="ConvoCue Application">
         {showTutorial && (
           <Tutorial
@@ -178,6 +187,12 @@ const App = () => {
             onDeletePersona={handleDeletePersona}
             currentPersona={persona}
             setCurrentPersona={setPersona}
+          />
+        )}
+        {showSettings && (
+          <AppSettings
+            isOpen={showSettings}
+            onClose={() => setShowSettings(false)}
           />
         )}
         <header role="banner" className={hasInteracted ? 'compact' : ''}>
@@ -213,11 +228,11 @@ const App = () => {
               </button>
               <button
                 className="btn-settings"
-                onClick={showPersonaCustomizationHandler}
-                aria-label="Customize Personas"
-                title="Customize Personas"
+                onClick={() => setShowSettings(true)}
+                aria-label="Settings"
+                title="Settings"
               >
-                <Settings size={18} />
+                <SettingsIcon size={18} />
               </button>
               <button
                 className={`btn-settings ${isDyslexicFriendly ? 'active' : ''}`}

@@ -87,7 +87,11 @@ const DisplayArea = ({
                 className="btn-icon"
                 onClick={() => {
                   handleCopy();
-                  submitFeedback(suggestion, 'like', persona, culturalContext, transcript, transcript);
+                  // Check if personalization is enabled before submitting feedback
+                  const settings = localStorage.getItem('convocue_settings');
+                  if (!settings || JSON.parse(settings).enablePersonalization !== false) {
+                    submitFeedback(suggestion, 'like', persona, culturalContext, transcript, transcript);
+                  }
                 }}
                 title="Copy to clipboard"
               >
@@ -103,21 +107,39 @@ const DisplayArea = ({
               <div className="feedback-buttons">
                 <button
                   className="btn-icon feedback-btn"
-                  onClick={() => submitFeedback(suggestion, 'like', persona, culturalContext, transcript, transcript)}
+                  onClick={() => {
+                    // Check if personalization is enabled before submitting feedback
+                    const settings = localStorage.getItem('convocue_settings');
+                    if (!settings || JSON.parse(settings).enablePersonalization !== false) {
+                      submitFeedback(suggestion, 'like', persona, culturalContext, transcript, transcript);
+                    }
+                  }}
                   title="Like"
                 >
                   <ThumbsUp size={14} />
                 </button>
                 <button
                   className="btn-icon feedback-btn"
-                  onClick={() => submitFeedback(suggestion, 'dislike', persona, culturalContext, transcript, transcript)}
+                  onClick={() => {
+                    // Check if personalization is enabled before submitting feedback
+                    const settings = localStorage.getItem('convocue_settings');
+                    if (!settings || JSON.parse(settings).enablePersonalization !== false) {
+                      submitFeedback(suggestion, 'dislike', persona, culturalContext, transcript, transcript);
+                    }
+                  }}
                   title="Dislike"
                 >
                   <ThumbsDown size={14} />
                 </button>
                 <button
                   className="btn-icon feedback-btn"
-                  onClick={() => submitFeedback(suggestion, 'report', persona, culturalContext, transcript, transcript)}
+                  onClick={() => {
+                    // Check if personalization is enabled before submitting feedback
+                    const settings = localStorage.getItem('convocue_settings');
+                    if (!settings || JSON.parse(settings).enablePersonalization !== false) {
+                      submitFeedback(suggestion, 'report', persona, culturalContext, transcript, transcript);
+                    }
+                  }}
                   title="Report"
                 >
                   <Flag size={14} />

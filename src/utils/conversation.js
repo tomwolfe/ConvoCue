@@ -153,7 +153,7 @@ export const optimizeConversationHistory = (history, maxHistoryLength = 10, summ
     });
 
     // Keep only the most recent chunk summary to avoid clutter
-    const recentChunkSummary = chunkSummaries.slice(-1);
+    const recentChunkSummary = chunkSummaries.slice(-2); // Keep up to 2 recent summaries
 
     return [
       ...recentChunkSummary,
@@ -174,6 +174,57 @@ export const optimizeConversationHistory = (history, maxHistoryLength = 10, summ
   }
 
   return recentMessages;
+};
+
+/**
+ * Enhanced memory management with more aggressive cleanup for resource-constrained environments
+ * @param {Array} history - Conversation history
+ * @param {Object} options - Options for memory management
+ * @returns {Array} - Trimmed conversation history
+ */
+export const aggressiveMemoryManagement = (history, options = {}) => {
+  const {
+    maxLength = 20,
+    maxTokens = 4000, // Approximate token count (1 token ~ 4 chars)
+    compressOlderThanMinutes = 10,
+    enableCompression = true
+  } = options;
+
+  if (history.length <= maxLength) {
+    return history;
+  }
+
+  // First, trim to max length
+  let trimmedHistory = history.slice(-maxLength);
+
+  // If still too large, compress older entries
+  if (enableCompression) {
+    const now = Date.now();
+    trimmedHistory = trimmedHistory.map(entry => {
+      if (entry.timestamp && (now - entry.timestamp) > (compressOlderThanMinutes * 60 * 1000)) {
+        // Compress older entries by shortening content
+        if (entry.content && entry.content.length > 100) {
+          return {
+            ...entry,
+            content: entry.content.substring(0, 100) + '...'
+          };
+        }
+      }
+      return entry;
+    });
+  }
+
+  // Final check for token count
+  let totalChars = trimmedHistory.reduce((sum, entry) => sum + (entry.content ? entry.content.length : 0), 0);
+  if (totalChars > maxTokens) {
+    // Remove oldest entries until under token limit
+    while (trimmedHistory.length > 2 && totalChars > maxTokens) { // Keep at least 2 entries
+      trimmedHistory.shift();
+      totalChars = trimmedHistory.reduce((sum, entry) => sum + (entry.content ? entry.content.length : 0), 0);
+    }
+  }
+
+  return trimmedHistory;
 };
 
 /**

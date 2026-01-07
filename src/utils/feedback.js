@@ -186,3 +186,20 @@ export const clearFeedbackData = () => {
     console.error('Failed to clear feedback data:', e);
   }
 };
+
+/**
+ * Resets personalization data to prevent overfitting
+ */
+export const resetPersonalizationData = async () => {
+  try {
+    // Clear feedback data which drives personalization
+    await secureLocalStorageSet('convocue_feedback', []); // Reset with empty array instead of removing
+
+    // Also clear any cached preferences
+    localStorage.removeItem('convocue_preferences_cache');
+
+    console.log('Personalization data reset successfully');
+  } catch (e) {
+    console.error('Failed to reset personalization data:', e);
+  }
+};

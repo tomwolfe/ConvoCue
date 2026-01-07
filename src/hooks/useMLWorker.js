@@ -1,6 +1,6 @@
 import { useReducer, useEffect, useRef, useCallback } from 'react';
 import { AppConfig } from '../config';
-import { manageConversationHistory, optimizeConversationHistory, isMemoryLimitApproaching } from '../utils/conversation';
+import { manageConversationHistory, optimizeConversationHistory, isMemoryLimitApproaching, aggressiveMemoryManagement } from '../utils/conversation';
 import { enhanceResponse, getUserPreferences } from '../utils/responseEnhancement';
 import { ConversationTurnManager } from '../utils/speakerDetection';
 
@@ -54,7 +54,17 @@ function workerReducer(state, action) {
 
       // Check if memory limit is approaching and use optimized management if needed
       if (isMemoryLimitApproaching(updatedHistory)) {
-        return { ...state, history: optimizeConversationHistory(updatedHistory, AppConfig.system.maxHistoryLength, 5) };
+        // Use more aggressive memory management for constrained environments
+        if (AppConfig.system.lowMemoryMode()) {
+          return { ...state, history: aggressiveMemoryManagement(updatedHistory, {
+            maxLength: AppConfig.system.maxHistoryLength,
+            maxTokens: AppConfig.system.maxTokenCount || 4000,
+            compressOlderThanMinutes: 5,
+            enableCompression: true
+          })};
+        } else {
+          return { ...state, history: optimizeConversationHistory(updatedHistory, AppConfig.system.maxHistoryLength, 5) };
+        }
       }
 
       return { ...state, history: manageConversationHistory(updatedHistory, AppConfig.system.maxHistoryLength) };
@@ -246,13 +256,31 @@ export const useMLWorker = () => {
   const refreshSuggestion = useCallback(async () => {
     if (!state.transcript || state.isProcessing || !worker.current) return;
     dispatch({ type: 'SET_STATUS', status: 'Refreshing cue...' });
+
+    // Get settings to determine if personalization should be used
+    let preferences = prefsCache.current;
+    const settings = localStorage.getItem('convocue_settings');
+    if (settings) {
+      const parsedSettings = JSON.parse(settings);
+      if (parsedSettings.enablePersonalization === false) {
+        // Use default preferences if personalization is disabled
+        preferences = {
+          preferredLength: 'medium',
+          preferredTone: 'balanced',
+          preferredStyle: 'adaptive',
+          responsePatterns: [],
+          avoidPatterns: []
+        };
+      }
+    }
+
     worker.current.postMessage({
       type: 'llm',
       text: state.transcript,
       history: state.history,
       persona: state.persona,
       culturalContext: state.culturalContext,
-      preferences: prefsCache.current,
+      preferences: preferences,
       taskId: `refresh-${Date.now()}`
     });
   }, [state.transcript, state.isProcessing, state.history, state.persona, state.culturalContext]);

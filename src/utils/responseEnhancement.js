@@ -375,6 +375,12 @@ export const enhanceResponse = async (response, persona, emotionData = null, inp
     return response;
   }
 
+  // Additional safety check: semantic similarity to prevent meaning drift
+  if (await isSemanticallyTooDifferent(response, enhancedResponse)) {
+    console.warn("Safety valve triggered: Enhanced response is semantically too different. Falling back to original.");
+    return response;
+  }
+
   // Check for disliked phrases and try to avoid them
   if (await hasDislikedPhrases(enhancedResponse)) {
     // For now, just log that we detected disliked phrases
@@ -447,6 +453,9 @@ const applyLearnedPreferences = (response, preferences) => {
 
   let modifiedResponse = response;
 
+  // Apply moderation to prevent over-adaptation
+  const moderationFactor = calculateModerationFactor(preferences);
+
   // Apply positive patterns (things users liked)
   if (preferences.responsePatterns && preferences.responsePatterns.length > 0) {
     // For now, we'll just make sure we're not contradicting learned preferences
@@ -459,28 +468,50 @@ const applyLearnedPreferences = (response, preferences) => {
       if (pattern.type === 'phrase' && pattern.weight < 0) {
         // This is a pattern to avoid
         if (modifiedResponse.toLowerCase().includes(pattern.value)) {
-          // Actively replace the disliked pattern with a better alternative
-          modifiedResponse = replaceDislikedPattern(modifiedResponse, pattern.value);
+          // Only apply changes if moderation factor allows it
+          if (Math.abs(pattern.weight) * moderationFactor > 0.3) {
+            // Actively replace the disliked pattern with a better alternative
+            modifiedResponse = replaceDislikedPattern(modifiedResponse, pattern.value);
+          }
         }
       } else if (pattern.type === 'structure' && pattern.value === 'single_question' && pattern.weight < 0) {
         // If user dislikes single questions, convert to statement
         if (modifiedResponse.trim().endsWith('?') &&
             modifiedResponse.split(/(?<=[.!?])\s+/).length === 1) {
-          modifiedResponse = convertQuestionToStatement(modifiedResponse);
+          if (moderationFactor > 0.3) {
+            modifiedResponse = convertQuestionToStatement(modifiedResponse);
+          }
         }
       } else if (pattern.type === 'structure' && pattern.value === 'apologetic_pattern' && pattern.weight < 0) {
         // If user dislikes apologetic patterns, remove them
-        modifiedResponse = removeApologeticLanguage(modifiedResponse);
+        if (moderationFactor > 0.3) {
+          modifiedResponse = removeApologeticLanguage(modifiedResponse);
+        }
       }
     });
   }
 
-  // Adjust based on structural preferences
+  // Adjust based on structural preferences with moderation
   if (preferences.preferredLength) {
     // Already handled in the main function
   }
 
   return modifiedResponse;
+};
+
+/**
+ * Calculates a moderation factor to prevent over-adaptation
+ * @param {object} preferences - User preferences object
+ * @returns {number} Moderation factor (0-1)
+ */
+const calculateModerationFactor = (preferences) => {
+  // Calculate based on amount of feedback data available
+  // Less data = more conservative adaptation
+  const totalFeedbackCount = preferences.responsePatterns?.length + preferences.avoidPatterns?.length || 0;
+
+  // Return a value between 0.1 and 1.0 based on confidence in preferences
+  // More feedback = higher confidence = higher adaptation
+  return Math.min(1.0, Math.max(0.1, totalFeedbackCount / 10));
 };
 
 /**
@@ -579,4 +610,24 @@ const removeApologeticLanguage = (response) => {
   cleanedResponse = cleanedResponse.replace(/\s+([,.!?;:])/g, '$1');
 
   return cleanedResponse;
+};
+
+/**
+ * Checks if two responses are semantically too different
+ * @param {string} original - Original response
+ * @param {string} enhanced - Enhanced response
+ * @returns {Promise<boolean>} True if responses are semantically too different
+ */
+const isSemanticallyTooDifferent = async (original, enhanced) => {
+  // Simple heuristic: check if key terms from original appear in enhanced
+  const originalWords = original.toLowerCase().split(/\s+/).filter(word => word.length > 3);
+  const enhancedWords = enhanced.toLowerCase().split(/\s+/);
+
+  // Find common words between original and enhanced
+  const commonWords = originalWords.filter(word => enhancedWords.includes(word));
+
+  // If less than 30% of significant words from original appear in enhanced, consider it too different
+  const commonRatio = commonWords.length / Math.max(1, originalWords.length);
+
+  return commonRatio < 0.3;
 };

@@ -14,6 +14,17 @@ import {
     analyzeConversationSentiment
 } from './utils/sentimentAnalysis';
 
+// Helper function to get settings
+const getSettings = () => {
+  try {
+    const settingsStr = self.localStorage.getItem('convocue_settings');
+    return settingsStr ? JSON.parse(settingsStr) : {};
+  } catch (e) {
+    console.warn('Could not load settings, using defaults:', e);
+    return {};
+  }
+};
+
 // Configuration for on-device execution
 
 env.allowLocalModels = false;
@@ -224,16 +235,18 @@ self.onmessage = async (event) => {
             const sanitizedText = sanitizeText(output.text);
 
             // Process the text through conversation turn manager
+            const settings = getSettings();
             const turnManager = initConversationTurnManager();
             let turnInfo = null;
             let speakerDetectionTime = 0;
 
-            if (performanceStats.mode !== 'minimal') {
+            // Only run speaker detection if enabled in settings and not in minimal mode
+            if (performanceStats.mode !== 'minimal' && settings.enableSpeakerDetection !== false) {
                 const speakerDetectionStartTime = performance.now();
                 turnInfo = turnManager.processAudio(audioData, sanitizedText);
                 speakerDetectionTime = performance.now() - speakerDetectionStartTime;
             } else {
-                // Simplified turn management for minimal mode
+                // Simplified turn management for minimal mode or when disabled
                 turnInfo = { turn: { speaker: 'unknown' }, isLikelyNewSpeaker: false };
             }
 
@@ -305,13 +318,17 @@ self.onmessage = async (event) => {
             const isShortUtterance = sanitizedText.split(/\s+/).length < 3;
             const timeSinceLastLLM = Date.now() - (MLPipeline.lastLLMCallTime || 0);
             const isHighFrequency = timeSinceLastLLM < 2000;
-            
+            const settings = getSettings();
+
             // Skip deep sentiment analysis for very short or high-frequency utterances
             // OR if we are in minimal performance mode
+            // OR if sentiment analysis is disabled in settings
             let conversationSentiment = { overallSentiment: 'neutral', emotionalTrend: 'stable' };
             let sentimentAnalysisTime = 0;
 
-            if (performanceStats.mode !== 'minimal' && (!isShortUtterance || !isHighFrequency)) {
+            if (performanceStats.mode !== 'minimal' &&
+                settings.enableSentimentAnalysis !== false &&
+                (!isShortUtterance || !isHighFrequency)) {
                 const sentimentAnalysisStartTime = performance.now();
                 conversationSentiment = analyzeConversationSentiment(history || []);
                 sentimentAnalysisTime = performance.now() - sentimentAnalysisStartTime;

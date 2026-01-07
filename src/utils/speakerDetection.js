@@ -315,8 +315,15 @@ export class ConversationTurnManager {
     this.turns = [];
     this.currentTurn = null;
     this.lastSpeaker = 'user'; // Start assuming user is speaking
-    this.turnThreshold = 1500; // 1.5 seconds of silence to consider turn end
+    this.baseTurnThreshold = 1500; // Base threshold: 1.5 seconds of silence to consider turn end
+    this.adaptiveTurnThreshold = 1500; // Will be adjusted based on conversation patterns
     this.lastSpeechTime = 0;
+    this.silenceHistory = []; // Track silence patterns to adapt thresholds
+    this.conversationDynamics = {
+      avgTurnLength: 0,
+      avgSilenceDuration: 0,
+      turnFrequency: 0
+    };
     this.profiles = {
       user: new SpeakerProfile('user'),
       other: new SpeakerProfile('other')
@@ -337,13 +344,16 @@ export class ConversationTurnManager {
     const speakerAnalysis = analyzeSpeakerCharacteristics(audioData, this.lastAudioData);
     this.lastAudioData = audioData;
 
+    // Update adaptive threshold based on conversation dynamics
+    this.updateAdaptiveThreshold(currentTime, isSilent);
+
     // Determine if this is likely a new speaker with confidence scoring
     const isLikelyNewSpeaker = speakerAnalysis.isLikelyNewSpeaker;
     const confidenceScore = speakerAnalysis.confidenceScore;
 
     // Check if enough time has passed to consider a new turn
     const timeSinceLastSpeech = currentTime - this.lastSpeechTime;
-    const shouldStartNewTurn = timeSinceLastSpeech > this.turnThreshold || (isLikelyNewSpeaker && confidenceScore > 0.5);
+    const shouldStartNewTurn = timeSinceLastSpeech > this.adaptiveTurnThreshold || (isLikelyNewSpeaker && confidenceScore > 0.5);
 
     if (!isSilent) {
       this.lastSpeechTime = currentTime;
@@ -352,7 +362,7 @@ export class ConversationTurnManager {
     // Determine speaker role using profiles
     const userSimilarity = this.profiles.user.getSimilarity(speakerAnalysis.features);
     const otherSimilarity = this.profiles.other.getSimilarity(speakerAnalysis.features);
-    
+
     let speakerRole = this.lastSpeaker;
 
     if (shouldStartNewTurn) {
@@ -411,13 +421,80 @@ export class ConversationTurnManager {
   }
   
   /**
+   * Updates the adaptive turn threshold based on conversation dynamics
+   * @param {number} currentTime - Current timestamp
+   * @param {boolean} isSilent - Whether the current audio is silent
+   */
+  updateAdaptiveThreshold(currentTime, isSilent) {
+    // Track silence periods to understand conversation rhythm
+    if (isSilent && this.lastSpeechTime > 0) {
+      const silenceDuration = currentTime - this.lastSpeechTime;
+      this.silenceHistory.push({
+        timestamp: currentTime,
+        duration: silenceDuration
+      });
+
+      // Keep only recent silence history (last 10 entries)
+      if (this.silenceHistory.length > 10) {
+        this.silenceHistory = this.silenceHistory.slice(-10);
+      }
+    }
+
+    // Calculate adaptive threshold based on recent conversation patterns
+    if (this.silenceHistory.length > 0) {
+      const recentSilences = this.silenceHistory.slice(-5); // Look at last 5 silences
+      const avgSilence = recentSilences.reduce((sum, s) => sum + s.duration, 0) / recentSilences.length;
+
+      // Adjust threshold: shorter for fast-paced conversations, longer for slower ones
+      // But stay within reasonable bounds (500ms to 3000ms)
+      this.adaptiveTurnThreshold = Math.max(500, Math.min(3000, avgSilence * 0.8));
+    } else {
+      // If no silence history, use base threshold
+      this.adaptiveTurnThreshold = this.baseTurnThreshold;
+    }
+  }
+
+  /**
    * Checks if audio data is silent
    * @param {Float32Array} audioData - Audio data
    * @returns {boolean} True if audio is silent
    */
   isSilent(audioData) {
     const rms = calculateRMS(audioData);
-    return rms < 0.01; // Threshold for silence
+    // Improved noise floor detection with dynamic threshold
+    const baseThreshold = 0.01;
+    const ambientNoiseLevel = this.estimateAmbientNoise(audioData);
+    const dynamicThreshold = Math.max(baseThreshold, ambientNoiseLevel * 2);
+    return rms < dynamicThreshold;
+  }
+
+  /**
+   * Estimates ambient noise level in the audio
+   * @param {Float32Array} audioData - Audio data
+   * @returns {number} Estimated ambient noise level
+   */
+  estimateAmbientNoise(audioData) {
+    // Calculate a rolling average of the lowest RMS values to estimate ambient noise
+    if (!this.noiseFloorEstimator) {
+      this.noiseFloorEstimator = {
+        samples: [],
+        windowSize: 100
+      };
+    }
+
+    const rms = calculateRMS(audioData);
+    this.noiseFloorEstimator.samples.push(rms);
+
+    // Maintain a sliding window of samples
+    if (this.noiseFloorEstimator.samples.length > this.noiseFloorEstimator.windowSize) {
+      this.noiseFloorEstimator.samples.shift();
+    }
+
+    // Estimate noise floor as a percentile of the lowest values
+    const sortedSamples = [...this.noiseFloorEstimator.samples].sort((a, b) => a - b);
+    const percentileIndex = Math.floor(sortedSamples.length * 0.2); // 20th percentile
+
+    return sortedSamples[percentileIndex] || 0.005; // Default to 0.005 if no samples
   }
   
   /**
