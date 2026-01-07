@@ -132,12 +132,10 @@ describe('Conversation Utilities', () => {
 
 describe('User Preferences', () => {
   it('saves and retrieves user preferences', async () => {
-    const { saveUserPreferences, getUserPreferences } = await import('./utils/preferences');
-
-    const preferences = { preferredPersona: 'professional' };
-    saveUserPreferences(preferences);
-
-    const retrieved = getUserPreferences();
+    const { saveUserPreferences, getManualPreferences } = await import('./utils/preferences');
+    const prefs = { preferredLength: 'short' };
+    await saveUserPreferences(prefs);
+    const retrieved = await getManualPreferences();
     // Since we're in a test environment, localStorage mock might not be set up
     // This test is primarily for the utility functions themselves
     expect(typeof retrieved).toBe('object');

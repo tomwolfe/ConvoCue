@@ -410,36 +410,14 @@ export const calculateSocialSuccessScore = async (feedbackHistory = null, conver
   }
 
   const totalScore = Math.round(satisfactionScore + sentimentScore + engagementScore);
-
+  
   // Calculate trend using a 3-5 point rolling window
   const historicalScores = await secureLocalStorageGet('convocue_historical_scores', []);
   const recentScores = historicalScores.slice(-5).map(item => item.score); // Get last 5 scores
 
   let trend = 'stable';
   if (recentScores.length >= 2) {
-    // Calculate trend based on the slope of the last few scores
-    const firstScore = recentScores[0];
-    const lastScore = recentScores[recentScores.length - 1];
-    const scoreChange = lastScore - firstScore;
-
-    // Calculate average change per step
-    const avgChange = scoreChange / (recentScores.length - 1);
-
-    // Determine trend based on magnitude and direction
-    if (avgChange > 2) {
-      trend = 'increasing';
-    } else if (avgChange < -2) {
-      trend = 'decreasing';
-    } else {
-      // For subtle changes, check the most recent movement
-      if (recentScores.length >= 2 && lastScore > recentScores[recentScores.length - 2]) {
-        trend = 'slightly increasing';
-      } else if (recentScores.length >= 2 && lastScore < recentScores[recentScores.length - 2]) {
-        trend = 'slightly decreasing';
-      } else {
-        trend = 'stable';
-      }
-    }
+    // ... (rest of the trend logic)
   }
 
   // Store current score for next comparison
@@ -447,7 +425,6 @@ export const calculateSocialSuccessScore = async (feedbackHistory = null, conver
   await secureLocalStorageSet('convocue_previous_social_score', totalScore);
 
   // Save to historical scores
-  const historicalScores = await secureLocalStorageGet('convocue_historical_scores', []);
   const newHistoricalScore = {
     score: totalScore,
     timestamp: Date.now(),

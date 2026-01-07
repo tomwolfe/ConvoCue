@@ -7,7 +7,7 @@ import { secureLocalStorageGet } from './encryption';
  *
  * @returns {Promise<object>} Preferred response characteristics
  */
-export const getUserPreferences = async () => {
+export const getInferredPreferences = async () => {
   try {
     const feedbackHistory = await secureLocalStorageGet('convocue_feedback', []);
 
@@ -178,7 +178,7 @@ const analyzeStructure = (text) => {
  * @returns {Promise<string>} Adjusted response
  */
 export const adjustResponseForUser = async (response, persona, emotionData) => {
-  const preferences = await getUserPreferences();
+  const preferences = await getInferredPreferences();
   
   // Adjust length based on user preference
   let adjustedResponse = response;
@@ -308,7 +308,7 @@ const applyProfessionalInsights = (response, input) => {
 export const enhanceResponse = async (response, persona, emotionData = null, input = '', conversationHistory = [], options = {}) => {
   if (!response) return response;
 
-  const preferences = await getUserPreferences();
+  const preferences = await getInferredPreferences();
   const isSubtleMode = options.isSubtleMode || preferences.isSubtleMode;
   // Subtle Mode overrides all other preferences
   let enhancedResponse = response;
@@ -636,25 +636,34 @@ const isSemanticallyTooDifferent = async (original, enhanced) => {
 const generateQuickCue = (response, input, conversationHistory = []) => {
   // Predefined quick cues based on common conversation patterns
   const quickCues = {
-    greeting: ['Hi', 'Hello', 'Hey', 'Wave', 'Smile'],
-    question: ['Ask', 'Clarify', 'Follow up', 'Probe', 'Inquire'],
-    agreement: ['Agree', 'Nod', 'Right', 'Exactly', 'True'],
-    disagreement: ['Pause', 'Consider', 'Hmm', 'Wait', 'Think'],
-    suggestion: ['Try', 'Suggest', 'Maybe', 'Consider', 'Propose'],
-    encouragement: ['Great', 'Good', 'Nice', 'Keep going', 'Well done'],
-    empathy: ['I hear', 'Understand', 'Feel', 'Acknowledge', 'Valid'],
-    transition: ['Next', 'Change', 'Switch', 'Move on', 'Continue'],
-    clarification: ['Explain', 'Elaborate', 'Expand', 'Detail', 'Clarify'],
-    emotion: ['Calm', 'Breathe', 'Relax', 'Focus', 'Center'],
-    uncertainty: ['Hmm', 'Unsure', 'Thoughtful', 'Reflect', 'Consider'],
-    default: ['Pause', 'Think', 'Consider', 'Reflect', 'Hmm']
+    greeting: ['Hi', 'Hello', 'Hey', 'Wave', 'Smile', 'Warmly'],
+    question: ['Ask', 'Clarify', 'Follow up', 'Probe', 'Inquire', 'Investigate', 'Query'],
+    agreement: ['Agree', 'Nod', 'Right', 'Exactly', 'True', 'Affirm', 'Indeed'],
+    disagreement: ['Pause', 'Consider', 'Hmm', 'Wait', 'Think', 'Reassess', 'Doubt'],
+    suggestion: ['Try', 'Suggest', 'Maybe', 'Consider', 'Propose', 'Experiment', 'Advise'],
+    encouragement: ['Great', 'Good', 'Nice', 'Keep going', 'Well done', 'Excellent', 'Superb'],
+    empathy: ['I hear', 'Understand', 'Feel', 'Acknowledge', 'Valid', 'Empathize', 'Relate'],
+    transition: ['Next', 'Change', 'Switch', 'Move on', 'Continue', 'Bridge', 'Pivot'],
+    clarification: ['Explain', 'Elaborate', 'Expand', 'Detail', 'Clarify', 'Specify', 'Define'],
+    emotion: ['Calm', 'Breathe', 'Relax', 'Focus', 'Center', 'Ground', 'Quiet'],
+    uncertainty: ['Hmm', 'Unsure', 'Thoughtful', 'Reflect', 'Consider', 'Ponder', 'Wonder'],
+    strategic: ['Lean in', 'Hold eye contact', 'Lower volume', 'Slow down', 'Wait for silence', 'Mirror', 'Pause for effect'],
+    conflict: ['De-escalate', 'Validate first', 'Soft tone', 'Find common ground', 'Listen more', 'Neutral stance', 'Breathe'],
+    default: ['Pause', 'Think', 'Consider', 'Reflect', 'Hmm', 'Observe']
   };
 
   // Analyze input to determine appropriate cue category
   const lowerInput = input.toLowerCase();
 
-  // Enhanced pattern matching with more comprehensive categories
-  if (lowerInput.includes('hello') || lowerInput.includes('hi') || lowerInput.includes('hey')) {
+  // Check for conflict or strategic situations if we have context
+  const isConflictDetected = lowerInput.includes('no') && (lowerInput.includes('wrong') || lowerInput.includes('disagree') || lowerInput.includes('never'));
+  const isStrategicNeeded = lowerInput.includes('negotiate') || lowerInput.includes('important') || lowerInput.includes('boss') || lowerInput.includes('interview');
+
+  if (isConflictDetected) {
+    return quickCues.conflict[Math.floor(Math.random() * quickCues.conflict.length)];
+  } else if (isStrategicNeeded) {
+    return quickCues.strategic[Math.floor(Math.random() * quickCues.strategic.length)];
+  } else if (lowerInput.includes('hello') || lowerInput.includes('hi') || lowerInput.includes('hey')) {
     return quickCues.greeting[Math.floor(Math.random() * quickCues.greeting.length)];
   } else if (lowerInput.includes('?') || lowerInput.includes('what') || lowerInput.includes('how') || lowerInput.includes('why')) {
     return quickCues.question[Math.floor(Math.random() * quickCues.question.length)];

@@ -1076,3 +1076,27 @@ input:checked + .slider:before {
   margin-top: 1rem;
 }
 
+.danger-zone {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #fee2e2;
+}
+
+.danger-zone h4 {
+  color: #b91c1c;
+  font-size: 0.9rem;
+  margin-bottom: 0.75rem;
+  font-weight: 700;
+}
+
+.danger-zone .btn-secondary {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fee2e2;
+  font-weight: 600;
+}
+
+.danger-zone .btn-secondary:hover {
+  background: #fee2e2;
+}
+

@@ -176,12 +176,22 @@ export const getDislikedPhrases = async () => {
 };
 
 /**
- * Clear all feedback data
+ * Clear all feedback and analytics data
  */
-export const clearFeedbackData = () => {
+export const clearFeedbackData = async () => {
   try {
-    localStorage.removeItem('convocue_feedback'); // Remove the old unencrypted data
-    localStorage.removeItem('convocue_storage_key'); // Also clear the encryption key
+    // Clear feedback
+    await secureLocalStorageSet('convocue_feedback', []);
+    
+    // Clear analytics/social success score data
+    await secureLocalStorageSet('convocue_historical_scores', []);
+    localStorage.removeItem('convocue_social_score_timestamp');
+    localStorage.removeItem('convocue_previous_social_score');
+    
+    // Dispatch event to notify listeners
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('convocue_feedback_submitted'));
+    }
   } catch (e) {
     console.error('Failed to clear feedback data:', e);
   }

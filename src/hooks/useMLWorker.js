@@ -1,9 +1,10 @@
 import { useReducer, useEffect, useRef, useCallback, useState } from 'react';
 import { AppConfig } from '../config';
 import { manageConversationHistory, optimizeConversationHistory, isMemoryLimitApproaching, aggressiveMemoryManagement } from '../utils/conversation';
-import { enhanceResponse, getUserPreferences } from '../utils/responseEnhancement';
+import { enhanceResponse, getInferredPreferences } from '../utils/responseEnhancement';
 import { ConversationTurnManager } from '../utils/speakerDetection';
-import { secureLocalStorageGet } from '../utils/encryption';
+import { secureLocalStorageGet, secureLocalStorageSet } from '../utils/encryption';
+import { getManualPreferences } from '../utils/preferences';
 
 const initialState = {
   status: 'Initializing Models...',
@@ -93,21 +94,8 @@ function workerReducer(state, action) {
   }
 }
 
-const getStoredPreferences = () => {
-  try {
-    const prefs = localStorage.getItem('convocue_preferences');
-    return prefs ? JSON.parse(prefs) : {};
-  } catch (e) {
-    return {};
-  }
-};
-
 export const useMLWorker = () => {
-  const [state, dispatch] = useReducer(workerReducer, {
-    ...initialState,
-    persona: getStoredPreferences().preferredPersona || 'anxiety',
-    culturalContext: localStorage.getItem('selectedCulturalContext') || 'general'
-  });
+  const [state, dispatch] = useReducer(workerReducer, initialState);
   
   const worker = useRef(null);
   const stateRef = useRef(state);
@@ -124,20 +112,30 @@ export const useMLWorker = () => {
   // Pre-fetch and cache preferences and settings
   useEffect(() => {
     const fetchData = async () => {
-      prefsCache.current = await getUserPreferences();
+      // Get both manual and inferred preferences
+      const manualPrefs = await getManualPreferences();
+      const inferredPrefs = await getInferredPreferences();
+      prefsCache.current = { ...manualPrefs, ...inferredPrefs };
+      
       const savedSettings = await secureLocalStorageGet('convocue_settings');
       if (savedSettings) setSettings(savedSettings);
+      
+      const savedContext = await secureLocalStorageGet('selectedCulturalContext', 'general');
+      dispatch({ type: 'SET_CULTURAL_CONTEXT', culturalContext: savedContext });
+
+      const savedPersona = manualPrefs.preferredPersona || 'anxiety';
+      dispatch({ type: 'SET_PERSONA', persona: savedPersona });
     };
     fetchData();
     
-    // Listen for events to refresh cache
-    const handleRefresh = () => fetchData();
-    window.addEventListener('convocue_feedback_submitted', handleRefresh);
-    window.addEventListener('convocue_settings_changed', handleRefresh);
-    return () => {
-      window.removeEventListener('convocue_feedback_submitted', handleRefresh);
-      window.removeEventListener('convocue_settings_changed', handleRefresh);
+    // Listen for preference changes
+    const handlePrefsChange = async () => {
+      const manualPrefs = await getManualPreferences();
+      const inferredPrefs = await getInferredPreferences();
+      prefsCache.current = { ...manualPrefs, ...inferredPrefs };
     };
+    window.addEventListener('convocue_preferences_changed', handlePrefsChange);
+    return () => window.removeEventListener('convocue_preferences_changed', handlePrefsChange);
   }, []);
 
   useEffect(() => {
@@ -280,11 +278,11 @@ export const useMLWorker = () => {
     });
   }, [state.transcript, state.isProcessing, state.history, state.persona, state.culturalContext, settings]);
 
-  const setPersona = useCallback((persona) => {
+  const setPersona = useCallback(async (persona) => {
     try {
-      const prefs = getStoredPreferences();
+      const prefs = await getManualPreferences();
       prefs.preferredPersona = persona;
-      localStorage.setItem('convocue_preferences', JSON.stringify(prefs));
+      await saveUserPreferences(prefs);
     } catch (error) {
       console.error('Failed to save persona preference:', error);
     }
@@ -300,9 +298,9 @@ export const useMLWorker = () => {
     setSuggestion: (text) => dispatch({ type: 'SET_SUGGESTION', text }),
     setStatus: (status) => dispatch({ type: 'SET_STATUS', status }),
     setPersona,
-    setCulturalContext: (context) => {
-      localStorage.setItem('selectedCulturalContext', context);
-      dispatch({ type: 'SET_CULTURAL_CONTEXT', culturalContext: context });
+    setCulturalContext: async (context) => {
+      await secureLocalStorageSet('selectedCulturalContext', context);
+      dispatch({ type: 'SET_CULTURAL_CONTEXT', context });
     },
     clearHistory: () => dispatch({ type: 'CLEAR_HISTORY' }),
     resetWorker: initWorker,

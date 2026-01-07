@@ -149,7 +149,7 @@ const Settings = ({ isOpen, onClose }) => {
           <div className="setting-item">
             <div className="setting-info">
               <h3>Privacy Mode</h3>
-              <p>Limit data collection and processing for maximum privacy</p>
+              <p>Minimal data collection, focus on absolute privacy</p>
             </div>
             <label className="toggle-switch">
               <input
@@ -160,6 +160,24 @@ const Settings = ({ isOpen, onClose }) => {
               <span className="slider"></span>
             </label>
           </div>
+
+          <div className="danger-zone">
+            <h4>Data Management</h4>
+            <button 
+              className="btn btn-secondary btn-sm"
+              onClick={async () => {
+                if (window.confirm('Clear all communication analytics and feedback history? This cannot be undone.')) {
+                  const { clearFeedbackData } = await import('../utils/feedback');
+                  await clearFeedbackData();
+                  alert('Analytics data cleared.');
+                }
+              }}
+            >
+              Clear Analytics History
+            </button>
+          </div>
+
+
           
           <div className="setting-item reset-section">
             <div className="setting-info">

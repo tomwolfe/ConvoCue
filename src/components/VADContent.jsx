@@ -8,6 +8,7 @@ import DisplayArea from './VAD/DisplayArea';
 import ControlPanel from './VAD/ControlPanel';
 import SocialSuccessScore from './SocialSuccessScore';
 import { secureLocalStorageGet } from '../utils/encryption';
+import { getMergedPersonas } from '../utils/preferences';
 
 const GlanceWidget = ({ suggestion, emotionData, isProcessing }) => {
   const emotion = emotionData?.emotion || 'neutral';
@@ -72,7 +73,21 @@ const GlanceWidget = ({ suggestion, emotionData, isProcessing }) => {
       'focus': 'Direct attention',
       'center': 'Find balance',
       'unsure': 'Express uncertainty respectfully',
-      'thoughtful': 'Show careful consideration'
+      'thoughtful': 'Show careful consideration',
+      'lean in': 'Physically engage more',
+      'eye contact': 'Maintain connection through gaze',
+      'volume': 'Adjust how loudly you speak',
+      'slow down': 'Reduce your speaking pace',
+      'silence': 'Allow for moments of quiet',
+      'mirror': 'Subtly match their body language',
+      'de-escalate': 'Reduce tension in the interaction',
+      'validate': 'Acknowledge their perspective',
+      'common ground': 'Identify shared interests',
+      'neutral': 'Maintain a balanced stance',
+      'ponder': 'Think deeply about it',
+      'wonder': 'Express curiosity',
+      'pivot': 'Transition to a related point',
+      'bridge': 'Connect different ideas'
     };
 
     // Check if the cue matches any known cues
@@ -180,6 +195,7 @@ const VADContent = ({
   transcript,
   suggestion,
   emotionData,
+  conversationSentiment,
   isProcessing,
   processingStep,
   processAudio,
@@ -188,6 +204,7 @@ const VADContent = ({
   setSuggestion,
   setStatus,
   initialError,
+  history,
   conversationTurns,
   persona,
   setPersona,
@@ -199,6 +216,17 @@ const VADContent = ({
   settings,
   onReset
 }) => {
+  const [availablePersonas, setAvailablePersonas] = useState(AppConfig.models.personas);
+
+  useEffect(() => {
+    const loadPersonas = async () => {
+      const merged = await getMergedPersonas();
+      setAvailablePersonas(merged);
+    };
+    loadPersonas();
+  }, []);
+
+  const [activePersona, setActivePersona] = useState(persona);
   const [isVADMode, setIsVADMode] = useState(false);
   const [vadError, setVadError] = useState(initialError);
   const [copied, setCopied] = useState(false);
@@ -356,12 +384,16 @@ const VADContent = ({
       <AudioVisualizer isActive={vad.listening} analyser={vad.analyser} isCompactMode={isCompactMode} />
 
       {!showMinimalUI && !isCompactMode && (
-        <PersonaSelector 
-          persona={persona} 
-          setPersona={setPersona} 
-          culturalContext={culturalContext} 
-          setCulturalContext={setCulturalContext} 
-        />
+      <PersonaSelector 
+        persona={activePersona} 
+        setPersona={(p) => {
+          setActivePersona(p);
+          setPersona(p);
+        }}
+        culturalContext={culturalContext}
+        setCulturalContext={setCulturalContext}
+        availablePersonas={availablePersonas}
+      />
       )}
 
       <SocialSuccessScore

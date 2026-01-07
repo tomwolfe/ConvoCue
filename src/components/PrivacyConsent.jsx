@@ -1,28 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { AppConfig } from '../config';
 
+import { secureLocalStorageGet, secureLocalStorageSet } from '../utils/encryption';
+
 const PrivacyConsent = ({ onConsentGiven }) => {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    const consentGiven = localStorage.getItem('convocue_privacy_consent');
-    if (!consentGiven) {
-      const timer = setTimeout(() => setIsVisible(true), 0);
-      return () => clearTimeout(timer);
-    } else if (onConsentGiven) {
-      onConsentGiven(); // Call callback if consent already exists
-    }
+    const checkConsent = async () => {
+      const consentGiven = await secureLocalStorageGet('convocue_privacy_consent');
+      if (!consentGiven) {
+        setIsVisible(true);
+      } else if (onConsentGiven) {
+        onConsentGiven();
+      }
+    };
+    checkConsent();
   }, [onConsentGiven]);
 
-  const handleAccept = () => {
-    localStorage.setItem('convocue_privacy_consent', 'true');
+  const handleAccept = async () => {
+    await secureLocalStorageSet('convocue_privacy_consent', 'true');
     setIsVisible(false);
     if (onConsentGiven) onConsentGiven();
   };
 
-  const handleDecline = () => {
+  const handleDecline = async () => {
     // Even if declined, still allow basic functionality but disable personalization
-    localStorage.setItem('convocue_privacy_consent', 'false');
+    await secureLocalStorageSet('convocue_privacy_consent', 'false');
     setIsVisible(false);
     if (onConsentGiven) onConsentGiven();
   };

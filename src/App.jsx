@@ -10,8 +10,11 @@ import AppSettings from './components/Settings';
 import ErrorBoundary from './ErrorBoundary';
 import { AppConfig } from './config';
 import { checkAssets } from './utils/diagnostics';
+import { secureLocalStorageGet, secureLocalStorageSet } from './utils/encryption';
 
 import './App.css';
+
+import { getMergedPersonas, setPreferredPersona } from './utils/preferences';
 
 const App = () => {
   const [hasInteracted, setHasInteracted] = useState(false);
@@ -19,9 +22,26 @@ const App = () => {
   const [isDyslexicFriendly, setIsDyslexicFriendly] = useState(false);
   const [isCompactMode, setIsCompactMode] = useState(false);
   const [isSubtleMode, setIsSubtleMode] = useState(false);
-  const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem('convocue_tutorial_seen'));
+  const [showTutorial, setShowTutorial] = useState(false);
   const [showPersonaCustomization, setShowPersonaCustomization] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [availablePersonas, setAvailablePersonas] = useState(AppConfig.models.personas);
+
+  useEffect(() => {
+    const loadPersonas = async () => {
+      const merged = await getMergedPersonas();
+      setAvailablePersonas(merged);
+    };
+    loadPersonas();
+  }, [showPersonaCustomization]);
+
+  useEffect(() => {
+    const checkTutorial = async () => {
+      const seen = await secureLocalStorageGet('convocue_tutorial_seen');
+      if (!seen) setShowTutorial(true);
+    };
+    checkTutorial();
+  }, []);
   const {
     status,
     progress,
@@ -106,20 +126,19 @@ const App = () => {
     }
   };
 
-  const handleTutorialComplete = () => {
+  const handleTutorialComplete = async () => {
     setShowTutorial(false);
-    localStorage.setItem('convocue_tutorial_seen', 'true');
+    await secureLocalStorageSet('convocue_tutorial_seen', 'true');
   };
 
   const showTutorialHandler = () => {
     setShowTutorial(true);
   };
 
-  const handleSavePersona = (newPersona) => {
+  const handleSavePersona = async (newPersona) => {
     try {
       // Load existing custom personas from localStorage
-      const customPersonasStr = localStorage.getItem('convocue_custom_personas');
-      const customPersonas = customPersonasStr ? JSON.parse(customPersonasStr) : {};
+      const customPersonas = await secureLocalStorageGet('convocue_custom_personas', {});
 
       // Add/update the persona
       customPersonas[newPersona.id] = {
@@ -130,7 +149,7 @@ const App = () => {
       };
 
       // Save back to localStorage
-      localStorage.setItem('convocue_custom_personas', JSON.stringify(customPersonas));
+      await secureLocalStorageSet('convocue_custom_personas', customPersonas);
 
       // Show success message
       alert(`Persona "${newPersona.label}" saved successfully!`);
@@ -141,17 +160,16 @@ const App = () => {
     }
   };
 
-  const handleDeletePersona = (personaId) => {
+  const handleDeletePersona = async (personaId) => {
     try {
       // Load existing custom personas from localStorage
-      const customPersonasStr = localStorage.getItem('convocue_custom_personas');
-      const customPersonas = customPersonasStr ? JSON.parse(customPersonasStr) : {};
+      const customPersonas = await secureLocalStorageGet('convocue_custom_personas', {});
 
       // Remove the persona
       delete customPersonas[personaId];
 
       // Save back to localStorage
-      localStorage.setItem('convocue_custom_personas', JSON.stringify(customPersonas));
+      await secureLocalStorageSet('convocue_custom_personas', customPersonas);
 
       alert(`Persona deleted successfully!`);
     } catch (error) {
@@ -180,7 +198,7 @@ const App = () => {
           <PersonaCustomization
             isOpen={showPersonaCustomization}
             onClose={() => setShowPersonaCustomization(false)}
-            personas={AppConfig.models.personas}
+            personas={availablePersonas}
             onSavePersona={handleSavePersona}
             onDeletePersona={handleDeletePersona}
             currentPersona={persona}
