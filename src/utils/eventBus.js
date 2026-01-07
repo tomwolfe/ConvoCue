@@ -4,7 +4,18 @@ import mitt from 'mitt';
  * Centralized Event Bus for ConvoCue
  * Replaces global window.dispatchEvent to avoid namespace collisions
  */
-export const eventBus = mitt();
+const bus = mitt();
+
+// Add debug logging in development mode
+if (import.meta.env?.DEV) {
+  const originalEmit = bus.emit;
+  bus.emit = (type, e) => {
+    console.debug(`[EventBus] ${type}`, e);
+    originalEmit(type, e);
+  };
+}
+
+export const eventBus = bus;
 
 // Event names constants to prevent typos
 export const EVENTS = {

@@ -3,6 +3,7 @@ import { AppConfig } from '../config';
 import { manageConversationHistory, optimizeConversationHistory, isMemoryLimitApproaching, aggressiveMemoryManagement } from '../utils/conversation';
 import { getConversationHistory as getGlobalHistory } from '../conversationManager';
 import { eventBus, EVENTS } from '../utils/eventBus';
+import { useEvent } from './useEvent';
 
 const initialState = {
   history: [],
@@ -48,6 +49,19 @@ function conversationReducer(state, action) {
   }
 }
 
+/**
+ * Custom hook for managing conversation state.
+ * 
+ * HYBRID STATE MODEL:
+ * This hook maintains local state that is synchronized with the global `conversationManager`
+ * singleton. 
+ * - Source of Truth for Turns: The `conversationManager` (via `getGlobalHistory`).
+ * - Source of Truth for View: This hook's local state, which updates via `convocue:conversation_updated` events.
+ * 
+ * Use this hook in components that need to react to conversation changes.
+ * 
+ * @returns {Object} Conversation state and management functions.
+ */
 export const useConversation = () => {
   const [state, dispatch] = useReducer(conversationReducer, initialState);
 
@@ -57,16 +71,15 @@ export const useConversation = () => {
     if (currentTurns && currentTurns.length > 0) {
       dispatch({ type: 'SET_CONVERSATION_TURNS', turns: currentTurns });
     }
-
-    const handleConversationUpdate = (data) => {
-      if (data && data.turns) {
-        dispatch({ type: 'SET_CONVERSATION_TURNS', turns: data.turns });
-      }
-    };
-
-    eventBus.on(EVENTS.CONVERSATION_UPDATED, handleConversationUpdate);
-    return () => eventBus.off(EVENTS.CONVERSATION_UPDATED, handleConversationUpdate);
   }, []);
+
+  const handleConversationUpdate = useCallback((data) => {
+    if (data && data.turns) {
+      dispatch({ type: 'SET_CONVERSATION_TURNS', turns: data.turns });
+    }
+  }, []);
+
+  useEvent(EVENTS.CONVERSATION_UPDATED, handleConversationUpdate);
 
   const addMessage = useCallback((role, content) => {
     dispatch({ type: 'ADD_TO_HISTORY', message: { role, content } });

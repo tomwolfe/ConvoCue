@@ -1,40 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { TrendingUp, Users, Heart, Award, ChevronDown, ChevronUp, Info, HelpCircle } from 'lucide-react';
 import { calculateSocialSuccessScore, getHistoricalScores } from '../utils/feedbackAnalytics';
 import { secureLocalStorageGet } from '../utils/encryption';
 import { eventBus, EVENTS } from '../utils/eventBus';
+import { useEvent } from '../hooks/useEvent';
 
 const SocialSuccessScore = ({ conversationTurns, settings }) => {
   const [metrics, setMetrics] = useState(null);
   const [isExpanded, setIsExpanded] = useState(false);
-  const [showExplanation, setShowExplanation] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
 
-  const [historicalData, setHistoricalData] = useState([]);
+  const updateMetrics = useCallback(async () => {
+    if (!conversationTurns || conversationTurns.length === 0) return;
+    const scoreData = await calculateSocialSuccessScore(conversationTurns);
+    setMetrics(scoreData);
+  }, [conversationTurns]);
 
   useEffect(() => {
-    const updateMetrics = async () => {
-      // Get feedback history from localStorage
-      const feedbackHistory = await secureLocalStorageGet('convocue_feedback', []);
-      const results = await calculateSocialSuccessScore(feedbackHistory, conversationTurns);
-      setMetrics(results);
-
-      // Update historical data
-      const histData = await getHistoricalScores();
-      setHistoricalData(histData);
-    };
     updateMetrics();
+  }, [updateMetrics]);
 
-    // Listen for feedback submission events to update metrics
-    const handleFeedbackUpdate = () => {
-      updateMetrics();
-    };
+  useEvent(EVENTS.FEEDBACK_SUBMITTED, updateMetrics, [updateMetrics]);
 
-    eventBus.on(EVENTS.FEEDBACK_SUBMITTED, handleFeedbackUpdate);
-
-    return () => {
-      eventBus.off(EVENTS.FEEDBACK_SUBMITTED, handleFeedbackUpdate);
-    };
-  }, [conversationTurns]);
 
   if (!metrics || !settings?.showAnalytics) return null;
 

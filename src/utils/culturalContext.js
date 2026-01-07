@@ -6,11 +6,30 @@ import fundamentals from './culturalContext/cultural-fundamentals.json';
 import interaction from './culturalContext/cultural-interaction.json';
 import intelligence from './culturalContext/cultural-intelligence.json';
 
+/**
+ * Validates the structure of the cultural database
+ * @param {Object} db - The cultural database object
+ * @returns {boolean} True if valid
+ */
+const validateCulturalDatabase = (db) => {
+  const requiredKeys = ['communicationStyles', 'greetings', 'naturalPhrasing', 'socialNuance'];
+  const missingKeys = requiredKeys.filter(key => !db[key]);
+  
+  if (missingKeys.length > 0) {
+    console.error(`Cultural database validation failed. Missing keys: ${missingKeys.join(', ')}`);
+    return false;
+  }
+  return true;
+};
+
 const culturalContextDatabase = {
   ...fundamentals,
   ...interaction,
   ...intelligence
 };
+
+// Validate on load
+validateCulturalDatabase(culturalContextDatabase);
 
 export { culturalContextDatabase };
 

@@ -374,7 +374,7 @@ export const enhanceResponse = async (response, persona, emotionData = null, inp
   // Safety Valve
   if (!isSubtleMode) {
     const lengthRatio = enhancedResponse.length / Math.max(1, response.length);
-    if (lengthRatio > 4.0 || lengthRatio < 0.2) { // Loosened slightly for specialized personas
+    if (lengthRatio > 2.5 || lengthRatio < 0.3) {
       console.warn("Safety valve triggered: Enhancement was too aggressive.");
       return response;
     }

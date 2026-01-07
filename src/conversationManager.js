@@ -1,10 +1,21 @@
+/**
+ * @fileoverview Centralized Conversation Manager (Singleton)
+ * 
+ * This module manages the core conversation state and acts as the primary 
+ * Source of Truth for conversation turns. It coordinates between audio processing,
+ * speaker detection, and the UI via the event bus.
+ */
+
 import { ConversationTurnManager } from './utils/speakerDetection';
 import { eventBus, EVENTS } from './utils/eventBus';
 
 const conversationManager = new ConversationTurnManager();
 
 /**
- * Get the singleton instance of ConversationTurnManager
+ * Get the singleton instance of ConversationTurnManager.
+ * Components should generally use the `useConversation` hook instead of 
+ * accessing this directly to ensure React reactivity.
+ * 
  * @returns {ConversationTurnManager} The conversation manager instance
  */
 export const getConversationManager = () => {

@@ -3,6 +3,7 @@ import { getManualPreferences, saveUserPreferences } from '../utils/preferences'
 import { getInferredPreferences } from '../utils/responseEnhancement';
 import { secureLocalStorageGet, secureLocalStorageSet } from '../utils/encryption';
 import { eventBus, EVENTS } from '../utils/eventBus';
+import { useEvent } from './useEvent';
 
 export const useAppPreferences = (initialDispatch) => {
   const [settings, setSettings] = useState({
@@ -35,28 +36,23 @@ export const useAppPreferences = (initialDispatch) => {
 
   useEffect(() => {
     fetchPrefs();
+  }, [fetchPrefs]);
 
-    const handlePrefsChange = (manualPrefs) => {
-      const inferredPrefs = getInferredPreferences();
-      prefsCache.current = { ...manualPrefs, ...inferredPrefs };
-      if (manualPrefs && manualPrefs.preferredPersona && initialDispatch) {
-        initialDispatch({ type: 'SET_PERSONA', persona: manualPrefs.preferredPersona });
-      }
-    };
+  const handlePrefsChange = useCallback((manualPrefs) => {
+    const inferredPrefs = getInferredPreferences();
+    prefsCache.current = { ...manualPrefs, ...inferredPrefs };
+    if (manualPrefs && manualPrefs.preferredPersona && initialDispatch) {
+      initialDispatch({ type: 'SET_PERSONA', persona: manualPrefs.preferredPersona });
+    }
+  }, [initialDispatch]);
 
-    const handleSettingsChange = (newSettings) => {
-      setSettings(newSettings);
-      fetchPrefs(); // Refresh cache as settings might impact inferred prefs
-    };
+  const handleSettingsChange = useCallback((newSettings) => {
+    setSettings(newSettings);
+    fetchPrefs(); // Refresh cache as settings might impact inferred prefs
+  }, [fetchPrefs]);
 
-    eventBus.on(EVENTS.PREFERENCES_CHANGED, handlePrefsChange);
-    eventBus.on(EVENTS.SETTINGS_CHANGED, handleSettingsChange);
-
-    return () => {
-      eventBus.off(EVENTS.PREFERENCES_CHANGED, handlePrefsChange);
-      eventBus.off(EVENTS.SETTINGS_CHANGED, handleSettingsChange);
-    };
-  }, [fetchPrefs, initialDispatch]);
+  useEvent(EVENTS.PREFERENCES_CHANGED, handlePrefsChange);
+  useEvent(EVENTS.SETTINGS_CHANGED, handleSettingsChange);
 
   const updatePersona = useCallback(async (persona) => {
     try {
