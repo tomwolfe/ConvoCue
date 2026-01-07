@@ -11,8 +11,9 @@ import { secureLocalStorageGet, secureLocalStorageSet } from './encryption';
  * @param {string} persona - The persona used for the suggestion
  * @param {string} culturalContext - The cultural context used
  * @param {string} transcript - The original transcript
+ * @param {string} originalInput - The original user input that led to the suggestion
  */
-export const submitFeedback = (suggestion, feedbackType, persona, culturalContext, transcript) => {
+export const submitFeedback = (suggestion, feedbackType, persona, culturalContext, transcript, originalInput = '') => {
   // Create feedback object
   const feedback = {
     suggestion,
@@ -20,6 +21,7 @@ export const submitFeedback = (suggestion, feedbackType, persona, culturalContex
     persona,
     culturalContext,
     transcript,
+    originalInput,
     timestamp: Date.now(),
     userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
     isMobile: typeof navigator !== 'undefined' ? /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) : false

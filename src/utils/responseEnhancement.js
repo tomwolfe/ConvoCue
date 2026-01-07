@@ -451,10 +451,18 @@ const applyLearnedPreferences = (response, preferences) => {
       if (pattern.type === 'phrase' && pattern.weight < 0) {
         // This is a pattern to avoid
         if (modifiedResponse.toLowerCase().includes(pattern.value)) {
-          // For now, just log that we found a pattern to avoid
-          // In a more advanced system, we might try to rephrase
-          console.log(`Avoiding disliked pattern: ${pattern.value}`);
+          // Actively replace the disliked pattern with a better alternative
+          modifiedResponse = replaceDislikedPattern(modifiedResponse, pattern.value);
         }
+      } else if (pattern.type === 'structure' && pattern.value === 'single_question' && pattern.weight < 0) {
+        // If user dislikes single questions, convert to statement
+        if (modifiedResponse.trim().endsWith('?') &&
+            modifiedResponse.split(/(?<=[.!?])\s+/).length === 1) {
+          modifiedResponse = convertQuestionToStatement(modifiedResponse);
+        }
+      } else if (pattern.type === 'structure' && pattern.value === 'apologetic_pattern' && pattern.weight < 0) {
+        // If user dislikes apologetic patterns, remove them
+        modifiedResponse = removeApologeticLanguage(modifiedResponse);
       }
     });
   }
@@ -465,4 +473,102 @@ const applyLearnedPreferences = (response, preferences) => {
   }
 
   return modifiedResponse;
+};
+
+/**
+ * Replaces a disliked pattern with a better alternative
+ * @param {string} response - Original response
+ * @param {string} dislikedPhrase - The phrase to replace
+ * @returns {string} Response with replaced phrase
+ */
+const replaceDislikedPattern = (response, dislikedPhrase) => {
+  // Define better alternatives for common disliked phrases
+  const replacements = {
+    'sorry': 'I understand',
+    'apologize': 'I recognize',
+    'i don\'t know': 'here\'s what I can suggest',
+    'maybe': 'consider',
+    'perhaps': 'think about',
+    'i think': 'from my perspective',
+    'i guess': 'it seems'
+  };
+
+  // Check if the disliked phrase has a known replacement
+  const lowerPhrase = dislikedPhrase.toLowerCase();
+  if (replacements[lowerPhrase]) {
+    return response.replace(new RegExp('\\b' + dislikedPhrase + '\\b', 'gi'), replacements[lowerPhrase]);
+  }
+
+  // If no specific replacement, try to rephrase the sentence
+  return rephraseSentence(response, dislikedPhrase);
+};
+
+/**
+ * Rephrases a sentence to remove a disliked phrase
+ * @param {string} response - Original response
+ * @param {string} dislikedPhrase - Phrase to remove
+ * @returns {string} Rephrased response
+ */
+const rephraseSentence = (response, dislikedPhrase) => {
+  // Split into sentences and rephrase the one containing the disliked phrase
+  const sentences = response.split(/(?<=[.!?])\s+/);
+  const rephrasedSentences = sentences.map(sentence => {
+    if (sentence.toLowerCase().includes(dislikedPhrase.toLowerCase())) {
+      // Attempt to rephrase by removing the disliked phrase and adjusting the sentence
+      let newSentence = sentence.replace(new RegExp('\\b' + dislikedPhrase + '\\b', 'gi'), '');
+      newSentence = newSentence.replace(/\s+/g, ' ').trim();
+
+      // Capitalize first letter if needed
+      if (newSentence.length > 0) {
+        newSentence = newSentence.charAt(0).toUpperCase() + newSentence.slice(1);
+      }
+
+      return newSentence;
+    }
+    return sentence;
+  });
+
+  return rephrasedSentences.join(' ');
+};
+
+/**
+ * Converts a question to a statement
+ * @param {string} question - Question to convert
+ * @returns {string} Converted statement
+ */
+const convertQuestionToStatement = (question) => {
+  // Remove question mark and adjust the sentence structure
+  let statement = question.replace(/\?$/, '.');
+
+  // Convert question words to statement form if needed
+  if (statement.toLowerCase().startsWith('what')) {
+    statement = 'Consider what you could do about ' + statement.substring(5);
+  } else if (statement.toLowerCase().startsWith('how')) {
+    statement = 'Think about how you might ' + statement.substring(4);
+  } else if (statement.toLowerCase().startsWith('why')) {
+    statement = 'There could be several reasons why ' + statement.substring(4);
+  } else if (statement.toLowerCase().startsWith('can') || statement.toLowerCase().startsWith('could')) {
+    statement = 'You might be able to ' + statement.substring(statement.indexOf(' ') + 1);
+  }
+
+  return statement;
+};
+
+/**
+ * Removes apologetic language from a response
+ * @param {string} response - Original response
+ * @returns {string} Response without apologetic language
+ */
+const removeApologeticLanguage = (response) => {
+  // Remove apologetic phrases
+  let cleanedResponse = response.replace(/\bsorry\b/gi, '');
+  cleanedResponse = cleanedResponse.replace(/\bi apologize\b/gi, '');
+  cleanedResponse = cleanedResponse.replace(/\bmy apologies\b/gi, '');
+  cleanedResponse = cleanedResponse.replace(/\bi\'m sorry\b/gi, '');
+
+  // Clean up extra spaces and punctuation
+  cleanedResponse = cleanedResponse.replace(/\s+/g, ' ').trim();
+  cleanedResponse = cleanedResponse.replace(/\s+([,.!?;:])/g, '$1');
+
+  return cleanedResponse;
 };

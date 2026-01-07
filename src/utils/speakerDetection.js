@@ -4,44 +4,67 @@
 
 /**
  * Analyzes audio characteristics to distinguish between speakers
- * This is a simplified approach - in a real implementation, you'd use more sophisticated audio analysis
- * 
+ * Implements more sophisticated audio analysis with multiple features
+ *
  * @param {Float32Array} audioData - Audio data from the microphone
  * @param {Object} previousAudioData - Previous audio data for comparison
  * @returns {Object} Speaker analysis results
  */
 export const analyzeSpeakerCharacteristics = (audioData, previousAudioData = null) => {
-  // Calculate basic audio features that might help distinguish speakers
+  // Calculate comprehensive audio features that help distinguish speakers
   const features = {
     volume: calculateRMS(audioData),
     pitchEstimate: estimatePitch(audioData),
     speechRate: estimateSpeechRate(audioData),
-    spectralCentroid: calculateSpectralCentroid(audioData)
+    spectralCentroid: calculateSpectralCentroid(audioData),
+    zeroCrossingRate: calculateZeroCrossingRate(audioData),
+    energy: calculateEnergy(audioData),
+    formantFrequencies: calculateFormantFrequencies(audioData)
   };
 
   // Compare with previous audio to detect potential speaker change
   let speakerChangeLikelihood = 0;
+  let confidence = 0;
+
   if (previousAudioData) {
     const prevFeatures = {
       volume: calculateRMS(previousAudioData),
       pitchEstimate: estimatePitch(previousAudioData),
       speechRate: estimateSpeechRate(previousAudioData),
-      spectralCentroid: calculateSpectralCentroid(previousAudioData)
+      spectralCentroid: calculateSpectralCentroid(previousAudioData),
+      zeroCrossingRate: calculateZeroCrossingRate(previousAudioData),
+      energy: calculateEnergy(previousAudioData),
+      formantFrequencies: calculateFormantFrequencies(previousAudioData)
     };
 
     // Calculate difference between current and previous features
     const volumeDiff = Math.abs(features.volume - prevFeatures.volume);
     const pitchDiff = Math.abs(features.pitchEstimate - prevFeatures.pitchEstimate);
     const spectralDiff = Math.abs(features.spectralCentroid - prevFeatures.spectralCentroid);
+    const zeroCrossingDiff = Math.abs(features.zeroCrossingRate - prevFeatures.zeroCrossingRate);
+    const energyDiff = Math.abs(features.energy - prevFeatures.energy);
+    const formantDiff = calculateFormantDifference(features.formantFrequencies, prevFeatures.formantFrequencies);
 
     // Weighted combination of differences to estimate speaker change likelihood
-    speakerChangeLikelihood = (volumeDiff * 0.3 + pitchDiff * 0.5 + spectralDiff * 0.2) / 100;
+    // Pitch is given highest weight as it's most distinctive between speakers
+    speakerChangeLikelihood = (volumeDiff * 0.1 +
+                              pitchDiff * 0.4 +
+                              spectralDiff * 0.15 +
+                              zeroCrossingDiff * 0.1 +
+                              energyDiff * 0.1 +
+                              formantDiff * 0.15) / 100;
+
+    // Calculate confidence based on feature stability
+    const featureStability = calculateFeatureStability(features, prevFeatures);
+    confidence = Math.min(speakerChangeLikelihood * featureStability, 1.0);
   }
 
   return {
     features,
     speakerChangeLikelihood,
-    isLikelyNewSpeaker: speakerChangeLikelihood > 0.3 // Threshold for considering it a new speaker
+    confidence,
+    isLikelyNewSpeaker: speakerChangeLikelihood > 0.3, // Threshold for considering it a new speaker
+    confidenceScore: confidence
   };
 };
 
@@ -56,6 +79,119 @@ const calculateRMS = (audioData) => {
     sum += audioData[i] * audioData[i];
   }
   return Math.sqrt(sum / audioData.length);
+};
+
+/**
+ * Calculates zero crossing rate as a measure of speech characteristics
+ * @param {Float32Array} audioData - Audio data
+ * @returns {number} Zero crossing rate
+ */
+const calculateZeroCrossingRate = (audioData) => {
+  let crossings = 0;
+  for (let i = 1; i < audioData.length; i++) {
+    if ((audioData[i] >= 0 && audioData[i-1] < 0) || (audioData[i] < 0 && audioData[i-1] >= 0)) {
+      crossings++;
+    }
+  }
+  return crossings / audioData.length;
+};
+
+/**
+ * Calculates energy of the audio signal
+ * @param {Float32Array} audioData - Audio data
+ * @returns {number} Energy value
+ */
+const calculateEnergy = (audioData) => {
+  let energy = 0;
+  for (let i = 0; i < audioData.length; i++) {
+    energy += audioData[i] * audioData[i];
+  }
+  return energy / audioData.length;
+};
+
+/**
+ * Estimates formant frequencies (resonant frequencies of the vocal tract)
+ * @param {Float32Array} audioData - Audio data
+ * @returns {Array} Array of formant frequencies
+ */
+const calculateFormantFrequencies = (audioData) => {
+  // Simplified formant estimation using spectral analysis
+  // In a real implementation, this would use LPC (Linear Predictive Coding)
+  const formants = [];
+
+  // Use a small sample for computational efficiency
+  const sampleSize = Math.min(1024, audioData.length);
+  const sample = audioData.slice(0, sampleSize);
+
+  // Calculate spectral peaks which correspond to formants
+  // This is a simplified approach - real implementations use LPC
+  const fftBins = 256;
+  const binWidth = sampleSize / fftBins;
+
+  // Simulate FFT bins and find peaks
+  for (let bin = 1; bin < Math.min(5, fftBins/2); bin++) {
+    let binEnergy = 0;
+    const startIdx = Math.floor(bin * binWidth);
+    const endIdx = Math.floor((bin + 1) * binWidth);
+
+    for (let i = startIdx; i < endIdx && i < sample.length; i++) {
+      binEnergy += Math.abs(sample[i]);
+    }
+
+    formants.push(binEnergy / (endIdx - startIdx));
+  }
+
+  return formants;
+};
+
+/**
+ * Calculates difference between formant frequencies
+ * @param {Array} formants1 - First set of formant frequencies
+ * @param {Array} formants2 - Second set of formant frequencies
+ * @returns {number} Difference value
+ */
+const calculateFormantDifference = (formants1, formants2) => {
+  if (!formants1 || !formants2 || formants1.length !== formants2.length) {
+    return 0;
+  }
+
+  let diff = 0;
+  for (let i = 0; i < formants1.length; i++) {
+    diff += Math.abs(formants1[i] - formants2[i]);
+  }
+
+  return diff / formants1.length;
+};
+
+/**
+ * Calculates feature stability between current and previous features
+ * @param {Object} currentFeatures - Current audio features
+ * @param {Object} previousFeatures - Previous audio features
+ * @returns {number} Stability score (0-1)
+ */
+const calculateFeatureStability = (currentFeatures, previousFeatures) => {
+  // Calculate how stable the features are (more stable = higher confidence in detection)
+  const stabilityFactors = [];
+
+  // Volume stability
+  const volumeRatio = Math.min(currentFeatures.volume, previousFeatures.volume) /
+                     Math.max(currentFeatures.volume, previousFeatures.volume);
+  stabilityFactors.push(volumeRatio);
+
+  // Pitch stability
+  const pitchRatio = Math.min(currentFeatures.pitchEstimate, previousFeatures.pitchEstimate) /
+                   Math.max(currentFeatures.pitchEstimate, previousFeatures.pitchEstimate);
+  stabilityFactors.push(pitchRatio);
+
+  // Energy stability
+  const energyRatio = Math.min(currentFeatures.energy, previousFeatures.energy) /
+                     Math.max(currentFeatures.energy, previousFeatures.energy);
+  stabilityFactors.push(energyRatio);
+
+  // Calculate average stability
+  const avgStability = stabilityFactors.reduce((sum, val) => sum + val, 0) / stabilityFactors.length;
+
+  return avgStability;
 };
 
 /**
@@ -144,39 +280,40 @@ export class ConversationTurnManager {
   processAudio(audioData, detectedText = '') {
     const currentTime = Date.now();
     const isSilent = this.isSilent(audioData);
-    
+
     // Analyze speaker characteristics
     const speakerAnalysis = analyzeSpeakerCharacteristics(audioData, this.lastAudioData);
     this.lastAudioData = audioData;
-    
-    // Determine if this is likely a new speaker
+
+    // Determine if this is likely a new speaker with confidence scoring
     const isLikelyNewSpeaker = speakerAnalysis.isLikelyNewSpeaker;
-    
+    const confidenceScore = speakerAnalysis.confidenceScore;
+
     // Check if enough time has passed to consider a new turn
     const timeSinceLastSpeech = currentTime - this.lastSpeechTime;
-    const shouldStartNewTurn = timeSinceLastSpeech > this.turnThreshold || isLikelyNewSpeaker;
-    
+    const shouldStartNewTurn = timeSinceLastSpeech > this.turnThreshold || (isLikelyNewSpeaker && confidenceScore > 0.5);
+
     if (!isSilent) {
       this.lastSpeechTime = currentTime;
     }
-    
-    // Determine speaker role
+
+    // Determine speaker role with confidence consideration
     let speakerRole = 'user'; // Default to user
-    if (isLikelyNewSpeaker && this.lastSpeaker === 'user') {
+    if (isLikelyNewSpeaker && confidenceScore > 0.5 && this.lastSpeaker === 'user') {
       speakerRole = 'other'; // Likely other person speaking
-    } else if (isLikelyNewSpeaker && this.lastSpeaker === 'other') {
+    } else if (isLikelyNewSpeaker && confidenceScore > 0.5 && this.lastSpeaker === 'other') {
       speakerRole = 'user'; // Likely back to user
     } else {
       speakerRole = this.lastSpeaker; // Maintain current speaker
     }
-    
+
     // Create or continue turn
     if (!this.currentTurn || shouldStartNewTurn) {
       // End previous turn if exists
       if (this.currentTurn) {
         this.endCurrentTurn();
       }
-      
+
       // Start new turn
       this.currentTurn = {
         id: Date.now(),
@@ -185,24 +322,26 @@ export class ConversationTurnManager {
         text: detectedText,
         audioFeatures: speakerAnalysis.features,
         isLikelyNewSpeaker: isLikelyNewSpeaker,
+        confidenceScore: confidenceScore,
         messages: detectedText ? [{ role: speakerRole, content: detectedText, timestamp: currentTime }] : []
       };
     } else if (detectedText) {
       // Add to current turn
       this.currentTurn.text += ' ' + detectedText;
-      this.currentTurn.messages.push({ 
-        role: speakerRole, 
-        content: detectedText, 
-        timestamp: currentTime 
+      this.currentTurn.messages.push({
+        role: speakerRole,
+        content: detectedText,
+        timestamp: currentTime
       });
     }
-    
+
     this.lastSpeaker = speakerRole;
-    
+
     return {
       turn: this.currentTurn,
       isLikelyNewSpeaker,
-      speakerChangeLikelihood: speakerAnalysis.speakerChangeLikelihood
+      speakerChangeLikelihood: speakerAnalysis.speakerChangeLikelihood,
+      confidenceScore: confidenceScore
     };
   }
   

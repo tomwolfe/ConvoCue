@@ -27,7 +27,7 @@ export const analyzeConversationSentiment = (conversationHistory) => {
       ...msg,
       emotion: emotionAnalysis.emotion,
       emotionConfidence: emotionAnalysis.confidence,
-      sentimentScore: getSentimentScoreFromEmotion(emotionAnalysis.emotion, emotionAnalysis.confidence)
+      sentimentScore: getSentimentScoreFromEmotion(emotionAnalysis.emotion, emotionAnalysis.confidence, msg.content)
     };
   });
 
@@ -57,9 +57,10 @@ export const analyzeConversationSentiment = (conversationHistory) => {
  * Converts emotion to a numerical sentiment score
  * @param {string} emotion - The emotion detected
  * @param {number} confidence - The confidence of the emotion detection
+ * @param {string} text - The original text for context analysis
  * @returns {number} Sentiment score (-1 to 1)
  */
-const getSentimentScoreFromEmotion = (emotion, confidence) => {
+const getSentimentScoreFromEmotion = (emotion, confidence, text = '') => {
   const sentimentMap = {
     joy: 0.8,
     surprise: 0.3,
@@ -70,8 +71,96 @@ const getSentimentScoreFromEmotion = (emotion, confidence) => {
     anger: -0.9
   };
 
-  const baseScore = sentimentMap[emotion] || 0;
+  let baseScore = sentimentMap[emotion] || 0;
+
+  // Apply context-based adjustments
+  if (text) {
+    // Check for sarcasm indicators
+    const sarcasmDetected = detectSarcasm(text);
+    if (sarcasmDetected) {
+      // Flip the sentiment for sarcastic statements
+      baseScore = -baseScore * 0.7; // Reduce magnitude for sarcasm
+    }
+
+    // Check for mixed emotions in the same sentence
+    const mixedEmotions = detectMixedEmotions(text);
+    if (mixedEmotions.length > 1) {
+      // Reduce confidence for mixed emotions
+      baseScore *= 0.8;
+    }
+  }
+
   return baseScore * confidence; // Weight by confidence
+};
+
+/**
+ * Detects sarcasm in text
+ * @param {string} text - Input text to analyze
+ * @returns {boolean} True if sarcasm is detected
+ */
+const detectSarcasm = (text) => {
+  const lowerText = text.toLowerCase();
+
+  // Common sarcasm indicators
+  const sarcasmIndicators = [
+    'yeah right', 'sure thing', 'oh great', 'fantastic', 'wonderful',
+    'oh boy', 'big surprise', 'like i care', 'as if', 'right',
+    'totally', 'obviously', 'clearly', 'of course', 'no way',
+    'oh really', 'how nice', 'that\'s just perfect', 'just my luck',
+    'oh good', 'great idea', 'brilliant', 'marvelous', 'lovely'
+  ];
+
+  // Check for sarcasm patterns
+  for (const indicator of sarcasmIndicators) {
+    if (lowerText.includes(indicator)) {
+      return true;
+    }
+  }
+
+  // Check for exaggerated positive words in negative contexts
+  const positiveWords = ['amazing', 'incredible', 'fantastic', 'wonderful', 'perfect'];
+  const negativeContexts = ['not ', 'never ', 'no ', 'nothing', 'bad', 'wrong', 'terrible'];
+
+  for (const posWord of positiveWords) {
+    for (const negContext of negativeContexts) {
+      if (lowerText.includes(posWord) && lowerText.includes(negContext)) {
+        // Check if they appear in close proximity
+        const posIndex = lowerText.indexOf(posWord);
+        const negIndex = lowerText.indexOf(negContext);
+
+        if (posIndex !== -1 && negIndex !== -1 && Math.abs(posIndex - negIndex) < 20) {
+          return true;
+        }
+      }
+    }
+  }
+
+  // Check for question marks in positive statements (indicative of sarcasm)
+  if (lowerText.includes('?') && positiveWords.some(word => lowerText.includes(word))) {
+    return true;
+  }
+
+  return false;
+};
+
+/**
+ * Detects mixed emotions in text
+ * @param {string} text - Input text to analyze
+ * @returns {Array} Array of detected emotions
+ */
+const detectMixedEmotions = (text) => {
+  const lowerText = text.toLowerCase();
+  const emotions = [];
+
+  // Look for indicators of different emotions in the same text
+  if (/(happy|joy|excited|thrilled|delighted)/.test(lowerText)) emotions.push('joy');
+  if (/(sad|upset|depressed|heartbroken|disappointed)/.test(lowerText)) emotions.push('sadness');
+  if (/(angry|mad|furious|annoyed|irritated)/.test(lowerText)) emotions.push('anger');
+  if (/(scared|afraid|nervous|worried|frightened)/.test(lowerText)) emotions.push('fear');
+  if (/(disgusted|sick|nauseous|revolted)/.test(lowerText)) emotions.push('disgust');
+  if (/(surprised|shocked|amazed|stunned)/.test(lowerText)) emotions.push('surprise');
+
+  return emotions;
 };
 
 /**

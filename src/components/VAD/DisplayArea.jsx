@@ -84,7 +84,7 @@ const DisplayArea = ({
                 className="btn-icon"
                 onClick={() => {
                   handleCopy();
-                  submitFeedback(suggestion, 'like', persona, culturalContext, transcript);
+                  submitFeedback(suggestion, 'like', persona, culturalContext, transcript, transcript);
                 }}
                 title="Copy to clipboard"
               >
@@ -100,21 +100,21 @@ const DisplayArea = ({
               <div className="feedback-buttons">
                 <button
                   className="btn-icon feedback-btn"
-                  onClick={() => submitFeedback(suggestion, 'like', persona, culturalContext, transcript)}
+                  onClick={() => submitFeedback(suggestion, 'like', persona, culturalContext, transcript, transcript)}
                   title="Like"
                 >
                   <ThumbsUp size={14} />
                 </button>
                 <button
                   className="btn-icon feedback-btn"
-                  onClick={() => submitFeedback(suggestion, 'dislike', persona, culturalContext, transcript)}
+                  onClick={() => submitFeedback(suggestion, 'dislike', persona, culturalContext, transcript, transcript)}
                   title="Dislike"
                 >
                   <ThumbsDown size={14} />
                 </button>
                 <button
                   className="btn-icon feedback-btn"
-                  onClick={() => submitFeedback(suggestion, 'report', persona, culturalContext, transcript)}
+                  onClick={() => submitFeedback(suggestion, 'report', persona, culturalContext, transcript, transcript)}
                   title="Report"
                 >
                   <Flag size={14} />

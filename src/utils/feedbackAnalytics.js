@@ -144,30 +144,173 @@ const findImprovementAreas = (feedbackHistory) => {
   const dislikes = feedbackHistory.filter(f => f.feedbackType === 'dislike');
   if (dislikes.length === 0) return [];
 
-  // Analyze common issues in disliked suggestions
+  // Analyze common issues in disliked suggestions with more depth
   const issuePatterns = {};
-  
+  const contextAnalysis = {};
+
   dislikes.forEach(item => {
     const suggestion = item.suggestion.toLowerCase();
-    
+    const originalInput = item.originalInput ? item.originalInput.toLowerCase() : '';
+
     // Identify common issues
     if (suggestion.length > 100) {
       issuePatterns.longResponses = (issuePatterns.longResponses || 0) + 1;
     }
-    
+
     if (suggestion.includes('sorry') || suggestion.includes('apologize')) {
       issuePatterns.apologeticTone = (issuePatterns.apologeticTone || 0) + 1;
     }
-    
+
     if (suggestion.split(' ').length < 5) {
       issuePatterns.tooShort = (issuePatterns.tooShort || 0) + 1;
     }
+
+    // Analyze why the response might have been disliked based on context
+    if (originalInput) {
+      // Check if response was off-topic
+      if (!isResponseRelevant(originalInput, suggestion)) {
+        issuePatterns.irrelevantResponse = (issuePatterns.irrelevantResponse || 0) + 1;
+      }
+
+      // Check if response was too formal for casual input
+      if (isCasualInput(originalInput) && isTooFormal(suggestion)) {
+        issuePatterns.inappropriateTone = (issuePatterns.inappropriateTone || 0) + 1;
+      }
+
+      // Check if response was too casual for formal input
+      if (isFormalInput(originalInput) && isTooCasual(suggestion)) {
+        issuePatterns.inappropriateTone = (issuePatterns.inappropriateTone || 0) + 1;
+      }
+    }
+
+    // Analyze response structure that users dislike
+    const structureAnalysis = analyzeResponseStructure(suggestion);
+    Object.entries(structureAnalysis).forEach(([key, value]) => {
+      if (value) {
+        issuePatterns[key] = (issuePatterns[key] || 0) + 1;
+      }
+    });
   });
 
   // Convert to array and sort by frequency
   return Object.entries(issuePatterns)
-    .map(([issue, count]) => ({ issue, count, frequency: count / dislikes.length }))
+    .map(([issue, count]) => ({
+      issue,
+      count,
+      frequency: count / dislikes.length,
+      explanation: getIssueExplanation(issue)
+    }))
     .sort((a, b) => b.frequency - a.frequency);
+};
+
+/**
+ * Checks if a response is relevant to the input
+ * @param {string} input - Original user input
+ * @param {string} response - AI response
+ * @returns {boolean} True if response is relevant
+ */
+const isResponseRelevant = (input, response) => {
+  // Simple keyword matching - in a real implementation, use semantic similarity
+  const inputWords = input.split(/\s+/).filter(word => word.length > 3);
+  const responseWords = response.split(/\s+/).filter(word => word.length > 3);
+
+  // Check if at least some keywords from input appear in response
+  const commonWords = inputWords.filter(word => response.includes(word));
+  return commonWords.length > 0;
+};
+
+/**
+ * Checks if input is casual
+ * @param {string} input - Input text
+ * @returns {boolean} True if input is casual
+ */
+const isCasualInput = (input) => {
+  const casualIndicators = ['hey', 'hi', 'what\'s up', 'how\'s it going', 'dude', 'mate', 'cool', 'awesome'];
+  return casualIndicators.some(indicator => input.includes(indicator));
+};
+
+/**
+ * Checks if input is formal
+ * @param {string} input - Input text
+ * @returns {boolean} True if input is formal
+ */
+const isFormalInput = (input) => {
+  const formalIndicators = ['dear', 'sir', 'madam', 'regarding', 'concerning', 'pursuant', 'respectfully', 'please'];
+  return formalIndicators.some(indicator => input.includes(indicator));
+};
+
+/**
+ * Checks if response is too formal
+ * @param {string} response - Response text
+ * @returns {boolean} True if response is too formal
+ */
+const isTooFormal = (response) => {
+  const formalWords = ['whereas', 'therefore', 'furthermore', 'moreover', 'nevertheless', 'notwithstanding'];
+  return formalWords.some(word => response.includes(word));
+};
+
+/**
+ * Checks if response is too casual
+ * @param {string} response - Response text
+ * @returns {boolean} True if response is too casual
+ */
+const isTooCasual = (response) => {
+  const casualWords = ['dude', 'cool', 'awesome', 'chill', 'totally', 'yep', 'nah'];
+  return casualWords.some(word => response.includes(word));
+};
+
+/**
+ * Analyzes response structure for patterns
+ * @param {string} response - Response text
+ * @returns {Object} Structure analysis
+ */
+const analyzeResponseStructure = (response) => {
+  const analysis = {};
+
+  // Check for question patterns
+  if (response.includes('?') && response.split('?').length > 1) {
+    analysis.questionHeavy = true;
+  }
+
+  // Check for apologetic patterns
+  if (/(sorry|apologize|apology|my apologies)/i.test(response)) {
+    analysis.apologeticPattern = true;
+  }
+
+  // Check for uncertain patterns
+  if (/(maybe|i think|i guess|perhaps|possibly)/i.test(response)) {
+    analysis.uncertainPattern = true;
+  }
+
+  // Check for overly complex sentences
+  const sentences = response.split(/[.!?]+/);
+  const avgWordsPerSentence = response.split(/\s+/).length / sentences.length;
+  if (avgWordsPerSentence > 25) {
+    analysis.complexSentences = true;
+  }
+
+  return analysis;
+};
+
+/**
+ * Provides explanation for an issue
+ * @param {string} issue - Issue name
+ * @returns {string} Explanation
+ */
+const getIssueExplanation = (issue) => {
+  const explanations = {
+    longResponses: "Response was too lengthy and potentially overwhelming",
+    apologeticTone: "Response contained too many apologetic phrases",
+    tooShort: "Response was too brief and unhelpful",
+    irrelevantResponse: "Response didn't address the user's input appropriately",
+    inappropriateTone: "Response had a tone that didn't match the user's input",
+    questionHeavy: "Response contained too many questions",
+    apologeticPattern: "Response had an apologetic tone that may not be needed",
+    uncertainPattern: "Response contained uncertain language that reduced confidence",
+    complexSentences: "Response had overly complex sentence structures"
+  };
+
+  return explanations[issue] || "General issue with response pattern";
 };
 
 /**
