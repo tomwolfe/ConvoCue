@@ -1,46 +1,75 @@
 # ConvoCue - AI-Powered Conversation Assistant
 
-ConvoCue is an AI-powered conversation assistant that listens to live conversations and suggests thoughtful, context-aware responses. The application runs entirely in the browser with all processing happening locally on your device, ensuring privacy and security.
+ConvoCue is a privacy-first, on-device AI conversation assistant that provides real-time cues and suggestions for live interactions. Built with a focus on accessibility and security, it helps users navigate complex social situations, professional meetings, and cross-cultural communication.
 
-## Features
+## Key Features
 
-- **Real-time Speech Recognition**: Uses Whisper Tiny for speech-to-text conversion in the browser
-- **AI Response Suggestions**: Employs SmolLM2 for generating context-aware responses
-- **Multiple Personas**: Choose from various conversation modes:
-  - Social Coach: Encouraging and supportive responses
-  - Professional: Workplace-appropriate suggestions
-  - Warm Friend: Empathetic and caring responses
-  - Bullet Points: Short, direct response options
-  - Cross-Cultural: Culturally sensitive communication
-  - Language Learning: Grammar correction and learning tips
-  - Meeting Mode: Professional meeting responses
-  - Emotional Support: Empathetic responses with emotional awareness
-- **Extended Conversation Memory**: Maintains context across longer conversations with summarization
-- **Privacy-First**: All processing happens locally in your browser
-- **Mobile-Optimized**: Designed to work efficiently on mobile devices
+- **Real-time Speech Analysis**:
+    - **Speech-to-Text**: High-performance transcription using Whisper Tiny.
+    - **Voice Activity Detection (VAD)**: Optimized audio processing to minimize power consumption.
+    - **Speaker Detection**: Distinguishes between different speakers in a conversation.
+- **Advanced AI Intelligence**:
+    - **Context-Aware Suggestions**: Powered by SmolLM2 for natural, relevant responses.
+    - **Intent Recognition**: Detects conversational goals (e.g., conflict resolution, strategic planning).
+    - **Sentiment Analysis**: Monitors emotional tone to provide more empathetic cues.
+    - **Cultural Intelligence**: Multi-layered support for culturally sensitive communication.
+- **Customization & Personalization**:
+    - **Persona Engine**: Choose from preset personas (Social Coach, Professional, Warm Friend, etc.) or create your own custom AI behaviors.
+    - **Social Success Score (SSS)**: A gamified dashboard tracking communication growth through sentiment and engagement metrics.
+    - **Subtle Mode**: Minimalist UI cues for discreet assistance.
+- **Privacy & Security**:
+    - **100% On-Device**: All processing (audio, ML inference, storage) stays on your device.
+    - **Encrypted Storage**: Local personalization data is encrypted before being saved to the browser.
+    - **Data Portability**: Full control to export or hard-reset your conversation history and learned data.
+- **User Experience**:
+    - **Interactive Onboarding**: Guided tutorial for new users.
+    - **Performance Diagnostics**: Real-time monitoring of system health and inference latency.
+    - **Mobile-Optimized**: Responsive design tailored for field use.
 
 ## Use Cases
 
-- Social anxiety support: Help users respond in conversations they find stressful
-- Cross-cultural communication: Suggest culturally appropriate phrasing
-- Professional settings: Meetings, sales calls, negotiations
-- Language learners: Real-time feedback and learning suggestions
-- Relationship coaching: Improve emotional intelligence in personal chats
+- **Social Support**: Navigation of stressful social interactions for individuals with social anxiety or neurodivergence.
+- **Professional Excellence**: Real-time cues for meetings, negotiations, and sales calls.
+- **Cross-Cultural Communication**: Bridging gaps with culturally appropriate phrasing and context.
+- **Language Learning**: Real-time grammar feedback and natural idiom suggestions.
 
 ## Technical Architecture
 
-- React frontend with Vite build system
-- Web Audio API with Voice Activity Detection (VAD)
-- Transformers.js for on-device AI inference
-- ONNX WebAssembly models for efficient processing
-- Client-side only processing for privacy
+ConvoCue leverages a modern, decoupled architecture to ensure high performance and privacy:
+
+- **Frontend**: React (Vite) with an **Event-Driven Core** powered by a central Event Bus (`mitt`).
+- **ML Inference**: Transformers.js and ONNX WebAssembly for running models directly in the browser.
+- **Background Processing**: Web Workers handle heavy ML tasks to keep the UI responsive.
+- **Audio Stack**: Web Audio API for low-latency capture and VAD integration.
+- **Security**: Client-side encryption for all persistent user data.
+
+## Documentation
+
+For more detailed technical insights, see the `docs/` directory:
+- [Event Architecture](./docs/event-architecture.md)
+- [Intent Recognition](./docs/intent-recognition.md)
+- [Performance Optimization](./docs/performance-optimization.md)
+- [Props Handling](./docs/props-handling.md)
 
 ## Getting Started
 
-1. Install dependencies: `npm install`
-2. Start development server: `npm run dev`
-3. Build for production: `npm run build`
+1.  **Clone & Install**:
+    ```bash
+    npm install
+    ```
+2.  **Run Development Server**:
+    ```bash
+    npm run dev
+    ```
+3.  **Build for Production**:
+    ```bash
+    npm run build
+    ```
 
-## Privacy
+## Privacy Policy
 
-All processing happens locally in your browser. No audio or conversation data is sent to any server.
+ConvoCue is built on the principle of radical privacy. **No audio or text data is ever sent to a server.** All data processing, from voice activity detection to AI inference, happens locally within your browser. Transparency reports are available in the settings menu to show exactly how your data is used.
+
+## License
+
+MIT License. See [LICENSE](./LICENSE) for details.
