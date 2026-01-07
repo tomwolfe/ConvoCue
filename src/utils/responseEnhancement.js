@@ -876,26 +876,31 @@ const analyzeHistoryForCue = (conversationHistory, quickCues) => {
  */
 const generateQuickCue = (response, input, conversationHistory = []) => {
   const quickCues = getQuickCues();
+  const lowerResponse = response.toLowerCase();
 
-  // First, try to analyze input for context clues
+  // 1. Check for specific intent tags already present in the response
+  if (lowerResponse.includes('[action item]')) return selectRandomCue(quickCues, 'suggestion');
+  if (lowerResponse.includes('[diplomatic]')) return selectRandomCue(quickCues, 'conflict');
+  if (lowerResponse.includes('[strategic]')) return selectRandomCue(quickCues, 'strategic');
+
+  // 2. Try to analyze input for context clues
   const inputCue = analyzeInputForCue(input, quickCues);
-  if (inputCue) {
-    return inputCue;
+  if (inputCue) return inputCue;
+
+  // 3. Analyze the response content for actionable keywords if no tags present
+  if (lowerResponse.includes('should') || lowerResponse.includes('try') || lowerResponse.includes('could')) {
+    return selectRandomCue(quickCues, 'suggestion');
+  }
+  
+  if (lowerResponse.includes('feel') || lowerResponse.includes('understand') || lowerResponse.includes('hear')) {
+    return selectRandomCue(quickCues, 'empathy');
   }
 
-  // If no specific pattern matched in input, try to analyze the response for context clues
-  const responseCue = analyzeResponseForCue(response, quickCues);
-  if (responseCue) {
-    return responseCue;
-  }
-
-  // Use conversation history to infer context if patterns weren't found in current input
+  // 4. Use conversation history to infer context
   const historyCue = analyzeHistoryForCue(conversationHistory, quickCues);
-  if (historyCue) {
-    return historyCue;
-  }
+  if (historyCue) return historyCue;
 
-  // If still no match, use default cues
+  // 5. Fallback to default cues
   return selectRandomCue(quickCues, 'default');
 };
 

@@ -1246,6 +1246,55 @@ input:checked + .slider:before {
   text-align: center;
 }
 
+.score-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.score-explanation-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.95);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.score-explanation-card {
+  max-width: 280px;
+}
+
+.score-explanation-card h4 {
+  margin-bottom: 0.75rem;
+  font-size: 0.9rem;
+  color: var(--primary);
+}
+
+.score-explanation-card p {
+  font-size: 0.75rem;
+  color: #4b5563;
+  line-height: 1.4;
+  margin-bottom: 0.75rem;
+}
+
+.explanation-item {
+  margin-bottom: 0.75rem;
+}
+
+.explanation-item strong {
+  display: block;
+  font-size: 0.75rem;
+  color: #1f2937;
+  margin-bottom: 0.1rem;
+}
+
 .trend-increasing { color: var(--accent); }
 .trend-decreasing { color: #FF6B6B; }
 .trend-stable { color: var(--primary); }
@@ -1297,6 +1346,34 @@ input:checked + .slider:before {
 /* Additional utility classes for Social Success Score */
 .mt-4 {
   margin-top: 1rem;
+}
+
+.transparency-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.transparency-item {
+  background: #f9fafb;
+  padding: 0.6rem;
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.transparency-item .label {
+  font-size: 0.7rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.transparency-item .value {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--primary);
 }
 
 .danger-zone {

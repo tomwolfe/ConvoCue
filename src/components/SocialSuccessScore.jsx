@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, Users, Heart, Award, ChevronDown, ChevronUp } from 'lucide-react';
+import { TrendingUp, Users, Heart, Award, ChevronDown, ChevronUp, Info, HelpCircle } from 'lucide-react';
 import { calculateSocialSuccessScore, getHistoricalScores } from '../utils/feedbackAnalytics';
 import { secureLocalStorageGet } from '../utils/encryption';
 
 const SocialSuccessScore = ({ conversationTurns, settings }) => {
   const [metrics, setMetrics] = useState(null);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showExplanation, setShowExplanation] = useState(false);
 
   const [historicalData, setHistoricalData] = useState([]);
 
@@ -38,17 +39,51 @@ const SocialSuccessScore = ({ conversationTurns, settings }) => {
 
   return (
     <div className={`social-success-container ${isExpanded ? 'expanded' : ''}`}>
-      <div className="social-success-header" onClick={() => setIsExpanded(!isExpanded)}>
-        <div className="score-summary">
+      <div className="social-success-header">
+        <div className="score-summary" onClick={() => setIsExpanded(!isExpanded)}>
           <Award size={18} className="score-icon" />
           <span className="score-label">Social Success Score:</span>
           <span className="score-value">{metrics.score}</span>
         </div>
-        <div className="score-level-badge">
-          {metrics.level}
-          {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        <div className="score-actions">
+          <button 
+            className="info-icon-btn" 
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowExplanation(!showExplanation);
+            }}
+            title="How is this calculated?"
+          >
+            <HelpCircle size={16} />
+          </button>
+          <div className="score-level-badge" onClick={() => setIsExpanded(!isExpanded)}>
+            {metrics.level}
+            {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </div>
         </div>
       </div>
+
+      {showExplanation && (
+        <div className="score-explanation-overlay" onClick={() => setShowExplanation(false)}>
+          <div className="score-explanation-card" onClick={(e) => e.stopPropagation()}>
+            <h4>How your score is calculated</h4>
+            <p>Your score (0-100) reflects your communication growth based on three key factors:</p>
+            <div className="explanation-item">
+              <strong>Satisfaction ({metrics.weights?.satisfaction || 50}%):</strong>
+              <p>Based on your "likes" of suggestions. Higher satisfaction means the AI is helping you more effectively.</p>
+            </div>
+            <div className="explanation-item">
+              <strong>Sentiment ({metrics.weights?.sentiment || 30}%):</strong>
+              <p>Analyzes the emotional tone of your conversations. Positive, constructive interactions boost this score.</p>
+            </div>
+            <div className="explanation-item">
+              <strong>Engagement ({metrics.weights?.engagement || 20}%):</strong>
+              <p>How consistently you use ConvoCue. Recent and frequent interactions keep this component high.</p>
+            </div>
+            <button className="btn btn-primary btn-sm btn-block mt-2" onClick={() => setShowExplanation(false)}>Close</button>
+          </div>
+        </div>
+      )}
 
       {isExpanded && (
         <div className="social-success-details">

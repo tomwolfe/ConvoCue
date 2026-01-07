@@ -120,14 +120,19 @@ describe('useMLWorker Hook', () => {
   it('manages persona preferences in localStorage', async () => {
     const { result } = renderHook(() => useMLWorker());
 
-    // Wait for initialization to complete
+    // Wait for initial fetch to complete
     await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, 10)); // Small delay to ensure initialization
+      await new Promise(resolve => setTimeout(resolve, 50)); 
     });
 
     // Change persona
     await act(async () => {
-      result.current.setPersona('professional');
+      await result.current.setPersona('professional');
+    });
+
+    // Wait for state update to propagate
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 50));
     });
 
     expect(result.current.persona).toBe('professional');

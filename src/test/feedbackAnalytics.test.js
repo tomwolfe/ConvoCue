@@ -101,6 +101,29 @@ describe('Feedback Analytics', () => {
       expect(result.weights.satisfaction).toBe(80);
     });
 
+    it('handles zero feedback edge case', async () => {
+      const { secureLocalStorageGet } = await import('../utils/encryption');
+      secureLocalStorageGet.mockResolvedValue([]); // Mock historical scores
+
+      const result = await calculateSocialSuccessScore([], []);
+      
+      expect(result.score).toBeDefined();
+      expect(result.level).toBe('Getting Started');
+    });
+
+    it('handles conflicting sentiment', async () => {
+      const conflictingTurns = [
+        { sentiment: 'positive' },
+        { sentiment: 'negative' },
+        { sentiment: 'positive' },
+        { sentiment: 'negative' }
+      ];
+
+      const result = await calculateSocialSuccessScore([], conflictingTurns);
+      // Neutral sentiment should yield middle-range score for that component
+      expect(result.breakdown.sentiment).toBeGreaterThan(0);
+    });
+
     it('rejects invalid weights', async () => {
       const invalidWeights = {
         satisfaction: 50,

@@ -22,6 +22,7 @@ const Settings = ({ isOpen, onClose }) => {
 
   const [showWeightConfig, setShowWeightConfig] = useState(false);
   const [showDataUsageModal, setShowDataUsageModal] = useState(false);
+  const [transparencyData, setTransparencyData] = useState(null);
 
   useEffect(() => {
     // Load settings from secure storage
@@ -33,6 +34,16 @@ const Settings = ({ isOpen, onClose }) => {
       
       const savedWeights = await getSocialSuccessWeights();
       setWeights(savedWeights);
+
+      // Load transparency data
+      const feedback = await secureLocalStorageGet('convocue_feedback', []);
+      const scores = await secureLocalStorageGet('convocue_historical_scores', []);
+      setTransparencyData({
+        likes: feedback.filter(f => f.feedbackType === 'like').length,
+        dislikes: feedback.filter(f => f.feedbackType === 'dislike').length,
+        totalScores: scores.length,
+        lastScore: scores.length > 0 ? scores[scores.length - 1].score : 'N/A'
+      });
     };
     loadSettings();
   }, []);
@@ -212,6 +223,21 @@ const Settings = ({ isOpen, onClose }) => {
                       />
                     </div>
                     <p className="setting-help-text">Adjust how much each factor contributes to your overall score.</p>
+                    <button 
+                      className="btn btn-outline btn-sm btn-block mt-2"
+                      onClick={() => {
+                        const feedback = window.confirm("Score Calibration: If your score feels too high or low, we can adjust weights. Do you want to set weights based on your recent conversation success?");
+                        if (feedback) {
+                          // Simple calibration: ask user which factor matters most
+                          const preference = window.prompt("Which matters most to you? Type '1' for Satisfaction, '2' for Emotional Tone, '3' for Frequency of use.");
+                          if (preference === '1') handleWeightChange('satisfaction', 70);
+                          else if (preference === '2') handleWeightChange('sentiment', 70);
+                          else if (preference === '3') handleWeightChange('engagement', 70);
+                        }
+                      }}
+                    >
+                      Calibrate My Score
+                    </button>
                   </div>
                 )}
               </div>
@@ -247,6 +273,30 @@ const Settings = ({ isOpen, onClose }) => {
               </label>
             </div>
           </section>
+
+          {transparencyData && (
+            <section className="settings-section">
+              <h3 className="section-title">SSS Transparency Report</h3>
+              <div className="transparency-grid">
+                <div className="transparency-item">
+                  <span className="label">Likes</span>
+                  <span className="value">{transparencyData.likes}</span>
+                </div>
+                <div className="transparency-item">
+                  <span className="label">Dislikes</span>
+                  <span className="value">{transparencyData.dislikes}</span>
+                </div>
+                <div className="transparency-item">
+                  <span className="label">Hist. Data</span>
+                  <span className="value">{transparencyData.totalScores} pts</span>
+                </div>
+                <div className="transparency-item">
+                  <span className="label">Latest</span>
+                  <span className="value">{transparencyData.lastScore}</span>
+                </div>
+              </div>
+            </section>
+          )}
 
           <section className="settings-section">
             <h3 className="section-title">Privacy & Modes</h3>
@@ -285,6 +335,44 @@ const Settings = ({ isOpen, onClose }) => {
           <section className="settings-section">
             <h3 className="section-title">Data Management</h3>
             <div className="data-management-actions">
+              <button 
+                className="btn btn-outline btn-sm"
+                onClick={async () => {
+                  try {
+                    const keys = [
+                      'convocue_feedback',
+                      'convocue_subtle_feedback',
+                      'convocue_preferences',
+                      'convocue_custom_personas',
+                      'convocue_historical_scores',
+                      'convocue_settings',
+                      'selectedCulturalContext'
+                    ];
+                    
+                    const exportData = {};
+                    for (const key of keys) {
+                      const data = await secureLocalStorageGet(key);
+                      if (data) exportData[key] = data;
+                    }
+                    
+                    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `convocue_data_export_${new Date().toISOString().split('T')[0]}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                  } catch (e) {
+                    console.error('Export failed:', e);
+                    alert('Export failed. Please try again.');
+                  }
+                }}
+              >
+                Export My Data (JSON)
+              </button>
+              
               <button 
                 className="btn btn-outline btn-sm"
                 onClick={async () => {
@@ -336,7 +424,5 @@ const Settings = ({ isOpen, onClose }) => {
     </div>
   );
 };
-
-export default Settings;
 
 export default Settings;

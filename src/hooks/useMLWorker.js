@@ -300,7 +300,7 @@ export const useMLWorker = () => {
     setPersona,
     setCulturalContext: async (context) => {
       await secureLocalStorageSet('selectedCulturalContext', context);
-      dispatch({ type: 'SET_CULTURAL_CONTEXT', context });
+      dispatch({ type: 'SET_CULTURAL_CONTEXT', culturalContext: context });
     },
     clearHistory: () => dispatch({ type: 'CLEAR_HISTORY' }),
     resetWorker: initWorker,

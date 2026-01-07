@@ -2,12 +2,12 @@ import React from 'react';
 import { AppConfig } from '../../config';
 
 const PersonaSelector = ({ persona, setPersona, culturalContext, setCulturalContext, availablePersonas }) => {
-  const displayPersonas = availablePersonas || AppConfig.models.personas;
+  if (!availablePersonas || Object.keys(availablePersonas).length === 0) return null;
   
   return (
     <div className="persona-selector" role="group" aria-label="Select conversation mode">
       <div className="persona-grid">
-        {Object.values(displayPersonas).map((p) => (
+        {Object.values(availablePersonas).map((p) => (
           <button
             key={p.id}
             className={`persona-btn ${persona === p.id ? 'active' : ''}`}
