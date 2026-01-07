@@ -968,6 +968,59 @@ input:checked + .slider:before {
 .glance-badge.social { color: #E17055; background: rgba(225, 112, 85, 0.1); }
 .glance-badge.strategic { color: #0984E3; background: rgba(9, 132, 227, 0.1); }
 
+/* Glance Widget Explanation Tooltip */
+.glance-explanation-tooltip {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  width: 300px;
+  background: rgba(25, 25, 35, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 8px;
+  z-index: 1000;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  animation: fadeInTooltip 0.3s forwards;
+}
+
+@keyframes fadeInTooltip {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.explanation-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.explanation-icon {
+  color: var(--accent);
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.explanation-text {
+  flex: 1;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.explanation-text strong {
+  display: block;
+  margin-bottom: 4px;
+  color: white;
+  font-size: 0.9rem;
+}
+
+.explanation-text p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.8);
+}
+
 /* Minimal UI with Glance Widget */
 .minimal-ui .glance-widget {
   transform: scale(1);

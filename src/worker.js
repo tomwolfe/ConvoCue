@@ -13,6 +13,7 @@ import {
 import {
     analyzeConversationSentiment
 } from './utils/sentimentAnalysis';
+import { estimateConversationSize, logPerformanceMetric } from './utils/performanceMonitoring';
 
 // Configuration for on-device execution
 
@@ -374,6 +375,12 @@ self.onmessage = async (event) => {
                 content: m.content
             }));
 
+            // Performance monitoring for large histories
+            const historySize = estimateConversationSize(conversationHistory);
+            if (historySize > 10000) { // More than 10KB of history
+                console.warn(`Large conversation history detected: ${historySize} characters`);
+            }
+
             // Create messages for the LLM
             const messages = [
                 { role: "system", content: `${cachedSystemPrompt.content} ${dynamicContext}` },
@@ -405,6 +412,9 @@ self.onmessage = async (event) => {
 
             const llmProcessingTime = performance.now() - llmStartTime;
 
+            // Log performance metrics for large histories
+            logPerformanceMetric('llm_processing', llmStartTime, history);
+
             // Sanitize the response before sending it back
             const sanitizedResponse = sanitizeText(response.trim());
             self.postMessage({
@@ -415,7 +425,8 @@ self.onmessage = async (event) => {
               metadata: {
                 performance: {
                   llmProcessingTime,
-                  sentimentAnalysisTime
+                  sentimentAnalysisTime,
+                  historySize
                 }
               },
               taskId

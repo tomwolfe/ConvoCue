@@ -5,6 +5,7 @@ import { enhanceResponse, getInferredPreferences } from '../utils/responseEnhanc
 import { getConversationHistory } from '../conversationManager';
 import { secureLocalStorageGet, secureLocalStorageSet } from '../utils/encryption';
 import { getManualPreferences, saveUserPreferences } from '../utils/preferences';
+import { monitorAndOptimizeHistory, getPerformanceSummary, logPerformanceMetric } from '../utils/performanceMonitoring';
 
 const initialState = {
   status: 'Initializing Models...',

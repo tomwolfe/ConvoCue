@@ -1,11 +1,12 @@
 import { analyzeEmotion } from './emotion';
 import { getDislikedPhrases } from './feedback';
 import { secureLocalStorageGet } from './encryption';
-import { 
-  getNaturalPhrasing, 
-  culturalContextDatabase, 
-  getCommunicationStyleForCulture 
+import {
+  getNaturalPhrasing,
+  culturalContextDatabase,
+  getCommunicationStyleForCulture
 } from './culturalContext';
+import { generateIntentBasedCue, detectIntentWithContext } from './intentRecognition';
 
 /**
  * Gets user's preferred response patterns based on feedback history
@@ -658,9 +659,17 @@ const removeApologeticLanguage = (response) => {
 };
 
 /**
- * Generates context-aware quick cues for subtle mode
+ * Generates context-aware quick cues for subtle mode using NLP-based intent recognition
  */
 const generateQuickCue = (response, input, conversationHistory = []) => {
+  // Use the new intent recognition system for more accurate detection
+  const intentBasedCue = generateIntentBasedCue(input, response, conversationHistory);
+
+  if (intentBasedCue) {
+    return intentBasedCue;
+  }
+
+  // Fallback to simple keyword matching if intent recognition doesn't return a cue
   const quickCues = {
     greeting: ['Hi', 'Hello', 'Hey', 'Wave', 'Smile', 'Warmly'],
     question: ['Ask', 'Clarify', 'Follow up', 'Probe', 'Inquire', 'Investigate', 'Query'],
@@ -688,7 +697,7 @@ const generateQuickCue = (response, input, conversationHistory = []) => {
   if (lowerInput.includes('anxious') || lowerInput.includes('nervous') || lowerInput.includes('stressed')) return selectRandom('emotion');
   if (lowerInput.includes('hello') || lowerInput.includes('hi')) return selectRandom('greeting');
   if (lowerInput.includes('?') || lowerInput.includes('what') || lowerInput.includes('how')) return selectRandom('question');
-  
+
   if (lowerResponse.includes('should') || lowerResponse.includes('try') || lowerResponse.includes('could')) return selectRandom('suggestion');
   if (lowerResponse.includes('feel') || lowerResponse.includes('understand')) return selectRandom('empathy');
 

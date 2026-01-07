@@ -12,8 +12,9 @@ import { submitSubtleModeFeedback } from '../utils/feedback';
 
 const GlanceWidget = ({ suggestion, emotionData, isProcessing }) => {
   const [feedbackGiven, setFeedbackGiven] = useState(false);
+  const [showExplanation, setShowExplanation] = useState(false);
   const emotion = emotionData?.emotion || 'neutral';
-  
+
   const hasActionItem = suggestion?.includes('[Action Item]');
   const hasConflict = suggestion?.includes('[Diplomatic]');
   const isHighStakes = suggestion?.includes('[Strategic]');
@@ -116,14 +117,30 @@ const GlanceWidget = ({ suggestion, emotionData, isProcessing }) => {
 
   const tooltipText = getTooltipForCue(displaySuggestion);
 
+  // Determine explanation based on tags in the original suggestion
+  const getExplanation = () => {
+    if (hasActionItem) return "Detected action items in the conversation that need follow-up.";
+    if (hasConflict) return "Detected potential conflict that requires diplomatic handling.";
+    if (isHighStakes) return "Detected a high-stakes situation requiring strategic communication.";
+    if (isLanguageTip) return "Detected opportunity to improve language phrasing for better communication.";
+    if (isSocialTip) return "Detected social nuance that could improve the interaction.";
+    if (isNegotiation) return "Detected negotiation elements requiring tactical communication.";
+
+    // If no specific tag, provide a general explanation
+    return `This cue was generated based on the current conversation context and your selected persona. It's designed to guide your communication subtly.`;
+  };
+
   return (
     <div
       className={`glance-widget ${emotion} new-cue`}
       role="region"
       aria-label="Glance Feedback"
-      title={tooltipText}
+      onMouseEnter={() => setShowExplanation(true)}
+      onMouseLeave={() => setShowExplanation(false)}
+      onFocus={() => setShowExplanation(true)}
+      onBlur={() => setShowExplanation(false)}
     >
-      <p className="glance-suggestion">{displaySuggestion}</p>
+      <p className="glance-suggestion" title={tooltipText}>{displaySuggestion}</p>
       <div className="glance-indicators">
         {hasActionItem && (
           <div className="glance-badge action" title="Action item detected">
@@ -155,11 +172,23 @@ const GlanceWidget = ({ suggestion, emotionData, isProcessing }) => {
             <Zap size={14} /> <span>Negotiation</span>
           </div>
         )}
+        {/* Explanation tooltip */}
+        {showExplanation && !isProcessing && displaySuggestion !== 'Listening...' && (
+          <div className="glance-explanation-tooltip">
+            <div className="explanation-content">
+              <Info size={14} className="explanation-icon" />
+              <div className="explanation-text">
+                <strong>Why this cue?</strong>
+                <p>{getExplanation()}</p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {!isProcessing && displaySuggestion !== 'Listening...' && (
         <div className="glance-feedback-actions">
-          <button 
+          <button
             className={`feedback-btn ${feedbackGiven ? 'disabled' : ''}`}
             onClick={() => handleFeedback('like')}
             disabled={feedbackGiven}
@@ -167,7 +196,7 @@ const GlanceWidget = ({ suggestion, emotionData, isProcessing }) => {
           >
             <ThumbsUp size={12} />
           </button>
-          <button 
+          <button
             className={`feedback-btn ${feedbackGiven ? 'disabled' : ''}`}
             onClick={() => handleFeedback('dislike')}
             disabled={feedbackGiven}
