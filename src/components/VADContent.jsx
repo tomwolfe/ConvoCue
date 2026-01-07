@@ -7,26 +7,24 @@ import PersonaSelector from './VAD/PersonaSelector';
 import DisplayArea from './VAD/DisplayArea';
 import ControlPanel from './VAD/ControlPanel';
 import SocialSuccessScore from './SocialSuccessScore';
-import { secureLocalStorageGet } from '../utils/encryption';
 import { getMergedPersonas } from '../utils/preferences';
 import { submitSubtleModeFeedback } from '../utils/feedback';
 
 const GlanceWidget = ({ suggestion, emotionData, isProcessing }) => {
   const [feedbackGiven, setFeedbackGiven] = useState(false);
   const emotion = emotionData?.emotion || 'neutral';
+  
   const hasActionItem = suggestion?.includes('[Action Item]');
   const hasConflict = suggestion?.includes('[Diplomatic]');
   const isHighStakes = suggestion?.includes('[Strategic]');
+  const isLanguageTip = suggestion?.includes('[Natural Phrasing]');
+  const isSocialTip = suggestion?.includes('[Social Tip]');
+  const isNegotiation = suggestion?.includes('[Negotiation]');
 
   // Clean the suggestion for glance display
   const displaySuggestion = suggestion
     ? suggestion.replace(/\[.*?\]/g, '').trim()
     : isProcessing ? 'Thinking...' : 'Listening...';
-
-  // Reset feedback state when suggestion changes
-  useEffect(() => {
-    setFeedbackGiven(false);
-  }, [displaySuggestion]);
 
   const handleFeedback = async (type) => {
     if (feedbackGiven || !displaySuggestion || isProcessing) return;
@@ -53,12 +51,15 @@ const GlanceWidget = ({ suggestion, emotionData, isProcessing }) => {
       'follow up': 'Continue the conversation',
       'probe': 'Explore the topic deeper',
       'inquire': 'Make an inquiry politely',
+      'reassess': 'Evaluate the situation again',
+      'doubt': 'Express healthy skepticism',
       'right': 'Acknowledge agreement',
       'exactly': 'Confirm strong agreement',
       'true': 'Affirm the statement',
       'wait': 'Allow time before responding',
       'try': 'Suggest an experiment or attempt',
       'suggest': 'Offer a recommendation',
+      'experiment': 'Try a different approach',
       'maybe': 'Express possibility tentatively',
       'propose': 'Present an idea for consideration',
       'great': 'Express positive acknowledgment',
@@ -117,7 +118,7 @@ const GlanceWidget = ({ suggestion, emotionData, isProcessing }) => {
 
   return (
     <div
-      className={`glance-widget ${emotion}`}
+      className={`glance-widget ${emotion} new-cue`}
       role="region"
       aria-label="Glance Feedback"
       title={tooltipText}
@@ -125,7 +126,7 @@ const GlanceWidget = ({ suggestion, emotionData, isProcessing }) => {
       <p className="glance-suggestion">{displaySuggestion}</p>
       <div className="glance-indicators">
         {hasActionItem && (
-          <div className="glance-badge action" title="Action item detected in conversation">
+          <div className="glance-badge action" title="Action item detected">
             <Zap size={14} /> <span>Action</span>
           </div>
         )}
@@ -135,8 +136,23 @@ const GlanceWidget = ({ suggestion, emotionData, isProcessing }) => {
           </div>
         )}
         {isHighStakes && (
-          <div className="glance-badge strategic" title="Strategic/high-stakes situation detected">
+          <div className="glance-badge strategic" title="Strategic situation detected">
             <Info size={14} /> <span>Strategic</span>
+          </div>
+        )}
+        {isLanguageTip && (
+          <div className="glance-badge language" title="Language learning suggestion">
+            <Zap size={14} /> <span>Language</span>
+          </div>
+        )}
+        {isSocialTip && (
+          <div className="glance-badge social" title="Social intelligence tip">
+            <ThumbsUp size={14} /> <span>Social</span>
+          </div>
+        )}
+        {isNegotiation && (
+          <div className="glance-badge strategic" title="Negotiation insight">
+            <Zap size={14} /> <span>Negotiation</span>
           </div>
         )}
       </div>
@@ -229,7 +245,7 @@ const VADContent = ({
   transcript,
   suggestion,
   emotionData,
-  conversationSentiment,
+  _conversationSentiment,
   isProcessing,
   processingStep,
   processAudio,
@@ -238,7 +254,7 @@ const VADContent = ({
   setSuggestion,
   setStatus,
   initialError,
-  history,
+  _history,
   conversationTurns,
   persona,
   setPersona,
@@ -438,6 +454,7 @@ const VADContent = ({
       <div className="display-area" role="region" aria-label="Results">
         {isSubtleMode && (
           <GlanceWidget 
+            key={suggestion || 'empty'}
             suggestion={suggestion} 
             emotionData={emotionData} 
             isProcessing={isProcessing} 

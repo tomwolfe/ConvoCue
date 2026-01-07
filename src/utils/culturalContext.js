@@ -277,7 +277,7 @@ export const culturalContextDatabase = {
     'low-touch': ['Northern Europe', 'Japan', 'Korea']
   },
 
-  // Cultural time concepts
+  // Common cultural time concepts
   timeConcepts: {
     'monochronic': {
       cultures: ['Germany', 'Switzerland', 'USA', 'Scandinavian countries', 'UK'],
@@ -289,7 +289,64 @@ export const culturalContextDatabase = {
       characteristics: ['Relationships over schedules', 'Multiple tasks simultaneously', 'Flexible timing', 'Time is fluid'],
       businessTips: ['Allow extra time', 'Build relationships', 'Be flexible', 'Expect interruptions']
     }
+  },
+
+  // Language Learning: Natural Phrasing suggestions (Literal -> Natural)
+  naturalPhrasing: {
+    'english': [
+      { literal: 'I am good', natural: 'I\'m doing well', context: 'Standard response to "How are you?"' },
+      { literal: 'Give me the salt', natural: 'Could you please pass the salt?', context: 'Polite request' },
+      { literal: 'I want coffee', natural: 'I\'d like to get a coffee', context: 'Ordering' },
+      { literal: 'What?', natural: 'I\'m sorry, could you repeat that?', context: 'Clarification' },
+      { literal: 'Wait for me', natural: 'Give me just a second', context: 'Requesting time' }
+    ],
+    'spanish': [
+      { literal: '¿Qué?', natural: '¿Cómo perdón?', context: 'Polite clarification' },
+      { literal: 'Quiero agua', natural: '¿Me podrías dar un poco de agua?', context: 'Polite request' },
+      { literal: 'Estoy bien', natural: 'Todo bien, gracias', context: 'Natural response' }
+    ]
+  },
+
+  // Relationship Nuance: Emotional Intelligence tips
+  socialNuance: {
+    'empathy': [
+      { trigger: 'problem', suggestion: 'Instead of fixing it, try: "That sounds really tough, I hear you."' },
+      { trigger: 'sad', suggestion: 'Acknowledge the feeling: "It makes sense that you feel that way."' },
+      { trigger: 'angry', suggestion: 'Stay calm and validate: "I can see this is important to you."' }
+    ],
+    'conflict': [
+      { trigger: 'you always', suggestion: 'Use "I" statements: "I feel overwhelmed when..." instead of "You always..."' },
+      { trigger: 'shut up', suggestion: 'Request space: "I need a moment to process this so we can talk calmly."' }
+    ]
+  },
+
+  // High-Stakes Professional Communication
+  highStakes: {
+    'negotiation': [
+      'Avoid saying "no" directly; try "That might be difficult under current constraints."' ,
+      'Use silence as a tool after making an offer.',
+      'Ask open-ended questions to understand their "why".'
+    ],
+    'leadership': [
+      'Instead of "I think", use "My recommendation is".',
+      'Acknowledge the team\'s effort before critiquing.',
+      'Clear is kind: be explicit about expectations.'
+    ]
   }
+};
+
+/**
+ * Get natural phrasing suggestion for language learners
+ * @param {string} language - Target language
+ * @param {string} input - User input
+ * @returns {object|null} Natural phrasing suggestion
+ */
+export const getNaturalPhrasing = (language, input) => {
+  const phrases = culturalContextDatabase.naturalPhrasing[language.toLowerCase()];
+  if (!phrases) return null;
+
+  const lowerInput = input.toLowerCase();
+  return phrases.find(p => lowerInput.includes(p.literal.toLowerCase())) || null;
 };
 
 /**
@@ -336,7 +393,7 @@ export const detectCulturalContext = (text, currentCulture = 'general') => {
   const culturalElements = [];
 
   // Check for cultural references in the text
-  for (const [region, cultures] of Object.entries(culturalContextDatabase.greetings)) {
+  for (const [_region, cultures] of Object.entries(culturalContextDatabase.greetings)) {
     for (const [cultureName, greetings] of Object.entries(cultures)) {
       if (lowerText.includes(cultureName.toLowerCase()) ||
           greetings.some(greeting => lowerText.includes(greeting.toLowerCase()))) {
@@ -568,7 +625,7 @@ export const getTaboosForCulture = (culture) => {
  * @returns {string} Appropriate greeting
  */
 export const getGreetingForCulture = (culture) => {
-  for (const [region, cultures] of Object.entries(culturalContextDatabase.greetings)) {
+  for (const [_region, cultures] of Object.entries(culturalContextDatabase.greetings)) {
     if (cultures[culture]) {
       return cultures[culture][0]; // Return the native greeting
     }

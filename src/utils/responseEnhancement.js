@@ -1,6 +1,11 @@
 import { analyzeEmotion } from './emotion';
 import { getDislikedPhrases } from './feedback';
 import { secureLocalStorageGet } from './encryption';
+import { 
+  getNaturalPhrasing, 
+  culturalContextDatabase, 
+  getCommunicationStyleForCulture 
+} from './culturalContext';
 
 /**
  * Gets user's preferred response patterns based on feedback history
@@ -259,43 +264,6 @@ export const hasDislikedPhrases = async (response) => {
 };
 
 /**
- * Applies professional-specific insights to responses
- * @param {string} response - Original response
- * @param {string} input - User input/transcript
- * @returns {string} Response with professional insights
- */
-const applyProfessionalInsights = (response, input) => {
-  let professionalResponse = response;
-  const lowerInput = input.toLowerCase();
-
-  // 1. Action Item Detection
-  const actionKeywords = ['need to', 'should', 'will', 'let\'s', 'assign', 'deadline', 'task', 'follow up'];
-  const hasActionItem = actionKeywords.some(keyword => lowerInput.includes(keyword));
-  
-  if (hasActionItem && !response.toLowerCase().includes('action') && !response.toLowerCase().includes('next steps')) {
-    professionalResponse = `[Action Item] ${professionalResponse} Should we note down the next steps?`;
-  }
-
-  // 2. Conflict Resolution Cues
-  const conflictKeywords = ['disagree', 'wrong', 'problem', 'issue', 'not happy', 'frustrated', 'mistake'];
-  const hasConflict = conflictKeywords.some(keyword => lowerInput.includes(keyword));
-
-  if (hasConflict) {
-    professionalResponse = `[Diplomatic] ${professionalResponse} I hear the concern. How can we find a middle ground?`;
-  }
-
-  // 3. Power Dynamic Alerts (subtle cues for high-stakes situations)
-  const powerKeywords = ['boss', 'manager', 'executive', 'director', 'urgent', 'priority', 'important'];
-  const isHighStakes = powerKeywords.some(keyword => lowerInput.includes(keyword));
-
-  if (isHighStakes && !hasConflict) {
-    professionalResponse = `[Strategic] ${professionalResponse} This seems like a priority for leadership.`;
-  }
-
-  return professionalResponse;
-};
-
-/**
  * Enhances a response based on user preferences, emotional context, and feedback patterns
  *
  * @param {string} response - Original response to enhance
@@ -310,15 +278,26 @@ export const enhanceResponse = async (response, persona, emotionData = null, inp
 
   const preferences = await getInferredPreferences();
   const isSubtleMode = options.isSubtleMode || preferences.isSubtleMode;
-  // Subtle Mode overrides all other preferences
   let enhancedResponse = response;
 
-  // Apply professional insights for relevant personas
-  if ((persona === 'professional' || persona === 'meeting') && input && !isSubtleMode) {
-    enhancedResponse = applyProfessionalInsights(enhancedResponse, input);
+  // 1. Specialized Persona Logic (Apply BEFORE general adjustments)
+  if (!isSubtleMode) {
+    if (persona === 'languagelearning') {
+      enhancedResponse = applyLanguageLearningSupport(enhancedResponse, input);
+    } else if (persona === 'relationship') {
+      enhancedResponse = applySocialNuance(enhancedResponse, input);
+    } else if (persona === 'professional' || persona === 'meeting') {
+      enhancedResponse = applyProfessionalInsights(enhancedResponse, input);
+    }
+    
+    // Apply cultural refinement if a specific culture is detected or set
+    const targetCulture = options.culturalContext || 'general';
+    if (targetCulture !== 'general') {
+      enhancedResponse = applyCulturalRefinement(enhancedResponse, targetCulture);
+    }
   }
 
-  // Adjust length based on user preference or subtle mode
+  // 2. Adjust length based on user preference or subtle mode
   if (isSubtleMode) {
     // In subtle mode, we want extremely brief cues from a curated list
     enhancedResponse = generateQuickCue(enhancedResponse, input, conversationHistory);
@@ -340,12 +319,12 @@ export const enhanceResponse = async (response, persona, emotionData = null, inp
     }
   }
 
-  // Adjust tone based on user preference (bypass if subtle)
+  // 3. Adjust tone based on user preference (bypass if subtle)
   if (!isSubtleMode) {
     enhancedResponse = applyToneAdjustment(enhancedResponse, preferences.preferredTone, persona);
   }
 
-  // Add emotional awareness if emotion detected (bypass if subtle)
+  // 4. Add emotional awareness if emotion detected (bypass if subtle)
   if (!isSubtleMode && emotionData && emotionData.emotion !== 'neutral' && emotionData.confidence > 0.4) {
     const emotionalAcknowledge = getEmotionalAcknowledgment(emotionData.emotion);
     if (!enhancedResponse.toLowerCase().includes(emotionalAcknowledge.toLowerCase())) {
@@ -353,41 +332,128 @@ export const enhanceResponse = async (response, persona, emotionData = null, inp
     }
   }
 
-  // Apply conversation context awareness (bypass if subtle)
+  // 5. Apply conversation context awareness (bypass if subtle)
   if (!isSubtleMode && conversationHistory && conversationHistory.length > 0) {
     enhancedResponse = applyConversationContext(enhancedResponse, conversationHistory, persona);
   }
 
-  // Apply learned preferences from feedback (bypass if subtle)
+  // 6. Apply learned preferences from feedback (bypass if subtle)
   if (!isSubtleMode) {
     enhancedResponse = applyLearnedPreferences(enhancedResponse, preferences);
   }
 
-  // Safety Valve: If enhancement changed the response too radically, fallback
-  // This prevents "hallucinations" or weird artifacts from rule-based rephrasing
-  // NOTE: Subtle Mode is EXEMPT from these checks because micro-cues are intended to be radically shorter
+  // Safety Valve
   if (!isSubtleMode) {
     const lengthRatio = enhancedResponse.length / Math.max(1, response.length);
-    if (lengthRatio > 2.0 || lengthRatio < 0.3) {
-      console.warn("Safety valve triggered: Enhancement was too aggressive. Falling back to original.");
+    if (lengthRatio > 4.0 || lengthRatio < 0.2) { // Loosened slightly for specialized personas
+      console.warn("Safety valve triggered: Enhancement was too aggressive.");
       return response;
     }
-
-    // Additional safety check: semantic similarity to prevent meaning drift
-    if (await isSemanticallyTooDifferent(response, enhancedResponse)) {
-      console.warn("Safety valve triggered: Enhanced response is semantically too different. Falling back to original.");
-      return response;
-    }
-  }
-
-  // Check for disliked phrases and try to avoid them
-  if (await hasDislikedPhrases(enhancedResponse)) {
-    // For now, just log that we detected disliked phrases
-    // In a more advanced implementation, we could try to rephrase
-    console.log("Response contains disliked phrases:", enhancedResponse);
   }
 
   return enhancedResponse;
+};
+
+/**
+ * Applies language learning specific enhancements
+ */
+const applyLanguageLearningSupport = (response, input) => {
+  const natural = getNaturalPhrasing('english', input); // Default to English for now
+  if (natural) {
+    return `[Natural Phrasing] Instead of "${natural.literal}", try: "${natural.natural}". ${response}`;
+  }
+  return response;
+};
+
+/**
+ * Applies social nuance enhancements for relationship coaching
+ */
+const applySocialNuance = (response, input) => {
+  const lowerInput = input.toLowerCase();
+  const nuances = culturalContextDatabase.socialNuance;
+  
+  for (const category in nuances) {
+    for (const item of nuances[category]) {
+      if (lowerInput.includes(item.trigger)) {
+        return `[Social Tip] ${item.suggestion} ${response}`;
+      }
+    }
+  }
+  return response;
+};
+
+/**
+ * Adjusts directness based on cultural communication style
+ */
+const applyCulturalRefinement = (response, culture) => {
+  const style = getCommunicationStyleForCulture(culture);
+  
+  if (style === 'high-context') {
+    // Make more indirect
+    return response
+      .replace(/\b(no|never|wrong)\b/gi, 'that might be difficult')
+      .replace(/\b(must|should)\b/gi, 'perhaps we could');
+  } else if (style === 'low-context') {
+    // Ensure clarity
+    if (response.length > 100) {
+      const sentences = response.split(/(?<=[.!?])\s+/);
+      return sentences[0] + " (Directly speaking)";
+    }
+  }
+  return response;
+};
+
+/**
+ * Applies professional-specific insights to responses
+ */
+const applyProfessionalInsights = (response, input) => {
+  let professionalResponse = response;
+  const lowerInput = input.toLowerCase();
+
+  // High-Stakes detection
+  const isNegotiation = lowerInput.includes('price') || lowerInput.includes('cost') || lowerInput.includes('contract');
+  if (isNegotiation) {
+    const tip = culturalContextDatabase.highStakes.negotiation[0];
+    professionalResponse = `[Negotiation] ${tip} ${professionalResponse}`;
+  }
+
+  // Action Item Detection
+  const actionKeywords = ['need to', 'should', 'will', 'let\'s', 'assign', 'deadline', 'task', 'follow up'];
+  const hasActionItem = actionKeywords.some(keyword => lowerInput.includes(keyword));
+  
+  if (hasActionItem && !response.toLowerCase().includes('action')) {
+    professionalResponse = `[Action Item] ${professionalResponse}`;
+  }
+
+  return professionalResponse;
+};
+
+/**
+ * Applies tone adjustments to the response based on user preference
+ * @param {string} response - Original response
+ * @param {string} preferredTone - User's preferred tone ('formal', 'casual', 'balanced')
+ * @param {string} persona - Current persona
+ * @returns {string} Response with tone adjustments applied
+ */
+const applyToneAdjustment = (response, preferredTone, persona) => {
+  let adjustedResponse = response;
+
+  if (preferredTone === 'formal' && persona !== 'professional') {
+    // Make more formal if user prefers it
+    adjustedResponse = adjustedResponse
+      .replace(/\b(i|we|you|they)\b/g, (match) => match.charAt(0).toUpperCase() + match.slice(1))
+      .replace(/\bim\b/gi, 'I am')
+      .replace(/\bcant\b/gi, 'cannot')
+      .replace(/\bwont\b/gi, 'will not');
+  } else if (preferredTone === 'casual' && persona === 'professional') {
+    // Make more casual if user prefers it
+    adjustedResponse = adjustedResponse
+      .replace(/\bI am\b/gi, 'I\'m')
+      .replace(/\bcannot\b/gi, 'can\'t')
+      .replace(/\bwill not\b/gi, 'won\'t');
+  }
+
+  return adjustedResponse;
 };
 
 /**
@@ -455,12 +521,6 @@ const applyLearnedPreferences = (response, preferences) => {
   // Apply moderation to prevent over-adaptation
   const moderationFactor = calculateModerationFactor(preferences);
 
-  // Apply positive patterns (things users liked)
-  if (preferences.responsePatterns && preferences.responsePatterns.length > 0) {
-    // For now, we'll just make sure we're not contradicting learned preferences
-    // In a more advanced system, we might inject preferred patterns
-  }
-
   // Avoid negative patterns (things users disliked)
   if (preferences.avoidPatterns && preferences.avoidPatterns.length > 0) {
     preferences.avoidPatterns.forEach(pattern => {
@@ -490,37 +550,21 @@ const applyLearnedPreferences = (response, preferences) => {
     });
   }
 
-  // Adjust based on structural preferences with moderation
-  if (preferences.preferredLength) {
-    // Already handled in the main function
-  }
-
   return modifiedResponse;
 };
 
 /**
  * Calculates a moderation factor to prevent over-adaptation
- * @param {object} preferences - User preferences object
- * @returns {number} Moderation factor (0-1)
  */
 const calculateModerationFactor = (preferences) => {
-  // Calculate based on amount of feedback data available
-  // Less data = more conservative adaptation
-  const totalFeedbackCount = preferences.responsePatterns?.length + preferences.avoidPatterns?.length || 0;
-
-  // Return a value between 0.1 and 1.0 based on confidence in preferences
-  // More feedback = higher confidence = higher adaptation
+  const totalFeedbackCount = (preferences.responsePatterns?.length || 0) + (preferences.avoidPatterns?.length || 0);
   return Math.min(1.0, Math.max(0.1, totalFeedbackCount / 10));
 };
 
 /**
  * Replaces a disliked pattern with a better alternative
- * @param {string} response - Original response
- * @param {string} dislikedPhrase - The phrase to replace
- * @returns {string} Response with replaced phrase
  */
 const replaceDislikedPattern = (response, dislikedPhrase) => {
-  // Define better alternatives for common disliked phrases
   const replacements = {
     'sorry': 'I understand',
     'apologize': 'I recognize',
@@ -531,112 +575,62 @@ const replaceDislikedPattern = (response, dislikedPhrase) => {
     'i guess': 'it seems'
   };
 
-  // Check if the disliked phrase has a known replacement
   const lowerPhrase = dislikedPhrase.toLowerCase();
   if (replacements[lowerPhrase]) {
-    return response.replace(new RegExp('\b' + dislikedPhrase + '\b', 'gi'), replacements[lowerPhrase]);
+    return response.replace(new RegExp('\\b' + dislikedPhrase + '\\b', 'gi'), replacements[lowerPhrase]);
   }
 
-  // If no specific replacement, try to rephrase the sentence
   return rephraseSentence(response, dislikedPhrase);
 };
 
 /**
  * Rephrases a sentence to remove a disliked phrase
- * @param {string} response - Original response
- * @param {string} dislikedPhrase - Phrase to remove
- * @returns {string} Rephrased response
  */
 const rephraseSentence = (response, dislikedPhrase) => {
-  // Split into sentences and rephrase the one containing the disliked phrase
   const sentences = response.split(/(?<=[.!?])\s+/);
   const rephrasedSentences = sentences.map(sentence => {
     if (sentence.toLowerCase().includes(dislikedPhrase.toLowerCase())) {
-      // Attempt to rephrase by removing the disliked phrase and adjusting the sentence
-      let newSentence = sentence.replace(new RegExp('\b' + dislikedPhrase + '\b', 'gi'), '');
+      let newSentence = sentence.replace(new RegExp('\\b' + dislikedPhrase + '\\b', 'gi'), '');
       newSentence = newSentence.replace(/\s+/g, ' ').trim();
-
-      // Capitalize first letter if needed
       if (newSentence.length > 0) {
         newSentence = newSentence.charAt(0).toUpperCase() + newSentence.slice(1);
       }
-
       return newSentence;
     }
     return sentence;
   });
-
   return rephrasedSentences.join(' ');
 };
 
 /**
  * Converts a question to a statement
- * @param {string} question - Question to convert
- * @returns {string} Converted statement
  */
 const convertQuestionToStatement = (question) => {
-  // Remove question mark and adjust the sentence structure
   let statement = question.replace(/\?$/, '.');
-
-  // Convert question words to statement form if needed
   if (statement.toLowerCase().startsWith('what')) {
     statement = 'Consider what you could do about ' + statement.substring(5);
   } else if (statement.toLowerCase().startsWith('how')) {
     statement = 'Think about how you might ' + statement.substring(4);
-  } else if (statement.toLowerCase().startsWith('why')) {
-    statement = 'There could be several reasons why ' + statement.substring(4);
-  } else if (statement.toLowerCase().startsWith('can') || statement.toLowerCase().startsWith('could')) {
-    statement = 'You might be able to ' + statement.substring(statement.indexOf(' ') + 1);
   }
-
   return statement;
 };
 
 /**
- * Removes apologetic language from a response
- * @param {string} response - Original response
- * @returns {string} Response without apologetic language
+ * Removes apologetic language
  */
 const removeApologeticLanguage = (response) => {
-  // Remove apologetic phrases
-  let cleanedResponse = response.replace(/\bsorry\b/gi, '');
-  cleanedResponse = cleanedResponse.replace(/\bi apologize\b/gi, '');
-  cleanedResponse = cleanedResponse.replace(/\bmy apologies\b/gi, '');
-  cleanedResponse = cleanedResponse.replace(/\bi'm sorry\b/gi, '');
-
-  // Clean up extra spaces and punctuation
-  cleanedResponse = cleanedResponse.replace(/\s+/g, ' ').trim();
-  cleanedResponse = cleanedResponse.replace(/\s+([,.!?;:])/g, '$1');
-
-  return cleanedResponse;
+  let cleanedResponse = response.replace(/\bsorry\b/gi, '')
+    .replace(/\bi apologize\b/gi, '')
+    .replace(/\bmy apologies\b/gi, '')
+    .replace(/\bi'm sorry\b/gi, '');
+  return cleanedResponse.replace(/\s+/g, ' ').trim().replace(/\s+([,.!?;:])/g, '$1');
 };
 
 /**
- * Checks if two responses are semantically too different
- * @param {string} original - Original response
- * @param {string} enhanced - Enhanced response
- * @returns {Promise<boolean>} True if responses are semantically too different
+ * Generates context-aware quick cues for subtle mode
  */
-const isSemanticallyTooDifferent = async (original, enhanced) => {
-  // Simple heuristic: check if key terms from original appear in enhanced
-  const originalWords = original.toLowerCase().split(/\s+/).filter(word => word.length > 3);
-  const enhancedWords = enhanced.toLowerCase().split(/\s+/);
-
-  // Find common words between original and enhanced
-  const commonWords = originalWords.filter(word => enhancedWords.includes(word));
-
-  // If less than 30% of significant words from original appear in enhanced, consider it too different
-  const commonRatio = commonWords.length / Math.max(1, originalWords.length);
-
-  return commonRatio < 0.3;
-};
-
-/**
- * Defines quick cues based on common conversation patterns
- * @returns {Object} Object containing quick cue categories
- */
-const getQuickCues = () => {
-  return {
+const generateQuickCue = (response, input, conversationHistory = []) => {
+  const quickCues = {
     greeting: ['Hi', 'Hello', 'Hey', 'Wave', 'Smile', 'Warmly'],
     question: ['Ask', 'Clarify', 'Follow up', 'Probe', 'Inquire', 'Investigate', 'Query'],
     agreement: ['Agree', 'Nod', 'Right', 'Exactly', 'True', 'Affirm', 'Indeed'],
@@ -652,282 +646,25 @@ const getQuickCues = () => {
     conflict: ['De-escalate', 'Validate first', 'Soft tone', 'Find common ground', 'Listen more', 'Neutral stance', 'Breathe'],
     default: ['Pause', 'Think', 'Consider', 'Reflect', 'Hmm', 'Observe']
   };
-};
 
-/**
- * Detects if conflict is present in the input
- * @param {string} lowerInput - Lowercase input string
- * @returns {boolean} True if conflict is detected
- */
-const detectConflict = (lowerInput) => {
-  return lowerInput.includes('no') && (lowerInput.includes('wrong') || lowerInput.includes('disagree') || lowerInput.includes('never'));
-};
-
-/**
- * Detects if strategic communication is needed
- * @param {string} lowerInput - Lowercase input string
- * @returns {boolean} True if strategic communication is needed
- */
-const detectStrategic = (lowerInput) => {
-  return lowerInput.includes('negotiate') || lowerInput.includes('important') || lowerInput.includes('boss') || lowerInput.includes('interview');
-};
-
-/**
- * Detects greeting patterns in the input
- * @param {string} lowerInput - Lowercase input string
- * @returns {boolean} True if greeting pattern is detected
- */
-const detectGreeting = (lowerInput) => {
-  return lowerInput.includes('hello') || lowerInput.includes('hi') || lowerInput.includes('hey');
-};
-
-/**
- * Detects question patterns in the input
- * @param {string} lowerInput - Lowercase input string
- * @returns {boolean} True if question pattern is detected
- */
-const detectQuestion = (lowerInput) => {
-  return lowerInput.includes('?') || lowerInput.includes('what') || lowerInput.includes('how') || lowerInput.includes('why');
-};
-
-/**
- * Detects agreement patterns in the input
- * @param {string} lowerInput - Lowercase input string
- * @returns {boolean} True if agreement pattern is detected
- */
-const detectAgreement = (lowerInput) => {
-  return lowerInput.includes('yes') || lowerInput.includes('yeah') || lowerInput.includes('yep') || lowerInput.includes('ok');
-};
-
-/**
- * Detects disagreement patterns in the input
- * @param {string} lowerInput - Lowercase input string
- * @returns {boolean} True if disagreement pattern is detected
- */
-const detectDisagreement = (lowerInput) => {
-  return lowerInput.includes('no') || lowerInput.includes('nah') || lowerInput.includes('not really');
-};
-
-/**
- * Detects suggestion patterns in the input
- * @param {string} lowerInput - Lowercase input string
- * @returns {boolean} True if suggestion pattern is detected
- */
-const detectSuggestion = (lowerInput) => {
-  return lowerInput.includes('suggest') || lowerInput.includes('recommend') || lowerInput.includes('idea');
-};
-
-/**
- * Detects encouragement patterns in the input
- * @param {string} lowerInput - Lowercase input string
- * @returns {boolean} True if encouragement pattern is detected
- */
-const detectEncouragement = (lowerInput) => {
-  return lowerInput.includes('good') || lowerInput.includes('great') || lowerInput.includes('nice') || lowerInput.includes('awesome');
-};
-
-/**
- * Detects empathy patterns in the input
- * @param {string} lowerInput - Lowercase input string
- * @returns {boolean} True if empathy pattern is detected
- */
-const detectEmpathy = (lowerInput) => {
-  return lowerInput.includes('feel') || lowerInput.includes('think') || lowerInput.includes('believe');
-};
-
-/**
- * Detects transition patterns in the input
- * @param {string} lowerInput - Lowercase input string
- * @returns {boolean} True if transition pattern is detected
- */
-const detectTransition = (lowerInput) => {
-  return lowerInput.includes('next') || lowerInput.includes('then') || lowerInput.includes('so');
-};
-
-/**
- * Detects clarification patterns in the input
- * @param {string} lowerInput - Lowercase input string
- * @returns {boolean} True if clarification pattern is detected
- */
-const detectClarification = (lowerInput) => {
-  return lowerInput.includes('explain') || lowerInput.includes('how') || lowerInput.includes('what do you mean');
-};
-
-/**
- * Detects emotion patterns in the input
- * @param {string} lowerInput - Lowercase input string
- * @returns {boolean} True if emotion pattern is detected
- */
-const detectEmotion = (lowerInput) => {
-  return lowerInput.includes('anxious') || lowerInput.includes('worried') || lowerInput.includes('stressed') || lowerInput.includes('nervous');
-};
-
-/**
- * Detects uncertainty patterns in the input
- * @param {string} lowerInput - Lowercase input string
- * @returns {boolean} True if uncertainty pattern is detected
- */
-const detectUncertainty = (lowerInput) => {
-  return lowerInput.includes('not sure') || lowerInput.includes('unsure') || lowerInput.includes('dunno') || lowerInput.includes('maybe');
-};
-
-/**
- * Selects a random cue from the specified category
- * @param {Object} quickCues - Object containing all quick cue categories
- * @param {string} category - Category to select from
- * @returns {string} Random cue from the specified category
- */
-const selectRandomCue = (quickCues, category) => {
-  return quickCues[category][Math.floor(Math.random() * quickCues[category].length)];
-};
-
-/**
- * Analyzes input to determine appropriate cue category
- * @param {string} input - User input
- * @param {Object} quickCues - Object containing all quick cue categories
- * @returns {string|null} Cue category or null if no match
- */
-const analyzeInputForCue = (input, quickCues) => {
   const lowerInput = input.toLowerCase();
-
-  // Check for conflict or strategic situations if we have context
-  if (detectConflict(lowerInput)) {
-    return selectRandomCue(quickCues, 'conflict');
-  } else if (detectStrategic(lowerInput)) {
-    return selectRandomCue(quickCues, 'strategic');
-  } else if (detectEmotion(lowerInput)) {
-    return selectRandomCue(quickCues, 'emotion');
-  } else if (detectGreeting(lowerInput)) {
-    return selectRandomCue(quickCues, 'greeting');
-  } else if (detectQuestion(lowerInput)) {
-    return selectRandomCue(quickCues, 'question');
-  } else if (detectAgreement(lowerInput)) {
-    return selectRandomCue(quickCues, 'agreement');
-  } else if (detectDisagreement(lowerInput)) {
-    return selectRandomCue(quickCues, 'disagreement');
-  } else if (detectSuggestion(lowerInput)) {
-    return selectRandomCue(quickCues, 'suggestion');
-  } else if (detectEncouragement(lowerInput)) {
-    return selectRandomCue(quickCues, 'encouragement');
-  } else if (detectEmpathy(lowerInput)) {
-    return selectRandomCue(quickCues, 'empathy');
-  } else if (detectTransition(lowerInput)) {
-    return selectRandomCue(quickCues, 'transition');
-  } else if (detectClarification(lowerInput)) {
-    return selectRandomCue(quickCues, 'clarification');
-  } else if (detectEmotion(lowerInput)) {
-    return selectRandomCue(quickCues, 'emotion');
-  } else if (detectUncertainty(lowerInput)) {
-    return selectRandomCue(quickCues, 'uncertainty');
-  }
-
-  return null;
-};
-
-/**
- * Analyzes response to determine appropriate cue category
- * @param {string} response - Original response
- * @param {Object} quickCues - Object containing all quick cue categories
- * @returns {string|null} Cue category or null if no match
- */
-const analyzeResponseForCue = (response, quickCues) => {
   const lowerResponse = response.toLowerCase();
 
-  // Check if the original response has any actionable elements that could be converted to a cue
-  if (lowerResponse.includes('suggest') || lowerResponse.includes('recommend')) {
-    return selectRandomCue(quickCues, 'suggestion');
-  } else if (lowerResponse.includes('understand') || lowerResponse.includes('agree')) {
-    return selectRandomCue(quickCues, 'agreement');
-  } else if (lowerResponse.includes('consider') || lowerResponse.includes('think')) {
-    return selectRandomCue(quickCues, 'uncertainty');
-  } else if (lowerResponse.includes('good') || lowerResponse.includes('great')) {
-    return selectRandomCue(quickCues, 'encouragement');
-  }
+  const selectRandom = (cat) => quickCues[cat][Math.floor(Math.random() * quickCues[cat].length)];
 
-  return null;
-};
+  if (lowerInput.includes('no') && (lowerInput.includes('wrong') || lowerInput.includes('disagree'))) return selectRandom('conflict');
+  if (lowerInput.includes('negotiate') || lowerInput.includes('boss') || lowerInput.includes('interview')) return selectRandom('strategic');
+  if (lowerInput.includes('anxious') || lowerInput.includes('nervous') || lowerInput.includes('stressed')) return selectRandom('emotion');
+  if (lowerInput.includes('hello') || lowerInput.includes('hi')) return selectRandom('greeting');
+  if (lowerInput.includes('?') || lowerInput.includes('what') || lowerInput.includes('how')) return selectRandom('question');
+  
+  if (lowerResponse.includes('should') || lowerResponse.includes('try') || lowerResponse.includes('could')) return selectRandom('suggestion');
+  if (lowerResponse.includes('feel') || lowerResponse.includes('understand')) return selectRandom('empathy');
 
-/**
- * Analyzes conversation history to determine appropriate cue category
- * @param {Array} conversationHistory - Conversation history
- * @param {Object} quickCues - Object containing all quick cue categories
- * @returns {string|null} Cue category or null if no match
- */
-const analyzeHistoryForCue = (conversationHistory, quickCues) => {
   if (conversationHistory.length > 0) {
     const lastTurn = conversationHistory[conversationHistory.length - 1];
-    const lastContent = lastTurn?.content?.toLowerCase() || '';
-
-    // If the last turn was a question, suggest asking or clarifying
-    if (lastContent.includes('?')) {
-      return selectRandomCue(quickCues, 'question');
-    }
+    if (lastTurn?.content?.includes('?')) return selectRandom('question');
   }
 
-  return null;
-};
-
-/**
- * Generates context-aware quick cues for subtle mode
- * @param {string} response - Original response
- * @param {string} input - User input
- * @param {Array} conversationHistory - Conversation history for context
- * @returns {string} A brief, context-aware cue
- */
-const generateQuickCue = (response, input, conversationHistory = []) => {
-  const quickCues = getQuickCues();
-  const lowerResponse = response.toLowerCase();
-
-  // 1. Check for specific intent tags already present in the response
-  if (lowerResponse.includes('[action item]')) return selectRandomCue(quickCues, 'suggestion');
-  if (lowerResponse.includes('[diplomatic]')) return selectRandomCue(quickCues, 'conflict');
-  if (lowerResponse.includes('[strategic]')) return selectRandomCue(quickCues, 'strategic');
-
-  // 2. Try to analyze input for context clues
-  const inputCue = analyzeInputForCue(input, quickCues);
-  if (inputCue) return inputCue;
-
-  // 3. Analyze the response content for actionable keywords if no tags present
-  if (lowerResponse.includes('should') || lowerResponse.includes('try') || lowerResponse.includes('could')) {
-    return selectRandomCue(quickCues, 'suggestion');
-  }
-  
-  if (lowerResponse.includes('feel') || lowerResponse.includes('understand') || lowerResponse.includes('hear')) {
-    return selectRandomCue(quickCues, 'empathy');
-  }
-
-  // 4. Use conversation history to infer context
-  const historyCue = analyzeHistoryForCue(conversationHistory, quickCues);
-  if (historyCue) return historyCue;
-
-  // 5. Fallback to default cues
-  return selectRandomCue(quickCues, 'default');
-};
-
-/**
- * Applies tone adjustments to the response based on user preference
- * @param {string} response - Original response
- * @param {string} preferredTone - User's preferred tone ('formal', 'casual', 'balanced')
- * @param {string} persona - Current persona
- * @returns {string} Response with tone adjustments applied
- */
-const applyToneAdjustment = (response, preferredTone, persona) => {
-  let adjustedResponse = response;
-
-  if (preferredTone === 'formal' && persona !== 'professional') {
-    // Make more formal if user prefers it
-    adjustedResponse = adjustedResponse
-      .replace(/\b(i|we|you|they)\b/g, (match) => match.charAt(0).toUpperCase() + match.slice(1))
-      .replace(/\bim\b/gi, 'I am')
-      .replace(/\bcant\b/gi, 'cannot')
-      .replace(/\bwont\b/gi, 'will not');
-  } else if (preferredTone === 'casual' && persona === 'professional') {
-    // Make more casual if user prefers it
-    adjustedResponse = adjustedResponse
-      .replace(/\bI am\b/gi, 'I\'m')
-      .replace(/\bcannot\b/gi, 'can\'t')
-      .replace(/\bwill not\b/gi, 'won\'t');
-  }
-
-  return adjustedResponse;
+  return selectRandom('default');
 };

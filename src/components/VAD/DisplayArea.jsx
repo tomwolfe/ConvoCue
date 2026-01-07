@@ -35,10 +35,14 @@ const DisplayArea = ({
   // Format conversation turns for display
   const formattedConversation = conversationTurns.slice(-5).map((turn, index) => (
     <div key={index} className={`conversation-turn ${turn.role}`} aria-label={`${turn.role === 'user' ? 'You' : 'Other speaker'}: ${turn.content}`}>
-      <span className="speaker-tag">
-        {turn.role === 'user' ? <User size={12} style={{ marginRight: '4px' }} /> : <Users size={12} style={{ marginRight: '4px' }} />}
-        {turn.role === 'user' ? 'You:' : 'Other:'}
-      </span>
+      <div className="speaker-identity" title={turn.role === 'user' ? 'You' : 'Other Speaker'}>
+        <div className={`speaker-avatar ${turn.role}`}>
+          {turn.role === 'user' ? <User size={16} /> : <Users size={16} />}
+        </div>
+        <span className="speaker-name">
+          {turn.role === 'user' ? 'You' : 'Other'}
+        </span>
+      </div>
       <span className="turn-text">{turn.content}</span>
       {/* Manual speaker override controls - only show if not in privacy mode */}
       {!settings.privacyMode && (

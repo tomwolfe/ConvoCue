@@ -14,7 +14,7 @@ import { secureLocalStorageGet, secureLocalStorageSet } from './utils/encryption
 
 import './App.css';
 
-import { getMergedPersonas, setPreferredPersona } from './utils/preferences';
+import { getMergedPersonas } from './utils/preferences';
 
 const App = () => {
   const [hasInteracted, setHasInteracted] = useState(false);
