@@ -138,6 +138,17 @@ export const useMLWorker = () => {
 
             dispatch({ type: 'STT_RESULT', text: cleanText });
 
+            // Check performance metrics and potentially adjust processing
+            if (metadata?.performance) {
+              const { audioProcessingTime, speakerDetectionTime } = metadata.performance;
+
+              // Log performance metrics for monitoring
+              if (audioProcessingTime > 200 || speakerDetectionTime > 150) {
+                console.warn('Performance warning:', { audioProcessingTime, speakerDetectionTime });
+                // Could implement fallback logic here for slow devices
+              }
+            }
+
             // Trigger LLM if:
             // 1. It's not too short
             // 2. OR it's been a while since the last interaction (> 5s)
@@ -176,6 +187,18 @@ export const useMLWorker = () => {
             if (e.data.conversationSentiment) {
               dispatch({ type: 'SET_CONVERSATION_SENTIMENT', sentiment: e.data.conversationSentiment });
             }
+
+            // Handle performance metrics from the worker
+            if (e.data.metadata?.performance) {
+              const { llmProcessingTime, sentimentAnalysisTime } = e.data.metadata.performance;
+
+              // Log performance metrics for monitoring
+              if (llmProcessingTime > 5000 || sentimentAnalysisTime > 1000) {
+                console.warn('LLM Performance warning:', { llmProcessingTime, sentimentAnalysisTime });
+                // Could implement fallback logic here for slow devices
+              }
+            }
+
             if (enhanced) {
               dispatch({ type: 'ADD_TO_HISTORY', message: { role: 'assistant', content: enhanced } });
             }

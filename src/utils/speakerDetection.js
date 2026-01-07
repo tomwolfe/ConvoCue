@@ -274,6 +274,33 @@ export class ConversationTurnManager {
     this.lastSpeaker = 'user';
     this.lastSpeechTime = 0;
   }
+
+  /**
+   * Allows manual override of speaker attribution for a specific turn
+   * @param {number} turnId - ID of the turn to modify
+   * @param {string} correctSpeaker - The correct speaker ('user' or 'other')
+   */
+  overrideSpeaker(turnId, correctSpeaker) {
+    if (this.currentTurn && this.currentTurn.id === turnId) {
+      this.currentTurn.speaker = correctSpeaker;
+      this.currentTurn.overridden = true;
+      this.lastSpeaker = correctSpeaker;
+    } else {
+      const turn = this.turns.find(t => t.id === turnId);
+      if (turn) {
+        turn.speaker = correctSpeaker;
+        turn.overridden = true;
+      }
+    }
+  }
+
+  /**
+   * Updates the last speaker without processing new audio
+   * @param {string} speaker - The speaker to set as last speaker
+   */
+  updateLastSpeaker(speaker) {
+    this.lastSpeaker = speaker;
+  }
 }
 
 /**

@@ -39,3 +39,20 @@ export const getConversationHistory = () => {
 export const resetConversationManager = () => {
   conversationManager.reset();
 };
+
+/**
+ * Allows manual override of speaker attribution for a specific turn
+ * @param {number} turnId - ID of the turn to modify
+ * @param {string} correctSpeaker - The correct speaker ('user' or 'other')
+ */
+export const overrideSpeakerForTurn = (turnId, correctSpeaker) => {
+  return conversationManager.overrideSpeaker(turnId, correctSpeaker);
+};
+
+/**
+ * Updates the last speaker without processing new audio
+ * @param {string} speaker - The speaker to set as last speaker
+ */
+export const updateLastSpeaker = (speaker) => {
+  return conversationManager.updateLastSpeaker(speaker);
+};

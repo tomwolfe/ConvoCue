@@ -184,6 +184,7 @@ self.onmessage = async (event) => {
             MLPipeline.lastUsed = Date.now();
             pipelineManager.resetInactivityTimer();
 
+            const audioStartTime = performance.now();
             const audioData = audio instanceof Float32Array ? audio : new Float32Array(Object.values(audio));
 
             const sum = audioData.reduce((a, b) => a + b * b, 0);
@@ -196,18 +197,30 @@ self.onmessage = async (event) => {
                 return_timestamps: false,
             });
 
+            const audioProcessingTime = performance.now() - audioStartTime;
+
             // Sanitize the output text to prevent potential XSS issues
             const sanitizedText = sanitizeText(output.text);
 
             // Process the text through conversation turn manager
             const turnManager = initConversationTurnManager();
+            const speakerDetectionStartTime = performance.now();
             const turnInfo = turnManager.processAudio(audioData, sanitizedText);
+            const speakerDetectionTime = performance.now() - speakerDetectionStartTime;
 
-            // Send STT result back to main thread
+            // Send STT result back to main thread with performance metrics
             self.postMessage({
                 type: 'stt_result',
                 text: sanitizedText,
-                metadata: { rms, duration, turnInfo },
+                metadata: {
+                    rms,
+                    duration,
+                    turnInfo,
+                    performance: {
+                        audioProcessingTime,
+                        speakerDetectionTime
+                    }
+                },
                 taskId
             });
         }
@@ -257,7 +270,9 @@ self.onmessage = async (event) => {
             }
 
             // Analyze conversation sentiment
+            const sentimentAnalysisStartTime = performance.now();
             const conversationSentiment = analyzeConversationSentiment(history || []);
+            const sentimentAnalysisTime = performance.now() - sentimentAnalysisStartTime;
 
             // Dynamic Context (Not cached)
             let dynamicContext = "";
@@ -298,6 +313,7 @@ self.onmessage = async (event) => {
                 { role: "user", content: sanitizedText }
             ];
 
+            const llmStartTime = performance.now();
             const streamer = new TextStreamer(MLPipeline.llm.tokenizer, {
                 skip_prompt: true,
                 skip_special_tokens: true,
@@ -319,6 +335,8 @@ self.onmessage = async (event) => {
                 response = Array.isArray(gen) ? gen[gen.length - 1].content : gen;
             }
 
+            const llmProcessingTime = performance.now() - llmStartTime;
+
             // Sanitize the response before sending it back
             const sanitizedResponse = sanitizeText(response.trim());
             self.postMessage({
@@ -326,6 +344,12 @@ self.onmessage = async (event) => {
               text: sanitizedResponse,
               emotionData,
               conversationSentiment, // Include conversation sentiment
+              metadata: {
+                performance: {
+                  llmProcessingTime,
+                  sentimentAnalysisTime
+                }
+              },
               taskId
             });
         }

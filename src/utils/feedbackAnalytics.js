@@ -1,6 +1,7 @@
 /**
  * @fileoverview User feedback analytics for preference learning
  */
+import { secureLocalStorageGet } from './encryption';
 
 /**
  * Analyzes feedback trends over time to identify evolving user preferences
@@ -10,7 +11,7 @@
 export const analyzeFeedbackTrends = (feedbackHistory = null) => {
   if (!feedbackHistory) {
     try {
-      feedbackHistory = JSON.parse(localStorage.getItem('convocue_feedback') || '[]');
+      feedbackHistory = secureLocalStorageGet('convocue_feedback', []);
     } catch (e) {
       console.error('Failed to load feedback history:', e);
       feedbackHistory = [];

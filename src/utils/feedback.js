@@ -1,6 +1,7 @@
 /**
  * @fileoverview User feedback utilities for collecting and managing user preferences
  */
+import { secureLocalStorageGet, secureLocalStorageSet } from './encryption';
 
 /**
  * Submit feedback for a suggestion
@@ -24,14 +25,14 @@ export const submitFeedback = (suggestion, feedbackType, persona, culturalContex
     isMobile: typeof navigator !== 'undefined' ? /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) : false
   };
 
-  // Store feedback in localStorage
+  // Store feedback in localStorage with encryption
   try {
-    const feedbackHistory = JSON.parse(localStorage.getItem('convocue_feedback') || '[]');
+    const feedbackHistory = secureLocalStorageGet('convocue_feedback', []);
     feedbackHistory.push(feedback);
-    
+
     // Keep only the last 100 feedback entries to prevent storage bloat
     const trimmedHistory = feedbackHistory.slice(-100);
-    localStorage.setItem('convocue_feedback', JSON.stringify(trimmedHistory));
+    secureLocalStorageSet('convocue_feedback', trimmedHistory);
   } catch (e) {
     console.error('Failed to save feedback to localStorage:', e);
   }
@@ -46,8 +47,8 @@ export const submitFeedback = (suggestion, feedbackType, persona, culturalContex
  */
 export const getFeedbackStats = () => {
   try {
-    const feedbackHistory = JSON.parse(localStorage.getItem('convocue_feedback') || '[]');
-    
+    const feedbackHistory = secureLocalStorageGet('convocue_feedback', []);
+
     if (feedbackHistory.length === 0) {
       return {
         totalFeedback: 0,
@@ -94,8 +95,8 @@ export const getFeedbackStats = () => {
  */
 export const getPreferredPersonaFromFeedback = () => {
   try {
-    const feedbackHistory = JSON.parse(localStorage.getItem('convocue_feedback') || '[]');
-    
+    const feedbackHistory = secureLocalStorageGet('convocue_feedback', []);
+
     if (feedbackHistory.length === 0) {
       return null;
     }
@@ -113,7 +114,7 @@ export const getPreferredPersonaFromFeedback = () => {
     // Find persona with highest score
     let preferredPersona = null;
     let highestScore = -Infinity;
-    
+
     for (const [persona, score] of Object.entries(personaScores)) {
       if (score > highestScore) {
         highestScore = score;
@@ -135,17 +136,17 @@ export const getPreferredPersonaFromFeedback = () => {
  */
 export const getDislikedPhrases = () => {
   try {
-    const feedbackHistory = JSON.parse(localStorage.getItem('convocue_feedback') || '[]');
-    
+    const feedbackHistory = secureLocalStorageGet('convocue_feedback', []);
+
     // Get all suggestions that received dislike feedback
     const dislikedSuggestions = feedbackHistory
       .filter(f => f.feedbackType === 'dislike')
       .map(f => f.suggestion);
-    
+
     // Extract common phrases or patterns from disliked suggestions
     // This is a simple implementation - in a real system you'd want more sophisticated analysis
     const phraseCounts = {};
-    
+
     dislikedSuggestions.forEach(suggestion => {
       const words = suggestion.toLowerCase().split(/\s+/);
       words.forEach(word => {
@@ -170,7 +171,7 @@ export const getDislikedPhrases = () => {
  */
 export const clearFeedbackData = () => {
   try {
-    localStorage.removeItem('convocue_feedback');
+    localStorage.removeItem('convocue_feedback'); // Remove the old unencrypted data
   } catch (e) {
     console.error('Failed to clear feedback data:', e);
   }

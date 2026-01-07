@@ -295,7 +295,7 @@ const VADContent = ({
           />
         )}
         
-        <DisplayArea 
+        <DisplayArea
           transcript={transcript}
           suggestion={suggestion}
           processingStep={processingStep}
@@ -309,6 +309,8 @@ const VADContent = ({
           isCompactMode={isCompactMode}
           showMinimalUI={showMinimalUI}
           emotionData={emotionData}
+          conversationSentiment={conversationSentiment}
+          conversationTurns={conversationTurns}
         />
       </div>
 

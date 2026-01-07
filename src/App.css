@@ -377,6 +377,47 @@ header.compact .subtitle {
   line-height: 1.4;
 }
 
+.speaker-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-left: auto;
+}
+
+.speaker-toggle {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 6px;
+  padding: 0.2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.6;
+  transition: all 0.2s;
+}
+
+.speaker-toggle:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 1);
+  transform: scale(1.1);
+}
+
+.speaker-toggle.active {
+  opacity: 1;
+  background: rgba(255, 255, 255, 1);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(108, 92, 231, 0.2);
+}
+
+.conversation-turn.user .speaker-toggle.active {
+  border-color: var(--primary);
+}
+
+.conversation-turn.other .speaker-toggle.active {
+  border-color: var(--accent);
+}
+
 .suggestion {
   background: white;
   padding: 1.5rem;

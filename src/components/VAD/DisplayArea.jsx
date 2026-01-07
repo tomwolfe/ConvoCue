@@ -1,7 +1,8 @@
 import React from 'react';
-import { Trash2, Copy, Check, RefreshCw, ThumbsUp, ThumbsDown, Flag, User, Users } from 'lucide-react';
+import { Trash2, Copy, Check, RefreshCw, ThumbsUp, ThumbsDown, Flag, User, Users, RotateCcw } from 'lucide-react';
 import { AppConfig } from '../../config';
 import { submitFeedback } from '../../utils/feedback';
+import { overrideSpeakerForTurn } from '../../conversationManager';
 
 const GlanceWidget = ({ suggestion, emotionData, isProcessing }) => {
   // ... (keeping internal for now as it's small)
@@ -32,6 +33,25 @@ const DisplayArea = ({
         {turn.role === 'user' ? 'You:' : 'Other:'}
       </span>
       <span className="turn-text">{turn.content}</span>
+      {/* Manual speaker override controls */}
+      <div className="speaker-controls">
+        <button
+          className={`speaker-toggle ${turn.role === 'user' ? 'active' : ''}`}
+          onClick={() => overrideSpeakerForTurn(turn.id, 'user')}
+          title="Mark as user"
+          aria-label="Mark as user"
+        >
+          <User size={12} />
+        </button>
+        <button
+          className={`speaker-toggle ${turn.role === 'other' ? 'active' : ''}`}
+          onClick={() => overrideSpeakerForTurn(turn.id, 'other')}
+          title="Mark as other"
+          aria-label="Mark as other"
+        >
+          <Users size={12} />
+        </button>
+      </div>
     </div>
   ));
 

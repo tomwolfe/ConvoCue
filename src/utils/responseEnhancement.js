@@ -1,5 +1,6 @@
 import { analyzeEmotion } from './emotion';
 import { getDislikedPhrases } from './feedback';
+import { secureLocalStorageGet } from './encryption';
 
 /**
  * Gets user's preferred response patterns based on feedback history
@@ -8,7 +9,7 @@ import { getDislikedPhrases } from './feedback';
  */
 export const getUserPreferences = () => {
   try {
-    const feedbackHistory = JSON.parse(localStorage.getItem('convocue_feedback') || '[]');
+    const feedbackHistory = secureLocalStorageGet('convocue_feedback', []);
 
     if (feedbackHistory.length === 0) {
       return {
