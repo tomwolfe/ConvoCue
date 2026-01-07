@@ -1,7 +1,8 @@
 import { useReducer, useEffect, useRef, useCallback } from 'react';
 import { AppConfig } from '../config';
-import { manageConversationHistory } from '../utils/conversation';
+import { manageConversationHistory, optimizeConversationHistory, isMemoryLimitApproaching } from '../utils/conversation';
 import { enhanceResponse, getUserPreferences } from '../utils/responseEnhancement';
+import { ConversationTurnManager } from '../utils/speakerDetection';
 
 const initialState = {
   status: 'Initializing Models...',
@@ -10,9 +11,11 @@ const initialState = {
   transcript: '',
   suggestion: '',
   emotionData: null,
+  conversationSentiment: null,
   isProcessing: false,
   processingStep: 'none',
   history: [],
+  conversationTurns: [],
   error: null,
   persona: 'anxiety',
   culturalContext: 'general',
@@ -48,8 +51,20 @@ function workerReducer(state, action) {
       return { ...state, history: action.history };
     case 'ADD_TO_HISTORY': {
       const updatedHistory = [...state.history, action.message];
+
+      // Check if memory limit is approaching and use optimized management if needed
+      if (isMemoryLimitApproaching(updatedHistory)) {
+        return { ...state, history: optimizeConversationHistory(updatedHistory, AppConfig.system.maxHistoryLength, 5) };
+      }
+
       return { ...state, history: manageConversationHistory(updatedHistory, AppConfig.system.maxHistoryLength) };
     }
+    case 'SET_CONVERSATION_TURNS':
+      return { ...state, conversationTurns: action.turns };
+    case 'UPDATE_CONVERSATION_TURNS':
+      return { ...state, conversationTurns: action.turns, history: action.history };
+    case 'SET_CONVERSATION_SENTIMENT':
+      return { ...state, conversationSentiment: action.sentiment };
     case 'SET_PERSONA':
       return { ...state, persona: action.persona };
     case 'SET_CULTURAL_CONTEXT':
@@ -61,7 +76,7 @@ function workerReducer(state, action) {
     case 'SET_ERROR':
       return { ...state, error: action.error, status: `Model Error: ${action.error}`, isProcessing: false, isReady: false };
     case 'CLEAR_HISTORY':
-      return { ...state, history: [], transcript: '', suggestion: '' };
+      return { ...state, history: [], conversationTurns: [], transcript: '', suggestion: '' };
     default:
       return state;
   }
@@ -113,17 +128,17 @@ export const useMLWorker = () => {
               break;
             }
             const cleanText = text.trim();
-            
+
             // "Banter Mode" / Aggregation Logic
-            // If the transcript is very short and we aren't already waiting on a long one, 
+            // If the transcript is very short and we aren't already waiting on a long one,
             // maybe we should wait for more context.
             const isShort = cleanText.split(' ').length < 3;
             const lastMessageTime = stateRef.current.lastMessageTime || 0;
             const timeSinceLast = Date.now() - lastMessageTime;
-            
+
             dispatch({ type: 'STT_RESULT', text: cleanText });
-            
-            // Trigger LLM if: 
+
+            // Trigger LLM if:
             // 1. It's not too short
             // 2. OR it's been a while since the last interaction (> 5s)
             // 3. OR the transcript ends with a question mark
@@ -139,10 +154,16 @@ export const useMLWorker = () => {
                     taskId: `llm-${Date.now()}`
                 });
                 dispatch({ type: 'SET_LAST_MESSAGE_TIME', time: Date.now() });
-                dispatch({ type: 'ADD_TO_HISTORY', message: { role: 'user', content: cleanText } });
+
+                // Determine speaker role from metadata if available
+                const speakerRole = metadata?.turnInfo?.turn?.speaker || 'user';
+                dispatch({ type: 'ADD_TO_HISTORY', message: { role: speakerRole, content: cleanText } });
             } else {
                 console.log("Banter detected, skipping LLM trigger for now:", cleanText);
-                dispatch({ type: 'ADD_TO_HISTORY', message: { role: 'user', content: cleanText } });
+
+                // Determine speaker role from metadata if available
+                const speakerRole = metadata?.turnInfo?.turn?.speaker || 'user';
+                dispatch({ type: 'ADD_TO_HISTORY', message: { role: speakerRole, content: cleanText } });
                 dispatch({ type: 'SET_READY' }); // Go back to ready state but keep the transcript
             }
             break;
@@ -150,8 +171,11 @@ export const useMLWorker = () => {
             dispatch({ type: 'LLM_CHUNK', text });
             break;
           case 'llm_result':
-            const enhanced = enhanceResponse(text, stateRef.current.persona, emotionData, stateRef.current.transcript);
+            const enhanced = enhanceResponse(text, stateRef.current.persona, emotionData, stateRef.current.transcript, stateRef.current.history);
             dispatch({ type: 'LLM_RESULT', text: enhanced, emotionData });
+            if (e.data.conversationSentiment) {
+              dispatch({ type: 'SET_CONVERSATION_SENTIMENT', sentiment: e.data.conversationSentiment });
+            }
             if (enhanced) {
               dispatch({ type: 'ADD_TO_HISTORY', message: { role: 'assistant', content: enhanced } });
             }

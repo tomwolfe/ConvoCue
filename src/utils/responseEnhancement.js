@@ -10,19 +10,21 @@
 export const getUserPreferences = () => {
   try {
     const feedbackHistory = JSON.parse(localStorage.getItem('convocue_feedback') || '[]');
-    
+
     if (feedbackHistory.length === 0) {
       return {
         preferredLength: 'medium', // 'short', 'medium', 'long'
         preferredTone: 'balanced', // 'formal', 'casual', 'balanced'
-        preferredStyle: 'adaptive' // 'directive', 'supportive', 'adaptive'
+        preferredStyle: 'adaptive', // 'directive', 'supportive', 'adaptive'
+        responsePatterns: [], // Commonly liked patterns
+        avoidPatterns: [] // Commonly disliked patterns
       };
     }
 
     // Analyze feedback to determine user preferences
     const likedSuggestions = feedbackHistory.filter(f => f.feedbackType === 'like');
     const dislikedSuggestions = feedbackHistory.filter(f => f.feedbackType === 'dislike');
-    
+
     // Determine preferred length based on liked suggestions
     let preferredLength = 'medium';
     if (likedSuggestions.length > 0) {
@@ -36,7 +38,7 @@ export const getUserPreferences = () => {
     likedSuggestions.forEach(f => {
       personaCounts[f.persona] = (personaCounts[f.persona] || 0) + 1;
     });
-    
+
     let preferredTone = 'balanced';
     if (personaCounts.professional > (personaCounts.anxiety || 0) + (personaCounts.relationship || 0)) {
       preferredTone = 'formal';
@@ -44,19 +46,127 @@ export const getUserPreferences = () => {
       preferredTone = 'casual';
     }
 
+    // Analyze response patterns from liked suggestions
+    const responsePatterns = analyzeResponsePatterns(likedSuggestions);
+    const avoidPatterns = analyzeResponsePatterns(dislikedSuggestions, true);
+
     return {
       preferredLength,
       preferredTone,
-      preferredStyle: 'adaptive'
+      preferredStyle: 'adaptive',
+      responsePatterns,
+      avoidPatterns
     };
   } catch (e) {
     console.error('Failed to determine user preferences:', e);
     return {
       preferredLength: 'medium',
       preferredTone: 'balanced',
-      preferredStyle: 'adaptive'
+      preferredStyle: 'adaptive',
+      responsePatterns: [],
+      avoidPatterns: []
     };
   }
+};
+
+/**
+ * Analyzes patterns in suggestions to identify what users like/dislike
+ * @param {Array} suggestions - Array of feedback suggestions
+ * @param {boolean} forDisliked - Whether analyzing disliked suggestions
+ * @returns {Array} Array of common patterns
+ */
+const analyzeResponsePatterns = (suggestions, forDisliked = false) => {
+  if (suggestions.length === 0) return [];
+
+  // Extract common patterns like phrases, structures, etc.
+  const patterns = [];
+  const phraseCounts = {};
+  const structureCounts = {};
+
+  suggestions.forEach(suggestion => {
+    const text = suggestion.suggestion.toLowerCase();
+
+    // Look for common phrases
+    const phrases = extractCommonPhrases(text);
+    phrases.forEach(phrase => {
+      phraseCounts[phrase] = (phraseCounts[phrase] || 0) + 1;
+    });
+
+    // Look for structural patterns
+    const structure = analyzeStructure(text);
+    if (structure) {
+      structureCounts[structure] = (structureCounts[structure] || 0) + 1;
+    }
+  });
+
+  // Convert to array and sort by frequency
+  Object.entries(phraseCounts).forEach(([phrase, count]) => {
+    if (count >= (forDisliked ? 1 : 2)) { // Lower threshold for disliked patterns
+      patterns.push({
+        type: 'phrase',
+        value: phrase,
+        count,
+        weight: forDisliked ? -count : count
+      });
+    }
+  });
+
+  Object.entries(structureCounts).forEach(([structure, count]) => {
+    if (count >= (forDisliked ? 1 : 2)) {
+      patterns.push({
+        type: 'structure',
+        value: structure,
+        count,
+        weight: forDisliked ? -count : count
+      });
+    }
+  });
+
+  return patterns.slice(0, 10); // Return top 10 patterns
+};
+
+/**
+ * Extracts common conversational phrases from text
+ * @param {string} text - Input text
+ * @returns {Array} Array of common phrases
+ */
+const extractCommonPhrases = (text) => {
+  const commonPhrases = [
+    'how are you', 'what do you think', 'i understand', 'that sounds',
+    'what about', 'could you', 'would you', 'maybe we', 'in my opinion',
+    'i see', 'you know', 'actually', 'definitely', 'absolutely', 'perhaps',
+    'on the other hand', 'i agree', 'that makes sense', 'tell me more',
+    'what if', 'how about', 'i feel', 'it seems', 'personally', 'to be honest'
+  ];
+
+  return commonPhrases.filter(phrase => text.includes(phrase));
+};
+
+/**
+ * Analyzes the structural pattern of a response
+ * @param {string} text - Input text
+ * @returns {string|null} Structural pattern
+ */
+const analyzeStructure = (text) => {
+  const sentences = text.split(/(?<=[.!?])\s+/);
+
+  if (sentences.length === 1) {
+    if (text.endsWith('?')) return 'single_question';
+    if (text.endsWith('.') || text.endsWith('!')) return 'single_statement';
+  } else if (sentences.length === 2) {
+    return 'two_part';
+  } else if (sentences.length > 2) {
+    return 'multi_part';
+  }
+
+  // Check for question patterns
+  if (text.toLowerCase().startsWith('what') ||
+      text.toLowerCase().startsWith('how') ||
+      text.toLowerCase().startsWith('why')) {
+    return 'question_start';
+  }
+
+  return null;
 };
 
 /**
@@ -227,9 +337,10 @@ const applyProfessionalInsights = (response, input) => {
  * @param {string} persona - Current persona being used
  * @param {object} emotionData - Optional emotional analysis data
  * @param {string} input - Optional original user transcript for deeper context
+ * @param {Array} conversationHistory - Optional conversation history for context
  * @returns {string} Enhanced response
  */
-export const enhanceResponse = (response, persona, emotionData = null, input = '') => {
+export const enhanceResponse = (response, persona, emotionData = null, input = '', conversationHistory = []) => {
   if (!response) return response;
 
   const preferences = getUserPreferences();
@@ -283,6 +394,14 @@ export const enhanceResponse = (response, persona, emotionData = null, input = '
     }
   }
 
+  // Apply conversation context awareness
+  if (conversationHistory && conversationHistory.length > 0) {
+    enhancedResponse = applyConversationContext(enhancedResponse, conversationHistory, persona);
+  }
+
+  // Apply learned preferences from feedback
+  enhancedResponse = applyLearnedPreferences(enhancedResponse, preferences);
+
   // Check for disliked phrases and try to avoid them
   if (hasDislikedPhrases(enhancedResponse)) {
     // For now, just log that we detected disliked phrases
@@ -291,4 +410,94 @@ export const enhanceResponse = (response, persona, emotionData = null, input = '
   }
 
   return enhancedResponse;
+};
+
+/**
+ * Applies conversation context to make responses more relevant
+ * @param {string} response - Original response
+ * @param {Array} conversationHistory - Conversation history
+ * @param {string} persona - Current persona
+ * @returns {string} Response with conversation context applied
+ */
+const applyConversationContext = (response, conversationHistory, persona) => {
+  if (!conversationHistory || conversationHistory.length === 0) return response;
+
+  // Get the last few messages to understand context
+  const recentMessages = conversationHistory.slice(-3);
+  const lastMessage = recentMessages[recentMessages.length - 1];
+  const secondToLastMessage = recentMessages.length > 1 ? recentMessages[recentMessages.length - 2] : null;
+
+  // If the last message was from the assistant, we might want to vary our approach
+  if (lastMessage && lastMessage.role === 'assistant') {
+    // This might be a follow-up to our previous suggestion
+    if (persona === 'anxiety' || persona === 'relationship') {
+      // For supportive personas, acknowledge the continued conversation
+      if (!response.toLowerCase().includes('continue') && !response.toLowerCase().includes('more')) {
+        response = response + " What else would you like to discuss?";
+      }
+    }
+  }
+
+  // Check if we're responding to a question
+  if (lastMessage && lastMessage.content.toLowerCase().includes('?')) {
+    // Make sure our response addresses the question
+    if (persona === 'professional' && !response.toLowerCase().includes('answer') && !response.toLowerCase().includes('suggest')) {
+      response = "Based on what you've shared, I suggest: " + response;
+    }
+  }
+
+  // Check for emotional continuity
+  if (secondToLastMessage && lastMessage) {
+    // Look for emotional patterns in the conversation
+    const lastEmotion = analyzeEmotion(lastMessage.content);
+    const prevEmotion = secondToLastMessage ? analyzeEmotion(secondToLastMessage.content) : null;
+
+    if (lastEmotion.emotion !== 'neutral' && prevEmotion && prevEmotion.emotion === lastEmotion.emotion) {
+      // If emotions are consistent, acknowledge the ongoing feeling
+      if (persona === 'relationship' && !response.toLowerCase().includes('understand') && !response.toLowerCase().includes('feel')) {
+        response = `I understand how you feel. ${response}`;
+      }
+    }
+  }
+
+  return response;
+};
+
+/**
+ * Applies learned preferences from user feedback to a response
+ * @param {string} response - Original response
+ * @param {object} preferences - User preferences object
+ * @returns {string} Response with preferences applied
+ */
+const applyLearnedPreferences = (response, preferences) => {
+  if (!preferences.responsePatterns && !preferences.avoidPatterns) return response;
+
+  let modifiedResponse = response;
+
+  // Apply positive patterns (things users liked)
+  if (preferences.responsePatterns && preferences.responsePatterns.length > 0) {
+    // For now, we'll just make sure we're not contradicting learned preferences
+    // In a more advanced system, we might inject preferred patterns
+  }
+
+  // Avoid negative patterns (things users disliked)
+  if (preferences.avoidPatterns && preferences.avoidPatterns.length > 0) {
+    preferences.avoidPatterns.forEach(pattern => {
+      if (pattern.type === 'phrase' && pattern.weight < 0) {
+        // This is a pattern to avoid
+        if (modifiedResponse.toLowerCase().includes(pattern.value)) {
+          // For now, just log that we found a pattern to avoid
+          // In a more advanced system, we might try to rephrase
+          console.log(`Avoiding disliked pattern: ${pattern.value}`);
+        }
+      }
+    });
+  }
+
+  // Adjust based on structural preferences
+  if (preferences.preferredLength) {
+    // Already handled in the main function
+  }
+
+  return modifiedResponse;
 };

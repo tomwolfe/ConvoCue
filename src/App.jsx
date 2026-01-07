@@ -305,6 +305,7 @@ const App = () => {
             transcript={transcript}
             suggestion={suggestion}
             emotionData={emotionData}
+            conversationSentiment={conversationSentiment}
             isProcessing={isProcessing}
             processingStep={processingStep}
             processAudio={processAudio}
@@ -314,6 +315,7 @@ const App = () => {
             setStatus={setStatus}
             initialError={micPermissionError}
             history={history}
+            conversationTurns={conversationTurns}
             persona={persona}
             setPersona={setPersona}
             culturalContext={culturalContext}

@@ -98,20 +98,109 @@ export const manageConversationHistory = (history, maxHistoryLength = 6) => {
   // Extract messages beyond the max length to create a summary
   const excessMessages = history.slice(0, history.length - maxHistoryLength);
   const remainingMessages = history.slice(history.length - maxHistoryLength);
-  
+
   // Create a summary of the excess messages
   const summary = summarizeConversation(excessMessages);
-  
+
   // If we have a meaningful summary, add it as a system message
   if (summary.trim()) {
     return [
-      { 
-        role: 'system', 
-        content: `Previous conversation summary: ${summary}` 
+      {
+        role: 'system',
+        content: `Previous conversation summary: ${summary}`
       },
       ...remainingMessages
     ];
   }
-  
+
   return remainingMessages;
+};
+
+/**
+ * Optimized conversation history management for longer conversations
+ * Uses sliding window approach with periodic summarization
+ *
+ * @param {Array} history - Current conversation history
+ * @param {number} maxHistoryLength - Maximum number of recent messages to keep
+ * @param {number} summaryWindow - Number of messages to summarize when needed
+ * @returns {Array} - Optimized history
+ */
+export const optimizeConversationHistory = (history, maxHistoryLength = 10, summaryWindow = 5) => {
+  if (history.length <= maxHistoryLength) {
+    return history;
+  }
+
+  // For longer histories, implement a more sophisticated approach
+  const recentMessages = history.slice(-maxHistoryLength);
+  const olderMessages = history.slice(0, history.length - maxHistoryLength);
+
+  // Only summarize if we have enough older messages
+  if (olderMessages.length >= summaryWindow) {
+    // Group older messages into chunks and summarize each chunk
+    const chunks = [];
+    for (let i = 0; i < olderMessages.length; i += summaryWindow) {
+      chunks.push(olderMessages.slice(i, i + summaryWindow));
+    }
+
+    // Create summaries for each chunk
+    const chunkSummaries = chunks.map(chunk => {
+      const summary = summarizeConversation(chunk);
+      return {
+        role: 'system',
+        content: `Earlier conversation: ${summary}`,
+        timestamp: chunk[0]?.timestamp || Date.now()
+      };
+    });
+
+    // Keep only the most recent chunk summary to avoid clutter
+    const recentChunkSummary = chunkSummaries.slice(-1);
+
+    return [
+      ...recentChunkSummary,
+      ...recentMessages
+    ];
+  }
+
+  // If not enough older messages for chunking, use simple summarization
+  const summary = summarizeConversation(olderMessages);
+  if (summary.trim()) {
+    return [
+      {
+        role: 'system',
+        content: `Previous conversation summary: ${summary}`
+      },
+      ...recentMessages
+    ];
+  }
+
+  return recentMessages;
+};
+
+/**
+ * Calculates memory usage estimate for conversation history
+ * @param {Array} history - Conversation history
+ * @returns {number} Estimated memory usage in bytes
+ */
+export const estimateMemoryUsage = (history) => {
+  if (!history || history.length === 0) return 0;
+
+  let totalSize = 0;
+  history.forEach(msg => {
+    if (msg.content) {
+      totalSize += JSON.stringify(msg).length;
+    }
+  });
+
+  return totalSize;
+};
+
+/**
+ * Checks if memory usage is approaching limits
+ * @param {Array} history - Conversation history
+ * @param {number} limit - Memory limit in bytes (default 1MB)
+ * @returns {boolean} True if approaching limit
+ */
+export const isMemoryLimitApproaching = (history, limit = 1024 * 1024) => {
+  const estimatedUsage = estimateMemoryUsage(history);
+  return estimatedUsage > limit * 0.8; // Alert at 80% of limit
 };

@@ -309,7 +309,9 @@ export const getCulturalContext = (situation, targetCulture = null) => {
       targetCulture,
       phrases: relevantPhrases,
       communicationStyle: getCommunicationStyleForCulture(targetCulture),
-      businessEtiquette: getBusinessEtiquetteForCulture(targetCulture)
+      businessEtiquette: getBusinessEtiquetteForCulture(targetCulture),
+      taboos: getTaboosForCulture(targetCulture),
+      greetings: getGreetingForCulture(targetCulture)
     };
   }
 
@@ -319,6 +321,62 @@ export const getCulturalContext = (situation, targetCulture = null) => {
     generalTips: culturalContextDatabase.communicationStyles['high-context'].tips.concat(
       culturalContextDatabase.communicationStyles['low-context'].tips
     )
+  };
+};
+
+/**
+ * Detects cultural context from conversation text
+ * @param {string} text - Input text to analyze
+ * @param {string} currentCulture - Current cultural context
+ * @returns {object} Detected cultural elements
+ */
+export const detectCulturalContext = (text, currentCulture = 'general') => {
+  const lowerText = text.toLowerCase();
+  const detectedCultures = [];
+  const culturalElements = [];
+
+  // Check for cultural references in the text
+  for (const [region, cultures] of Object.entries(culturalContextDatabase.greetings)) {
+    for (const [cultureName, greetings] of Object.entries(cultures)) {
+      if (lowerText.includes(cultureName.toLowerCase()) ||
+          greetings.some(greeting => lowerText.includes(greeting.toLowerCase()))) {
+        detectedCultures.push(cultureName);
+      }
+    }
+  }
+
+  // Check for cultural concepts
+  culturalContextDatabase.taboos.forEach(taboo => {
+    if (lowerText.includes(taboo.culture.toLowerCase())) {
+      culturalElements.push({
+        type: 'taboo',
+        culture: taboo.culture,
+        elements: taboo.taboos
+      });
+    }
+  });
+
+  // Check for business contexts
+  if (lowerText.includes('meeting') || lowerText.includes('business') || lowerText.includes('work')) {
+    culturalElements.push({
+      type: 'business',
+      context: 'professional'
+    });
+  }
+
+  // Check for social contexts
+  if (lowerText.includes('friend') || lowerText.includes('family') || lowerText.includes('home')) {
+    culturalElements.push({
+      type: 'social',
+      context: 'personal'
+    });
+  }
+
+  return {
+    detectedCultures,
+    culturalElements,
+    primaryCulture: detectedCultures[0] || currentCulture,
+    needsCulturalAwareness: detectedCultures.length > 0 || culturalElements.length > 0
   };
 };
 
@@ -488,6 +546,20 @@ export const getTimeConceptForCulture = (culture) => {
   }
 
   return 'monochronic'; // Default
+};
+
+/**
+ * Get taboos for a specific culture
+ * @param {string} culture - Target culture
+ * @returns {Array} Array of cultural taboos
+ */
+export const getTaboosForCulture = (culture) => {
+  const taboos = culturalContextDatabase.taboos.filter(taboo =>
+    taboo.culture.toLowerCase().includes(culture.toLowerCase()) ||
+    culture.toLowerCase().includes(taboo.culture.toLowerCase())
+  );
+
+  return taboos.length > 0 ? taboos[0].taboos : [];
 };
 
 /**

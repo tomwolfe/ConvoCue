@@ -53,7 +53,7 @@ export const analyzeEmotion = (text) => {
 
     for (let i = 0; i < words.length; i++) {
         const word = words[i];
-        
+
         if (negationWords.has(word)) {
             isNegated = true;
             continue;
@@ -82,8 +82,67 @@ export const analyzeEmotion = (text) => {
         }
     }
 
+    // Additional analysis for context-based emotions
+    const contextBasedEmotion = analyzeContextBasedEmotions(text);
+
+    // If context-based emotion has higher confidence, use it
+    if (contextBasedEmotion.confidence > (totalScore > 0 ? maxScore / totalScore : 0) && contextBasedEmotion.confidence > 0.5) {
+        return contextBasedEmotion;
+    }
+
     return {
         emotion: dominantEmotion,
         confidence: totalScore > 0 ? Math.min(maxScore / totalScore, 1.0) : 0
     };
+};
+
+/**
+ * Analyzes emotions based on context clues in the text
+ * @param {string} text - The text to analyze
+ * @returns {Object} An object containing the emotion and confidence level
+ */
+const analyzeContextBasedEmotions = (text) => {
+    const lowerText = text.toLowerCase();
+
+    // Check for context-based emotional indicators
+    if (lowerText.includes('thank you') || lowerText.includes('thanks') || lowerText.includes('appreciate')) {
+        return { emotion: 'joy', confidence: 0.8 };
+    }
+
+    if (lowerText.includes('sorry') || lowerText.includes('apologize') || lowerText.includes('forgive')) {
+        return { emotion: 'sadness', confidence: 0.7 };
+    }
+
+    if (lowerText.includes('wow') || lowerText.includes('really?') || lowerText.includes('unbelievable')) {
+        return { emotion: 'surprise', confidence: 0.8 };
+    }
+
+    if (lowerText.includes('scared') || lowerText.includes('worried') || lowerText.includes('nervous')) {
+        return { emotion: 'fear', confidence: 0.9 };
+    }
+
+    if (lowerText.includes('angry') || lowerText.includes('frustrated') || lowerText.includes('fed up')) {
+        return { emotion: 'anger', confidence: 0.9 };
+    }
+
+    if (lowerText.includes('disgusting') || lowerText.includes('gross') || lowerText.includes('disgusted')) {
+        return { emotion: 'disgust', confidence: 0.9 };
+    }
+
+    // Check for question marks indicating surprise or uncertainty
+    if ((text.match(/\?/g) || []).length > 1) {
+        return { emotion: 'surprise', confidence: 0.6 };
+    }
+
+    // Check for exclamation points indicating strong emotion
+    if ((text.match(/!/g) || []).length > 2) {
+        // Determine which emotion based on other context
+        if (lowerText.includes('great') || lowerText.includes('amazing') || lowerText.includes('awesome')) {
+            return { emotion: 'joy', confidence: 0.8 };
+        } else if (lowerText.includes('no') || lowerText.includes('stop') || lowerText.includes('hate')) {
+            return { emotion: 'anger', confidence: 0.7 };
+        }
+    }
+
+    return { emotion: 'neutral', confidence: 0 };
 };

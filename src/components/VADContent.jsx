@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useMicVAD } from '@ricky0123/vad-react';
 import { Loader2, AlertCircle, RefreshCw, Zap, ShieldAlert, Info } from 'lucide-react';
 import { AppConfig } from '../config';
+import { processConversationTurn, getConversationHistory } from '../conversationManager';
 import PersonaSelector from './VAD/PersonaSelector';
 import DisplayArea from './VAD/DisplayArea';
 import ControlPanel from './VAD/ControlPanel';
@@ -104,12 +105,15 @@ const VADContent = ({
   transcript,
   suggestion,
   emotionData,
+  conversationSentiment,
   isProcessing,
   processingStep,
   processAudio,
   refreshSuggestion,
   setStatus,
   initialError,
+  history,
+  conversationTurns,
   persona,
   setPersona,
   culturalContext,
@@ -151,9 +155,25 @@ const VADContent = ({
     }
   };
 
+  // Add haptic feedback for subtle mode when suggestions are available
+  useEffect(() => {
+    if (isSubtleMode && suggestion && !isProcessing) {
+      // Provide subtle haptic feedback when a suggestion is ready
+      if (navigator.vibrate) {
+        // Short, subtle vibration pattern
+        navigator.vibrate([10]); // 10ms vibration
+      }
+    }
+  }, [suggestion, isProcessing, isSubtleMode]);
+
   const onSpeechEnd = useCallback((audio) => {
     if (!isVADModeRef.current && vadRef.current) vadRef.current.pause();
-    if (processAudioRef.current) processAudioRef.current(audio);
+    if (processAudioRef.current) {
+      // Process the audio through conversation turn manager before sending to worker
+      const audioArray = audio instanceof Float32Array ? audio : new Float32Array(Object.values(audio));
+      processConversationTurn(audioArray, ''); // Empty string for now, text will come from STT
+      processAudioRef.current(audio);
+    }
   }, []);
 
   const onError = useCallback((err) => {

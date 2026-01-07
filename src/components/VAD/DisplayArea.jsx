@@ -20,19 +20,35 @@ const DisplayArea = ({
   copied,
   isCompactMode,
   showMinimalUI,
-  emotionData
+  emotionData,
+  conversationTurns = [],
+  conversationSentiment = null
 }) => {
+  // Format conversation turns for display
+  const formattedConversation = conversationTurns.slice(-5).map((turn, index) => (
+    <div key={index} className={`conversation-turn ${turn.role}`}>
+      <span className="speaker-tag">{turn.role === 'user' ? 'You:' : 'Other:'}</span>
+      <span className="turn-text">{turn.content}</span>
+    </div>
+  ));
+
   return (
     <div className="display-area" role="region" aria-label="Speech processing results">
       {!showMinimalUI && !isCompactMode && (
-        <div className={`card transcript ${transcript ? 'visible' : ''}`} role="region" aria-labelledby="transcript-label">
+        <div className={`card transcript ${transcript || conversationTurns.length > 0 ? 'visible' : ''}`} role="region" aria-labelledby="transcript-label">
           <div className="card-header">
-            <label id="transcript-label">Context</label>
+            <label id="transcript-label">Conversation</label>
             <button className="btn-icon" onClick={handleClear} title="Clear Context">
               <Trash2 size={14} />
             </button>
           </div>
-          <p id="transcript-content">{transcript || "Waiting for speech..."}</p>
+          <div id="transcript-content">
+            {conversationTurns.length > 0 ? (
+              formattedConversation
+            ) : (
+              <p>{transcript || "Waiting for speech..."}</p>
+            )}
+          </div>
         </div>
       )}
 
