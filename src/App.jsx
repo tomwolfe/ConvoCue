@@ -26,6 +26,7 @@ const App = () => {
     status,
     progress,
     isReady,
+    error,
     transcript,
     suggestion,
     emotionData,
