@@ -2,6 +2,8 @@ import { useReducer, useEffect, useRef, useCallback } from 'react';
 import { enhanceResponse } from '../utils/responseEnhancement';
 import { useConversation } from './useConversation';
 import { useAppPreferences } from './useAppPreferences';
+import { getCommunicationProfileSummary } from '../utils/personalization';
+import { provideHapticFeedback } from '../utils/haptics';
 
 const initialState = {
   status: 'Initializing Models...',
@@ -123,12 +125,17 @@ export const useMLWorker = () => {
 
               // Trigger LLM if:
               if (!isShort || timeSinceLast > 5000 || cleanText.includes('?')) {
+                  const communicationProfile = settings.enablePersonalization !== false && !settings.privacyMode
+                      ? await getCommunicationProfileSummary()
+                      : "";
+
                   newWorker.postMessage({
                       type: 'llm',
                       text: cleanText,
                       history: historyRef.current,
                       persona: stateRef.current.persona,
                       culturalContext: stateRef.current.culturalContext,
+                      communicationProfile,
                       metadata,
                       preferences: prefsCache.current,
                       settings: settings,
@@ -165,7 +172,7 @@ export const useMLWorker = () => {
               if (enhanced) {
                 addMessage('assistant', enhanced);
               }
-              if (navigator.vibrate) navigator.vibrate(20);
+              provideHapticFeedback(enhanced);
               break;
             }
             case 'error':
@@ -221,12 +228,17 @@ export const useMLWorker = () => {
         };
     }
 
+    const communicationProfile = settings.enablePersonalization !== false && !settings.privacyMode
+        ? await getCommunicationProfileSummary()
+        : "";
+
     worker.current.postMessage({
       type: 'llm',
       text: state.transcript,
       history: history,
       persona: state.persona,
       culturalContext: state.culturalContext,
+      communicationProfile,
       preferences: preferences,
       settings: settings,
       taskId: `refresh-${Date.now()}`

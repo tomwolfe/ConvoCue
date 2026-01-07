@@ -2,6 +2,12 @@ import { renderHook, act } from '@testing-library/react';
 import { vi, describe, test, expect, beforeEach } from 'vitest';
 import { useMLWorker } from './useMLWorker';
 
+// Mock personalization utils
+vi.mock('../utils/personalization', () => ({
+  getCommunicationProfileSummary: vi.fn().mockResolvedValue("Mock Profile Context"),
+  getPersonalizedGrowthTips: vi.fn().mockResolvedValue(["Mock Tip"])
+}));
+
 // Improved Worker Mock
 class MockWorker {
   constructor(url, options) {
@@ -64,7 +70,7 @@ describe('useMLWorker Comprehensive', () => {
 
     // Simulate STT result from worker
     await act(async () => {
-      MockWorker.instance.onmessage({ data: { type: 'stt_result', text: 'Hello world' } });
+      await MockWorker.instance.onmessage({ data: { type: 'stt_result', text: 'Hello world' } });
     });
 
     expect(result.current.transcript).toBe('Hello world');
@@ -73,7 +79,7 @@ describe('useMLWorker Comprehensive', () => {
     // Simulate LLM result from worker
     const mockEmotion = { emotion: 'joy', confidence: 0.9 };
     await act(async () => {
-      MockWorker.instance.onmessage({ data: { type: 'llm_result', text: 'Hi there', emotionData: mockEmotion } });
+      await MockWorker.instance.onmessage({ data: { type: 'llm_result', text: 'Hi there', emotionData: mockEmotion } });
     });
 
     expect(result.current.suggestion).toContain('Hi there');
@@ -91,7 +97,7 @@ describe('useMLWorker Comprehensive', () => {
     });
 
     await act(async () => {
-      MockWorker.instance.onmessage({ data: { type: 'error', error: 'Test error' } });
+      await MockWorker.instance.onmessage({ data: { type: 'error', error: 'Test error' } });
     });
 
     expect(result.current.status).toContain('Model Error');

@@ -20,6 +20,34 @@
         "culturalContext": "Respect for hierarchy is important in many cultures"
       }
     ],
+    "negotiation": [
+      {
+        "situation": "Price discussion",
+        "inappropriate": "That price is too high, lower it",
+        "appropriate": "Is there any flexibility in this proposal?",
+        "culturalContext": "In high-context cultures, direct demands can be seen as aggressive"
+      },
+      {
+        "situation": "Closing a deal",
+        "inappropriate": "Sign this now",
+        "appropriate": "We look forward to a long-term partnership with you",
+        "culturalContext": "Relationship-focused cultures value the long-term bond over the transaction"
+      }
+    ],
+    "small-talk": [
+      {
+        "situation": "Asking about family",
+        "inappropriate": "None (Western)",
+        "appropriate": "How is your family doing?",
+        "culturalContext": "In Middle Eastern and Latin cultures, asking about family is essential for rapport"
+      },
+      {
+        "situation": "Talking about weather",
+        "inappropriate": "None (Global)",
+        "appropriate": "Lovely weather we're having, isn't it?",
+        "culturalContext": "Safe topic in many Western cultures (especially UK) to bridge silence"
+      }
+    ],
     "formality": [
       {
         "situation": "Meeting new people",

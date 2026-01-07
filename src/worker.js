@@ -187,7 +187,7 @@ const initConversationTurnManager = () => {
 let cachedSystemPrompt = { key: null, content: null };
 
 self.onmessage = async (event) => {
-    const { type, audio, taskId, text: _text, persona, history, culturalContext, metadata, preferences, settings: _settings } = event.data;
+    const { type, audio, taskId, text: _text, persona, history, communicationProfile, culturalContext, metadata, preferences, settings: _settings } = event.data;
     const pipelineManager = await MLPipeline.getInstance();
 
     // Determine effective settings (prefer passed settings, fallback to minimal if missing)
@@ -282,9 +282,15 @@ self.onmessage = async (event) => {
 
             // Cached System Prompt Generation
             const isSubtleMode = _settings?.isSubtleMode || preferences?.isSubtleMode;
-            const promptKey = `${persona}-${culturalContext}-${preferences?.preferredLength}-${isSubtleMode ? 'subtle' : 'normal'}`;
+            const profileHash = communicationProfile ? communicationProfile.length : 0;
+            const promptKey = `${persona}-${culturalContext}-${preferences?.preferredLength}-${isSubtleMode ? 'subtle' : 'normal'}-${profileHash}`;
             if (cachedSystemPrompt.key !== promptKey) {
                 let contextInstruction = `Persona: ${personaConfig.label}. `;
+
+                // Add Communication Profile (Long-term memory)
+                if (communicationProfile) {
+                    contextInstruction += `${communicationProfile} `;
+                }
 
                 // Detect cultural context from the input text
                 const detectedCulturalContext = detectCulturalContext(sanitizedText, culturalContext);
