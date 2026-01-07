@@ -22,25 +22,29 @@ export const summarizeConversation = (history) => {
     return '';
   }
 
-  // Create a simple summary by combining key points from the conversation
+  // Create a more descriptive summary
   const summaryParts = [];
   
-  // Add first few exchanges as they often set the context
-  const initialMessages = conversationMessages.slice(0, 4); // First 2 user-assistant pairs
-  for (const msg of initialMessages) {
-    const prefix = msg.role === 'user' ? 'User: ' : 'Assistant: ';
-    summaryParts.push(`${prefix}${msg.content.substring(0, 100)}`); // Limit length
+  // Identify the core intent of the conversation based on the last few exchanges
+  const lastMessages = conversationMessages.slice(-4);
+  const firstMessages = conversationMessages.slice(0, 2);
+  
+  if (firstMessages.length > 0) {
+    summaryParts.push(`Started with: ${firstMessages.map(m => m.content.substring(0, 50)).join(' -> ')}`);
   }
 
-  // If there are more messages, add a summary of the general topic
-  if (conversationMessages.length > 4) {
-    const topics = extractConversationTopics(conversationMessages);
-    if (topics.length > 0) {
-      summaryParts.push(`Topics discussed: ${topics.join(', ')}`);
-    }
+  const topics = extractConversationTopics(conversationMessages);
+  if (topics.length > 0) {
+    summaryParts.push(`Key topics: ${topics.join(', ')}`);
   }
 
-  return summaryParts.join('; ');
+  // Add a "Current Context" snippet
+  if (lastMessages.length > 0) {
+    const lastExchange = lastMessages[lastMessages.length - 1];
+    summaryParts.push(`Most recently: ${lastExchange.role === 'user' ? 'User mentioned' : 'Assistant suggested'} "${lastExchange.content.substring(0, 60)}..."`);
+  }
+
+  return summaryParts.join(' | ');
 };
 
 /**

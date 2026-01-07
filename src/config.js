@@ -117,7 +117,7 @@ export const AppConfig = {
     // Maximum length for input validation
     maxTranscriptLength: isMobile ? 500 : 1000,
     maxSuggestionLength: isMobile ? 250 : 500,
-    maxHistoryLength: isMobile ? 4 : 8, // Increased history length for better context
+    maxHistoryLength: isMobile ? 6 : 12, // Increased history length for better context
 
     // Speech analysis settings
     speechAnalysis: {

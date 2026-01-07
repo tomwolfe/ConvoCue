@@ -22,8 +22,8 @@ describe('Conversation Utilities', () => {
       ];
 
       const result = summarizeConversation(history);
-      expect(result).toContain('User: Hello, how are you?');
-      expect(result).toContain('Assistant: I am doing well');
+      expect(result).toContain('Started with: Hello, how are you?');
+      expect(result).toContain('Key topics:');
     });
 
     it('filters out system messages', () => {
@@ -35,8 +35,7 @@ describe('Conversation Utilities', () => {
 
       const result = summarizeConversation(history);
       expect(result).not.toContain('Previous conversation summary');
-      expect(result).toContain('User: Hello');
-      expect(result).toContain('Assistant: Hi there');
+      expect(result).toContain('Started with: Hello -> Hi there');
     });
 
     it('extracts topics from longer conversations', () => {
@@ -84,8 +83,7 @@ describe('Conversation Utilities', () => {
       const result = manageConversationHistory(history, 4);
       expect(result).toHaveLength(5); // 1 system + 4 remaining messages
       expect(result[0].role).toBe('system');
-      expect(result[0].content).toContain('First message');
-      expect(result[0].content).toContain('First response');
+      expect(result[0].content).toContain('Started with: First message -> First response');
     });
 
     it('keeps recent messages when creating summary', () => {

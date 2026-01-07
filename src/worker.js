@@ -1,6 +1,11 @@
 import { pipeline, env, TextStreamer } from '@huggingface/transformers';
 import { AppConfig } from './config';
 import { analyzeEmotion } from './utils/emotion';
+import { 
+    getCulturalPromptTips, 
+    getLanguageLearningPromptTips, 
+    getProfessionalPromptTips 
+} from './utils/culturalContext';
 
 // Configuration for on-device execution
 env.allowLocalModels = false;
@@ -192,7 +197,19 @@ self.onmessage = async (event) => {
             const promptKey = `${persona}-${culturalContext}-${preferences?.preferredLength}`;
             if (cachedSystemPrompt.key !== promptKey) {
                 let contextInstruction = `Persona: ${personaConfig.label}. `;
-                if (culturalContext && culturalContext !== 'general') contextInstruction += `Cultural Context: ${culturalContext}. `;
+                
+                // Add Cultural Context Tips
+                if (culturalContext && culturalContext !== 'general') {
+                    contextInstruction += getCulturalPromptTips(culturalContext);
+                }
+
+                // Add Persona-specific Contextual Tips
+                if (persona === 'languagelearning') {
+                    contextInstruction += getLanguageLearningPromptTips(culturalContext || 'english');
+                } else if (persona === 'meeting' || persona === 'professional') {
+                    contextInstruction += getProfessionalPromptTips(persona === 'meeting' ? 'business' : 'academic');
+                }
+
                 if (preferences) contextInstruction += `Preference: ${preferences.preferredLength} length. `;
                 
                 cachedSystemPrompt = {

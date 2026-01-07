@@ -15,7 +15,8 @@ const initialState = {
   history: [],
   error: null,
   persona: 'anxiety',
-  culturalContext: 'general'
+  culturalContext: 'general',
+  lastMessageTime: 0
 };
 
 function workerReducer(state, action) {
@@ -53,6 +54,8 @@ function workerReducer(state, action) {
       return { ...state, persona: action.persona };
     case 'SET_CULTURAL_CONTEXT':
       return { ...state, culturalContext: action.culturalContext };
+    case 'SET_LAST_MESSAGE_TIME':
+      return { ...state, lastMessageTime: action.time };
     case 'RESET_PROCESSING':
       return { ...state, isProcessing: false, processingStep: 'none', status: 'Ready' };
     case 'SET_ERROR':
@@ -110,19 +113,38 @@ export const useMLWorker = () => {
               break;
             }
             const cleanText = text.trim();
+            
+            // "Banter Mode" / Aggregation Logic
+            // If the transcript is very short and we aren't already waiting on a long one, 
+            // maybe we should wait for more context.
+            const isShort = cleanText.split(' ').length < 3;
+            const lastMessageTime = stateRef.current.lastMessageTime || 0;
+            const timeSinceLast = Date.now() - lastMessageTime;
+            
             dispatch({ type: 'STT_RESULT', text: cleanText });
             
-            newWorker.postMessage({
-              type: 'llm',
-              text: cleanText,
-              history: stateRef.current.history,
-              persona: stateRef.current.persona,
-              culturalContext: stateRef.current.culturalContext,
-              metadata,
-              preferences: getUserPreferences(),
-              taskId: `llm-${Date.now()}`
-            });
-            dispatch({ type: 'ADD_TO_HISTORY', message: { role: 'user', content: cleanText } });
+            // Trigger LLM if: 
+            // 1. It's not too short
+            // 2. OR it's been a while since the last interaction (> 5s)
+            // 3. OR the transcript ends with a question mark
+            if (!isShort || timeSinceLast > 5000 || cleanText.includes('?')) {
+                newWorker.postMessage({
+                    type: 'llm',
+                    text: cleanText,
+                    history: stateRef.current.history,
+                    persona: stateRef.current.persona,
+                    culturalContext: stateRef.current.culturalContext,
+                    metadata,
+                    preferences: getUserPreferences(),
+                    taskId: `llm-${Date.now()}`
+                });
+                dispatch({ type: 'SET_LAST_MESSAGE_TIME', time: Date.now() });
+                dispatch({ type: 'ADD_TO_HISTORY', message: { role: 'user', content: cleanText } });
+            } else {
+                console.log("Banter detected, skipping LLM trigger for now:", cleanText);
+                dispatch({ type: 'ADD_TO_HISTORY', message: { role: 'user', content: cleanText } });
+                dispatch({ type: 'SET_READY' }); // Go back to ready state but keep the transcript
+            }
             break;
           case 'llm_chunk':
             dispatch({ type: 'LLM_CHUNK', text });

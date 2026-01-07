@@ -323,6 +323,75 @@ export const getCulturalContext = (situation, targetCulture = null) => {
 };
 
 /**
+ * Get prompt-ready tips for a specific culture
+ * @param {string} culture - The target culture
+ * @returns {string} A string containing specific behavioral tips
+ */
+export const getCulturalPromptTips = (culture) => {
+  if (!culture || culture === 'general') return '';
+
+  const style = getCommunicationStyleForCulture(culture);
+  const etiquette = getBusinessEtiquetteForCulture(culture);
+  const preferences = getCommunicationPreferencesForCulture(culture);
+  const concept = getTimeConceptForCulture(culture);
+  const greeting = getGreetingForCulture(culture);
+  
+  const styleData = culturalContextDatabase.communicationStyles[style];
+  const tips = styleData ? styleData.tips.slice(0, 3) : []; // Top 3 tips
+  
+  let promptTips = `Cultural Context (${culture}): `;
+  promptTips += `Communication Style: ${styleData?.description || style}. `;
+  if (tips.length > 0) promptTips += `Key Tips: ${tips.join(', ')}. `;
+  promptTips += `Formality: ${preferences.formality}. `;
+  promptTips += `Time Concept: ${concept}. `;
+  promptTips += `Native Greeting: ${greeting}. `;
+  
+  if (etiquette && etiquette.practices) {
+    promptTips += `Business Etiquette: ${etiquette.practices.slice(0, 2).join(', ')}. `;
+  }
+
+  return promptTips;
+};
+
+/**
+ * Get language learning specific prompt tips
+ * @param {string} language - Target language
+ * @returns {string} Prompt tips for language learning
+ */
+export const getLanguageLearningPromptTips = (language) => {
+  const support = getLanguageLearningSupport(language);
+  if (!support) return '';
+
+  let tips = `Language Learning (${language}): `;
+  if (support.commonMistakes) {
+    tips += `Watch for: ${support.commonMistakes.map(m => m.mistake).join(', ')}. `;
+  }
+  if (support.culturalNotes) {
+    tips += `Cultural Notes: ${support.culturalNotes.join(' ')} `;
+  }
+  return tips;
+};
+
+/**
+ * Get professional meeting specific prompt tips
+ * @param {string} context - Meeting context
+ * @returns {string} Prompt tips for professional meetings
+ */
+export const getProfessionalPromptTips = (context) => {
+  const support = getProfessionalMeetingSupport(context);
+  if (!support) return '';
+
+  let tips = `Meeting Context (${context}): `;
+  if (support.keyPhrases) {
+    tips += `Useful Phrases: ${support.keyPhrases.slice(0, 3).join(', ')}. `;
+  }
+  if (support.etiquette) {
+    tips += `Etiquette: ${support.etiquette.join(', ')}. `;
+  }
+  return tips;
+};
+
+/**
  * Get appropriate communication style for a specific culture
  * @param {string} culture - The target culture
  * @returns {string} Communication style ('high-context', 'medium-context', or 'low-context')
