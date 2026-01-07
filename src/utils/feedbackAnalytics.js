@@ -1,7 +1,7 @@
 /**
  * @fileoverview User feedback analytics for preference learning
  */
-import { secureLocalStorageGet } from './encryption';
+import { secureLocalStorageGet, secureLocalStorageSet } from './encryption';
 
 /**
  * Analyzes feedback trends over time to identify evolving user preferences
@@ -356,33 +356,58 @@ export const calculateSocialSuccessScore = async (feedbackHistory = null, conver
   }
 
   const analysis = await analyzeFeedbackTrends(feedbackHistory);
-  
+
   // Base score from overall satisfaction (0-50 points)
   const satisfactionScore = (analysis.overallSatisfaction || 0.5) * 50;
-  
+
   // Score from conversation sentiment (0-30 points)
   let sentimentScore = 15; // Neutral start
   if (conversationHistory.length > 0) {
-    const positiveTurns = conversationHistory.filter(t => 
+    const positiveTurns = conversationHistory.filter(t =>
       t.sentiment === 'positive' || (t.emotionData && ['joy', 'surprise'].includes(t.emotionData.emotion))
     ).length;
     sentimentScore = (positiveTurns / Math.max(1, conversationHistory.length)) * 30;
   }
-  
-  // Score from engagement/volume (0-20 points)
-  const volumeScore = Math.min(20, (feedbackHistory.length / 50) * 20);
-  
-  const totalScore = Math.round(satisfactionScore + sentimentScore + volumeScore);
-  
+
+  // Score from engagement with recency weighting (0-20 points)
+  const now = Date.now();
+  const recencyWeightedScore = feedbackHistory.reduce((score, feedback) => {
+    const timeDiff = now - (feedback.timestamp || now); // Use current time if no timestamp
+    const daysDiff = timeDiff / (1000 * 60 * 60 * 24); // Convert to days
+
+    // Weight recent feedback more heavily (exponential decay)
+    const weight = Math.exp(-daysDiff / 7); // 7-day half-life
+    return score + weight;
+  }, 0);
+
+  const engagementScore = Math.min(20, (recencyWeightedScore / 5) * 20); // Normalize to 0-20 range
+
+  const totalScore = Math.round(satisfactionScore + sentimentScore + engagementScore);
+
+  // Calculate trend by comparing with previous score
+  const previousScore = await secureLocalStorageGet('convocue_previous_social_score', null);
+  let trend = 'stable';
+  if (previousScore !== null) {
+    if (totalScore > previousScore) {
+      trend = 'increasing';
+    } else if (totalScore < previousScore) {
+      trend = 'decreasing';
+    }
+  }
+
+  // Store current score for next comparison
+  await secureLocalStorageSet('convocue_social_score_timestamp', Date.now());
+  await secureLocalStorageSet('convocue_previous_social_score', totalScore);
+
   return {
     score: totalScore,
     breakdown: {
       satisfaction: Math.round(satisfactionScore),
       sentiment: Math.round(sentimentScore),
-      engagement: Math.round(volumeScore)
+      engagement: Math.round(engagementScore)
     },
     level: totalScore > 80 ? 'Social Expert' : totalScore > 60 ? 'Confident Communicator' : totalScore > 40 ? 'Developing' : 'Getting Started',
-    trend: analysis.trendingPreferences.helpfulness?.trend || 'stable'
+    trend: trend
   };
 };
 

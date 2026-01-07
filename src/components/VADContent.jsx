@@ -7,6 +7,7 @@ import PersonaSelector from './VAD/PersonaSelector';
 import DisplayArea from './VAD/DisplayArea';
 import ControlPanel from './VAD/ControlPanel';
 import SocialSuccessScore from './SocialSuccessScore';
+import { secureLocalStorageGet } from '../utils/encryption';
 
 const GlanceWidget = ({ suggestion, emotionData, isProcessing }) => {
   const emotion = emotionData?.emotion || 'neutral';
@@ -291,7 +292,7 @@ const VADContent = ({
         />
       )}
 
-      <SocialSuccessScore 
+      <SocialSuccessScore
         conversationTurns={conversationTurns}
         settings={settings}
       />

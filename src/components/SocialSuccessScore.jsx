@@ -1,18 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { TrendingUp, Users, Heart, Award, ChevronDown, ChevronUp } from 'lucide-react';
 import { calculateSocialSuccessScore } from '../utils/feedbackAnalytics';
+import { secureLocalStorageGet } from '../utils/encryption';
 
-const SocialSuccessScore = ({ feedbackHistory, conversationTurns, settings }) => {
+const SocialSuccessScore = ({ conversationTurns, settings }) => {
   const [metrics, setMetrics] = useState(null);
   const [isExpanded, setIsExpanded] = useState(false);
 
   useEffect(() => {
     const updateMetrics = async () => {
+      // Get feedback history from localStorage
+      const feedbackHistory = await secureLocalStorageGet('convocue_feedback', []);
       const results = await calculateSocialSuccessScore(feedbackHistory, conversationTurns);
       setMetrics(results);
     };
     updateMetrics();
-  }, [feedbackHistory, conversationTurns]);
+
+    // Listen for feedback submission events to update metrics
+    const handleFeedbackUpdate = () => {
+      updateMetrics();
+    };
+
+    window.addEventListener('convocue_feedback_submitted', handleFeedbackUpdate);
+
+    return () => {
+      window.removeEventListener('convocue_feedback_submitted', handleFeedbackUpdate);
+    };
+  }, [conversationTurns]);
 
   if (!metrics || !settings?.showAnalytics) return null;
 

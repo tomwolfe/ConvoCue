@@ -310,6 +310,7 @@ export const enhanceResponse = async (response, persona, emotionData = null, inp
 
   const preferences = await getUserPreferences();
   const isSubtleMode = options.isSubtleMode || preferences.isSubtleMode;
+  // Subtle Mode overrides all other preferences
   let enhancedResponse = response;
 
   // Apply professional insights for relevant personas
@@ -319,11 +320,8 @@ export const enhanceResponse = async (response, persona, emotionData = null, inp
 
   // Adjust length based on user preference or subtle mode
   if (isSubtleMode) {
-    // In subtle mode, we want extremely brief cues
-    const words = enhancedResponse.split(/\s+/);
-    if (words.length > 7) {
-      enhancedResponse = words.slice(0, 6).join(' ') + '...';
-    }
+    // In subtle mode, we want extremely brief cues from a curated list
+    enhancedResponse = generateQuickCue(enhancedResponse, input, conversationHistory);
   } else if (preferences.preferredLength === 'short' && enhancedResponse.length > 50) {
     // Truncate to first sentence if too long
     const sentences = enhancedResponse.split(/(?<=[.!?])\s+/);
@@ -344,20 +342,7 @@ export const enhanceResponse = async (response, persona, emotionData = null, inp
 
   // Adjust tone based on user preference (bypass if subtle)
   if (!isSubtleMode) {
-    if (preferences.preferredTone === 'formal' && persona !== 'professional') {
-      // Make more formal if user prefers it
-      enhancedResponse = enhancedResponse
-        .replace(/\b(i|we|you|they)\b/g, (match) => match.charAt(0).toUpperCase() + match.slice(1))
-        .replace(/\bim\b/gi, 'I am')
-        .replace(/\bcant\b/gi, 'cannot')
-        .replace(/\bwont\b/gi, 'will not');
-    } else if (preferences.preferredTone === 'casual' && persona === 'professional') {
-      // Make more casual if user prefers it
-      enhancedResponse = enhancedResponse
-        .replace(/\bI am\b/gi, 'I\'m')
-        .replace(/\bcannot\b/gi, 'can\'t')
-        .replace(/\bwill not\b/gi, 'won\'t');
-    }
+    enhancedResponse = applyToneAdjustment(enhancedResponse, preferences.preferredTone, persona);
   }
 
   // Add emotional awareness if emotion detected (bypass if subtle)
@@ -639,4 +624,81 @@ const isSemanticallyTooDifferent = async (original, enhanced) => {
   const commonRatio = commonWords.length / Math.max(1, originalWords.length);
 
   return commonRatio < 0.3;
+};
+
+/**
+ * Generates context-aware quick cues for subtle mode
+ * @param {string} response - Original response
+ * @param {string} input - User input
+ * @param {Array} conversationHistory - Conversation history for context
+ * @returns {string} A brief, context-aware cue
+ */
+const generateQuickCue = (response, input, conversationHistory = []) => {
+  // Predefined quick cues based on common conversation patterns
+  const quickCues = {
+    greeting: ['Hi', 'Hello', 'Hey', 'Wave', 'Smile'],
+    question: ['Ask', 'Clarify', 'Follow up', 'Probe', 'Inquire'],
+    agreement: ['Agree', 'Nod', 'Right', 'Exactly', 'True'],
+    disagreement: ['Pause', 'Consider', 'Hmm', 'Wait', 'Think'],
+    suggestion: ['Try', 'Suggest', 'Maybe', 'Consider', 'Propose'],
+    encouragement: ['Great', 'Good', 'Nice', 'Keep going', 'Well done'],
+    empathy: ['I hear', 'Understand', 'Feel', 'Acknowledge', 'Valid'],
+    transition: ['Next', 'Change', 'Switch', 'Move on', 'Continue'],
+    clarification: ['Explain', 'Elaborate', 'Expand', 'Detail', 'Clarify'],
+    default: ['Pause', 'Think', 'Consider', 'Reflect', 'Hmm']
+  };
+
+  // Analyze input to determine appropriate cue category
+  const lowerInput = input.toLowerCase();
+
+  if (lowerInput.includes('hello') || lowerInput.includes('hi') || lowerInput.includes('hey')) {
+    return quickCues.greeting[Math.floor(Math.random() * quickCues.greeting.length)];
+  } else if (lowerInput.includes('?') || lowerInput.includes('what') || lowerInput.includes('how') || lowerInput.includes('why')) {
+    return quickCues.question[Math.floor(Math.random() * quickCues.question.length)];
+  } else if (lowerInput.includes('yes') || lowerInput.includes('yeah') || lowerInput.includes('yep') || lowerInput.includes('ok')) {
+    return quickCues.agreement[Math.floor(Math.random() * quickCues.agreement.length)];
+  } else if (lowerInput.includes('no') || lowerInput.includes('nah') || lowerInput.includes('not really')) {
+    return quickCues.disagreement[Math.floor(Math.random() * quickCues.disagreement.length)];
+  } else if (lowerInput.includes('suggest') || lowerInput.includes('recommend') || lowerInput.includes('idea')) {
+    return quickCues.suggestion[Math.floor(Math.random() * quickCues.suggestion.length)];
+  } else if (lowerInput.includes('good') || lowerInput.includes('great') || lowerInput.includes('nice') || lowerInput.includes('awesome')) {
+    return quickCues.encouragement[Math.floor(Math.random() * quickCues.encouragement.length)];
+  } else if (lowerInput.includes('feel') || lowerInput.includes('think') || lowerInput.includes('believe')) {
+    return quickCues.empathy[Math.floor(Math.random() * quickCues.empathy.length)];
+  } else if (lowerInput.includes('next') || lowerInput.includes('then') || lowerInput.includes('so')) {
+    return quickCues.transition[Math.floor(Math.random() * quickCues.transition.length)];
+  } else if (lowerInput.includes('explain') || lowerInput.includes('how') || lowerInput.includes('what do you mean')) {
+    return quickCues.clarification[Math.floor(Math.random() * quickCues.clarification.length)];
+  }
+
+  // If no specific pattern matched, use default cues
+  return quickCues.default[Math.floor(Math.random() * quickCues.default.length)];
+};
+
+/**
+ * Applies tone adjustments to the response based on user preference
+ * @param {string} response - Original response
+ * @param {string} preferredTone - User's preferred tone ('formal', 'casual', 'balanced')
+ * @param {string} persona - Current persona
+ * @returns {string} Response with tone adjustments applied
+ */
+const applyToneAdjustment = (response, preferredTone, persona) => {
+  let adjustedResponse = response;
+
+  if (preferredTone === 'formal' && persona !== 'professional') {
+    // Make more formal if user prefers it
+    adjustedResponse = adjustedResponse
+      .replace(/\b(i|we|you|they)\b/g, (match) => match.charAt(0).toUpperCase() + match.slice(1))
+      .replace(/\bim\b/gi, 'I am')
+      .replace(/\bcant\b/gi, 'cannot')
+      .replace(/\bwont\b/gi, 'will not');
+  } else if (preferredTone === 'casual' && persona === 'professional') {
+    // Make more casual if user prefers it
+    adjustedResponse = adjustedResponse
+      .replace(/\bI am\b/gi, 'I\'m')
+      .replace(/\bcannot\b/gi, 'can\'t')
+      .replace(/\bwill not\b/gi, 'won\'t');
+  }
+
+  return adjustedResponse;
 };

@@ -306,7 +306,7 @@ self.onmessage = async (event) => {
                 }
 
                 if (isSubtleMode) {
-                    contextInstruction += "SUBTLE MODE ACTIVE: Provide ONLY extremely short (1-5 words) Quick Cues. No full sentences. ";
+                    contextInstruction += "SUBTLE MODE ACTIVE: Provide ONLY extremely brief, context-aware Quick Cues (1-5 words). No full sentences. Examples: 'Pause', 'Smile', 'Ask', 'Consider', 'Hmm'. ";
                 } else if (preferences) {
                     contextInstruction += `Preference: ${preferences.preferredLength} length. `;
                 }
