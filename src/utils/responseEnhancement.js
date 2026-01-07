@@ -283,7 +283,8 @@ export const enhanceResponse = async (response, persona, emotionData = null, inp
   // 1. Specialized Persona Logic (Apply BEFORE general adjustments)
   if (!isSubtleMode) {
     if (persona === 'languagelearning') {
-      enhancedResponse = applyLanguageLearningSupport(enhancedResponse, input);
+      const targetLanguage = detectLanguageFromContext(options.culturalContext || 'general');
+      enhancedResponse = applyLanguageLearningSupport(enhancedResponse, input, targetLanguage);
     } else if (persona === 'relationship') {
       enhancedResponse = applySocialNuance(enhancedResponse, input);
     } else if (persona === 'professional' || persona === 'meeting') {
@@ -355,12 +356,25 @@ export const enhanceResponse = async (response, persona, emotionData = null, inp
 };
 
 /**
+ * Detects target language based on cultural context
+ */
+const detectLanguageFromContext = (culture) => {
+  const lowerCulture = culture.toLowerCase();
+  if (['spain', 'mexico', 'brazil', 'argentina', 'spanish', 'latin america'].some(c => lowerCulture.includes(c))) {
+    return 'spanish';
+  }
+  // Default to English for now
+  return 'english';
+};
+
+/**
  * Applies language learning specific enhancements
  */
-const applyLanguageLearningSupport = (response, input) => {
-  const natural = getNaturalPhrasing('english', input); // Default to English for now
+const applyLanguageLearningSupport = (response, input, language = 'english') => {
+  const natural = getNaturalPhrasing(language, input);
   if (natural) {
-    return `[Natural Phrasing] Instead of "${natural.literal}", try: "${natural.natural}". ${response}`;
+    const label = language === 'spanish' ? '[Natural Phrasing (ES)]' : '[Natural Phrasing]';
+    return `${label} Instead of "${natural.literal}", try: "${natural.natural}". ${response}`;
   }
   return response;
 };
@@ -383,24 +397,41 @@ const applySocialNuance = (response, input) => {
 };
 
 /**
- * Adjusts directness based on cultural communication style
+ * Adjusts directness and tone based on cultural communication style
  */
 const applyCulturalRefinement = (response, culture) => {
   const style = getCommunicationStyleForCulture(culture);
+  let refined = response;
   
   if (style === 'high-context') {
-    // Make more indirect
-    return response
+    // Make more indirect and polite
+    refined = refined
       .replace(/\b(no|never|wrong)\b/gi, 'that might be difficult')
-      .replace(/\b(must|should)\b/gi, 'perhaps we could');
-  } else if (style === 'low-context') {
-    // Ensure clarity
-    if (response.length > 100) {
-      const sentences = response.split(/(?<=[.!?])\s+/);
-      return sentences[0] + " (Directly speaking)";
+      .replace(/\b(must|should|have to)\b/gi, 'perhaps we could')
+      .replace(/\b(i want|i need)\b/gi, 'I would appreciate it if we could');
+    
+    // Add a polite preamble if it's a short direct response
+    if (refined.length < 30 && !refined.includes('With respect')) {
+      refined = `With respect, ${refined.charAt(0).toLowerCase() + refined.slice(1)}`;
     }
+  } else if (style === 'low-context') {
+    // Ensure clarity and directness
+    // Replace ambiguous phrases with direct ones
+    refined = refined
+      .replace(/it seems like maybe we could/gi, 'we should')
+      .replace(/perhaps it might be better to/gi, 'it is better to')
+      .replace(/i was wondering if/gi, 'can we');
+
+    if (refined.length > 100) {
+      const sentences = refined.split(/(?<=[.!?])\s+/);
+      refined = `${sentences[0]} (Directly speaking: ${sentences[0]})`;
+    }
+  } else if (style === 'medium-context') {
+    // Balance directness
+    refined = refined.replace(/\b(wrong|bad)\b/gi, 'not quite right');
   }
-  return response;
+
+  return refined;
 };
 
 /**

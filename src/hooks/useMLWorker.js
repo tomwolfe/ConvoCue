@@ -2,7 +2,7 @@ import { useReducer, useEffect, useRef, useCallback, useState } from 'react';
 import { AppConfig } from '../config';
 import { manageConversationHistory, optimizeConversationHistory, isMemoryLimitApproaching, aggressiveMemoryManagement } from '../utils/conversation';
 import { enhanceResponse, getInferredPreferences } from '../utils/responseEnhancement';
-import { ConversationTurnManager } from '../utils/speakerDetection';
+import { getConversationHistory } from '../conversationManager';
 import { secureLocalStorageGet, secureLocalStorageSet } from '../utils/encryption';
 import { getManualPreferences, saveUserPreferences } from '../utils/preferences';
 
@@ -125,6 +125,12 @@ export const useMLWorker = () => {
 
       const savedPersona = manualPrefs.preferredPersona || 'anxiety';
       dispatch({ type: 'SET_PERSONA', persona: savedPersona });
+
+      // Initialize conversation turns from the global manager
+      const currentTurns = getConversationHistory();
+      if (currentTurns && currentTurns.length > 0) {
+        dispatch({ type: 'SET_CONVERSATION_TURNS', turns: currentTurns });
+      }
     };
     fetchData();
     
@@ -135,7 +141,19 @@ export const useMLWorker = () => {
       prefsCache.current = { ...manualPrefs, ...inferredPrefs };
     };
     window.addEventListener('convocue_preferences_changed', handlePrefsChange);
-    return () => window.removeEventListener('convocue_preferences_changed', handlePrefsChange);
+    
+    // Listen for conversation turn updates from the conversation manager
+    const handleConversationUpdate = (event) => {
+      if (event.detail && event.detail.turns) {
+        dispatch({ type: 'SET_CONVERSATION_TURNS', turns: event.detail.turns });
+      }
+    };
+    window.addEventListener('convocue_conversation_updated', handleConversationUpdate);
+
+    return () => {
+      window.removeEventListener('convocue_preferences_changed', handlePrefsChange);
+      window.removeEventListener('convocue_conversation_updated', handleConversationUpdate);
+    };
   }, []);
 
   useEffect(() => {

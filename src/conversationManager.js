@@ -22,7 +22,12 @@ export const getConversationManager = () => {
  * @returns {Object} Turn information
  */
 export const processConversationTurn = (audioData, detectedText = '') => {
-  return conversationManager.processAudio(audioData, detectedText);
+  const turn = conversationManager.processAudio(audioData, detectedText);
+  // Notify listeners that conversation turns have been updated
+  window.dispatchEvent(new CustomEvent('convocue_conversation_updated', { 
+    detail: { turns: conversationManager.getConversationHistory() } 
+  }));
+  return turn;
 };
 
 /**
@@ -38,6 +43,9 @@ export const getConversationHistory = () => {
  */
 export const resetConversationManager = () => {
   conversationManager.reset();
+  window.dispatchEvent(new CustomEvent('convocue_conversation_updated', { 
+    detail: { turns: [] } 
+  }));
 };
 
 /**
@@ -46,7 +54,11 @@ export const resetConversationManager = () => {
  * @param {string} correctSpeaker - The correct speaker ('user' or 'other')
  */
 export const overrideSpeakerForTurn = (turnId, correctSpeaker) => {
-  return conversationManager.overrideSpeaker(turnId, correctSpeaker);
+  const result = conversationManager.overrideSpeaker(turnId, correctSpeaker);
+  window.dispatchEvent(new CustomEvent('convocue_conversation_updated', { 
+    detail: { turns: conversationManager.getConversationHistory() } 
+  }));
+  return result;
 };
 
 /**
@@ -54,5 +66,9 @@ export const overrideSpeakerForTurn = (turnId, correctSpeaker) => {
  * @param {string} speaker - The speaker to set as last speaker
  */
 export const updateLastSpeaker = (speaker) => {
-  return conversationManager.updateLastSpeaker(speaker);
+  const result = conversationManager.updateLastSpeaker(speaker);
+  window.dispatchEvent(new CustomEvent('convocue_conversation_updated', { 
+    detail: { turns: conversationManager.getConversationHistory() } 
+  }));
+  return result;
 };
