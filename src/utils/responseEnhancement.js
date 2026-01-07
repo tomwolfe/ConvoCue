@@ -645,12 +645,15 @@ const generateQuickCue = (response, input, conversationHistory = []) => {
     empathy: ['I hear', 'Understand', 'Feel', 'Acknowledge', 'Valid'],
     transition: ['Next', 'Change', 'Switch', 'Move on', 'Continue'],
     clarification: ['Explain', 'Elaborate', 'Expand', 'Detail', 'Clarify'],
+    emotion: ['Calm', 'Breathe', 'Relax', 'Focus', 'Center'],
+    uncertainty: ['Hmm', 'Unsure', 'Thoughtful', 'Reflect', 'Consider'],
     default: ['Pause', 'Think', 'Consider', 'Reflect', 'Hmm']
   };
 
   // Analyze input to determine appropriate cue category
   const lowerInput = input.toLowerCase();
 
+  // Enhanced pattern matching with more comprehensive categories
   if (lowerInput.includes('hello') || lowerInput.includes('hi') || lowerInput.includes('hey')) {
     return quickCues.greeting[Math.floor(Math.random() * quickCues.greeting.length)];
   } else if (lowerInput.includes('?') || lowerInput.includes('what') || lowerInput.includes('how') || lowerInput.includes('why')) {
@@ -669,9 +672,38 @@ const generateQuickCue = (response, input, conversationHistory = []) => {
     return quickCues.transition[Math.floor(Math.random() * quickCues.transition.length)];
   } else if (lowerInput.includes('explain') || lowerInput.includes('how') || lowerInput.includes('what do you mean')) {
     return quickCues.clarification[Math.floor(Math.random() * quickCues.clarification.length)];
+  } else if (lowerInput.includes('anxious') || lowerInput.includes('worried') || lowerInput.includes('stressed') || lowerInput.includes('nervous')) {
+    return quickCues.emotion[Math.floor(Math.random() * quickCues.emotion.length)];
+  } else if (lowerInput.includes('not sure') || lowerInput.includes('unsure') || lowerInput.includes('dunno') || lowerInput.includes('maybe')) {
+    return quickCues.uncertainty[Math.floor(Math.random() * quickCues.uncertainty.length)];
   }
 
-  // If no specific pattern matched, use default cues
+  // If no specific pattern matched, try to analyze the response for context clues
+  const lowerResponse = response.toLowerCase();
+
+  // Check if the original response has any actionable elements that could be converted to a cue
+  if (lowerResponse.includes('suggest') || lowerResponse.includes('recommend')) {
+    return quickCues.suggestion[Math.floor(Math.random() * quickCues.suggestion.length)];
+  } else if (lowerResponse.includes('understand') || lowerResponse.includes('agree')) {
+    return quickCues.agreement[Math.floor(Math.random() * quickCues.agreement.length)];
+  } else if (lowerResponse.includes('consider') || lowerResponse.includes('think')) {
+    return quickCues.uncertainty[Math.floor(Math.random() * quickCues.uncertainty.length)];
+  } else if (lowerResponse.includes('good') || lowerResponse.includes('great')) {
+    return quickCues.encouragement[Math.floor(Math.random() * quickCues.encouragement.length)];
+  }
+
+  // Use conversation history to infer context if patterns weren't found in current input
+  if (conversationHistory.length > 0) {
+    const lastTurn = conversationHistory[conversationHistory.length - 1];
+    const lastContent = lastTurn?.content?.toLowerCase() || '';
+
+    // If the last turn was a question, suggest asking or clarifying
+    if (lastContent.includes('?')) {
+      return quickCues.question[Math.floor(Math.random() * quickCues.question.length)];
+    }
+  }
+
+  // If still no match, use default cues
   return quickCues.default[Math.floor(Math.random() * quickCues.default.length)];
 };
 

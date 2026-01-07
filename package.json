@@ -17,7 +17,8 @@
     "@vercel/analytics": "^1.6.1",
     "lucide-react": "^0.562.0",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "recharts": "^3.6.0"
   },
   "overrides": {
     "onnxruntime-web": "1.23.2"

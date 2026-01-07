@@ -357,47 +357,110 @@ export const calculateSocialSuccessScore = async (feedbackHistory = null, conver
 
   const analysis = await analyzeFeedbackTrends(feedbackHistory);
 
-  // Base score from overall satisfaction (0-50 points)
-  const satisfactionScore = (analysis.overallSatisfaction || 0.5) * 50;
+  // Get configurable weights (default to 50/30/20 split)
+  const weights = await getSocialSuccessWeights();
 
-  // Score from conversation sentiment (0-30 points)
-  let sentimentScore = 15; // Neutral start
+  // Base score from overall satisfaction (0 to satisfactionWeight points)
+  const satisfactionScore = (analysis.overallSatisfaction || 0.5) * weights.satisfaction;
+
+  // Score from conversation sentiment (0 to sentimentWeight points)
+  let sentimentScore = weights.sentiment / 2; // Neutral start (half of max)
   if (conversationHistory.length > 0) {
     const positiveTurns = conversationHistory.filter(t =>
       t.sentiment === 'positive' || (t.emotionData && ['joy', 'surprise'].includes(t.emotionData.emotion))
     ).length;
-    sentimentScore = (positiveTurns / Math.max(1, conversationHistory.length)) * 30;
+    sentimentScore = (positiveTurns / Math.max(1, conversationHistory.length)) * weights.sentiment;
   }
 
-  // Score from engagement with recency weighting (0-20 points)
+  // Score from engagement with recency and quality weighting (0 to engagementWeight points)
   const now = Date.now();
-  const recencyWeightedScore = feedbackHistory.reduce((score, feedback) => {
-    const timeDiff = now - (feedback.timestamp || now); // Use current time if no timestamp
-    const daysDiff = timeDiff / (1000 * 60 * 60 * 24); // Convert to days
+  let engagementScore = 0;
 
-    // Weight recent feedback more heavily (exponential decay)
-    const weight = Math.exp(-daysDiff / 7); // 7-day half-life
-    return score + weight;
-  }, 0);
+  if (feedbackHistory.length > 0) {
+    // Calculate engagement score based on both quantity and quality
+    const qualityWeightedScore = feedbackHistory.reduce((score, feedback) => {
+      const timeDiff = now - (feedback.timestamp || now); // Use current time if no timestamp
+      const daysDiff = timeDiff / (1000 * 60 * 60 * 24); // Convert to days
 
-  const engagementScore = Math.min(20, (recencyWeightedScore / 5) * 20); // Normalize to 0-20 range
+      // Weight recent feedback more heavily (exponential decay)
+      const recencyWeight = Math.exp(-daysDiff / 7); // 7-day half-life
+
+      // Calculate quality weight based on feedback type and content
+      let qualityWeight = 1.0; // Base weight
+      if (feedback.feedbackType === 'like') {
+        qualityWeight = 1.2; // Positive feedback gets slightly higher weight
+      } else if (feedback.feedbackType === 'dislike') {
+        qualityWeight = 0.5; // Negative feedback gets lower weight
+      } else if (feedback.feedbackType === 'report') {
+        qualityWeight = 0.2; // Reports get very low weight
+      }
+
+      // If feedback has detailed text, increase quality weight
+      if (feedback.feedbackText && feedback.feedbackText.length > 20) {
+        qualityWeight *= 1.5; // Detailed feedback gets bonus
+      } else if (feedback.feedbackText && feedback.feedbackText.length > 5) {
+        qualityWeight *= 1.2; // Some text gets moderate bonus
+      }
+
+      return score + (recencyWeight * qualityWeight);
+    }, 0);
+
+    // Normalize to 0-engagementWeight range
+    engagementScore = Math.min(weights.engagement, (qualityWeightedScore / 5) * weights.engagement);
+  }
 
   const totalScore = Math.round(satisfactionScore + sentimentScore + engagementScore);
 
-  // Calculate trend by comparing with previous score
-  const previousScore = await secureLocalStorageGet('convocue_previous_social_score', null);
+  // Calculate trend using a 3-5 point rolling window
+  const historicalScores = await secureLocalStorageGet('convocue_historical_scores', []);
+  const recentScores = historicalScores.slice(-5).map(item => item.score); // Get last 5 scores
+
   let trend = 'stable';
-  if (previousScore !== null) {
-    if (totalScore > previousScore) {
+  if (recentScores.length >= 2) {
+    // Calculate trend based on the slope of the last few scores
+    const firstScore = recentScores[0];
+    const lastScore = recentScores[recentScores.length - 1];
+    const scoreChange = lastScore - firstScore;
+
+    // Calculate average change per step
+    const avgChange = scoreChange / (recentScores.length - 1);
+
+    // Determine trend based on magnitude and direction
+    if (avgChange > 2) {
       trend = 'increasing';
-    } else if (totalScore < previousScore) {
+    } else if (avgChange < -2) {
       trend = 'decreasing';
+    } else {
+      // For subtle changes, check the most recent movement
+      if (recentScores.length >= 2 && lastScore > recentScores[recentScores.length - 2]) {
+        trend = 'slightly increasing';
+      } else if (recentScores.length >= 2 && lastScore < recentScores[recentScores.length - 2]) {
+        trend = 'slightly decreasing';
+      } else {
+        trend = 'stable';
+      }
     }
   }
 
   // Store current score for next comparison
   await secureLocalStorageSet('convocue_social_score_timestamp', Date.now());
   await secureLocalStorageSet('convocue_previous_social_score', totalScore);
+
+  // Save to historical scores
+  const historicalScores = await secureLocalStorageGet('convocue_historical_scores', []);
+  const newHistoricalScore = {
+    score: totalScore,
+    timestamp: Date.now(),
+    breakdown: {
+      satisfaction: Math.round(satisfactionScore),
+      sentiment: Math.round(sentimentScore),
+      engagement: Math.round(engagementScore)
+    }
+  };
+
+  // Keep only the last 50 scores to prevent storage bloat
+  const updatedHistoricalScores = [...historicalScores, newHistoricalScore].slice(-50);
+  await secureLocalStorageSet('convocue_historical_scores', updatedHistoricalScores);
 
   return {
     score: totalScore,
@@ -406,6 +469,7 @@ export const calculateSocialSuccessScore = async (feedbackHistory = null, conver
       sentiment: Math.round(sentimentScore),
       engagement: Math.round(engagementScore)
     },
+    weights: weights, // Include the weights used for calculation
     level: totalScore > 80 ? 'Social Expert' : totalScore > 60 ? 'Confident Communicator' : totalScore > 40 ? 'Developing' : 'Getting Started',
     trend: trend
   };
@@ -430,7 +494,7 @@ export const getPersonalizedRecommendations = (feedbackAnalysis) => {
   // Recommend personas based on satisfaction
   const sortedPersonas = Object.entries(feedbackAnalysis.preferredPersonas)
     .sort((a, b) => b[1].satisfaction - a[1].satisfaction);
-    
+
   if (sortedPersonas.length > 0 && sortedPersonas[0][1].satisfaction > 0.7) {
     recommendations.push({
       type: 'persona',
@@ -452,4 +516,59 @@ export const getPersonalizedRecommendations = (feedbackAnalysis) => {
   });
 
   return recommendations;
+};
+
+/**
+ * Gets configurable weights for social success score calculation
+ * @returns {Promise<Object>} Weight configuration
+ */
+export const getSocialSuccessWeights = async () => {
+  try {
+    // Default weights: satisfaction (50), sentiment (30), engagement (20) = 100 total
+    const defaultWeights = {
+      satisfaction: 50,
+      sentiment: 30,
+      engagement: 20
+    };
+
+    // Allow for configurable weights via localStorage for A/B testing or user customization
+    const savedWeights = await secureLocalStorageGet('convocue_social_score_weights', null);
+
+    if (savedWeights &&
+        savedWeights.satisfaction !== undefined &&
+        savedWeights.sentiment !== undefined &&
+        savedWeights.engagement !== undefined &&
+        (savedWeights.satisfaction + savedWeights.sentiment + savedWeights.engagement) === 100) {
+      return savedWeights;
+    }
+
+    return defaultWeights;
+  } catch (error) {
+    console.error('Error fetching social success weights:', error);
+    return {
+      satisfaction: 50,
+      sentiment: 30,
+      engagement: 20
+    };
+  }
+};
+
+/**
+ * Gets historical social success scores for charting
+ * @returns {Promise<Array>} Array of historical scores with timestamps
+ */
+export const getHistoricalScores = async () => {
+  try {
+    const historicalScores = await secureLocalStorageGet('convocue_historical_scores', []);
+
+    // Format the data for the chart
+    return historicalScores.map((scoreData, index) => ({
+      date: new Date(scoreData.timestamp).toLocaleDateString(),
+      score: scoreData.score,
+      index: index // For consistent x-axis positioning
+    })).slice(-20); // Return only the last 20 scores to avoid cluttering the chart
+  } catch (error) {
+    console.error('Error fetching historical scores:', error);
+    return [];
+  }
 };

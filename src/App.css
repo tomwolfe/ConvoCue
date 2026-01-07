@@ -1064,8 +1064,15 @@ input:checked + .slider:before {
 .trend-increasing { color: var(--accent); }
 .trend-decreasing { color: #FF6B6B; }
 .trend-stable { color: var(--primary); }
+.trend-slightly-increasing { color: #5bbd68; }
+.trend-slightly-decreasing { color: #e08a5c; }
 
 .subtle-mode .social-success-container {
   display: none;
+}
+
+/* Additional utility classes for Social Success Score */
+.mt-4 {
+  margin-top: 1rem;
 }
 

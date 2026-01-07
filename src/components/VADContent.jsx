@@ -20,22 +20,94 @@ const GlanceWidget = ({ suggestion, emotionData, isProcessing }) => {
     ? suggestion.replace(/\[.*?\]/g, '').trim()
     : isProcessing ? 'Thinking...' : 'Listening...';
 
+  // Define tooltip descriptions for common subtle cues
+  const getTooltipForCue = (suggestionText) => {
+    if (!suggestionText) return '';
+
+    const cue = suggestionText.trim().toLowerCase();
+    const cueMap = {
+      'pause': 'Take a moment before responding',
+      'think': 'Consider your response carefully',
+      'consider': 'Reflect on the context',
+      'reflect': 'Contemplate the implications',
+      'hmm': 'Express thoughtful consideration',
+      'smile': 'Show warmth and friendliness',
+      'wave': 'Greet with a friendly gesture',
+      'nod': 'Show agreement or acknowledgment',
+      'ask': 'Pose a question to engage',
+      'clarify': 'Seek more information',
+      'follow up': 'Continue the conversation',
+      'probe': 'Explore the topic deeper',
+      'inquire': 'Make an inquiry politely',
+      'right': 'Acknowledge agreement',
+      'exactly': 'Confirm strong agreement',
+      'true': 'Affirm the statement',
+      'wait': 'Allow time before responding',
+      'try': 'Suggest an experiment or attempt',
+      'suggest': 'Offer a recommendation',
+      'maybe': 'Express possibility tentatively',
+      'propose': 'Present an idea for consideration',
+      'great': 'Express positive acknowledgment',
+      'good': 'Show approval',
+      'nice': 'Give a positive assessment',
+      'keep going': 'Encourage continuation',
+      'well done': 'Praise accomplishment',
+      'i hear': 'Acknowledge understanding',
+      'understand': 'Show comprehension',
+      'feel': 'Recognize emotions',
+      'acknowledge': 'Recognize and accept',
+      'valid': 'Confirm legitimacy of feelings',
+      'next': 'Transition to the next topic',
+      'change': 'Shift the subject or approach',
+      'switch': 'Alter the focus',
+      'move on': 'Proceed to another topic',
+      'continue': 'Maintain the current direction',
+      'explain': 'Provide clarification',
+      'elaborate': 'Add more detail',
+      'expand': 'Develop further',
+      'detail': 'Provide specifics',
+      'calm': 'Maintain composure',
+      'breathe': 'Take a breath to relax',
+      'relax': 'Ease tension',
+      'focus': 'Direct attention',
+      'center': 'Find balance',
+      'unsure': 'Express uncertainty respectfully',
+      'thoughtful': 'Show careful consideration'
+    };
+
+    // Check if the cue matches any known cues
+    for (const [key, description] of Object.entries(cueMap)) {
+      if (cue.includes(key)) {
+        return description;
+      }
+    }
+
+    return 'Subtle communication cue';
+  };
+
+  const tooltipText = getTooltipForCue(displaySuggestion);
+
   return (
-    <div className={`glance-widget ${emotion}`} role="region" aria-label="Glance Feedback">
+    <div
+      className={`glance-widget ${emotion}`}
+      role="region"
+      aria-label="Glance Feedback"
+      title={tooltipText}
+    >
       <p className="glance-suggestion">{displaySuggestion}</p>
       <div className="glance-indicators">
         {hasActionItem && (
-          <div className="glance-badge action">
+          <div className="glance-badge action" title="Action item detected in conversation">
             <Zap size={14} /> <span>Action</span>
           </div>
         )}
         {hasConflict && (
-          <div className="glance-badge conflict">
+          <div className="glance-badge conflict" title="Potential conflict detected">
             <ShieldAlert size={14} /> <span>Conflict</span>
           </div>
         )}
         {isHighStakes && (
-          <div className="glance-badge strategic">
+          <div className="glance-badge strategic" title="Strategic/high-stakes situation detected">
             <Info size={14} /> <span>Strategic</span>
           </div>
         )}

@@ -145,7 +145,9 @@ export const useMLWorker = () => {
   }, [state]);
 
   const initWorker = useCallback(() => {
-    if (worker.current) worker.current.terminate();
+    if (worker.current) {
+      worker.current.terminate();
+    }
 
     try {
       const newWorker = new Worker(new URL('../worker.js', import.meta.url), { type: 'module' });
@@ -196,7 +198,7 @@ export const useMLWorker = () => {
             } else {
                 const speakerRole = metadata?.turnInfo?.turn?.speaker || 'user';
                 dispatch({ type: 'ADD_TO_HISTORY', message: { role: speakerRole, content: cleanText } });
-                dispatch({ type: 'RESET_PROCESSING' }); 
+                dispatch({ type: 'RESET_PROCESSING' });
             }
             break;
           }
@@ -228,9 +230,17 @@ export const useMLWorker = () => {
     }
   }, [settings]);
 
+  // Proper cleanup function to terminate worker when component unmounts or settings change
+  useEffect(() => {
+    return () => {
+      if (worker.current) {
+        worker.current.terminate();
+      }
+    };
+  }, []);
+
   useEffect(() => {
     initWorker();
-    return () => worker.current?.terminate();
   }, [initWorker]);
 
   const processAudio = useCallback((audioBuffer) => {
