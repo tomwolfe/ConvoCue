@@ -723,6 +723,16 @@ header.compact .subtitle {
   line-height: 1.4;
 }
 
+.setting-help-text {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-top: 0.3rem;
+  padding: 0.4rem 0.6rem;
+  background: #f9fafb;
+  border-radius: 6px;
+  border-left: 2px solid var(--primary);
+}
+
 .toggle-switch {
   position: relative;
   display: inline-block;

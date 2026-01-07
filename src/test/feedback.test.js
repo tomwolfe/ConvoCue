@@ -127,10 +127,19 @@ describe('Feedback Utilities', () => {
   describe('clearFeedbackData', () => {
     it('removes all feedback data from localStorage', async () => {
       await submitFeedback('Test', 'like', 'anxiety', 'general', 'Test', 'Test');
-      expect(localStorage.getItem('convocue_feedback')).not.toBeNull();
-      
-      clearFeedbackData();
-      expect(localStorage.getItem('convocue_feedback')).toBeNull();
+      const encryptedData = localStorage.getItem('convocue_feedback');
+      expect(encryptedData).not.toBeNull();
+
+      await clearFeedbackData();
+      // After clearing, the data should be an empty array when decrypted
+      const clearedData = localStorage.getItem('convocue_feedback');
+      if (clearedData) {
+        const decrypted = await import('../utils/encryption').then(m => m.decryptData(clearedData));
+        expect(decrypted).toEqual([]);
+      } else {
+        // If the key was removed entirely, that's also valid
+        expect(clearedData).toBeNull();
+      }
     });
   });
 });

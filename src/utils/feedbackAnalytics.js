@@ -345,6 +345,88 @@ const calculatePersonaPreferences = (feedbackHistory) => {
 };
 
 /**
+ * Calculates satisfaction score component
+ * @param {Object} analysis - Feedback analysis
+ * @param {Object} weights - Score weights
+ * @returns {number} Satisfaction score component
+ */
+const calculateSatisfactionScore = (analysis, weights) => {
+  return (analysis.overallSatisfaction || 0.5) * weights.satisfaction;
+};
+
+/**
+ * Calculates sentiment score component
+ * @param {Array} conversationHistory - Conversation turns
+ * @param {Object} weights - Score weights
+ * @returns {number} Sentiment score component
+ */
+const calculateSentimentScore = (conversationHistory, weights) => {
+  let sentimentScore = weights.sentiment / 2; // Neutral start (half of max)
+  if (conversationHistory.length > 0) {
+    const positiveTurns = conversationHistory.filter(t =>
+      t.sentiment === 'positive' || (t.emotionData && ['joy', 'surprise'].includes(t.emotionData.emotion))
+    ).length;
+    sentimentScore = (positiveTurns / Math.max(1, conversationHistory.length)) * weights.sentiment;
+  }
+  return sentimentScore;
+};
+
+/**
+ * Calculates engagement score component with recency and quality weighting
+ * @param {Array} feedbackHistory - Feedback history
+ * @param {Object} weights - Score weights
+ * @returns {number} Engagement score component
+ */
+const calculateEngagementScore = (feedbackHistory, weights) => {
+  if (feedbackHistory.length === 0) return 0;
+
+  const now = Date.now();
+
+  // Calculate engagement score based on both quantity and quality
+  const qualityWeightedScore = feedbackHistory.reduce((score, feedback) => {
+    const timeDiff = now - (feedback.timestamp || now); // Use current time if no timestamp
+    const daysDiff = timeDiff / (1000 * 60 * 60 * 24); // Convert to days
+
+    // Weight recent feedback more heavily (exponential decay)
+    const recencyWeight = Math.exp(-daysDiff / 7); // 7-day half-life
+
+    // Calculate quality weight based on feedback type and content
+    let qualityWeight = 1.0; // Base weight
+    if (feedback.feedbackType === 'like') {
+      qualityWeight = 1.2; // Positive feedback gets slightly higher weight
+    } else if (feedback.feedbackType === 'dislike') {
+      qualityWeight = 0.5; // Negative feedback gets lower weight
+    } else if (feedback.feedbackType === 'report') {
+      qualityWeight = 0.2; // Reports get very low weight
+    }
+
+    // If feedback has detailed text, increase quality weight
+    if (feedback.feedbackText && feedback.feedbackText.length > 20) {
+      qualityWeight *= 1.5; // Detailed feedback gets bonus
+    } else if (feedback.feedbackText && feedback.feedbackText.length > 5) {
+      qualityWeight *= 1.2; // Some text gets moderate bonus
+    }
+
+    return score + (recencyWeight * qualityWeight);
+  }, 0);
+
+  // Normalize to 0-engagementWeight range
+  return Math.min(weights.engagement, (qualityWeightedScore / 5) * weights.engagement);
+};
+
+/**
+ * Determines the user's level based on total score
+ * @param {number} totalScore - Total social success score
+ * @returns {string} User level
+ */
+const determineLevel = (totalScore) => {
+  if (totalScore > 80) return 'Social Expert';
+  if (totalScore > 60) return 'Confident Communicator';
+  if (totalScore > 40) return 'Developing';
+  return 'Getting Started';
+};
+
+/**
  * Calculates a "Social Success Score" based on feedback and conversation dynamics
  * @param {Array} feedbackHistory - All feedback
  * @param {Array} conversationHistory - Recent conversation turns
@@ -360,57 +442,13 @@ export const calculateSocialSuccessScore = async (feedbackHistory = null, conver
   // Get configurable weights (default to 50/30/20 split)
   const weights = await getSocialSuccessWeights();
 
-  // Base score from overall satisfaction (0 to satisfactionWeight points)
-  const satisfactionScore = (analysis.overallSatisfaction || 0.5) * weights.satisfaction;
-
-  // Score from conversation sentiment (0 to sentimentWeight points)
-  let sentimentScore = weights.sentiment / 2; // Neutral start (half of max)
-  if (conversationHistory.length > 0) {
-    const positiveTurns = conversationHistory.filter(t =>
-      t.sentiment === 'positive' || (t.emotionData && ['joy', 'surprise'].includes(t.emotionData.emotion))
-    ).length;
-    sentimentScore = (positiveTurns / Math.max(1, conversationHistory.length)) * weights.sentiment;
-  }
-
-  // Score from engagement with recency and quality weighting (0 to engagementWeight points)
-  const now = Date.now();
-  let engagementScore = 0;
-
-  if (feedbackHistory.length > 0) {
-    // Calculate engagement score based on both quantity and quality
-    const qualityWeightedScore = feedbackHistory.reduce((score, feedback) => {
-      const timeDiff = now - (feedback.timestamp || now); // Use current time if no timestamp
-      const daysDiff = timeDiff / (1000 * 60 * 60 * 24); // Convert to days
-
-      // Weight recent feedback more heavily (exponential decay)
-      const recencyWeight = Math.exp(-daysDiff / 7); // 7-day half-life
-
-      // Calculate quality weight based on feedback type and content
-      let qualityWeight = 1.0; // Base weight
-      if (feedback.feedbackType === 'like') {
-        qualityWeight = 1.2; // Positive feedback gets slightly higher weight
-      } else if (feedback.feedbackType === 'dislike') {
-        qualityWeight = 0.5; // Negative feedback gets lower weight
-      } else if (feedback.feedbackType === 'report') {
-        qualityWeight = 0.2; // Reports get very low weight
-      }
-
-      // If feedback has detailed text, increase quality weight
-      if (feedback.feedbackText && feedback.feedbackText.length > 20) {
-        qualityWeight *= 1.5; // Detailed feedback gets bonus
-      } else if (feedback.feedbackText && feedback.feedbackText.length > 5) {
-        qualityWeight *= 1.2; // Some text gets moderate bonus
-      }
-
-      return score + (recencyWeight * qualityWeight);
-    }, 0);
-
-    // Normalize to 0-engagementWeight range
-    engagementScore = Math.min(weights.engagement, (qualityWeightedScore / 5) * weights.engagement);
-  }
+  // Calculate score components
+  const satisfactionScore = calculateSatisfactionScore(analysis, weights);
+  const sentimentScore = calculateSentimentScore(conversationHistory, weights);
+  const engagementScore = calculateEngagementScore(feedbackHistory, weights);
 
   const totalScore = Math.round(satisfactionScore + sentimentScore + engagementScore);
-  
+
   // Calculate trend using a 3-5 point rolling window
   const historicalScores = await secureLocalStorageGet('convocue_historical_scores', []);
   const recentScores = historicalScores.slice(-5).map(item => item.score); // Get last 5 scores
@@ -447,7 +485,7 @@ export const calculateSocialSuccessScore = async (feedbackHistory = null, conver
       engagement: Math.round(engagementScore)
     },
     weights: weights, // Include the weights used for calculation
-    level: totalScore > 80 ? 'Social Expert' : totalScore > 60 ? 'Confident Communicator' : totalScore > 40 ? 'Developing' : 'Getting Started',
+    level: determineLevel(totalScore),
     trend: trend
   };
 };

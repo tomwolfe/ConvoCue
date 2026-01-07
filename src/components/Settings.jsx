@@ -133,8 +133,9 @@ const Settings = ({ isOpen, onClose }) => {
 
           <div className="setting-item">
             <div className="setting-info">
-              <h3>Communication Analytics</h3>
+              <h3>Social Success Score</h3>
               <p>Show your Social Success Score and communication trends</p>
+              <p className="setting-help-text">A personal metric based on your feedback and conversation tone. Use it to track growth — not to judge yourself.</p>
             </div>
             <label className="toggle-switch">
               <input

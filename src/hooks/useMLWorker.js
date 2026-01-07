@@ -4,7 +4,7 @@ import { manageConversationHistory, optimizeConversationHistory, isMemoryLimitAp
 import { enhanceResponse, getInferredPreferences } from '../utils/responseEnhancement';
 import { ConversationTurnManager } from '../utils/speakerDetection';
 import { secureLocalStorageGet, secureLocalStorageSet } from '../utils/encryption';
-import { getManualPreferences } from '../utils/preferences';
+import { getManualPreferences, saveUserPreferences } from '../utils/preferences';
 
 const initialState = {
   status: 'Initializing Models...',

@@ -627,15 +627,11 @@ const isSemanticallyTooDifferent = async (original, enhanced) => {
 };
 
 /**
- * Generates context-aware quick cues for subtle mode
- * @param {string} response - Original response
- * @param {string} input - User input
- * @param {Array} conversationHistory - Conversation history for context
- * @returns {string} A brief, context-aware cue
+ * Defines quick cues based on common conversation patterns
+ * @returns {Object} Object containing quick cue categories
  */
-const generateQuickCue = (response, input, conversationHistory = []) => {
-  // Predefined quick cues based on common conversation patterns
-  const quickCues = {
+const getQuickCues = () => {
+  return {
     greeting: ['Hi', 'Hello', 'Hey', 'Wave', 'Smile', 'Warmly'],
     question: ['Ask', 'Clarify', 'Follow up', 'Probe', 'Inquire', 'Investigate', 'Query'],
     agreement: ['Agree', 'Nod', 'Right', 'Exactly', 'True', 'Affirm', 'Indeed'],
@@ -651,69 +647,249 @@ const generateQuickCue = (response, input, conversationHistory = []) => {
     conflict: ['De-escalate', 'Validate first', 'Soft tone', 'Find common ground', 'Listen more', 'Neutral stance', 'Breathe'],
     default: ['Pause', 'Think', 'Consider', 'Reflect', 'Hmm', 'Observe']
   };
+};
 
-  // Analyze input to determine appropriate cue category
+/**
+ * Detects if conflict is present in the input
+ * @param {string} lowerInput - Lowercase input string
+ * @returns {boolean} True if conflict is detected
+ */
+const detectConflict = (lowerInput) => {
+  return lowerInput.includes('no') && (lowerInput.includes('wrong') || lowerInput.includes('disagree') || lowerInput.includes('never'));
+};
+
+/**
+ * Detects if strategic communication is needed
+ * @param {string} lowerInput - Lowercase input string
+ * @returns {boolean} True if strategic communication is needed
+ */
+const detectStrategic = (lowerInput) => {
+  return lowerInput.includes('negotiate') || lowerInput.includes('important') || lowerInput.includes('boss') || lowerInput.includes('interview');
+};
+
+/**
+ * Detects greeting patterns in the input
+ * @param {string} lowerInput - Lowercase input string
+ * @returns {boolean} True if greeting pattern is detected
+ */
+const detectGreeting = (lowerInput) => {
+  return lowerInput.includes('hello') || lowerInput.includes('hi') || lowerInput.includes('hey');
+};
+
+/**
+ * Detects question patterns in the input
+ * @param {string} lowerInput - Lowercase input string
+ * @returns {boolean} True if question pattern is detected
+ */
+const detectQuestion = (lowerInput) => {
+  return lowerInput.includes('?') || lowerInput.includes('what') || lowerInput.includes('how') || lowerInput.includes('why');
+};
+
+/**
+ * Detects agreement patterns in the input
+ * @param {string} lowerInput - Lowercase input string
+ * @returns {boolean} True if agreement pattern is detected
+ */
+const detectAgreement = (lowerInput) => {
+  return lowerInput.includes('yes') || lowerInput.includes('yeah') || lowerInput.includes('yep') || lowerInput.includes('ok');
+};
+
+/**
+ * Detects disagreement patterns in the input
+ * @param {string} lowerInput - Lowercase input string
+ * @returns {boolean} True if disagreement pattern is detected
+ */
+const detectDisagreement = (lowerInput) => {
+  return lowerInput.includes('no') || lowerInput.includes('nah') || lowerInput.includes('not really');
+};
+
+/**
+ * Detects suggestion patterns in the input
+ * @param {string} lowerInput - Lowercase input string
+ * @returns {boolean} True if suggestion pattern is detected
+ */
+const detectSuggestion = (lowerInput) => {
+  return lowerInput.includes('suggest') || lowerInput.includes('recommend') || lowerInput.includes('idea');
+};
+
+/**
+ * Detects encouragement patterns in the input
+ * @param {string} lowerInput - Lowercase input string
+ * @returns {boolean} True if encouragement pattern is detected
+ */
+const detectEncouragement = (lowerInput) => {
+  return lowerInput.includes('good') || lowerInput.includes('great') || lowerInput.includes('nice') || lowerInput.includes('awesome');
+};
+
+/**
+ * Detects empathy patterns in the input
+ * @param {string} lowerInput - Lowercase input string
+ * @returns {boolean} True if empathy pattern is detected
+ */
+const detectEmpathy = (lowerInput) => {
+  return lowerInput.includes('feel') || lowerInput.includes('think') || lowerInput.includes('believe');
+};
+
+/**
+ * Detects transition patterns in the input
+ * @param {string} lowerInput - Lowercase input string
+ * @returns {boolean} True if transition pattern is detected
+ */
+const detectTransition = (lowerInput) => {
+  return lowerInput.includes('next') || lowerInput.includes('then') || lowerInput.includes('so');
+};
+
+/**
+ * Detects clarification patterns in the input
+ * @param {string} lowerInput - Lowercase input string
+ * @returns {boolean} True if clarification pattern is detected
+ */
+const detectClarification = (lowerInput) => {
+  return lowerInput.includes('explain') || lowerInput.includes('how') || lowerInput.includes('what do you mean');
+};
+
+/**
+ * Detects emotion patterns in the input
+ * @param {string} lowerInput - Lowercase input string
+ * @returns {boolean} True if emotion pattern is detected
+ */
+const detectEmotion = (lowerInput) => {
+  return lowerInput.includes('anxious') || lowerInput.includes('worried') || lowerInput.includes('stressed') || lowerInput.includes('nervous');
+};
+
+/**
+ * Detects uncertainty patterns in the input
+ * @param {string} lowerInput - Lowercase input string
+ * @returns {boolean} True if uncertainty pattern is detected
+ */
+const detectUncertainty = (lowerInput) => {
+  return lowerInput.includes('not sure') || lowerInput.includes('unsure') || lowerInput.includes('dunno') || lowerInput.includes('maybe');
+};
+
+/**
+ * Selects a random cue from the specified category
+ * @param {Object} quickCues - Object containing all quick cue categories
+ * @param {string} category - Category to select from
+ * @returns {string} Random cue from the specified category
+ */
+const selectRandomCue = (quickCues, category) => {
+  return quickCues[category][Math.floor(Math.random() * quickCues[category].length)];
+};
+
+/**
+ * Analyzes input to determine appropriate cue category
+ * @param {string} input - User input
+ * @param {Object} quickCues - Object containing all quick cue categories
+ * @returns {string|null} Cue category or null if no match
+ */
+const analyzeInputForCue = (input, quickCues) => {
   const lowerInput = input.toLowerCase();
 
   // Check for conflict or strategic situations if we have context
-  const isConflictDetected = lowerInput.includes('no') && (lowerInput.includes('wrong') || lowerInput.includes('disagree') || lowerInput.includes('never'));
-  const isStrategicNeeded = lowerInput.includes('negotiate') || lowerInput.includes('important') || lowerInput.includes('boss') || lowerInput.includes('interview');
-
-  if (isConflictDetected) {
-    return quickCues.conflict[Math.floor(Math.random() * quickCues.conflict.length)];
-  } else if (isStrategicNeeded) {
-    return quickCues.strategic[Math.floor(Math.random() * quickCues.strategic.length)];
-  } else if (lowerInput.includes('hello') || lowerInput.includes('hi') || lowerInput.includes('hey')) {
-    return quickCues.greeting[Math.floor(Math.random() * quickCues.greeting.length)];
-  } else if (lowerInput.includes('?') || lowerInput.includes('what') || lowerInput.includes('how') || lowerInput.includes('why')) {
-    return quickCues.question[Math.floor(Math.random() * quickCues.question.length)];
-  } else if (lowerInput.includes('yes') || lowerInput.includes('yeah') || lowerInput.includes('yep') || lowerInput.includes('ok')) {
-    return quickCues.agreement[Math.floor(Math.random() * quickCues.agreement.length)];
-  } else if (lowerInput.includes('no') || lowerInput.includes('nah') || lowerInput.includes('not really')) {
-    return quickCues.disagreement[Math.floor(Math.random() * quickCues.disagreement.length)];
-  } else if (lowerInput.includes('suggest') || lowerInput.includes('recommend') || lowerInput.includes('idea')) {
-    return quickCues.suggestion[Math.floor(Math.random() * quickCues.suggestion.length)];
-  } else if (lowerInput.includes('good') || lowerInput.includes('great') || lowerInput.includes('nice') || lowerInput.includes('awesome')) {
-    return quickCues.encouragement[Math.floor(Math.random() * quickCues.encouragement.length)];
-  } else if (lowerInput.includes('feel') || lowerInput.includes('think') || lowerInput.includes('believe')) {
-    return quickCues.empathy[Math.floor(Math.random() * quickCues.empathy.length)];
-  } else if (lowerInput.includes('next') || lowerInput.includes('then') || lowerInput.includes('so')) {
-    return quickCues.transition[Math.floor(Math.random() * quickCues.transition.length)];
-  } else if (lowerInput.includes('explain') || lowerInput.includes('how') || lowerInput.includes('what do you mean')) {
-    return quickCues.clarification[Math.floor(Math.random() * quickCues.clarification.length)];
-  } else if (lowerInput.includes('anxious') || lowerInput.includes('worried') || lowerInput.includes('stressed') || lowerInput.includes('nervous')) {
-    return quickCues.emotion[Math.floor(Math.random() * quickCues.emotion.length)];
-  } else if (lowerInput.includes('not sure') || lowerInput.includes('unsure') || lowerInput.includes('dunno') || lowerInput.includes('maybe')) {
-    return quickCues.uncertainty[Math.floor(Math.random() * quickCues.uncertainty.length)];
+  if (detectConflict(lowerInput)) {
+    return selectRandomCue(quickCues, 'conflict');
+  } else if (detectStrategic(lowerInput)) {
+    return selectRandomCue(quickCues, 'strategic');
+  } else if (detectGreeting(lowerInput)) {
+    return selectRandomCue(quickCues, 'greeting');
+  } else if (detectQuestion(lowerInput)) {
+    return selectRandomCue(quickCues, 'question');
+  } else if (detectAgreement(lowerInput)) {
+    return selectRandomCue(quickCues, 'agreement');
+  } else if (detectDisagreement(lowerInput)) {
+    return selectRandomCue(quickCues, 'disagreement');
+  } else if (detectSuggestion(lowerInput)) {
+    return selectRandomCue(quickCues, 'suggestion');
+  } else if (detectEncouragement(lowerInput)) {
+    return selectRandomCue(quickCues, 'encouragement');
+  } else if (detectEmpathy(lowerInput)) {
+    return selectRandomCue(quickCues, 'empathy');
+  } else if (detectTransition(lowerInput)) {
+    return selectRandomCue(quickCues, 'transition');
+  } else if (detectClarification(lowerInput)) {
+    return selectRandomCue(quickCues, 'clarification');
+  } else if (detectEmotion(lowerInput)) {
+    return selectRandomCue(quickCues, 'emotion');
+  } else if (detectUncertainty(lowerInput)) {
+    return selectRandomCue(quickCues, 'uncertainty');
   }
 
-  // If no specific pattern matched, try to analyze the response for context clues
+  return null;
+};
+
+/**
+ * Analyzes response to determine appropriate cue category
+ * @param {string} response - Original response
+ * @param {Object} quickCues - Object containing all quick cue categories
+ * @returns {string|null} Cue category or null if no match
+ */
+const analyzeResponseForCue = (response, quickCues) => {
   const lowerResponse = response.toLowerCase();
 
   // Check if the original response has any actionable elements that could be converted to a cue
   if (lowerResponse.includes('suggest') || lowerResponse.includes('recommend')) {
-    return quickCues.suggestion[Math.floor(Math.random() * quickCues.suggestion.length)];
+    return selectRandomCue(quickCues, 'suggestion');
   } else if (lowerResponse.includes('understand') || lowerResponse.includes('agree')) {
-    return quickCues.agreement[Math.floor(Math.random() * quickCues.agreement.length)];
+    return selectRandomCue(quickCues, 'agreement');
   } else if (lowerResponse.includes('consider') || lowerResponse.includes('think')) {
-    return quickCues.uncertainty[Math.floor(Math.random() * quickCues.uncertainty.length)];
+    return selectRandomCue(quickCues, 'uncertainty');
   } else if (lowerResponse.includes('good') || lowerResponse.includes('great')) {
-    return quickCues.encouragement[Math.floor(Math.random() * quickCues.encouragement.length)];
+    return selectRandomCue(quickCues, 'encouragement');
   }
 
-  // Use conversation history to infer context if patterns weren't found in current input
+  return null;
+};
+
+/**
+ * Analyzes conversation history to determine appropriate cue category
+ * @param {Array} conversationHistory - Conversation history
+ * @param {Object} quickCues - Object containing all quick cue categories
+ * @returns {string|null} Cue category or null if no match
+ */
+const analyzeHistoryForCue = (conversationHistory, quickCues) => {
   if (conversationHistory.length > 0) {
     const lastTurn = conversationHistory[conversationHistory.length - 1];
     const lastContent = lastTurn?.content?.toLowerCase() || '';
 
     // If the last turn was a question, suggest asking or clarifying
     if (lastContent.includes('?')) {
-      return quickCues.question[Math.floor(Math.random() * quickCues.question.length)];
+      return selectRandomCue(quickCues, 'question');
     }
   }
 
+  return null;
+};
+
+/**
+ * Generates context-aware quick cues for subtle mode
+ * @param {string} response - Original response
+ * @param {string} input - User input
+ * @param {Array} conversationHistory - Conversation history for context
+ * @returns {string} A brief, context-aware cue
+ */
+const generateQuickCue = (response, input, conversationHistory = []) => {
+  const quickCues = getQuickCues();
+
+  // First, try to analyze input for context clues
+  const inputCue = analyzeInputForCue(input, quickCues);
+  if (inputCue) {
+    return inputCue;
+  }
+
+  // If no specific pattern matched in input, try to analyze the response for context clues
+  const responseCue = analyzeResponseForCue(response, quickCues);
+  if (responseCue) {
+    return responseCue;
+  }
+
+  // Use conversation history to infer context if patterns weren't found in current input
+  const historyCue = analyzeHistoryForCue(conversationHistory, quickCues);
+  if (historyCue) {
+    return historyCue;
+  }
+
   // If still no match, use default cues
-  return quickCues.default[Math.floor(Math.random() * quickCues.default.length)];
+  return selectRandomCue(quickCues, 'default');
 };
 
 /**
