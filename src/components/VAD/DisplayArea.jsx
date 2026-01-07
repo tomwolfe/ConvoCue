@@ -1,18 +1,8 @@
 import React from 'react';
-import { Trash2, Copy, Check, RefreshCw, ThumbsUp, ThumbsDown, Flag, User, Users, RotateCcw } from 'lucide-react';
+import { Trash2, Copy, Check, RefreshCw, ThumbsUp, ThumbsDown, Flag, User, Users } from 'lucide-react';
 import { AppConfig } from '../../config';
 import { submitFeedback } from '../../utils/feedback';
 import { overrideSpeakerForTurn } from '../../conversationManager';
-
-const GlanceWidget = ({ suggestion, isProcessing }) => {
-  // ... (keeping internal for now as it's small)
-  if (!suggestion || isProcessing) return null;
-  return (
-    <div className="glance-widget pulse-light">
-      <p>{suggestion}</p>
-    </div>
-  );
-};
 
 const DisplayArea = ({
   transcript,

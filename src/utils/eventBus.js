@@ -10,7 +10,11 @@ const bus = mitt();
 if (import.meta.env?.DEV) {
   const originalEmit = bus.emit;
   bus.emit = (type, e) => {
-    console.debug(`[EventBus] ${type}`, e);
+    console.groupCollapsed(`%c[EventBus] ${type}`, 'color: #6c5ce7; font-weight: bold;');
+    console.log('Payload:', e);
+    console.log('Timestamp:', new Date().toISOString());
+    console.trace('Trace:');
+    console.groupEnd();
     originalEmit(type, e);
   };
 }
