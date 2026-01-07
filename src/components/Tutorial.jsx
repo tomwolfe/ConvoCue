@@ -23,6 +23,11 @@ const Tutorial = ({ onComplete, isCompactMode }) => {
       visual: "personas"
     },
     {
+      title: "Personalized for You",
+      content: "ConvoCue learns from your feedback. Use the Thumbs Up or Thumbs Down icons to help the AI understand your preferred communication style over time.",
+      visual: "feedback"
+    },
+    {
       title: "Get Started",
       content: "Click the microphone to start listening, or use the 'Heartbeat' mode for continuous conversation assistance.",
       visual: "controls"
@@ -93,6 +98,13 @@ const Tutorial = ({ onComplete, isCompactMode }) => {
               <div className="controls-preview">
                 <div className="control-btn">Microphone</div>
                 <div className="control-btn">Heartbeat</div>
+              </div>
+            )}
+            {steps[currentStep].visual === 'feedback' && (
+              <div className="feedback-preview">
+                <div className="feedback-item">👍 Learn what you like</div>
+                <div className="feedback-item">👎 Avoid what you don't</div>
+                <div className="feedback-item">✨ Adaptive experience</div>
               </div>
             )}
           </div>

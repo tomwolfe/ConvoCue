@@ -1,6 +1,5 @@
-/**
- * @fileoverview Response enhancement utilities using user feedback data
- */
+import { analyzeEmotion } from './emotion';
+import { getDislikedPhrases } from './feedback';
 
 /**
  * Gets user's preferred response patterns based on feedback history
@@ -244,41 +243,6 @@ const getEmotionalAcknowledgment = (emotion) => {
   };
   
   return acknowledgments[emotion] || "I hear what you're saying.";
-};
-
-/**
- * Gets commonly disliked phrases to avoid in suggestions
- * @returns {Array} Array of phrases that received negative feedback
- */
-export const getDislikedPhrases = () => {
-  try {
-    const feedbackHistory = JSON.parse(localStorage.getItem('convocue_feedback') || '[]');
-
-    // Get all suggestions that received dislike feedback
-    const dislikedSuggestions = feedbackHistory
-      .filter(f => f.feedbackType === 'dislike')
-      .map(f => f.suggestion.toLowerCase());
-
-    // Extract common phrases or patterns from disliked suggestions
-    const phraseCounts = {};
-
-    dislikedSuggestions.forEach(suggestion => {
-      const words = suggestion.split(/\s+/);
-      words.forEach(word => {
-        if (word.length > 3) { // Ignore short words
-          phraseCounts[word] = (phraseCounts[word] || 0) + 1;
-        }
-      });
-    });
-
-    // Return phrases that appear frequently in disliked suggestions
-    return Object.entries(phraseCounts)
-      .filter(([phrase, count]) => count >= 2) // At least 2 dislikes
-      .map(([phrase]) => phrase);
-  } catch (e) {
-    console.error('Failed to get disliked phrases:', e);
-    return [];
-  }
 };
 
 /**

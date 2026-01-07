@@ -1,5 +1,5 @@
 import React from 'react';
-import { Trash2, Copy, Check, RefreshCw, ThumbsUp, ThumbsDown, Flag } from 'lucide-react';
+import { Trash2, Copy, Check, RefreshCw, ThumbsUp, ThumbsDown, Flag, User, Users } from 'lucide-react';
 import { AppConfig } from '../../config';
 import { submitFeedback } from '../../utils/feedback';
 
@@ -26,8 +26,11 @@ const DisplayArea = ({
 }) => {
   // Format conversation turns for display
   const formattedConversation = conversationTurns.slice(-5).map((turn, index) => (
-    <div key={index} className={`conversation-turn ${turn.role}`}>
-      <span className="speaker-tag">{turn.role === 'user' ? 'You:' : 'Other:'}</span>
+    <div key={index} className={`conversation-turn ${turn.role}`} aria-label={`${turn.role === 'user' ? 'You' : 'Other speaker'}: ${turn.content}`}>
+      <span className="speaker-tag">
+        {turn.role === 'user' ? <User size={12} style={{ marginRight: '4px' }} /> : <Users size={12} style={{ marginRight: '4px' }} />}
+        {turn.role === 'user' ? 'You:' : 'Other:'}
+      </span>
       <span className="turn-text">{turn.content}</span>
     </div>
   ));

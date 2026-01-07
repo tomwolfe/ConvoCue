@@ -136,6 +136,26 @@
   font-weight: 600;
 }
 
+.feedback-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  align-items: center;
+}
+
+.feedback-item {
+  background: white;
+  padding: 0.6rem 1rem;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text);
+  width: 90%;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  border: 1px solid rgba(0,0,0,0.03);
+  text-align: left;
+}
+
 .tutorial-footer {
   padding: 1rem 1.5rem;
   border-top: 1px solid #eee;
