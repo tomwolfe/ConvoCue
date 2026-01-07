@@ -121,6 +121,7 @@ const VADContent = ({
   clearHistory,
   isCompactMode,
   isSubtleMode,
+  settings,
   onReset
 }) => {
   const [isVADMode, setIsVADMode] = useState(false);
@@ -311,6 +312,7 @@ const VADContent = ({
           persona={persona}
           culturalContext={culturalContext}
           conversationTurns={conversationTurns}
+          settings={settings}
         />
       </div>
 

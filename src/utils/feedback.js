@@ -195,8 +195,10 @@ export const resetPersonalizationData = async () => {
     // Clear feedback data which drives personalization
     await secureLocalStorageSet('convocue_feedback', []); // Reset with empty array instead of removing
 
-    // Also clear any cached preferences
+    // Also clear any cached preferences and settings
     localStorage.removeItem('convocue_preferences_cache');
+    localStorage.removeItem('convocue_preferences');
+    localStorage.removeItem('convocue_settings');
 
     console.log('Personalization data reset successfully');
   } catch (e) {

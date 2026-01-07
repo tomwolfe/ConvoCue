@@ -3,6 +3,7 @@ import { AppConfig } from '../config';
 import { manageConversationHistory, optimizeConversationHistory, isMemoryLimitApproaching, aggressiveMemoryManagement } from '../utils/conversation';
 import { enhanceResponse, getUserPreferences } from '../utils/responseEnhancement';
 import { ConversationTurnManager } from '../utils/speakerDetection';
+import { secureLocalStorageGet } from '../utils/encryption';
 
 const initialState = {
   status: 'Initializing Models...',
@@ -111,18 +112,30 @@ export const useMLWorker = () => {
   const worker = useRef(null);
   const stateRef = useRef(state);
   const prefsCache = useRef(null);
+  const settingsCache = useRef({
+    enablePersonalization: true,
+    enableSpeakerDetection: true,
+    enableSentimentAnalysis: true,
+    privacyMode: false
+  });
 
-  // Pre-fetch and cache preferences
+  // Pre-fetch and cache preferences and settings
   useEffect(() => {
-    const fetchPrefs = async () => {
+    const fetchData = async () => {
       prefsCache.current = await getUserPreferences();
+      const settings = await secureLocalStorageGet('convocue_settings');
+      if (settings) settingsCache.current = settings;
     };
-    fetchPrefs();
+    fetchData();
     
-    // Listen for feedback submissions to refresh cache
-    const handleFeedback = () => fetchPrefs();
-    window.addEventListener('convocue_feedback_submitted', handleFeedback);
-    return () => window.removeEventListener('convocue_feedback_submitted', handleFeedback);
+    // Listen for events to refresh cache
+    const handleRefresh = () => fetchData();
+    window.addEventListener('convocue_feedback_submitted', handleRefresh);
+    window.addEventListener('convocue_settings_changed', handleRefresh);
+    return () => {
+      window.removeEventListener('convocue_feedback_submitted', handleRefresh);
+      window.removeEventListener('convocue_settings_changed', handleRefresh);
+    };
   }, []);
 
   useEffect(() => {
@@ -154,29 +167,13 @@ export const useMLWorker = () => {
             const cleanText = text.trim();
 
             // "Banter Mode" / Aggregation Logic
-            // If the transcript is very short and we aren't already waiting on a long one,
-            // maybe we should wait for more context.
             const isShort = cleanText.split(' ').length < 3;
             const lastMessageTime = stateRef.current.lastMessageTime || 0;
             const timeSinceLast = Date.now() - lastMessageTime;
 
             dispatch({ type: 'STT_RESULT', text: cleanText });
 
-            // Check performance metrics and potentially adjust processing
-            if (metadata?.performance) {
-              const { audioProcessingTime, speakerDetectionTime } = metadata.performance;
-
-              // Log performance metrics for monitoring
-              if (audioProcessingTime > 200 || speakerDetectionTime > 150) {
-                console.warn('Performance warning:', { audioProcessingTime, speakerDetectionTime });
-                // Could implement fallback logic here for slow devices
-              }
-            }
-
             // Trigger LLM if:
-            // 1. It's not too short
-            // 2. OR it's been a while since the last interaction (> 5s)
-            // 3. OR the transcript ends with a question mark
             if (!isShort || timeSinceLast > 5000 || cleanText.includes('?')) {
                 newWorker.postMessage({
                     type: 'llm',
@@ -186,6 +183,7 @@ export const useMLWorker = () => {
                     culturalContext: stateRef.current.culturalContext,
                     metadata,
                     preferences: prefsCache.current,
+                    settings: settingsCache.current,
                     taskId: `llm-${Date.now()}`
                 });
                 dispatch({ type: 'SET_LAST_MESSAGE_TIME', time: Date.now() });
@@ -194,12 +192,9 @@ export const useMLWorker = () => {
                 const speakerRole = metadata?.turnInfo?.turn?.speaker || 'user';
                 dispatch({ type: 'ADD_TO_HISTORY', message: { role: speakerRole, content: cleanText } });
             } else {
-                console.log("Banter detected, skipping LLM trigger for now:", cleanText);
-
-                // Determine speaker role from metadata if available
                 const speakerRole = metadata?.turnInfo?.turn?.speaker || 'user';
                 dispatch({ type: 'ADD_TO_HISTORY', message: { role: speakerRole, content: cleanText } });
-                dispatch({ type: 'SET_READY' }); // Go back to ready state but keep the transcript
+                dispatch({ type: 'SET_READY' }); 
             }
             break;
           }
@@ -211,17 +206,6 @@ export const useMLWorker = () => {
             dispatch({ type: 'LLM_RESULT', text: enhanced, emotionData });
             if (event.data.conversationSentiment) {
               dispatch({ type: 'SET_CONVERSATION_SENTIMENT', sentiment: event.data.conversationSentiment });
-            }
-
-            // Handle performance metrics from the worker
-            if (event.data.metadata?.performance) {
-              const { llmProcessingTime, sentimentAnalysisTime } = event.data.metadata.performance;
-
-              // Log performance metrics for monitoring
-              if (llmProcessingTime > 5000 || sentimentAnalysisTime > 1000) {
-                console.warn('LLM Performance warning:', { llmProcessingTime, sentimentAnalysisTime });
-                // Could implement fallback logic here for slow devices
-              }
             }
 
             if (enhanced) {
@@ -250,20 +234,19 @@ export const useMLWorker = () => {
   const processAudio = useCallback((audioBuffer) => {
     if (!state.isReady || state.isProcessing || !worker.current) return;
     dispatch({ type: 'START_STT' });
-    worker.current.postMessage({ type: 'stt', audio: audioBuffer }, [audioBuffer.buffer]);
+    worker.current.postMessage({ 
+      type: 'stt', 
+      audio: audioBuffer,
+      settings: settingsCache.current 
+    }, [audioBuffer.buffer]);
   }, [state.isReady, state.isProcessing]);
 
   const refreshSuggestion = useCallback(async () => {
     if (!state.transcript || state.isProcessing || !worker.current) return;
     dispatch({ type: 'SET_STATUS', status: 'Refreshing cue...' });
 
-    // Get settings to determine if personalization should be used
     let preferences = prefsCache.current;
-    const settings = localStorage.getItem('convocue_settings');
-    if (settings) {
-      const parsedSettings = JSON.parse(settings);
-      if (parsedSettings.enablePersonalization === false) {
-        // Use default preferences if personalization is disabled
+    if (settingsCache.current.enablePersonalization === false || settingsCache.current.privacyMode) {
         preferences = {
           preferredLength: 'medium',
           preferredTone: 'balanced',
@@ -271,7 +254,6 @@ export const useMLWorker = () => {
           responsePatterns: [],
           avoidPatterns: []
         };
-      }
     }
 
     worker.current.postMessage({
@@ -281,6 +263,7 @@ export const useMLWorker = () => {
       persona: state.persona,
       culturalContext: state.culturalContext,
       preferences: preferences,
+      settings: settingsCache.current,
       taskId: `refresh-${Date.now()}`
     });
   }, [state.transcript, state.isProcessing, state.history, state.persona, state.culturalContext]);
@@ -310,6 +293,7 @@ export const useMLWorker = () => {
       dispatch({ type: 'SET_CULTURAL_CONTEXT', culturalContext: context });
     },
     clearHistory: () => dispatch({ type: 'CLEAR_HISTORY' }),
-    resetWorker: initWorker
+    resetWorker: initWorker,
+    settings: settingsCache.current
   };
 };

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { X } from 'lucide-react';
 import { resetPersonalizationData } from '../utils/feedback';
+import { secureLocalStorageGet, secureLocalStorageSet } from '../utils/encryption';
 
 const Settings = ({ isOpen, onClose }) => {
   const [settings, setSettings] = useState({
@@ -10,27 +12,46 @@ const Settings = ({ isOpen, onClose }) => {
   });
 
   useEffect(() => {
-    // Load settings from localStorage
-    const savedSettings = localStorage.getItem('convocue_settings');
-    if (savedSettings) {
-      setSettings(JSON.parse(savedSettings));
-    }
+    // Load settings from secure storage
+    const loadSettings = async () => {
+      const savedSettings = await secureLocalStorageGet('convocue_settings');
+      if (savedSettings) {
+        setSettings(savedSettings);
+      }
+    };
+    loadSettings();
   }, []);
 
-  const handleSettingChange = (key, value) => {
+  const handleSettingChange = async (key, value) => {
     const newSettings = {
       ...settings,
       [key]: value
     };
     setSettings(newSettings);
     
-    // Save to localStorage
-    localStorage.setItem('convocue_settings', JSON.stringify(newSettings));
+    // Save to secure storage
+    await secureLocalStorageSet('convocue_settings', newSettings);
+
+    // Dispatch event to notify listeners
+    window.dispatchEvent(new CustomEvent('convocue_settings_changed', { detail: newSettings }));
   };
 
   const handleResetPersonalization = async () => {
     if (window.confirm('Are you sure you want to reset all personalization data? This will clear your feedback history and learned preferences.')) {
       await resetPersonalizationData();
+      
+      const defaultSettings = {
+        enablePersonalization: true,
+        enableSpeakerDetection: true,
+        enableSentimentAnalysis: true,
+        privacyMode: false
+      };
+      
+      setSettings(defaultSettings);
+      
+      // Notify other components
+      window.dispatchEvent(new CustomEvent('convocue_settings_changed', { detail: defaultSettings }));
+      
       alert('Personalization data has been reset.');
     }
   };
@@ -42,7 +63,9 @@ const Settings = ({ isOpen, onClose }) => {
       <div className="settings-modal" onClick={(e) => e.stopPropagation()}>
         <div className="settings-header">
           <h2>Settings</h2>
-          <button className="close-btn" onClick={onClose}>×</button>
+          <button className="close-btn" onClick={onClose} aria-label="Close Settings">
+            <X size={20} />
+          </button>
         </div>
         
         <div className="settings-content">

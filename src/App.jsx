@@ -45,7 +45,8 @@ const App = () => {
     setPersona,
     culturalContext,
     setCulturalContext,
-    clearHistory
+    clearHistory,
+    settings
   } = useMLWorker();
 
   const [micPermissionError, setMicPermissionError] = useState(null);
@@ -329,6 +330,7 @@ const App = () => {
             clearHistory={clearHistory}
             isCompactMode={isCompactMode}
             isSubtleMode={isSubtleMode}
+            settings={settings}
             onReset={() => {
               setHasInteracted(false);
               setMicPermissionError(null);

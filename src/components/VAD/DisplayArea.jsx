@@ -26,8 +26,12 @@ const DisplayArea = ({
   showMinimalUI,
   persona,
   culturalContext,
-  conversationTurns = []
+  conversationTurns = [],
+  settings = {}
 }) => {
+  // Determine if feedback should be enabled based on settings
+  const isPersonalizationEnabled = settings.enablePersonalization !== false && !settings.privacyMode;
+
   // Format conversation turns for display
   const formattedConversation = conversationTurns.slice(-5).map((turn, index) => (
     <div key={index} className={`conversation-turn ${turn.role}`} aria-label={`${turn.role === 'user' ? 'You' : 'Other speaker'}: ${turn.content}`}>
@@ -36,25 +40,27 @@ const DisplayArea = ({
         {turn.role === 'user' ? 'You:' : 'Other:'}
       </span>
       <span className="turn-text">{turn.content}</span>
-      {/* Manual speaker override controls */}
-      <div className="speaker-controls">
-        <button
-          className={`speaker-toggle ${turn.role === 'user' ? 'active' : ''}`}
-          onClick={() => overrideSpeakerForTurn(turn.id, 'user')}
-          title="Mark as user"
-          aria-label="Mark as user"
-        >
-          <User size={12} />
-        </button>
-        <button
-          className={`speaker-toggle ${turn.role === 'other' ? 'active' : ''}`}
-          onClick={() => overrideSpeakerForTurn(turn.id, 'other')}
-          title="Mark as other"
-          aria-label="Mark as other"
-        >
-          <Users size={12} />
-        </button>
-      </div>
+      {/* Manual speaker override controls - only show if not in privacy mode */}
+      {!settings.privacyMode && (
+        <div className="speaker-controls">
+          <button
+            className={`speaker-toggle ${turn.role === 'user' ? 'active' : ''}`}
+            onClick={() => overrideSpeakerForTurn(turn.id, 'user')}
+            title="Mark as user"
+            aria-label="Mark as user"
+          >
+            <User size={12} />
+          </button>
+          <button
+            className={`speaker-toggle ${turn.role === 'other' ? 'active' : ''}`}
+            onClick={() => overrideSpeakerForTurn(turn.id, 'other')}
+            title="Mark as other"
+            aria-label="Mark as other"
+          >
+            <Users size={12} />
+          </button>
+        </div>
+      )}
     </div>
   ));
 
@@ -88,8 +94,7 @@ const DisplayArea = ({
                 onClick={() => {
                   handleCopy();
                   // Check if personalization is enabled before submitting feedback
-                  const settings = localStorage.getItem('convocue_settings');
-                  if (!settings || JSON.parse(settings).enablePersonalization !== false) {
+                  if (isPersonalizationEnabled) {
                     submitFeedback(suggestion, 'like', persona, culturalContext, transcript, transcript);
                   }
                 }}
@@ -104,47 +109,31 @@ const DisplayArea = ({
               >
                 <RefreshCw size={14} />
               </button>
-              <div className="feedback-buttons">
-                <button
-                  className="btn-icon feedback-btn"
-                  onClick={() => {
-                    // Check if personalization is enabled before submitting feedback
-                    const settings = localStorage.getItem('convocue_settings');
-                    if (!settings || JSON.parse(settings).enablePersonalization !== false) {
-                      submitFeedback(suggestion, 'like', persona, culturalContext, transcript, transcript);
-                    }
-                  }}
-                  title="Like"
-                >
-                  <ThumbsUp size={14} />
-                </button>
-                <button
-                  className="btn-icon feedback-btn"
-                  onClick={() => {
-                    // Check if personalization is enabled before submitting feedback
-                    const settings = localStorage.getItem('convocue_settings');
-                    if (!settings || JSON.parse(settings).enablePersonalization !== false) {
-                      submitFeedback(suggestion, 'dislike', persona, culturalContext, transcript, transcript);
-                    }
-                  }}
-                  title="Dislike"
-                >
-                  <ThumbsDown size={14} />
-                </button>
-                <button
-                  className="btn-icon feedback-btn"
-                  onClick={() => {
-                    // Check if personalization is enabled before submitting feedback
-                    const settings = localStorage.getItem('convocue_settings');
-                    if (!settings || JSON.parse(settings).enablePersonalization !== false) {
-                      submitFeedback(suggestion, 'report', persona, culturalContext, transcript, transcript);
-                    }
-                  }}
-                  title="Report"
-                >
-                  <Flag size={14} />
-                </button>
-              </div>
+              {isPersonalizationEnabled && (
+                <div className="feedback-buttons">
+                  <button
+                    className="btn-icon feedback-btn"
+                    onClick={() => submitFeedback(suggestion, 'like', persona, culturalContext, transcript, transcript)}
+                    title="Like"
+                  >
+                    <ThumbsUp size={14} />
+                  </button>
+                  <button
+                    className="btn-icon feedback-btn"
+                    onClick={() => submitFeedback(suggestion, 'dislike', persona, culturalContext, transcript, transcript)}
+                    title="Dislike"
+                  >
+                    <ThumbsDown size={14} />
+                  </button>
+                  <button
+                    className="btn-icon feedback-btn"
+                    onClick={() => submitFeedback(suggestion, 'report', persona, culturalContext, transcript, transcript)}
+                    title="Report"
+                  >
+                    <Flag size={14} />
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

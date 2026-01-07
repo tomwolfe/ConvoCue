@@ -14,17 +14,6 @@ import {
     analyzeConversationSentiment
 } from './utils/sentimentAnalysis';
 
-// Helper function to get settings
-const getSettings = () => {
-  try {
-    const settingsStr = self.localStorage.getItem('convocue_settings');
-    return settingsStr ? JSON.parse(settingsStr) : {};
-  } catch (e) {
-    console.warn('Could not load settings, using defaults:', e);
-    return {};
-  }
-};
-
 // Configuration for on-device execution
 
 env.allowLocalModels = false;
@@ -162,9 +151,6 @@ const sanitizeText = (text) => {
         .substring(0, AppConfig.system.maxTranscriptLength); // Also enforce length limit
 };
 
-// Conversation turn management in worker
-let conversationTurnManager = null;
-
 // Performance tracking for adaptive downgrading
 const performanceStats = {
     audioProcessingTimes: [],
@@ -197,8 +183,16 @@ const initConversationTurnManager = () => {
 let cachedSystemPrompt = { key: null, content: null };
 
 self.onmessage = async (event) => {
-    const { type, audio, taskId, text: _text, persona, history, culturalContext, metadata, preferences } = event.data;
+    const { type, audio, taskId, text: _text, persona, history, culturalContext, metadata, preferences, settings: _settings } = event.data;
     const pipelineManager = await MLPipeline.getInstance();
+
+    // Determine effective settings (prefer passed settings, fallback to minimal if missing)
+    const settings = _settings || {
+        enablePersonalization: true,
+        enableSpeakerDetection: true,
+        enableSentimentAnalysis: true,
+        privacyMode: false
+    };
 
     try {
         if (type === 'load') {
@@ -235,13 +229,14 @@ self.onmessage = async (event) => {
             const sanitizedText = sanitizeText(output.text);
 
             // Process the text through conversation turn manager
-            const settings = getSettings();
             const turnManager = initConversationTurnManager();
             let turnInfo = null;
             let speakerDetectionTime = 0;
 
-            // Only run speaker detection if enabled in settings and not in minimal mode
-            if (performanceStats.mode !== 'minimal' && settings.enableSpeakerDetection !== false) {
+            // Only run speaker detection if enabled, NOT in minimal mode, and NOT in privacy mode
+            if (performanceStats.mode !== 'minimal' && 
+                settings.enableSpeakerDetection !== false && 
+                !settings.privacyMode) {
                 const speakerDetectionStartTime = performance.now();
                 turnInfo = turnManager.processAudio(audioData, sanitizedText);
                 speakerDetectionTime = performance.now() - speakerDetectionStartTime;
@@ -318,16 +313,17 @@ self.onmessage = async (event) => {
             const isShortUtterance = sanitizedText.split(/\s+/).length < 3;
             const timeSinceLastLLM = Date.now() - (MLPipeline.lastLLMCallTime || 0);
             const isHighFrequency = timeSinceLastLLM < 2000;
-            const settings = getSettings();
 
             // Skip deep sentiment analysis for very short or high-frequency utterances
             // OR if we are in minimal performance mode
             // OR if sentiment analysis is disabled in settings
+            // OR if privacy mode is enabled
             let conversationSentiment = { overallSentiment: 'neutral', emotionalTrend: 'stable' };
             let sentimentAnalysisTime = 0;
 
             if (performanceStats.mode !== 'minimal' &&
                 settings.enableSentimentAnalysis !== false &&
+                !settings.privacyMode &&
                 (!isShortUtterance || !isHighFrequency)) {
                 const sentimentAnalysisStartTime = performance.now();
                 conversationSentiment = analyzeConversationSentiment(history || []);
@@ -338,7 +334,7 @@ self.onmessage = async (event) => {
 
             // Dynamic Context (Not cached)
             let dynamicContext = "";
-            if (metadata) {
+            if (metadata && !settings.privacyMode) {
                 const speechRate = sanitizedText.split(/\s+/).length / (metadata.duration || 1);
                 if (metadata.rms > 0.01 && speechRate > 3) dynamicContext += "User sounds urgent. ";
 
@@ -351,11 +347,13 @@ self.onmessage = async (event) => {
                 }
             }
 
-            // Add emotional context
-            if (emotionData.emotion !== 'neutral') dynamicContext += `Emotion: ${emotionData.emotion}. `;
+            // Add emotional context (if not in privacy mode)
+            if (!settings.privacyMode && emotionData.emotion !== 'neutral') {
+                dynamicContext += `Emotion: ${emotionData.emotion}. `;
+            }
 
-            // Add conversation sentiment context
-            if (conversationSentiment.overallSentiment !== 'neutral') {
+            // Add conversation sentiment context (if not in privacy mode)
+            if (!settings.privacyMode && conversationSentiment.overallSentiment !== 'neutral') {
                 dynamicContext += `Overall conversation sentiment: ${conversationSentiment.overallSentiment}. `;
                 if (conversationSentiment.emotionalTrend !== 'stable') {
                     dynamicContext += `Trend: ${conversationSentiment.emotionalTrend}. `;
