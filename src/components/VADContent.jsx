@@ -350,14 +350,26 @@ const VADContent = ({
   }, [suggestion, isProcessing, isSubtleMode]);
 
   const onSpeechEnd = useCallback((audio) => {
-    if (!isVADModeRef.current && vadRef.current) vadRef.current.pause();
-    if (processAudioRef.current) {
-      // Process the audio through conversation turn manager before sending to worker
-      const audioArray = audio instanceof Float32Array ? audio : new Float32Array(Object.values(audio));
-      processConversationTurn(audioArray, ''); // Empty string for now, text will come from STT
-      processAudioRef.current(audio);
+    try {
+      if (!isVADModeRef.current && vadRef.current) vadRef.current.pause();
+      if (processAudioRef.current) {
+        // Create a copy of the audio data for local processing (speaker detection)
+        // This is CRITICAL because the original buffer will be transferred (and thus detached)
+        // when passed to the worker via processAudioRef.current(audio)
+        const audioArray = audio instanceof Float32Array ? audio : new Float32Array(Object.values(audio));
+        const audioCopy = new Float32Array(audioArray);
+        
+        // Process the audio through conversation turn manager
+        processConversationTurn(audioCopy, ''); // Empty string for now, text will come from STT
+        
+        // Send original audio to worker (buffer will be transferred)
+        processAudioRef.current(audio);
+      }
+    } catch (err) {
+      console.error("Error in onSpeechEnd processing:", err);
+      setStatus('Processing Error');
     }
-  }, []);
+  }, [setStatus]);
 
   const onError = useCallback((err) => {
     console.error("VAD Error:", err);

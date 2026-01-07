@@ -98,83 +98,88 @@ export const useMLWorker = () => {
       worker.current = newWorker;
 
       newWorker.onmessage = async (event) => {
-        const { type, text, status, progress, metadata, emotionData } = event.data;
+        try {
+          const { type, text, status, progress, metadata, emotionData } = event.data;
 
-        switch (type) {
-          case 'status':
-            dispatch({ type: 'SET_STATUS', status, progress });
-            break;
-          case 'ready':
-            dispatch({ type: 'SET_READY' });
-            break;
-          case 'stt_result': {
-            if (!text?.trim()) {
-              dispatch({ type: 'RESET_PROCESSING' });
+          switch (type) {
+            case 'status':
+              dispatch({ type: 'SET_STATUS', status, progress });
+              break;
+            case 'ready':
+              dispatch({ type: 'SET_READY' });
+              break;
+            case 'stt_result': {
+              if (!text?.trim()) {
+                dispatch({ type: 'RESET_PROCESSING' });
+                break;
+              }
+              const cleanText = text.trim();
+
+              // aggregation Logic
+              const isShort = cleanText.split(' ').length < 3;
+              const timeSinceLast = Date.now() - (lastMessageTimeRef.current || 0);
+
+              dispatch({ type: 'STT_RESULT', text: cleanText });
+
+              // Trigger LLM if:
+              if (!isShort || timeSinceLast > 5000 || cleanText.includes('?')) {
+                  newWorker.postMessage({
+                      type: 'llm',
+                      text: cleanText,
+                      history: historyRef.current,
+                      persona: stateRef.current.persona,
+                      culturalContext: stateRef.current.culturalContext,
+                      metadata,
+                      preferences: prefsCache.current,
+                      settings: settings,
+                      taskId: `llm-${Date.now()}`
+                  });
+                  updateLastMessageTime();
+
+                  const speakerRole = metadata?.turnInfo?.turn?.speaker || 'user';
+                  addMessage(speakerRole, cleanText);
+              } else {
+                  const speakerRole = metadata?.turnInfo?.turn?.speaker || 'user';
+                  addMessage(speakerRole, cleanText);
+                  dispatch({ type: 'RESET_PROCESSING' });
+              }
               break;
             }
-            const cleanText = text.trim();
+            case 'llm_chunk':
+              dispatch({ type: 'LLM_CHUNK', text });
+              break;
+            case 'llm_result': {
+              const enhanced = await enhanceResponse(
+                text, 
+                stateRef.current.persona, 
+                emotionData, 
+                stateRef.current.transcript, 
+                historyRef.current
+              );
+              dispatch({ type: 'LLM_RESULT', text: enhanced, emotionData });
+              
+              if (event.data.conversationSentiment) {
+                setSentiment(event.data.conversationSentiment);
+              }
 
-            // aggregation Logic
-            const isShort = cleanText.split(' ').length < 3;
-            const timeSinceLast = Date.now() - (lastMessageTimeRef.current || 0);
-
-            dispatch({ type: 'STT_RESULT', text: cleanText });
-
-            // Trigger LLM if:
-            if (!isShort || timeSinceLast > 5000 || cleanText.includes('?')) {
-                newWorker.postMessage({
-                    type: 'llm',
-                    text: cleanText,
-                    history: historyRef.current,
-                    persona: stateRef.current.persona,
-                    culturalContext: stateRef.current.culturalContext,
-                    metadata,
-                    preferences: prefsCache.current,
-                    settings: settings,
-                    taskId: `llm-${Date.now()}`
-                });
-                updateLastMessageTime();
-
-                const speakerRole = metadata?.turnInfo?.turn?.speaker || 'user';
-                addMessage(speakerRole, cleanText);
-            } else {
-                const speakerRole = metadata?.turnInfo?.turn?.speaker || 'user';
-                addMessage(speakerRole, cleanText);
-                dispatch({ type: 'RESET_PROCESSING' });
+              if (enhanced) {
+                addMessage('assistant', enhanced);
+              }
+              if (navigator.vibrate) navigator.vibrate(20);
+              break;
             }
-            break;
+            case 'error':
+              dispatch({ type: 'SET_ERROR', error: event.data.error });
+              break;
           }
-          case 'llm_chunk':
-            dispatch({ type: 'LLM_CHUNK', text });
-            break;
-          case 'llm_result': {
-            const enhanced = await enhanceResponse(
-              text, 
-              stateRef.current.persona, 
-              emotionData, 
-              stateRef.current.transcript, 
-              historyRef.current
-            );
-            dispatch({ type: 'LLM_RESULT', text: enhanced, emotionData });
-            
-            if (event.data.conversationSentiment) {
-              setSentiment(event.data.conversationSentiment);
-            }
-
-            if (enhanced) {
-              addMessage('assistant', enhanced);
-            }
-            if (navigator.vibrate) navigator.vibrate(20);
-            break;
-          }
-          case 'error':
-            dispatch({ type: 'SET_ERROR', error: event.data.error });
-            break;
+        } catch (err) {
+          console.error("Error in worker message handler:", err);
+          dispatch({ type: 'SET_ERROR', error: 'Main thread processing failed' });
         }
       };
 
       newWorker.postMessage({ type: 'load' });
-    } catch (error) {
+    } catch {
       dispatch({ type: 'SET_ERROR', error: 'Worker creation failed' });
     }
   }, [settings, addMessage, setSentiment, updateLastMessageTime, prefsCache]);

@@ -74,6 +74,7 @@ export const analyzeSpeakerCharacteristics = (audioData, previousAudioData = nul
  * @returns {number} RMS value
  */
 const calculateRMS = (audioData) => {
+  if (!audioData || audioData.length === 0) return 0;
   let sum = 0;
   for (let i = 0; i < audioData.length; i++) {
     sum += audioData[i] * audioData[i];
@@ -87,6 +88,7 @@ const calculateRMS = (audioData) => {
  * @returns {number} Zero crossing rate
  */
 const calculateZeroCrossingRate = (audioData) => {
+  if (!audioData || audioData.length === 0) return 0;
   let crossings = 0;
   for (let i = 1; i < audioData.length; i++) {
     if ((audioData[i] >= 0 && audioData[i-1] < 0) || (audioData[i] < 0 && audioData[i-1] >= 0)) {
@@ -102,6 +104,7 @@ const calculateZeroCrossingRate = (audioData) => {
  * @returns {number} Energy value
  */
 const calculateEnergy = (audioData) => {
+  if (!audioData || audioData.length === 0) return 0;
   let energy = 0;
   for (let i = 0; i < audioData.length; i++) {
     energy += audioData[i] * audioData[i];
@@ -115,6 +118,7 @@ const calculateEnergy = (audioData) => {
  * @returns {Array} Array of formant frequencies
  */
 const calculateFormantFrequencies = (audioData) => {
+  if (!audioData || audioData.length === 0) return [0, 0, 0, 0];
   // Simplified formant estimation using spectral analysis
   // In a real implementation, this would use LPC (Linear Predictive Coding)
   const formants = [];
@@ -127,6 +131,7 @@ const calculateFormantFrequencies = (audioData) => {
   // This is a simplified approach - real implementations use LPC
   const fftBins = 256;
   const binWidth = sampleSize / fftBins;
+  if (binWidth === 0) return [0, 0, 0, 0];
 
   // Simulate FFT bins and find peaks
   for (let bin = 1; bin < Math.min(5, fftBins/2); bin++) {
@@ -138,7 +143,7 @@ const calculateFormantFrequencies = (audioData) => {
       binEnergy += Math.abs(sample[i]);
     }
 
-    formants.push(binEnergy / (endIdx - startIdx));
+    formants.push(binEnergy / Math.max(1, endIdx - startIdx));
   }
 
   return formants;
@@ -200,6 +205,7 @@ const calculateFeatureStability = (currentFeatures, previousFeatures) => {
  * @returns {number} Estimated pitch in Hz
  */
 const estimatePitch = (audioData) => {
+  if (!audioData || audioData.length === 0) return 0;
   const sampleRate = 16000; // Standard for this app
   const minFreq = 80;
   const maxFreq = 400;
@@ -211,6 +217,7 @@ const estimatePitch = (audioData) => {
 
   // Use a window for autocorrelation
   const windowSize = Math.min(1024, Math.floor(audioData.length / 2));
+  if (windowSize === 0) return 0;
   
   for (let period = minPeriod; period <= maxPeriod; period++) {
     let correlation = 0;
@@ -235,6 +242,7 @@ const estimatePitch = (audioData) => {
  * @returns {number} Estimated speech rate
  */
 const estimateSpeechRate = (audioData) => {
+  if (!audioData || audioData.length === 0) return 0;
   // Count zero crossings as a simple measure of speech activity
   let zeroCrossings = 0;
   for (let i = 1; i < audioData.length; i++) {
@@ -253,6 +261,7 @@ const estimateSpeechRate = (audioData) => {
  * @returns {number} Spectral centroid
  */
 const calculateSpectralCentroid = (audioData) => {
+  if (!audioData || audioData.length === 0) return 0;
   // Simplified spectral centroid calculation
   // In a real implementation, you'd use FFT
   let weightedSum = 0;
