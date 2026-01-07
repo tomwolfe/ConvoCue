@@ -2,6 +2,16 @@
  * @fileoverview Haptic feedback utilities for subtle communication cues
  */
 
+let lastVibrationTime = 0;
+const COOLDOWN_MS = 1500;
+
+/**
+ * Resets the last vibration time (used for testing)
+ */
+export const _resetHapticCooldown = () => {
+  lastVibrationTime = 0;
+};
+
 /**
  * Vibration patterns for different types of cues
  */
@@ -21,23 +31,28 @@ export const VIBRATION_PATTERNS = {
 export const provideHapticFeedback = (suggestion) => {
   if (!navigator.vibrate || !suggestion) return;
 
+  const now = Date.now();
+  if (now - lastVibrationTime < COOLDOWN_MS) return;
+
   const lowerSuggestion = suggestion.toLowerCase();
+  let pattern = VIBRATION_PATTERNS.SUCCESS;
 
   // Determine pattern based on tags or keywords
   if (lowerSuggestion.includes('[conflict]') || lowerSuggestion.includes('de-escalate')) {
-    navigator.vibrate(VIBRATION_PATTERNS.CONFLICT);
+    pattern = VIBRATION_PATTERNS.CONFLICT;
   } else if (lowerSuggestion.includes('[action item]') || lowerSuggestion.includes('follow up')) {
-    navigator.vibrate(VIBRATION_PATTERNS.ACTION);
+    pattern = VIBRATION_PATTERNS.ACTION;
   } else if (lowerSuggestion.includes('[strategic]') || lowerSuggestion.includes('[negotiation]')) {
-    navigator.vibrate(VIBRATION_PATTERNS.TRANSITION);
+    pattern = VIBRATION_PATTERNS.TRANSITION;
   } else if (lowerSuggestion.includes('[social tip]') || lowerSuggestion.includes('[natural phrasing]')) {
-    navigator.vibrate(VIBRATION_PATTERNS.SUGGESTION);
+    pattern = VIBRATION_PATTERNS.SUGGESTION;
   } else if (lowerSuggestion.includes('smile') || lowerSuggestion.includes('great') || lowerSuggestion.includes('good')) {
-    navigator.vibrate(VIBRATION_PATTERNS.SUCCESS);
+    pattern = VIBRATION_PATTERNS.SUCCESS;
   } else if (lowerSuggestion.includes('understand') || lowerSuggestion.includes('feel')) {
-    navigator.vibrate(VIBRATION_PATTERNS.EMPATHY);
-  } else {
-    // Default vibration for any new cue
-    navigator.vibrate(VIBRATION_PATTERNS.SUCCESS);
+    pattern = VIBRATION_PATTERNS.EMPATHY;
+  }
+
+  if (navigator.vibrate(pattern)) {
+    lastVibrationTime = now;
   }
 };

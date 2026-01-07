@@ -4,6 +4,18 @@
 import { secureLocalStorageGet } from './encryption';
 import { analyzeFeedbackTrends, calculateSocialSuccessScore } from './feedbackAnalytics';
 
+let cachedSummary = null;
+let lastFetchTime = 0;
+const CACHE_TTL = 2 * 60 * 1000; // 2 minutes
+
+/**
+ * Resets the communication profile cache (used for testing)
+ */
+export const _resetCommunicationProfileCache = () => {
+  cachedSummary = null;
+  lastFetchTime = 0;
+};
+
 /**
  * Generates a concise summary of the user's communication style and progress
  * to be used as context for the LLM.
@@ -11,6 +23,11 @@ import { analyzeFeedbackTrends, calculateSocialSuccessScore } from './feedbackAn
  * @returns {Promise<string>} A string summary for the LLM prompt
  */
 export const getCommunicationProfileSummary = async () => {
+  const now = Date.now();
+  if (cachedSummary && (now - lastFetchTime < CACHE_TTL)) {
+    return cachedSummary;
+  }
+
   try {
     const feedbackAnalysis = await analyzeFeedbackTrends();
     const sssData = await calculateSocialSuccessScore();
@@ -48,6 +65,8 @@ export const getCommunicationProfileSummary = async () => {
       summary += `Preference: Prefers ${preferences.preferredLength} length suggestions. `;
     }
 
+    cachedSummary = summary;
+    lastFetchTime = Date.now();
     return summary;
   } catch (error) {
     console.error('Error generating communication profile summary:', error);

@@ -140,6 +140,7 @@ const Settings = ({ isOpen, onClose }) => {
               <div className="setting-info">
                 <h3>Improvement Suggestions</h3>
                 <p>Allow the app to learn from your feedback to improve suggestions</p>
+                <p className="setting-help-text mt-1">Your feedback helps tailor future responses to your specific communication style.</p>
               </div>
               <label className="toggle-switch">
                 <input
