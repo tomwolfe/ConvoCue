@@ -195,28 +195,38 @@ const calculateFeatureStability = (currentFeatures, previousFeatures) => {
 };
 
 /**
- * Estimates pitch from audio data (simplified approach)
+ * Estimates pitch from audio data using autocorrelation
  * @param {Float32Array} audioData - Audio data
- * @returns {number} Estimated pitch
+ * @returns {number} Estimated pitch in Hz
  */
 const estimatePitch = (audioData) => {
-  // This is a very simplified pitch estimation
-  // In a real implementation, you'd use autocorrelation or other methods
-  let maxVal = 0;
-  let maxIdx = 0;
+  const sampleRate = 16000; // Standard for this app
+  const minFreq = 80;
+  const maxFreq = 400;
+  const minPeriod = Math.floor(sampleRate / maxFreq);
+  const maxPeriod = Math.floor(sampleRate / minFreq);
+
+  let bestPeriod = -1;
+  let bestCorrelation = -1;
+
+  // Use a window for autocorrelation
+  const windowSize = Math.min(1024, Math.floor(audioData.length / 2));
   
-  // Find the maximum value in the first portion of the audio
-  const sampleSize = Math.min(1000, Math.floor(audioData.length / 4));
-  for (let i = 0; i < sampleSize; i++) {
-    if (Math.abs(audioData[i]) > maxVal) {
-      maxVal = Math.abs(audioData[i]);
-      maxIdx = i;
+  for (let period = minPeriod; period <= maxPeriod; period++) {
+    let correlation = 0;
+    for (let i = 0; i < windowSize; i++) {
+      correlation += Math.abs(audioData[i] - audioData[i + period]);
+    }
+    
+    // We want to minimize the difference (AMDF - Average Magnitude Difference Function)
+    if (bestCorrelation === -1 || correlation < bestCorrelation) {
+      bestCorrelation = correlation;
+      bestPeriod = period;
     }
   }
-  
-  // Convert to a rough pitch estimate (in Hz)
-  // This is not accurate but provides a relative measure
-  return 100 + (maxIdx * 50); // Rough estimate between 100-500 Hz
+
+  if (bestPeriod === -1) return 0;
+  return sampleRate / bestPeriod;
 };
 
 /**

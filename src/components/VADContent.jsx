@@ -6,6 +6,7 @@ import { processConversationTurn } from '../conversationManager';
 import PersonaSelector from './VAD/PersonaSelector';
 import DisplayArea from './VAD/DisplayArea';
 import ControlPanel from './VAD/ControlPanel';
+import SocialSuccessScore from './SocialSuccessScore';
 
 const GlanceWidget = ({ suggestion, emotionData, isProcessing }) => {
   const emotion = emotionData?.emotion || 'neutral';
@@ -289,6 +290,11 @@ const VADContent = ({
           setCulturalContext={setCulturalContext} 
         />
       )}
+
+      <SocialSuccessScore 
+        conversationTurns={conversationTurns}
+        settings={settings}
+      />
 
       <div className="display-area" role="region" aria-label="Results">
         {isSubtleMode && (

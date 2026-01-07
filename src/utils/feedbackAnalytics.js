@@ -345,6 +345,48 @@ const calculatePersonaPreferences = (feedbackHistory) => {
 };
 
 /**
+ * Calculates a "Social Success Score" based on feedback and conversation dynamics
+ * @param {Array} feedbackHistory - All feedback
+ * @param {Array} conversationHistory - Recent conversation turns
+ * @returns {Promise<Object>} Social success metrics
+ */
+export const calculateSocialSuccessScore = async (feedbackHistory = null, conversationHistory = []) => {
+  if (!feedbackHistory) {
+    feedbackHistory = await secureLocalStorageGet('convocue_feedback', []);
+  }
+
+  const analysis = await analyzeFeedbackTrends(feedbackHistory);
+  
+  // Base score from overall satisfaction (0-50 points)
+  const satisfactionScore = (analysis.overallSatisfaction || 0.5) * 50;
+  
+  // Score from conversation sentiment (0-30 points)
+  let sentimentScore = 15; // Neutral start
+  if (conversationHistory.length > 0) {
+    const positiveTurns = conversationHistory.filter(t => 
+      t.sentiment === 'positive' || (t.emotionData && ['joy', 'surprise'].includes(t.emotionData.emotion))
+    ).length;
+    sentimentScore = (positiveTurns / Math.max(1, conversationHistory.length)) * 30;
+  }
+  
+  // Score from engagement/volume (0-20 points)
+  const volumeScore = Math.min(20, (feedbackHistory.length / 50) * 20);
+  
+  const totalScore = Math.round(satisfactionScore + sentimentScore + volumeScore);
+  
+  return {
+    score: totalScore,
+    breakdown: {
+      satisfaction: Math.round(satisfactionScore),
+      sentiment: Math.round(sentimentScore),
+      engagement: Math.round(volumeScore)
+    },
+    level: totalScore > 80 ? 'Social Expert' : totalScore > 60 ? 'Confident Communicator' : totalScore > 40 ? 'Developing' : 'Getting Started',
+    trend: analysis.trendingPreferences.helpfulness?.trend || 'stable'
+  };
+};
+
+/**
  * Gets personalized recommendations based on feedback analysis
  * @param {Object} feedbackAnalysis - Analysis from analyzeFeedbackTrends
  * @returns {Array} Personalized recommendations

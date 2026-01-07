@@ -8,7 +8,9 @@ const Settings = ({ isOpen, onClose }) => {
     enablePersonalization: true,
     enableSpeakerDetection: true,
     enableSentimentAnalysis: true,
-    privacyMode: false
+    privacyMode: false,
+    isSubtleMode: false,
+    showAnalytics: true
   });
 
   useEffect(() => {
@@ -109,6 +111,36 @@ const Settings = ({ isOpen, onClose }) => {
                 type="checkbox"
                 checked={settings.enableSentimentAnalysis}
                 onChange={(e) => handleSettingChange('enableSentimentAnalysis', e.target.checked)}
+              />
+              <span className="slider"></span>
+            </label>
+          </div>
+          
+          <div className="setting-item">
+            <div className="setting-info">
+              <h3>Subtle Mode</h3>
+              <p>Provide extremely concise "Quick Cues" for minimal distraction</p>
+            </div>
+            <label className="toggle-switch">
+              <input
+                type="checkbox"
+                checked={settings.isSubtleMode}
+                onChange={(e) => handleSettingChange('isSubtleMode', e.target.checked)}
+              />
+              <span className="slider"></span>
+            </label>
+          </div>
+
+          <div className="setting-item">
+            <div className="setting-info">
+              <h3>Communication Analytics</h3>
+              <p>Show your Social Success Score and communication trends</p>
+            </div>
+            <label className="toggle-switch">
+              <input
+                type="checkbox"
+                checked={settings.showAnalytics}
+                onChange={(e) => handleSettingChange('showAnalytics', e.target.checked)}
               />
               <span className="slider"></span>
             </label>

@@ -115,10 +115,6 @@ const App = () => {
     setShowTutorial(true);
   };
 
-  const showPersonaCustomizationHandler = () => {
-    setShowPersonaCustomization(true);
-  };
-
   const handleSavePersona = (newPersona) => {
     try {
       // Load existing custom personas from localStorage

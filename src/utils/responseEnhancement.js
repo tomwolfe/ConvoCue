@@ -305,19 +305,26 @@ const applyProfessionalInsights = (response, input) => {
  * @param {Array} conversationHistory - Optional conversation history for context
  * @returns {Promise<string>} Enhanced response
  */
-export const enhanceResponse = async (response, persona, emotionData = null, input = '', conversationHistory = []) => {
+export const enhanceResponse = async (response, persona, emotionData = null, input = '', conversationHistory = [], options = {}) => {
   if (!response) return response;
 
   const preferences = await getUserPreferences();
+  const isSubtleMode = options.isSubtleMode || preferences.isSubtleMode;
   let enhancedResponse = response;
 
   // Apply professional insights for relevant personas
-  if ((persona === 'professional' || persona === 'meeting') && input) {
+  if ((persona === 'professional' || persona === 'meeting') && input && !isSubtleMode) {
     enhancedResponse = applyProfessionalInsights(enhancedResponse, input);
   }
 
-  // Adjust length based on user preference
-  if (preferences.preferredLength === 'short' && enhancedResponse.length > 50) {
+  // Adjust length based on user preference or subtle mode
+  if (isSubtleMode) {
+    // In subtle mode, we want extremely brief cues
+    const words = enhancedResponse.split(/\s+/);
+    if (words.length > 7) {
+      enhancedResponse = words.slice(0, 6).join(' ') + '...';
+    }
+  } else if (preferences.preferredLength === 'short' && enhancedResponse.length > 50) {
     // Truncate to first sentence if too long
     const sentences = enhancedResponse.split(/(?<=[.!?])\s+/);
     if (sentences.length > 1) {
@@ -335,24 +342,26 @@ export const enhanceResponse = async (response, persona, emotionData = null, inp
     }
   }
 
-  // Adjust tone based on user preference
-  if (preferences.preferredTone === 'formal' && persona !== 'professional') {
-    // Make more formal if user prefers it
-    enhancedResponse = enhancedResponse
-      .replace(/\b(i|we|you|they)\b/g, (match) => match.charAt(0).toUpperCase() + match.slice(1))
-      .replace(/\bim\b/gi, 'I am')
-      .replace(/\bcant\b/gi, 'cannot')
-      .replace(/\bwont\b/gi, 'will not');
-  } else if (preferences.preferredTone === 'casual' && persona === 'professional') {
-    // Make more casual if user prefers it
-    enhancedResponse = enhancedResponse
-      .replace(/\bI am\b/gi, 'I\'m')
-      .replace(/\bcannot\b/gi, 'can\'t')
-      .replace(/\bwill not\b/gi, 'won\'t');
+  // Adjust tone based on user preference (bypass if subtle)
+  if (!isSubtleMode) {
+    if (preferences.preferredTone === 'formal' && persona !== 'professional') {
+      // Make more formal if user prefers it
+      enhancedResponse = enhancedResponse
+        .replace(/\b(i|we|you|they)\b/g, (match) => match.charAt(0).toUpperCase() + match.slice(1))
+        .replace(/\bim\b/gi, 'I am')
+        .replace(/\bcant\b/gi, 'cannot')
+        .replace(/\bwont\b/gi, 'will not');
+    } else if (preferences.preferredTone === 'casual' && persona === 'professional') {
+      // Make more casual if user prefers it
+      enhancedResponse = enhancedResponse
+        .replace(/\bI am\b/gi, 'I\'m')
+        .replace(/\bcannot\b/gi, 'can\'t')
+        .replace(/\bwill not\b/gi, 'won\'t');
+    }
   }
 
-  // Add emotional awareness if emotion detected
-  if (emotionData && emotionData.emotion !== 'neutral' && emotionData.confidence > 0.4) {
+  // Add emotional awareness if emotion detected (bypass if subtle)
+  if (!isSubtleMode && emotionData && emotionData.emotion !== 'neutral' && emotionData.confidence > 0.4) {
     const emotionalAcknowledge = getEmotionalAcknowledgment(emotionData.emotion);
     if (!enhancedResponse.toLowerCase().includes(emotionalAcknowledge.toLowerCase())) {
       enhancedResponse = `${emotionalAcknowledge} ${enhancedResponse}`;
@@ -603,7 +612,7 @@ const removeApologeticLanguage = (response) => {
   let cleanedResponse = response.replace(/\bsorry\b/gi, '');
   cleanedResponse = cleanedResponse.replace(/\bi apologize\b/gi, '');
   cleanedResponse = cleanedResponse.replace(/\bmy apologies\b/gi, '');
-  cleanedResponse = cleanedResponse.replace(/\bi\'m sorry\b/gi, '');
+  cleanedResponse = cleanedResponse.replace(/\bi'm sorry\b/gi, '');
 
   // Clean up extra spaces and punctuation
   cleanedResponse = cleanedResponse.replace(/\s+/g, ' ').trim();

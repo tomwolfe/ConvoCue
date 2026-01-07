@@ -5,10 +5,10 @@ const PrivacyConsent = ({ onConsentGiven }) => {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    // Check if user has already given consent
     const consentGiven = localStorage.getItem('convocue_privacy_consent');
     if (!consentGiven) {
-      setIsVisible(true);
+      const timer = setTimeout(() => setIsVisible(true), 0);
+      return () => clearTimeout(timer);
     } else if (onConsentGiven) {
       onConsentGiven(); // Call callback if consent already exists
     }

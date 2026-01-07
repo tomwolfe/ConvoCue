@@ -1,4 +1,4 @@
-import { useReducer, useEffect, useRef, useCallback } from 'react';
+import { useReducer, useEffect, useRef, useCallback, useState } from 'react';
 import { AppConfig } from '../config';
 import { manageConversationHistory, optimizeConversationHistory, isMemoryLimitApproaching, aggressiveMemoryManagement } from '../utils/conversation';
 import { enhanceResponse, getUserPreferences } from '../utils/responseEnhancement';
@@ -112,19 +112,21 @@ export const useMLWorker = () => {
   const worker = useRef(null);
   const stateRef = useRef(state);
   const prefsCache = useRef(null);
-  const settingsCache = useRef({
+  const [settings, setSettings] = useState({
     enablePersonalization: true,
     enableSpeakerDetection: true,
     enableSentimentAnalysis: true,
-    privacyMode: false
+    privacyMode: false,
+    isSubtleMode: false,
+    showAnalytics: true
   });
 
   // Pre-fetch and cache preferences and settings
   useEffect(() => {
     const fetchData = async () => {
       prefsCache.current = await getUserPreferences();
-      const settings = await secureLocalStorageGet('convocue_settings');
-      if (settings) settingsCache.current = settings;
+      const savedSettings = await secureLocalStorageGet('convocue_settings');
+      if (savedSettings) setSettings(savedSettings);
     };
     fetchData();
     
@@ -183,7 +185,7 @@ export const useMLWorker = () => {
                     culturalContext: stateRef.current.culturalContext,
                     metadata,
                     preferences: prefsCache.current,
-                    settings: settingsCache.current,
+                    settings: settings,
                     taskId: `llm-${Date.now()}`
                 });
                 dispatch({ type: 'SET_LAST_MESSAGE_TIME', time: Date.now() });
@@ -224,7 +226,7 @@ export const useMLWorker = () => {
     } catch (error) {
       dispatch({ type: 'SET_ERROR', error: 'Worker creation failed' });
     }
-  }, []);
+  }, [settings]);
 
   useEffect(() => {
     initWorker();
@@ -237,16 +239,16 @@ export const useMLWorker = () => {
     worker.current.postMessage({ 
       type: 'stt', 
       audio: audioBuffer,
-      settings: settingsCache.current 
+      settings: settings 
     }, [audioBuffer.buffer]);
-  }, [state.isReady, state.isProcessing]);
+  }, [state.isReady, state.isProcessing, settings]);
 
   const refreshSuggestion = useCallback(async () => {
     if (!state.transcript || state.isProcessing || !worker.current) return;
     dispatch({ type: 'SET_STATUS', status: 'Refreshing cue...' });
 
     let preferences = prefsCache.current;
-    if (settingsCache.current.enablePersonalization === false || settingsCache.current.privacyMode) {
+    if (settings.enablePersonalization === false || settings.privacyMode) {
         preferences = {
           preferredLength: 'medium',
           preferredTone: 'balanced',
@@ -263,10 +265,10 @@ export const useMLWorker = () => {
       persona: state.persona,
       culturalContext: state.culturalContext,
       preferences: preferences,
-      settings: settingsCache.current,
+      settings: settings,
       taskId: `refresh-${Date.now()}`
     });
-  }, [state.transcript, state.isProcessing, state.history, state.persona, state.culturalContext]);
+  }, [state.transcript, state.isProcessing, state.history, state.persona, state.culturalContext, settings]);
 
   const setPersona = useCallback((persona) => {
     try {
@@ -294,6 +296,6 @@ export const useMLWorker = () => {
     },
     clearHistory: () => dispatch({ type: 'CLEAR_HISTORY' }),
     resetWorker: initWorker,
-    settings: settingsCache.current
+    settings: settings
   };
 };

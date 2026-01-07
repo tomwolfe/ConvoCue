@@ -22,18 +22,22 @@ const PersonaCustomization = ({
 
   useEffect(() => {
     if (editingPersona) {
-      setNewPersona(editingPersona);
-      setIsEditing(true);
+      if (newPersona.id !== editingPersona.id) {
+        setNewPersona(editingPersona);
+        setIsEditing(true);
+      }
     } else {
-      setNewPersona({
-        id: '',
-        label: '',
-        description: '',
-        prompt: ''
-      });
-      setIsEditing(false);
+      if (newPersona.id !== '') {
+        setNewPersona({
+          id: '',
+          label: '',
+          description: '',
+          prompt: ''
+        });
+        setIsEditing(false);
+      }
     }
-  }, [editingPersona]);
+  }, [editingPersona, newPersona.id]);
 
   const handleSave = () => {
     if (!newPersona.id || !newPersona.label || !newPersona.prompt) {

@@ -280,7 +280,8 @@ self.onmessage = async (event) => {
             const emotionData = analyzeEmotion(sanitizedText);
 
             // Cached System Prompt Generation
-            const promptKey = `${persona}-${culturalContext}-${preferences?.preferredLength}`;
+            const isSubtleMode = _settings?.isSubtleMode || preferences?.isSubtleMode;
+            const promptKey = `${persona}-${culturalContext}-${preferences?.preferredLength}-${isSubtleMode ? 'subtle' : 'normal'}`;
             if (cachedSystemPrompt.key !== promptKey) {
                 let contextInstruction = `Persona: ${personaConfig.label}. `;
 
@@ -304,7 +305,11 @@ self.onmessage = async (event) => {
                     contextInstruction += getProfessionalPromptTips(persona === 'meeting' ? 'business' : 'academic');
                 }
 
-                if (preferences) contextInstruction += `Preference: ${preferences.preferredLength} length. `;
+                if (isSubtleMode) {
+                    contextInstruction += "SUBTLE MODE ACTIVE: Provide ONLY extremely short (1-5 words) Quick Cues. No full sentences. ";
+                } else if (preferences) {
+                    contextInstruction += `Preference: ${preferences.preferredLength} length. `;
+                }
 
                 cachedSystemPrompt = {
                     key: promptKey,
