@@ -102,6 +102,7 @@ const AudioVisualizer = ({ isActive, analyser, isCompactMode }) => {
 const VADContent = ({
   status,
   isReady,
+  error,
   transcript,
   suggestion,
   emotionData,
@@ -329,9 +330,9 @@ const VADContent = ({
         />
       )}
 
-      {(vad.errored || vadError) && (
+      {(vad.errored || vadError || error) && (
         <div className="error-recovery" role="alert" aria-live="assertive">
-          <p>{vadError || "Microphone access error"}</p>
+          <p>{error || vadError || "Microphone access error"}</p>
           <button className="btn-retry" onClick={onReset} aria-label="Try again">
             <RefreshCw size={18} aria-hidden="true" />
             Try Again

@@ -28,7 +28,7 @@ const ControlPanel = ({
       <button
         className={`btn-control heartbeat-btn ${isVADMode ? 'active' : ''} ${isCompactMode ? 'compact' : ''}`}
         onClick={toggleVAD}
-        disabled={!isReady || vadLoading || (vadErrored && !vadError)}
+        disabled={(!isReady && !isVADMode) || vadLoading || (vadErrored && !vadError)}
         title="Continuous Mode"
       >
         <div className="icon-circle">

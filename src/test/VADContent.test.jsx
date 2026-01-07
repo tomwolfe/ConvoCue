@@ -53,6 +53,8 @@ describe('VADContent Component', () => {
     processingStep: 'none',
     processAudio: vi.fn(),
     refreshSuggestion: vi.fn(),
+    setTranscript: vi.fn(),
+    setSuggestion: vi.fn(),
     setStatus: vi.fn(),
     initialError: null,
     persona: 'anxiety',

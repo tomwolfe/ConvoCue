@@ -309,6 +309,7 @@ const App = () => {
           <VADContent
             status={status}
             isReady={isReady}
+            error={error}
             transcript={transcript}
             suggestion={suggestion}
             emotionData={emotionData}

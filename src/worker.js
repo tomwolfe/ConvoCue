@@ -158,6 +158,9 @@ const performanceStats = {
     mode: 'optimal' // 'optimal', 'balanced', 'minimal'
 };
 
+// Conversation turn management in worker
+let conversationTurnManager = null;
+
 const updatePerformanceMode = (time, type) => {
     const list = type === 'audio' ? performanceStats.audioProcessingTimes : performanceStats.llmProcessingTimes;
     list.push(time);
@@ -242,7 +245,7 @@ self.onmessage = async (event) => {
                 speakerDetectionTime = performance.now() - speakerDetectionStartTime;
             } else {
                 // Simplified turn management for minimal mode or when disabled
-                turnInfo = { turn: { speaker: 'unknown' }, isLikelyNewSpeaker: false };
+                turnInfo = { turn: { speaker: 'user' }, isLikelyNewSpeaker: false };
             }
 
             updatePerformanceMode(audioProcessingTime, 'audio');

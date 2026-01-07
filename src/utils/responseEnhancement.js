@@ -213,7 +213,7 @@ export const adjustResponseForUser = async (response, persona, emotionData) => {
     // Make more casual if user prefers it
     adjustedResponse = adjustedResponse
       .replace(/\bI am\b/gi, 'I\'m')
-      .replace(/\bcannot\b/gi, 'cannot')
+      .replace(/\bcannot\b/gi, 'can\'t')
       .replace(/\bwill not\b/gi, 'won\'t');
   }
   
@@ -347,7 +347,7 @@ export const enhanceResponse = async (response, persona, emotionData = null, inp
     // Make more casual if user prefers it
     enhancedResponse = enhancedResponse
       .replace(/\bI am\b/gi, 'I\'m')
-      .replace(/\bcannot\b/gi, 'cannot')
+      .replace(/\bcannot\b/gi, 'can\'t')
       .replace(/\bwill not\b/gi, 'won\'t');
   }
 

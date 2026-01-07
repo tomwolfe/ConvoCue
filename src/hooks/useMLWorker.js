@@ -194,7 +194,7 @@ export const useMLWorker = () => {
             } else {
                 const speakerRole = metadata?.turnInfo?.turn?.speaker || 'user';
                 dispatch({ type: 'ADD_TO_HISTORY', message: { role: speakerRole, content: cleanText } });
-                dispatch({ type: 'SET_READY' }); 
+                dispatch({ type: 'RESET_PROCESSING' }); 
             }
             break;
           }
