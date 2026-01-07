@@ -13,8 +13,15 @@ const conversationManager = new ConversationTurnManager();
 
 /**
  * Get the singleton instance of ConversationTurnManager.
- * Components should generally use the `useConversation` hook instead of 
- * accessing this directly to ensure React reactivity.
+ * 
+ * ARCHITECTURE NOTE:
+ * ConvoCue uses a hybrid state model. This singleton is the Source of Truth
+ * for the data itself (conversation turns), while React components use the
+ * `useConversation` hook to subscribe to updates and maintain reactive local state.
+ * 
+ * This separation ensures that expensive operations (like audio processing and 
+ * speaker detection) happen outside the React render cycle while still 
+ * providing reactive updates to the UI.
  * 
  * @returns {ConversationTurnManager} The conversation manager instance
  */

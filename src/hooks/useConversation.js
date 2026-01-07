@@ -53,10 +53,16 @@ function conversationReducer(state, action) {
  * Custom hook for managing conversation state.
  * 
  * HYBRID STATE MODEL:
- * This hook maintains local state that is synchronized with the global `conversationManager`
- * singleton. 
- * - Source of Truth for Turns: The `conversationManager` (via `getGlobalHistory`).
- * - Source of Truth for View: This hook's local state, which updates via `convocue:conversation_updated` events.
+ * This hook maintains local reactive state that is synchronized with the 
+ * `conversationManager` singleton. 
+ * 
+ * - Source of Truth for Turns: The `conversationManager` (singleton).
+ * - Source of Truth for UI: This hook's local state, which updates via 
+ *   `convocue:conversation_updated` events emitted by the manager.
+ * 
+ * This design prevents unnecessary re-renders of the entire app when the 
+ * manager processes audio, while ensuring that components only re-render
+ * when a meaningful conversation update (like a new turn) occurs.
  * 
  * Use this hook in components that need to react to conversation changes.
  * 

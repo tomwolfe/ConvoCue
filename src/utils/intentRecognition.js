@@ -272,7 +272,13 @@ export const generateIntentBasedCue = (input, response = '', conversationHistory
   };
   
   const cues = intentToCueMap[intent] || ['Pause', 'Think', 'Consider', 'Reflect', 'Hmm', 'Observe'];
-  return cues[Math.floor(Math.random() * cues.length)];
+  
+  // Use a deterministic selection based on input and history length to avoid randomness
+  // while still providing variety across different inputs
+  const seed = input.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) + conversationHistory.length;
+  const index = seed % cues.length;
+  
+  return cues[index];
 };
 
 /**
@@ -285,30 +291,36 @@ const generateCueFromResponse = (response, conversationHistory = []) => {
   if (!response) return 'Pause';
   
   const lowerResponse = response.toLowerCase();
+  const seed = response.length + conversationHistory.length;
   
   // Check for specific response patterns
   if (lowerResponse.includes('suggest') || lowerResponse.includes('recommend')) {
-    return ['Suggest', 'Try', 'Recommend', 'Propose', 'Consider', 'Experiment'][Math.floor(Math.random() * 6)];
+    const cues = ['Suggest', 'Try', 'Recommend', 'Propose', 'Consider', 'Experiment'];
+    return cues[seed % cues.length];
   }
   
   if (lowerResponse.includes('feel') || lowerResponse.includes('understand') || lowerResponse.includes('hear')) {
-    return ['Acknowledge', 'Validate', 'Empathize', 'Listen', 'Support', 'Connect'][Math.floor(Math.random() * 6)];
+    const cues = ['Acknowledge', 'Validate', 'Empathize', 'Listen', 'Support', 'Connect'];
+    return cues[seed % cues.length];
   }
   
   if (lowerResponse.includes('should') || lowerResponse.includes('try') || lowerResponse.includes('could')) {
-    return ['Suggest', 'Try', 'Recommend', 'Propose', 'Consider', 'Experiment'][Math.floor(Math.random() * 6)];
+    const cues = ['Suggest', 'Try', 'Recommend', 'Propose', 'Consider', 'Experiment'];
+    return cues[seed % cues.length];
   }
   
   // Check conversation history for context
   if (conversationHistory.length > 0) {
     const lastTurn = conversationHistory[conversationHistory.length - 1];
     if (lastTurn?.content?.includes('?')) {
-      return ['Ask', 'Clarify', 'Follow up', 'Probe', 'Inquire', 'Investigate'][Math.floor(Math.random() * 6)];
+      const cues = ['Ask', 'Clarify', 'Follow up', 'Probe', 'Inquire', 'Investigate'];
+      return cues[seed % cues.length];
     }
   }
   
   // Default cues
-  return ['Pause', 'Think', 'Consider', 'Reflect', 'Hmm', 'Observe'][Math.floor(Math.random() * 6)];
+  const defaultCues = ['Pause', 'Think', 'Consider', 'Reflect', 'Hmm', 'Observe'];
+  return defaultCues[seed % defaultCues.length];
 };
 
 /**

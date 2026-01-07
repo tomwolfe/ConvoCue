@@ -124,6 +124,14 @@ export const AppConfig = {
       llmInactivityTimeout: isMobile ? 20000 : 60000, // Very aggressive on mobile
     },
 
+    // Performance thresholds
+    performance: {
+      memoryThreshold: 100 * 1024 * 1024, // 100MB
+      conversationLengthThreshold: isMobile ? 50 : 100, // Fewer turns on mobile
+      processingTimeThreshold: isMobile ? 3000 : 2000, // Allow more time on mobile
+      tokenToCharRatio: 4 // Approximation: 1 token ≈ 4 characters
+    },
+
     // Low memory mode detection
     lowMemoryMode: () => {
       // Check for low memory conditions

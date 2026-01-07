@@ -13,8 +13,9 @@ describe('performanceMonitoring', () => {
         { role: 'user', content: 'hello' },
         { role: 'assistant', content: 'hi' }
       ];
-      // user (4) + hello (5) + assistant (9) + hi (2) = 20
-      expect(estimateConversationSize(history)).toBe(20);
+      // user (4) + hello (5) + assistant (9) + hi (2) = 20 chars
+      // 20 chars / 4 (ratio) = 5 tokens
+      expect(estimateConversationSize(history)).toBe(5);
     });
 
     it('should return 0 for empty history', () => {

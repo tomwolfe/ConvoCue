@@ -3,11 +3,13 @@
  * Monitors memory usage and performance metrics for large conversation histories
  */
 
-// Performance monitoring constants
+import { AppConfig } from '../config';
+
+// Performance monitoring constants derived from config
 const PERFORMANCE_THRESHOLD = {
-  memory: 100 * 1024 * 1024, // 100MB threshold
-  conversationLength: 100,    // 100 turns threshold
-  processingTime: 2000        // 2 seconds threshold
+  memory: AppConfig.system.performance.memoryThreshold,
+  conversationLength: AppConfig.system.performance.conversationLengthThreshold,
+  processingTime: AppConfig.system.performance.processingTimeThreshold
 };
 
 // Store performance metrics
@@ -36,16 +38,18 @@ export const measureMemoryUsage = () => {
 /**
  * Estimate conversation history size
  * @param {Array} conversationHistory - Array of conversation turns
- * @returns {number} Estimated size in characters
+ * @returns {number} Estimated size in tokens (approximation)
  */
 export const estimateConversationSize = (conversationHistory) => {
   if (!conversationHistory || !Array.isArray(conversationHistory)) {
     return 0;
   }
   
-  return conversationHistory.reduce((total, turn) => {
+  const charCount = conversationHistory.reduce((total, turn) => {
     return total + (turn.content?.length || 0) + (turn.role?.length || 0);
   }, 0);
+
+  return Math.ceil(charCount / AppConfig.system.performance.tokenToCharRatio);
 };
 
 /**
@@ -54,8 +58,9 @@ export const estimateConversationSize = (conversationHistory) => {
  * @returns {boolean} True if approaching memory limits
  */
 export const isMemoryLimitApproaching = (conversationHistory) => {
-  const estimatedSize = estimateConversationSize(conversationHistory);
-  return estimatedSize > PERFORMANCE_THRESHOLD.conversationLength * 500; // Rough estimate: 500 chars per turn avg
+  const estimatedTokens = estimateConversationSize(conversationHistory);
+  // Rough estimate: 125 tokens per turn average (500 chars / 4)
+  return estimatedTokens > PERFORMANCE_THRESHOLD.conversationLength * 125;
 };
 
 /**
