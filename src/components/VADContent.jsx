@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useMicVAD } from '@ricky0123/vad-react';
-import { Loader2, AlertCircle, RefreshCw, Zap, ShieldAlert, Info } from 'lucide-react';
+import { Loader2, AlertCircle, RefreshCw, Zap, ShieldAlert, Info, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { AppConfig } from '../config';
 import { processConversationTurn } from '../conversationManager';
 import PersonaSelector from './VAD/PersonaSelector';
@@ -9,8 +9,10 @@ import ControlPanel from './VAD/ControlPanel';
 import SocialSuccessScore from './SocialSuccessScore';
 import { secureLocalStorageGet } from '../utils/encryption';
 import { getMergedPersonas } from '../utils/preferences';
+import { submitSubtleModeFeedback } from '../utils/feedback';
 
 const GlanceWidget = ({ suggestion, emotionData, isProcessing }) => {
+  const [feedbackGiven, setFeedbackGiven] = useState(false);
   const emotion = emotionData?.emotion || 'neutral';
   const hasActionItem = suggestion?.includes('[Action Item]');
   const hasConflict = suggestion?.includes('[Diplomatic]');
@@ -20,6 +22,17 @@ const GlanceWidget = ({ suggestion, emotionData, isProcessing }) => {
   const displaySuggestion = suggestion
     ? suggestion.replace(/\[.*?\]/g, '').trim()
     : isProcessing ? 'Thinking...' : 'Listening...';
+
+  // Reset feedback state when suggestion changes
+  useEffect(() => {
+    setFeedbackGiven(false);
+  }, [displaySuggestion]);
+
+  const handleFeedback = async (type) => {
+    if (feedbackGiven || !displaySuggestion || isProcessing) return;
+    await submitSubtleModeFeedback(displaySuggestion, type);
+    setFeedbackGiven(true);
+  };
 
   // Define tooltip descriptions for common subtle cues
   const getTooltipForCue = (suggestionText) => {
@@ -127,6 +140,27 @@ const GlanceWidget = ({ suggestion, emotionData, isProcessing }) => {
           </div>
         )}
       </div>
+
+      {!isProcessing && displaySuggestion !== 'Listening...' && (
+        <div className="glance-feedback-actions">
+          <button 
+            className={`feedback-btn ${feedbackGiven ? 'disabled' : ''}`}
+            onClick={() => handleFeedback('like')}
+            disabled={feedbackGiven}
+            title="Helpful cue"
+          >
+            <ThumbsUp size={12} />
+          </button>
+          <button 
+            className={`feedback-btn ${feedbackGiven ? 'disabled' : ''}`}
+            onClick={() => handleFeedback('dislike')}
+            disabled={feedbackGiven}
+            title="Not helpful"
+          >
+            <ThumbsDown size={12} />
+          </button>
+        </div>
+      )}
     </div>
   );
 };

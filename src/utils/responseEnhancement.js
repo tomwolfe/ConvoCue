@@ -353,26 +353,31 @@ export const enhanceResponse = async (response, persona, emotionData = null, inp
     }
   }
 
-  // Apply conversation context awareness
-  if (conversationHistory && conversationHistory.length > 0) {
+  // Apply conversation context awareness (bypass if subtle)
+  if (!isSubtleMode && conversationHistory && conversationHistory.length > 0) {
     enhancedResponse = applyConversationContext(enhancedResponse, conversationHistory, persona);
   }
 
-  // Apply learned preferences from feedback
-  enhancedResponse = applyLearnedPreferences(enhancedResponse, preferences);
+  // Apply learned preferences from feedback (bypass if subtle)
+  if (!isSubtleMode) {
+    enhancedResponse = applyLearnedPreferences(enhancedResponse, preferences);
+  }
 
   // Safety Valve: If enhancement changed the response too radically, fallback
   // This prevents "hallucinations" or weird artifacts from rule-based rephrasing
-  const lengthRatio = enhancedResponse.length / Math.max(1, response.length);
-  if (lengthRatio > 2.0 || lengthRatio < 0.3) {
-    console.warn("Safety valve triggered: Enhancement was too aggressive. Falling back to original.");
-    return response;
-  }
+  // NOTE: Subtle Mode is EXEMPT from these checks because micro-cues are intended to be radically shorter
+  if (!isSubtleMode) {
+    const lengthRatio = enhancedResponse.length / Math.max(1, response.length);
+    if (lengthRatio > 2.0 || lengthRatio < 0.3) {
+      console.warn("Safety valve triggered: Enhancement was too aggressive. Falling back to original.");
+      return response;
+    }
 
-  // Additional safety check: semantic similarity to prevent meaning drift
-  if (await isSemanticallyTooDifferent(response, enhancedResponse)) {
-    console.warn("Safety valve triggered: Enhanced response is semantically too different. Falling back to original.");
-    return response;
+    // Additional safety check: semantic similarity to prevent meaning drift
+    if (await isSemanticallyTooDifferent(response, enhancedResponse)) {
+      console.warn("Safety valve triggered: Enhanced response is semantically too different. Falling back to original.");
+      return response;
+    }
   }
 
   // Check for disliked phrases and try to avoid them
@@ -790,6 +795,8 @@ const analyzeInputForCue = (input, quickCues) => {
     return selectRandomCue(quickCues, 'conflict');
   } else if (detectStrategic(lowerInput)) {
     return selectRandomCue(quickCues, 'strategic');
+  } else if (detectEmotion(lowerInput)) {
+    return selectRandomCue(quickCues, 'emotion');
   } else if (detectGreeting(lowerInput)) {
     return selectRandomCue(quickCues, 'greeting');
   } else if (detectQuestion(lowerInput)) {

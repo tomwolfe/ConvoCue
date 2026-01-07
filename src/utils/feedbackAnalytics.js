@@ -569,6 +569,29 @@ export const getSocialSuccessWeights = async () => {
 };
 
 /**
+ * Saves configurable weights for social success score calculation
+ * @param {Object} weights - Weight configuration (must sum to 100)
+ * @returns {Promise<boolean>} Success status
+ */
+export const saveSocialSuccessWeights = async (weights) => {
+  try {
+    if (!weights ||
+        weights.satisfaction === undefined ||
+        weights.sentiment === undefined ||
+        weights.engagement === undefined ||
+        (weights.satisfaction + weights.sentiment + weights.engagement) !== 100) {
+      return false;
+    }
+
+    await secureLocalStorageSet('convocue_social_score_weights', weights);
+    return true;
+  } catch (error) {
+    console.error('Error saving social success weights:', error);
+    return false;
+  }
+};
+
+/**
  * Gets historical social success scores for charting
  * @returns {Promise<Array>} Array of historical scores with timestamps
  */

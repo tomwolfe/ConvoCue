@@ -49,6 +49,34 @@ export const submitFeedback = async (suggestion, feedbackType, persona, cultural
 };
 
 /**
+ * Submit micro-feedback for a subtle mode cue
+ * @param {string} cue - The cue text
+ * @param {string} feedbackType - 'like' or 'dislike'
+ */
+export const submitSubtleModeFeedback = async (cue, feedbackType) => {
+  try {
+    const feedback = {
+      cue,
+      feedbackType,
+      timestamp: Date.now(),
+      mode: 'subtle'
+    };
+
+    const feedbackHistory = await secureLocalStorageGet('convocue_subtle_feedback', []);
+    feedbackHistory.push(feedback);
+    
+    // Limit to last 50 entries
+    const trimmed = feedbackHistory.slice(-50);
+    await secureLocalStorageSet('convocue_subtle_feedback', trimmed);
+    
+    // Notify analytics if they care about subtle feedback
+    window.dispatchEvent(new CustomEvent('convocue_subtle_feedback_submitted', { detail: feedback }));
+  } catch (e) {
+    console.error('Failed to save subtle feedback:', e);
+  }
+};
+
+/**
  * Get feedback statistics for analysis
  * @returns {Promise<object>} Feedback statistics
  */
