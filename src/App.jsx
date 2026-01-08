@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Mic, Loader2, Volume2, AlertCircle, Activity, ThumbsUp, ThumbsDown, BookOpen, Settings as SettingsIcon, Layout as LayoutIcon, ChevronDown, EyeOff } from 'lucide-react';
+import { Mic, Loader2, Volume2, AlertCircle, Activity, ThumbsUp, ThumbsDown, BookOpen, Settings as SettingsIcon, Layout as LayoutIcon, ChevronDown, EyeOff, Type } from 'lucide-react';
 import { Analytics } from '@vercel/analytics/react';
 import { useMLWorker } from './hooks/useMLWorker';
 import VADContent from './components/VADContent';
@@ -232,7 +232,7 @@ const App = () => {
                 {showViewMenu && (
                   <div className="view-menu">
                     <button onClick={() => { setIsCompactMode(!isCompactMode); setShowViewMenu(false); }} className={isCompactMode ? 'active' : ''}>
-                      <Activity size={16} /> Compact Mode
+                      <Activity size={16} /> Minimal UI
                     </button>
                     <button onClick={() => { setIsSubtleMode(!isSubtleMode); setShowViewMenu(false); }} className={isSubtleMode ? 'active' : ''}>
                       <EyeOff size={16} /> Subtle Mode
@@ -242,7 +242,7 @@ const App = () => {
                       className={isDyslexicFriendly ? 'active' : ''}
                       aria-label="Toggle Dyslexic Friendly Font"
                     >
-                      Abc Dyslexic Font
+                      <Type size={16} /> Dyslexic Font
                     </button>
                     <button onClick={() => { showTutorialHandler(); setShowViewMenu(false); }}>
                       <BookOpen size={16} /> Tutorial

@@ -541,14 +541,6 @@ header.compact .subtitle {
   padding: 1rem;
 }
 
-.glance-suggestion {
-  font-size: 2.25rem;
-  font-weight: 900;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
-  margin-bottom: 0.75rem;
-}
-
 /* Controls Update */
 .controls {
   display: grid;
@@ -1063,12 +1055,11 @@ input:checked + .slider:before {
 
 .glance-suggestion {
   font-size: 2.5rem;
-  font-weight: 900;
+  font-weight: 800;
   line-height: 1;
   color: var(--text);
   margin: 0;
   letter-spacing: -0.04em;
-  text-transform: uppercase;
 }
 
 .glance-indicators {
