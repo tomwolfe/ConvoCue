@@ -3,7 +3,7 @@
  */
 
 import { detectIntent } from './intentRecognition';
-import { CONVERSATION_CONFIG } from '../config/conversationConfig';
+import { CONVERSATION_CONFIG, validateConfig } from '../config/conversationConfig';
 
 /**
  * Analyzes audio characteristics to distinguish between speakers
@@ -366,6 +366,15 @@ export class ConversationTurnManager {
     // Merge provided config with defaults
     this.config = { ...CONVERSATION_CONFIG, ...config };
 
+    // Validate config at initialization
+    try {
+      validateConfig(this.config);
+    } catch (error) {
+      console.warn('Invalid configuration provided to ConversationTurnManager:', error.message);
+      // Fall back to default config if validation fails
+      this.config = { ...CONVERSATION_CONFIG };
+    }
+
     this.turns = [];
     this.currentTurn = null;
     this.lastSpeaker = 'user'; // Start assuming user is speaking
@@ -384,6 +393,14 @@ export class ConversationTurnManager {
     };
     this.turnYieldConfidence = 0; // Likelihood the current speaker has yielded
     this.lastSpeechStartTime = 0; // Track when the current speaker started speaking
+
+    // Diagnostic tracking
+    this.diagnostics = {
+      totalAudioFramesProcessed: 0,
+      speakerChangesDetected: 0,
+      turnYieldsDetected: 0,
+      errorsEncountered: 0
+    };
   }
 
   /**
@@ -393,133 +410,155 @@ export class ConversationTurnManager {
    * @returns {Object} Turn information
    */
   processAudio(audioData, detectedText = '') {
-    const currentTime = Date.now();
-    const isSilent = this.isSilent(audioData);
+    try {
+      // Increment diagnostic counter
+      this.diagnostics.totalAudioFramesProcessed++;
 
-    // Analyze speaker characteristics
-    const speakerAnalysis = analyzeSpeakerCharacteristics(audioData, this.lastAudioData);
-    this.lastAudioData = audioData;
+      const currentTime = Date.now();
+      const isSilent = this.isSilent(audioData);
 
-    // Analyze intent for turn-yielding signals if we have text
-    if (detectedText) {
-      const intent = detectIntent(detectedText);
-      if (intent === 'question' || detectedText.trim().endsWith('?')) {
-        this.turnYieldConfidence = 0.8; // High likelihood of turn change after a question
-      } else if (intent === 'greeting' && this.turns.length < 2) {
-        this.turnYieldConfidence = 0.5;
-      } else if (this.isTurnYieldingIntent(intent, detectedText)) {
-        // Additional turn-yielding intents beyond question and greeting
-        this.turnYieldConfidence = 0.7; // High likelihood of turn change
-      } else {
-        this.turnYieldConfidence = Math.max(0, this.turnYieldConfidence - this.config.yieldConfidenceDecay);
-      }
-    }
+      // Analyze speaker characteristics
+      const speakerAnalysis = analyzeSpeakerCharacteristics(audioData, this.lastAudioData);
+      this.lastAudioData = audioData;
 
-    // Update adaptive threshold based on conversation dynamics and intent
-    this.updateAdaptiveThreshold(currentTime, isSilent);
-
-    // Determine if this is likely a new speaker with confidence scoring
-    const isLikelyNewSpeaker = speakerAnalysis.isLikelyNewSpeaker;
-    const speakerConfidence = speakerAnalysis.confidenceScore;
-
-    // Check if enough time has passed to consider a new turn
-    const timeSinceLastSpeech = currentTime - this.lastSpeechTime;
-
-    // Check if we're in a rejection window (to address race condition)
-    const inRejectionWindow = this.lastSpeechStartTime &&
-                              (currentTime - this.lastSpeechStartTime < this.config.rejectionWindowMs) &&
-                              this.lastSpeaker === this.estimateCurrentSpeaker(speakerAnalysis);
-
-    // Logic for ending turn:
-    // 1. Silent longer than threshold
-    // 2. High confidence speaker change detected
-    // 3. User yielded turn (intent) AND some silence or moderate speaker change confidence
-    // 4. Not in rejection window (to prevent jarring turn changes)
-    const shouldStartNewTurn = !inRejectionWindow && (
-      timeSinceLastSpeech > this.adaptiveTurnThreshold ||
-      (isLikelyNewSpeaker && speakerConfidence > this.config.speakerConfidenceHigh) ||
-      (this.turnYieldConfidence > this.config.highYieldConfidence && timeSinceLastSpeech > this.config.silenceThresholdForIntent) ||
-      (this.turnYieldConfidence > this.config.moderateYieldConfidence && isLikelyNewSpeaker && speakerConfidence > this.config.speakerConfidenceModerate)
-    );
-
-    if (!isSilent) {
-      this.lastSpeechTime = currentTime;
-      // Update speech start time if this is a new speech segment from the same speaker
-      if (this.lastSpeaker !== this.estimateCurrentSpeaker(speakerAnalysis)) {
-        this.lastSpeechStartTime = currentTime;
-      }
-    }
-
-    // Determine speaker role using profiles and turn-yielding bias
-    const userSimilarity = this.profiles.user.getSimilarity(speakerAnalysis.features);
-    const otherSimilarity = this.profiles.other.getSimilarity(speakerAnalysis.features);
-
-    let speakerRole = this.lastSpeaker;
-
-    if (shouldStartNewTurn) {
-      // Apply turn-yielding weighting: if user likely yielded, weight towards 'other'
-      const weightToOther = (this.lastSpeaker === 'user') ? this.turnYieldConfidence * this.config.turnYieldWeightingFactor : 0;
-      const weightToUser = (this.lastSpeaker === 'other') ? this.turnYieldConfidence * this.config.turnYieldWeightingFactor : 0;
-
-      const adjustedUserSim = userSimilarity + weightToUser;
-      const adjustedOtherSim = otherSimilarity + weightToOther;
-
-      if (Math.abs(adjustedUserSim - adjustedOtherSim) > this.config.speakerSimilarityThreshold) {
-        speakerRole = adjustedUserSim > adjustedOtherSim ? 'user' : 'other';
-      } else if (isLikelyNewSpeaker && speakerConfidence > (this.config.speakerConfidenceHigh - 0.2)) { // 0.4 threshold
-        speakerRole = this.lastSpeaker === 'user' ? 'other' : 'user';
+      // Analyze intent for turn-yielding signals if we have text
+      if (detectedText) {
+        const intent = detectIntent(detectedText);
+        if (intent === 'question' || detectedText.trim().endsWith('?')) {
+          this.turnYieldConfidence = 0.8; // High likelihood of turn change after a question
+          this.diagnostics.turnYieldsDetected++;
+        } else if (intent === 'greeting' && this.turns.length < 2) {
+          this.turnYieldConfidence = 0.5;
+        } else if (this.isTurnYieldingIntent(intent, detectedText)) {
+          // Additional turn-yielding intents beyond question and greeting
+          this.turnYieldConfidence = 0.7; // High likelihood of turn change
+          this.diagnostics.turnYieldsDetected++;
+        } else {
+          this.turnYieldConfidence = Math.max(0, this.turnYieldConfidence - this.config.yieldConfidenceDecay);
+        }
       }
 
-      // Reset yielding confidence when a turn actually changes
-      if (speakerRole !== this.lastSpeaker) {
-        this.turnYieldConfidence = 0;
+      // Update adaptive threshold based on conversation dynamics and intent
+      this.updateAdaptiveThreshold(currentTime, isSilent);
+
+      // Determine if this is likely a new speaker with confidence scoring
+      const isLikelyNewSpeaker = speakerAnalysis.isLikelyNewSpeaker;
+      const speakerConfidence = speakerAnalysis.confidenceScore;
+
+      // Check if enough time has passed to consider a new turn
+      const timeSinceLastSpeech = currentTime - this.lastSpeechTime;
+
+      // Check if we're in a rejection window (to address race condition)
+      const inRejectionWindow = this.lastSpeechStartTime &&
+                                (currentTime - this.lastSpeechStartTime < this.config.rejectionWindowMs) &&
+                                this.lastSpeaker === this.estimateCurrentSpeaker(speakerAnalysis);
+
+      // Logic for ending turn:
+      // 1. Silent longer than threshold
+      // 2. High confidence speaker change detected
+      // 3. User yielded turn (intent) AND some silence or moderate speaker change confidence
+      // 4. Not in rejection window (to prevent jarring turn changes)
+      const shouldStartNewTurn = !inRejectionWindow && (
+        timeSinceLastSpeech > this.adaptiveTurnThreshold ||
+        (isLikelyNewSpeaker && speakerConfidence > this.config.speakerConfidenceHigh) ||
+        (this.turnYieldConfidence > this.config.highYieldConfidence && timeSinceLastSpeech > this.config.silenceThresholdForIntent) ||
+        (this.turnYieldConfidence > this.config.moderateYieldConfidence && isLikelyNewSpeaker && speakerConfidence > this.config.speakerConfidenceModerate)
+      );
+
+      if (!isSilent) {
+        this.lastSpeechTime = currentTime;
+        // Update speech start time if this is a new speech segment from the same speaker
+        if (this.lastSpeaker !== this.estimateCurrentSpeaker(speakerAnalysis)) {
+          this.lastSpeechStartTime = currentTime;
+          this.diagnostics.speakerChangesDetected++;
+        }
       }
-    }
 
-    // Update the profile for the detected speaker - only if confidence is reasonable
-    if (!isSilent && speakerConfidence > this.config.speakerConfidenceUpdate) {
-      this.profiles[speakerRole].update(speakerAnalysis.features, this.config);
-    }
+      // Determine speaker role using profiles and turn-yielding bias
+      const userSimilarity = this.profiles.user.getSimilarity(speakerAnalysis.features);
+      const otherSimilarity = this.profiles.other.getSimilarity(speakerAnalysis.features);
 
-    // Create or continue turn
-    if (!this.currentTurn || shouldStartNewTurn) {
-      // End previous turn if exists
-      if (this.currentTurn) {
-        this.endCurrentTurn();
+      let speakerRole = this.lastSpeaker;
+
+      if (shouldStartNewTurn) {
+        // Apply turn-yielding weighting: if user likely yielded, weight towards 'other'
+        const weightToOther = (this.lastSpeaker === 'user') ? this.turnYieldConfidence * this.config.turnYieldWeightingFactor : 0;
+        const weightToUser = (this.lastSpeaker === 'other') ? this.turnYieldConfidence * this.config.turnYieldWeightingFactor : 0;
+
+        const adjustedUserSim = userSimilarity + weightToUser;
+        const adjustedOtherSim = otherSimilarity + weightToOther;
+
+        if (Math.abs(adjustedUserSim - adjustedOtherSim) > this.config.speakerSimilarityThreshold) {
+          speakerRole = adjustedUserSim > adjustedOtherSim ? 'user' : 'other';
+        } else if (isLikelyNewSpeaker && speakerConfidence > (this.config.speakerConfidenceHigh - 0.2)) { // 0.4 threshold
+          speakerRole = this.lastSpeaker === 'user' ? 'other' : 'user';
+        }
+
+        // Reset yielding confidence when a turn actually changes
+        if (speakerRole !== this.lastSpeaker) {
+          this.turnYieldConfidence = 0;
+        }
       }
 
-      // Start new turn
-      this.currentTurn = {
-        id: Date.now(),
-        startTime: currentTime,
-        speaker: speakerRole,
-        text: detectedText,
-        audioFeatures: speakerAnalysis.features,
-        isLikelyNewSpeaker: isLikelyNewSpeaker,
+      // Update the profile for the detected speaker - only if confidence is reasonable
+      if (!isSilent && speakerConfidence > this.config.speakerConfidenceUpdate) {
+        this.profiles[speakerRole].update(speakerAnalysis.features, this.config);
+      }
+
+      // Create or continue turn
+      if (!this.currentTurn || shouldStartNewTurn) {
+        // End previous turn if exists
+        if (this.currentTurn) {
+          this.endCurrentTurn();
+        }
+
+        // Start new turn
+        this.currentTurn = {
+          id: Date.now(),
+          startTime: currentTime,
+          speaker: speakerRole,
+          text: detectedText,
+          audioFeatures: speakerAnalysis.features,
+          isLikelyNewSpeaker: isLikelyNewSpeaker,
+          confidenceScore: speakerConfidence,
+          messages: detectedText ? [{ role: speakerRole, content: detectedText, timestamp: currentTime }] : []
+        };
+      } else if (detectedText) {
+        // Add to current turn
+        this.currentTurn.text += ' ' + detectedText;
+        this.currentTurn.messages.push({
+          role: speakerRole,
+          content: detectedText,
+          timestamp: currentTime
+        });
+      }
+
+      this.lastSpeaker = speakerRole;
+
+      return {
+        turn: this.currentTurn,
+        isLikelyNewSpeaker,
+        speakerChangeLikelihood: speakerAnalysis.speakerChangeLikelihood,
         confidenceScore: speakerConfidence,
-        messages: detectedText ? [{ role: speakerRole, content: detectedText, timestamp: currentTime }] : []
+        userSimilarity,
+        otherSimilarity,
+        turnYieldConfidence: this.turnYieldConfidence
       };
-    } else if (detectedText) {
-      // Add to current turn
-      this.currentTurn.text += ' ' + detectedText;
-      this.currentTurn.messages.push({
-        role: speakerRole,
-        content: detectedText,
-        timestamp: currentTime
-      });
+    } catch (error) {
+      this.diagnostics.errorsEncountered++;
+      console.error('Error in processAudio:', error);
+
+      // Return a safe default response to prevent system crashes
+      return {
+        turn: this.currentTurn,
+        isLikelyNewSpeaker: false,
+        speakerChangeLikelihood: 0,
+        confidenceScore: 0,
+        userSimilarity: 0.5,
+        otherSimilarity: 0.5,
+        turnYieldConfidence: this.turnYieldConfidence
+      };
     }
-
-    this.lastSpeaker = speakerRole;
-
-    return {
-      turn: this.currentTurn,
-      isLikelyNewSpeaker,
-      speakerChangeLikelihood: speakerAnalysis.speakerChangeLikelihood,
-      confidenceScore: speakerConfidence,
-      userSimilarity,
-      otherSimilarity,
-      turnYieldConfidence: this.turnYieldConfidence
-    };
   }
   
   /**
@@ -791,6 +830,56 @@ export class ConversationTurnManager {
     if (this.turns.length > maxTurns) {
       this.turns = this.turns.slice(-maxTurns);
     }
+  }
+
+  /**
+   * Get diagnostic information about the conversation manager
+   * @returns {object} Diagnostic information
+   */
+  getDiagnostics() {
+    return {
+      ...this.diagnostics,
+      config: {
+        baseTurnThreshold: this.config.baseTurnThreshold,
+        rejectionWindowMs: this.config.rejectionWindowMs,
+        speakerConfidenceHigh: this.config.speakerConfidenceHigh,
+        turnYieldWeightingFactor: this.config.turnYieldWeightingFactor
+      },
+      memoryUsage: this.getMemoryUsage(),
+      profileStats: {
+        user: {
+          count: this.profiles.user.averageFeatures.count,
+          consistency: this.profiles.user.consistencyHistory.length > 0
+            ? this.profiles.user.consistencyHistory.reduce((a, b) => a + b, 0) / this.profiles.user.consistencyHistory.length
+            : 0
+        },
+        other: {
+          count: this.profiles.other.averageFeatures.count,
+          consistency: this.profiles.other.consistencyHistory.length > 0
+            ? this.profiles.other.consistencyHistory.reduce((a, b) => a + b, 0) / this.profiles.other.consistencyHistory.length
+            : 0
+        }
+      },
+      conversationState: {
+        totalTurns: this.turns.length,
+        currentTurnExists: !!this.currentTurn,
+        lastSpeaker: this.lastSpeaker,
+        turnYieldConfidence: this.turnYieldConfidence,
+        adaptiveThreshold: this.adaptiveTurnThreshold
+      }
+    };
+  }
+
+  /**
+   * Reset diagnostic counters
+   */
+  resetDiagnostics() {
+    this.diagnostics = {
+      totalAudioFramesProcessed: 0,
+      speakerChangesDetected: 0,
+      turnYieldsDetected: 0,
+      errorsEncountered: 0
+    };
   }
 }
 
