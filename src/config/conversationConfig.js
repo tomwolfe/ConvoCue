@@ -142,7 +142,7 @@ export const ENV_CONFIGS = {
     speakerConfidenceHigh: 0.5,
     speakerConfidenceUpdate: 0.15,
     rejectionWindowMs: 200,
-    profileUpdateAlpha: 0.15  // Faster learning in development
+    profileUpdateAlpha: 0.1  // Balanced learning in development
   },
   production: {
     ...CONVERSATION_CONFIG,

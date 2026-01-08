@@ -315,11 +315,14 @@ class SpeakerProfile {
                          (this.consistencyHistory.reduce((a, b) => a + b, 0) / this.consistencyHistory.length < 0.4);
 
     // Weighted moving average - give more weight to recent speech but maintain history
+    // Use alpha = 1.0 for the first update to initialize the profile
     // Use configurable alpha if available, otherwise use default
     // If inconsistent, temporarily increase learning rate (soft reset)
-    let alpha = config && config.profileUpdateAlpha !== undefined
-      ? Math.max(0.01, config.profileUpdateAlpha)
-      : Math.max(0.1, 1 / (c + 1));
+    let alpha = c === 0 
+      ? 1.0 
+      : (config && config.profileUpdateAlpha !== undefined
+          ? Math.max(0.01, config.profileUpdateAlpha)
+          : Math.max(0.1, 1 / (c + 1)));
     
     if (isInconsistent) {
       alpha = Math.min(0.3, alpha * 2); // Faster adaptation if profile is performing poorly
@@ -335,9 +338,10 @@ class SpeakerProfile {
   /**
    * Calculates similarity between new features and this profile (0-1)
    * @param {Object} features - Features to compare
+   * @param {Object} config - Configuration object
    * @returns {number} Similarity score
    */
-  getSimilarity(features) {
+  getSimilarity(features, config = null) {
     if (this.averageFeatures.count === 0) return 0.5;
 
     const pitchDiff = Math.abs(features.pitchEstimate - this.averageFeatures.pitchEstimate) / Math.max(this.averageFeatures.pitchEstimate, 1);
@@ -352,6 +356,12 @@ class SpeakerProfile {
     this.consistencyHistory.push(similarity);
     if (this.consistencyHistory.length > 10) {
       this.consistencyHistory.shift();
+    }
+
+    // If profile is not yet reliable, return neutral similarity
+    const minUpdates = config ? config.minProfileUpdates : 5;
+    if (this.averageFeatures.count < minUpdates) {
+      return 0.5;
     }
 
     return similarity;
@@ -475,8 +485,8 @@ export class ConversationTurnManager {
       }
 
       // Determine speaker role using profiles and turn-yielding bias
-      const userSimilarity = this.profiles.user.getSimilarity(speakerAnalysis.features);
-      const otherSimilarity = this.profiles.other.getSimilarity(speakerAnalysis.features);
+      const userSimilarity = this.profiles.user.getSimilarity(speakerAnalysis.features, this.config);
+      const otherSimilarity = this.profiles.other.getSimilarity(speakerAnalysis.features, this.config);
 
       let speakerRole = this.lastSpeaker;
 
@@ -784,8 +794,8 @@ export class ConversationTurnManager {
    * @returns {string} Estimated speaker role ('user' or 'other')
    */
   estimateCurrentSpeaker(speakerAnalysis) {
-    const userSimilarity = this.profiles.user.getSimilarity(speakerAnalysis.features);
-    const otherSimilarity = this.profiles.other.getSimilarity(speakerAnalysis.features);
+    const userSimilarity = this.profiles.user.getSimilarity(speakerAnalysis.features, this.config);
+    const otherSimilarity = this.profiles.other.getSimilarity(speakerAnalysis.features, this.config);
 
     // Return the speaker with higher similarity
     return userSimilarity > otherSimilarity ? 'user' : 'other';
