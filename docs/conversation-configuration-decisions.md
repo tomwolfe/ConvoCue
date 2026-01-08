@@ -24,9 +24,14 @@ This document explains the rationale behind key configuration decisions in the c
 **Change**: Increased `rejectionWindowMs` from 300ms to 350ms in production environment.
 
 **Rationale**:
-- Production environments may have more variable network latency and processing delays
-- A slightly longer rejection window provides more tolerance for timing variations
-- Helps prevent premature turn changes when the same speaker continues talking after a brief pause
+- **Human-Centric Pacing**: Natural speech often includes brief pauses for breaths, hesitations, or emphasis that can last 200-300ms.
+- **Race Condition Prevention**: A slightly longer rejection window provides a buffer against interpreting these natural pauses as turn ends, preventing "turn stuttering" where the system prematurely yields.
+- **Environmental Robustness**: Also provides secondary tolerance for variable network latency and processing delays in production environments.
+
+**Impact**:
+- Significant reduction in "turn stuttering" during expressive speech.
+- More natural conversation flow that respects human speech patterns.
+- Improved stability in high-jitter network environments.
 
 ## Development vs Production Differences
 

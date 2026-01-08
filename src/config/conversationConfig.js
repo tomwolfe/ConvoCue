@@ -88,6 +88,6 @@ export const ENV_CONFIGS = {
  * @param {string} env - Environment name ('development', 'production', 'testing', or custom)
  * @returns {Object} Configuration object
  */
-export const getConfigByEnv = (env = process.env.NODE_ENV || 'development') => {
+export const getConfigByEnv = (env = (typeof process !== 'undefined' && process.env ? process.env.NODE_ENV : 'development')) => {
   return ENV_CONFIGS[env] || CONVERSATION_CONFIG;
 };

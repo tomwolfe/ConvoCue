@@ -2,6 +2,9 @@
  * @fileoverview Speaker detection and conversation turn management utilities
  */
 
+import { detectIntent } from './intentRecognition';
+import { CONVERSATION_CONFIG } from '../config/conversationConfig';
+
 /**
  * Analyzes audio characteristics to distinguish between speakers
  * Implements more sophisticated audio analysis with multiple features
@@ -297,6 +300,7 @@ class SpeakerProfile {
       zeroCrossingRate: 0,
       count: 0
     };
+    this.consistencyHistory = []; // Track recent similarity scores to monitor profile stability
   }
 
   /**
@@ -305,11 +309,21 @@ class SpeakerProfile {
    */
   update(features, config = null) {
     const c = this.averageFeatures.count;
+    
+    // Check for "stale" or inconsistent profile performance
+    const isInconsistent = this.consistencyHistory.length > 5 && 
+                         (this.consistencyHistory.reduce((a, b) => a + b, 0) / this.consistencyHistory.length < 0.4);
+
     // Weighted moving average - give more weight to recent speech but maintain history
     // Use configurable alpha if available, otherwise use default
-    const alpha = config && config.profileUpdateAlpha !== undefined
+    // If inconsistent, temporarily increase learning rate (soft reset)
+    let alpha = config && config.profileUpdateAlpha !== undefined
       ? Math.max(0.01, config.profileUpdateAlpha)
       : Math.max(0.1, 1 / (c + 1));
+    
+    if (isInconsistent) {
+      alpha = Math.min(0.3, alpha * 2); // Faster adaptation if profile is performing poorly
+    }
 
     this.averageFeatures.pitchEstimate = (1 - alpha) * this.averageFeatures.pitchEstimate + alpha * features.pitchEstimate;
     this.averageFeatures.spectralCentroid = (1 - alpha) * this.averageFeatures.spectralCentroid + alpha * features.spectralCentroid;
@@ -332,12 +346,17 @@ class SpeakerProfile {
 
     // Pitch is the most reliable indicator
     const distance = (pitchDiff * 0.6 + spectralDiff * 0.2 + zcrDiff * 0.2);
-    return Math.max(0, 1 - distance);
+    const similarity = Math.max(0, 1 - distance);
+
+    // Track consistency to detect if profile becomes "stale"
+    this.consistencyHistory.push(similarity);
+    if (this.consistencyHistory.length > 10) {
+      this.consistencyHistory.shift();
+    }
+
+    return similarity;
   }
 }
-
-import { detectIntent } from './intentRecognition';
-import { CONVERSATION_CONFIG } from '../config/conversationConfig';
 
 /**
  * Manages conversation turns and speaker identification
@@ -534,9 +553,12 @@ export class ConversationTurnManager {
       threshold = Math.max(this.config.minAdaptiveThreshold, Math.min(this.config.maxAdaptiveThreshold, avgSilence * 0.8));
     }
 
-    // Significantly reduce threshold if current speaker likely yielded
-    if (this.turnYieldConfidence > 0.6) {
-      threshold = Math.min(threshold, this.config.quickResponseThreshold); // Expect a response quickly
+    // Gracefully reduce threshold if current speaker likely yielded
+    // Use weighted interpolation between adaptive threshold and quickResponseThreshold
+    if (this.turnYieldConfidence > 0.3) {
+      const yieldWeight = Math.min(1.0, (this.turnYieldConfidence - 0.3) / 0.7);
+      const yieldInfluencedThreshold = threshold * (1 - yieldWeight) + this.config.quickResponseThreshold * yieldWeight;
+      threshold = Math.min(threshold, yieldInfluencedThreshold);
     }
 
     this.adaptiveTurnThreshold = threshold;
