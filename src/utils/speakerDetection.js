@@ -47,12 +47,12 @@ export const analyzeSpeakerCharacteristics = (audioData, previousAudioData = nul
 
     // Weighted combination of differences to estimate speaker change likelihood
     // Pitch is given highest weight as it's most distinctive between speakers
-    speakerChangeLikelihood = (volumeDiff * 0.1 +
-                              pitchDiff * 0.4 +
-                              spectralDiff * 0.15 +
-                              zeroCrossingDiff * 0.1 +
-                              energyDiff * 0.1 +
-                              formantDiff * 0.15) / 100;
+    speakerChangeLikelihood = (volumeDiff * 0.05 +
+                              pitchDiff * 0.6 +
+                              spectralDiff * 0.2 +
+                              zeroCrossingDiff * 0.05 +
+                              energyDiff * 0.05 +
+                              formantDiff * 0.05) / 100;
 
     // Calculate confidence based on feature stability
     const featureStability = calculateFeatureStability(features, prevFeatures);
@@ -497,7 +497,7 @@ export class ConversationTurnManager {
     if (!this.noiseFloorEstimator) {
       this.noiseFloorEstimator = {
         samples: [],
-        windowSize: 100
+        windowSize: 40 // Reduced from 100 for faster adaptation
       };
     }
 

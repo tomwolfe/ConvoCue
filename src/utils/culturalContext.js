@@ -365,6 +365,52 @@ export const checkCulturalInappropriateness = (phrase, targetCulture) => {
 };
 
 /**
+ * Get social nuance tips based on detected triggers
+ * @param {string} text - Input text to analyze
+ * @returns {string} Social nuance tips
+ */
+export const getSocialNuanceTips = (text) => {
+  const lowerText = text.toLowerCase();
+  let tips = '';
+
+  // Check empathy triggers
+  culturalContextDatabase.socialNuance.empathy.forEach(item => {
+    if (lowerText.includes(item.trigger)) {
+      tips += `Empathy Tip: ${item.suggestion} `;
+    }
+  });
+
+  // Check social anxiety triggers
+  culturalContextDatabase.socialNuance.socialAnxiety.forEach(item => {
+    if (lowerText.includes(item.trigger)) {
+      tips += `Social Tip: ${item.suggestion} `;
+    }
+  });
+
+  // Check conflict triggers
+  culturalContextDatabase.socialNuance.conflict.forEach(item => {
+    if (lowerText.includes(item.trigger)) {
+      tips += `Conflict Tip: ${item.suggestion} `;
+    }
+  });
+
+  return tips.trim();
+};
+
+/**
+ * Get high-stakes tips for a specific category
+ * @param {string} category - 'negotiation' or 'leadership'
+ * @returns {string} High-stakes tips
+ */
+export const getHighStakesTips = (category) => {
+  const highStakes = culturalContextDatabase.highStakes[category];
+  if (!highStakes) return '';
+
+  // Return top 3 tips for the category
+  return `High-Stakes ${category.charAt(0).toUpperCase() + category.slice(1)}: ${highStakes.slice(0, 3).join(' ')}`;
+};
+
+/**
  * Get language learning support for a specific language
  * @param {string} language - Target language
  * @returns {object} Language learning support information

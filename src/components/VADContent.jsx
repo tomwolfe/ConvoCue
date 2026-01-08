@@ -10,6 +10,7 @@ import SocialSuccessScore from './SocialSuccessScore';
 import { getMergedPersonas } from '../utils/preferences';
 import { submitSubtleModeFeedback } from '../utils/feedback';
 import { parseSemanticTags } from '../utils/intentRecognition';
+import performanceMonitor from '../utils/performance';
 
 const GlanceWidget = ({ suggestion, emotionData, isProcessing }) => {
   const [feedbackGiven, setFeedbackGiven] = useState(false);
@@ -323,20 +324,23 @@ const VADContent = ({
   }, [suggestion, isProcessing, isSubtleMode]);
 
   const onSpeechEnd = useCallback((audio) => {
+    const startTime = performance.now();
     try {
       if (!isVADModeRef.current && vadRef.current) vadRef.current.pause();
       if (processAudioRef.current) {
         // Create a copy of the audio data for local processing (speaker detection)
-        // This is CRITICAL because the original buffer will be transferred (and thus detached)
-        // when passed to the worker via processAudioRef.current(audio)
         const audioArray = audio instanceof Float32Array ? audio : new Float32Array(Object.values(audio));
         const audioCopy = new Float32Array(audioArray);
         
         // Process the audio through conversation turn manager
-        processConversationTurn(audioCopy, ''); // Empty string for now, text will come from STT
+        processConversationTurn(audioCopy, ''); 
         
-        // Send original audio to worker (buffer will be transferred)
+        // Send original audio to worker
         processAudioRef.current(audio);
+
+        // Record latency
+        const latency = performance.now() - startTime;
+        performanceMonitor.recordValue('vadLatency', latency);
       }
     } catch (err) {
       console.error("Error in onSpeechEnd processing:", err);
@@ -442,6 +446,12 @@ const VADContent = ({
           </span>
         )}
       </div>
+
+      {settings?.showDiagnostics && (
+        <div className="vad-diagnostics">
+          <span>VAD Latency: {performanceMonitor.getAverageTime('vadLatency').toFixed(1)}ms</span>
+        </div>
+      )}
 
       <AudioVisualizer isActive={vad.listening} analyser={vad.analyser} isCompactMode={isCompactMode} />
 

@@ -689,17 +689,44 @@ const removeApologeticLanguage = (response) => {
 };
 
 /**
- * Generates context-aware quick cues for subtle mode using NLP-based intent recognition
+ * Generates context-aware quick cues for subtle mode using NLP-based intent recognition and expert databases
  */
 const generateQuickCue = (response, input, conversationHistory = []) => {
-  // Use the new intent recognition system for more accurate detection
-  const intentBasedCue = generateIntentBasedCue(input, response, conversationHistory);
+  const lowerInput = input.toLowerCase();
+  
+  // 1. Check for High-Stakes Expert Cues first
+  if (lowerInput.includes('negotiate') || lowerInput.includes('price') || lowerInput.includes('contract')) {
+    const highStakes = culturalContextDatabase.highStakes.negotiation;
+    // Map full strategies to short cues
+    if (lowerInput.includes('no')) return 'Avoid "No"';
+    if (lowerInput.includes('how')) return 'Calibrated Q';
+    return 'Strategic Silence';
+  }
 
+  if (lowerInput.includes('boss') || lowerInput.includes('lead') || lowerInput.includes('meeting')) {
+    if (lowerInput.includes('wrong') || lowerInput.includes('problem')) return 'Extreme Ownership';
+    return 'Project Confidence';
+  }
+
+  // 2. Check for Social Nuance triggers
+  const nuances = culturalContextDatabase.socialNuance;
+  for (const category in nuances) {
+    for (const item of nuances[category]) {
+      if (lowerInput.includes(item.trigger)) {
+        // Extract a 1-3 word cue from the suggestion
+        const words = item.suggestion.split(' ').slice(0, 3).join(' ');
+        return words.charAt(0).toUpperCase() + words.slice(1);
+      }
+    }
+  }
+
+  // 3. Fallback to the new intent recognition system
+  const intentBasedCue = generateIntentBasedCue(input, response, conversationHistory);
   if (intentBasedCue) {
     return intentBasedCue;
   }
 
-  // Fallback to simple keyword matching if intent recognition doesn't return a cue
+  // 4. Fallback to simple keyword matching if intent recognition doesn't return a cue
   const quickCues = {
     greeting: ['Hi', 'Hello', 'Hey', 'Wave', 'Smile', 'Warmly'],
     question: ['Ask', 'Clarify', 'Follow up', 'Probe', 'Inquire', 'Investigate', 'Query'],
@@ -717,14 +744,10 @@ const generateQuickCue = (response, input, conversationHistory = []) => {
     default: ['Pause', 'Think', 'Consider', 'Reflect', 'Hmm', 'Observe']
   };
 
-  const lowerInput = input.toLowerCase();
   const lowerResponse = response.toLowerCase();
-
   const selectRandom = (cat) => quickCues[cat][Math.floor(Math.random() * quickCues[cat].length)];
 
   if (lowerInput.includes('no') && (lowerInput.includes('wrong') || lowerInput.includes('disagree'))) return selectRandom('conflict');
-  if (lowerInput.includes('negotiate') || lowerInput.includes('boss') || lowerInput.includes('interview')) return selectRandom('strategic');
-  if (lowerInput.includes('anxious') || lowerInput.includes('nervous') || lowerInput.includes('stressed')) return selectRandom('emotion');
   if (lowerInput.includes('hello') || lowerInput.includes('hi')) return selectRandom('greeting');
   if (lowerInput.includes('?') || lowerInput.includes('what') || lowerInput.includes('how')) return selectRandom('question');
 

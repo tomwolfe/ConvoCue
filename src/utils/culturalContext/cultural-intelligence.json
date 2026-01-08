@@ -17,23 +17,37 @@
     "empathy": [
       { "trigger": "problem", "suggestion": "Instead of fixing it, try: \"That sounds really tough, I hear you.\"" },
       { "trigger": "sad", "suggestion": "Acknowledge the feeling: \"It makes sense that you feel that way.\"" },
-      { "trigger": "angry", "suggestion": "Stay calm and validate: \"I can see this is important to you.\"" }
+      { "trigger": "angry", "suggestion": "Stay calm and validate: \"I can see this is important to you.\"" },
+      { "trigger": "loss", "suggestion": "Offer simple presence: \"I'm so sorry you're going through this. I'm here for you.\"" },
+      { "trigger": "overwhelmed", "suggestion": "Validate and pause: \"It sounds like there's a lot on your plate right now. Take your time.\"" }
+    ],
+    "socialAnxiety": [
+      { "trigger": "silence", "suggestion": "Low-pressure observation: \"It's a nice atmosphere here, isn't it?\"" },
+      { "trigger": "introduction", "suggestion": "Simple bridge: \"I don't think we've met yet, I'm [Name].\"" },
+      { "trigger": "exit", "suggestion": "Graceful departure: \"It was great chatting, I'm going to go grab a drink/circulate a bit.\"" },
+      { "trigger": "compliment", "suggestion": "Accept and deflect: \"Thank you, that's very kind of you to say! How about you?\"" }
     ],
     "conflict": [
       { "trigger": "you always", "suggestion": "Use \"I\" statements: \"I feel overwhelmed when...\" instead of \"You always...\"" },
-      { "trigger": "shut up", "suggestion": "Request space: \"I need a moment to process this so we can talk calmly.\"" }
+      { "trigger": "shut up", "suggestion": "Request space: \"I need a moment to process this so we can talk calmly.\"" },
+      { "trigger": "blame", "suggestion": "Redirect to solution: \"I understand we have different views. How can we move forward together?\"" },
+      { "trigger": "defensive", "suggestion": "De-escalate: \"I'm not trying to attack you, I just want to understand your perspective.\"" }
     ]
   },
   "highStakes": {
     "negotiation": [
       "Avoid saying \"no\" directly; try \"That might be difficult under current constraints.\"",
-      "Use silence as a tool after making an offer.",
-      "Ask open-ended questions to understand their \"why\"."
+      "Use silence as a tool after making an offer—let the other party speak first.",
+      "Ask open-ended questions like \"What does success look like for you in this deal?\"",
+      "Label their emotions: \"It seems like you're concerned about the timeline.\"",
+      "Use 'Calibrated Questions': \"How am I supposed to do that?\" to invite them to solve your problem."
     ],
     "leadership": [
-      "Instead of \"I think\", use \"My recommendation is\".",
-      "Acknowledge the team's effort before critiquing.",
-      "Clear is kind: be explicit about expectations."
+      "Instead of \"I think\", use \"My recommendation is\" to project confidence.",
+      "Acknowledge the team's effort before critiquing specific outcomes.",
+      "Clear is kind: be explicit about expectations and deadlines.",
+      "Ask \"What's the one thing I can do to support you right now?\"",
+      "Practice 'Extreme Ownership': start by identifying what you could have done better."
     ]
   }
 }

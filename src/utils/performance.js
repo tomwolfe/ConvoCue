@@ -12,9 +12,25 @@ class PerformanceMonitor {
       speakerDetectionTime: [],
       sentimentAnalysisTime: [],
       llmProcessingTime: [],
+      vadLatency: [],
       memoryUsage: []
     };
     this.startTime = null;
+  }
+
+  /**
+   * Record a direct value for a metric
+   * @param {string} operation - Name of the metric
+   * @param {number} value - Value to record
+   */
+  recordValue(operation, value) {
+    if (!this.metrics[operation]) {
+      this.metrics[operation] = [];
+    }
+    this.metrics[operation].push(value);
+    if (this.metrics[operation].length > 100) {
+      this.metrics[operation] = this.metrics[operation].slice(-100);
+    }
   }
 
   /**

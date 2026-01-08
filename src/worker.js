@@ -5,7 +5,9 @@ import {
     getCulturalPromptTips,
     getLanguageLearningPromptTips,
     getProfessionalPromptTips,
-    detectCulturalContext
+    detectCulturalContext,
+    getSocialNuanceTips,
+    getHighStakesTips
 } from './utils/culturalContext';
 import {
     ConversationTurnManager
@@ -303,6 +305,19 @@ self.onmessage = async (event) => {
                 // Add Cultural Context Tips
                 if (effectiveCulturalContext && effectiveCulturalContext !== 'general') {
                     contextInstruction += getCulturalPromptTips(effectiveCulturalContext);
+                }
+
+                // Add Social Nuance and High-Stakes Tips
+                const socialTips = getSocialNuanceTips(sanitizedText);
+                if (socialTips) {
+                    contextInstruction += `Social Tips: ${socialTips} `;
+                }
+
+                if (persona === 'meeting' || persona === 'professional') {
+                    const highStakesCategory = sanitizedText.toLowerCase().includes('negotiate') || sanitizedText.toLowerCase().includes('price') 
+                        ? 'negotiation' 
+                        : 'leadership';
+                    contextInstruction += getHighStakesTips(highStakesCategory);
                 }
 
                 // Add Persona-specific Contextual Tips

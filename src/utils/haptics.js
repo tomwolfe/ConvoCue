@@ -34,18 +34,18 @@ export const provideHapticFeedback = (suggestion) => {
 
   const { tags } = parseSemanticTags(suggestion);
   const lowerSuggestion = suggestion.toLowerCase();
-  let pattern = VIBRATION_PATTERNS.SUCCESS;
+  let pattern = VIBRATION_PATTERNS.SUGGESTION;
 
   // Prioritize patterns based on tags
-  if (tags.some(t => t.key === 'conflict') || lowerSuggestion.includes('de-escalate')) {
+  if (tags.some(t => t.key === 'conflict') || lowerSuggestion.includes('de-escalate') || lowerSuggestion.includes('[conflict]')) {
     pattern = VIBRATION_PATTERNS.CONFLICT;
-  } else if (tags.some(t => t.key === 'action') || lowerSuggestion.includes('follow up')) {
+  } else if (tags.some(t => t.key === 'action') || lowerSuggestion.includes('follow up') || lowerSuggestion.includes('[action item]')) {
     pattern = VIBRATION_PATTERNS.ACTION;
-  } else if (tags.some(t => t.key === 'strategic') || lowerSuggestion.includes('[negotiation]')) {
+  } else if (tags.some(t => t.key === 'strategic') || lowerSuggestion.includes('[strategic]') || lowerSuggestion.includes('[negotiation]')) {
     pattern = VIBRATION_PATTERNS.TRANSITION;
-  } else if (tags.some(t => t.key === 'social') || lowerSuggestion.includes('[natural phrasing]')) {
+  } else if (tags.some(t => t.key === 'social') || lowerSuggestion.includes('[social tip]') || lowerSuggestion.includes('[natural phrasing]')) {
     pattern = VIBRATION_PATTERNS.SUGGESTION;
-  } else if (tags.some(t => t.key === 'empathy') || lowerSuggestion.includes('understand') || lowerSuggestion.includes('feel')) {
+  } else if (tags.some(t => t.key === 'empathy') || lowerSuggestion.includes('[empathy]') || lowerSuggestion.includes('understand') || lowerSuggestion.includes('feel')) {
     pattern = VIBRATION_PATTERNS.EMPATHY;
   } else if (lowerSuggestion.includes('smile') || lowerSuggestion.includes('great') || lowerSuggestion.includes('good')) {
     pattern = VIBRATION_PATTERNS.SUCCESS;
