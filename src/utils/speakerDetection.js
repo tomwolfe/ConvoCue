@@ -326,6 +326,8 @@ class SpeakerProfile {
   }
 }
 
+import { detectIntent } from './intentRecognition';
+
 /**
  * Manages conversation turns and speaker identification
  */
@@ -347,6 +349,7 @@ export class ConversationTurnManager {
       user: new SpeakerProfile('user'),
       other: new SpeakerProfile('other')
     };
+    this.turnYieldConfidence = 0; // Likelihood the current speaker has yielded
   }
 
   /**
@@ -363,39 +366,70 @@ export class ConversationTurnManager {
     const speakerAnalysis = analyzeSpeakerCharacteristics(audioData, this.lastAudioData);
     this.lastAudioData = audioData;
 
-    // Update adaptive threshold based on conversation dynamics
+    // Analyze intent for turn-yielding signals if we have text
+    if (detectedText) {
+      const intent = detectIntent(detectedText);
+      if (intent === 'question' || detectedText.trim().endsWith('?')) {
+        this.turnYieldConfidence = 0.8; // High likelihood of turn change after a question
+      } else if (intent === 'greeting' && this.turns.length < 2) {
+        this.turnYieldConfidence = 0.5;
+      } else {
+        this.turnYieldConfidence = Math.max(0, this.turnYieldConfidence - 0.1);
+      }
+    }
+
+    // Update adaptive threshold based on conversation dynamics and intent
     this.updateAdaptiveThreshold(currentTime, isSilent);
 
     // Determine if this is likely a new speaker with confidence scoring
     const isLikelyNewSpeaker = speakerAnalysis.isLikelyNewSpeaker;
-    const confidenceScore = speakerAnalysis.confidenceScore;
+    const speakerConfidence = speakerAnalysis.confidenceScore;
 
     // Check if enough time has passed to consider a new turn
     const timeSinceLastSpeech = currentTime - this.lastSpeechTime;
-    const shouldStartNewTurn = timeSinceLastSpeech > this.adaptiveTurnThreshold || (isLikelyNewSpeaker && confidenceScore > 0.5);
+    
+    // Logic for ending turn:
+    // 1. Silent longer than threshold
+    // 2. High confidence speaker change detected
+    // 3. User yielded turn (intent) AND some silence or moderate speaker change confidence
+    const shouldStartNewTurn = 
+      timeSinceLastSpeech > this.adaptiveTurnThreshold || 
+      (isLikelyNewSpeaker && speakerConfidence > 0.6) ||
+      (this.turnYieldConfidence > 0.7 && timeSinceLastSpeech > 500) ||
+      (this.turnYieldConfidence > 0.5 && isLikelyNewSpeaker && speakerConfidence > 0.3);
 
     if (!isSilent) {
       this.lastSpeechTime = currentTime;
     }
 
-    // Determine speaker role using profiles
+    // Determine speaker role using profiles and turn-yielding bias
     const userSimilarity = this.profiles.user.getSimilarity(speakerAnalysis.features);
     const otherSimilarity = this.profiles.other.getSimilarity(speakerAnalysis.features);
 
     let speakerRole = this.lastSpeaker;
 
     if (shouldStartNewTurn) {
-      // If similarity to one profile is significantly higher, assign that role
-      if (Math.abs(userSimilarity - otherSimilarity) > 0.15) {
-        speakerRole = userSimilarity > otherSimilarity ? 'user' : 'other';
-      } else if (isLikelyNewSpeaker && confidenceScore > 0.4) {
-        // Fallback to toggling if we are confident it changed but profiles are similar
+      // Apply turn-yielding bias: if user likely yielded, bias towards 'other'
+      const biasToOther = (this.lastSpeaker === 'user') ? this.turnYieldConfidence * 0.2 : 0;
+      const biasToUser = (this.lastSpeaker === 'other') ? this.turnYieldConfidence * 0.2 : 0;
+
+      const adjustedUserSim = userSimilarity + biasToUser;
+      const adjustedOtherSim = otherSimilarity + biasToOther;
+
+      if (Math.abs(adjustedUserSim - adjustedOtherSim) > 0.1) {
+        speakerRole = adjustedUserSim > adjustedOtherSim ? 'user' : 'other';
+      } else if (isLikelyNewSpeaker && speakerConfidence > 0.4) {
         speakerRole = this.lastSpeaker === 'user' ? 'other' : 'user';
+      }
+      
+      // Reset yielding confidence when a turn actually changes
+      if (speakerRole !== this.lastSpeaker) {
+        this.turnYieldConfidence = 0;
       }
     }
 
-    // Update the profile for the detected speaker
-    if (!isSilent) {
+    // Update the profile for the detected speaker - only if confidence is reasonable
+    if (!isSilent && speakerConfidence > 0.2) {
       this.profiles[speakerRole].update(speakerAnalysis.features);
     }
 
@@ -414,7 +448,7 @@ export class ConversationTurnManager {
         text: detectedText,
         audioFeatures: speakerAnalysis.features,
         isLikelyNewSpeaker: isLikelyNewSpeaker,
-        confidenceScore: confidenceScore,
+        confidenceScore: speakerConfidence,
         messages: detectedText ? [{ role: speakerRole, content: detectedText, timestamp: currentTime }] : []
       };
     } else if (detectedText) {
@@ -433,9 +467,10 @@ export class ConversationTurnManager {
       turn: this.currentTurn,
       isLikelyNewSpeaker,
       speakerChangeLikelihood: speakerAnalysis.speakerChangeLikelihood,
-      confidenceScore: confidenceScore,
+      confidenceScore: speakerConfidence,
       userSimilarity,
-      otherSimilarity
+      otherSimilarity,
+      turnYieldConfidence: this.turnYieldConfidence
     };
   }
   
@@ -460,17 +495,22 @@ export class ConversationTurnManager {
     }
 
     // Calculate adaptive threshold based on recent conversation patterns
+    let threshold = this.baseTurnThreshold;
+
     if (this.silenceHistory.length > 0) {
       const recentSilences = this.silenceHistory.slice(-5); // Look at last 5 silences
       const avgSilence = recentSilences.reduce((sum, s) => sum + s.duration, 0) / recentSilences.length;
 
       // Adjust threshold: shorter for fast-paced conversations, longer for slower ones
-      // But stay within reasonable bounds (500ms to 3000ms)
-      this.adaptiveTurnThreshold = Math.max(500, Math.min(3000, avgSilence * 0.8));
-    } else {
-      // If no silence history, use base threshold
-      this.adaptiveTurnThreshold = this.baseTurnThreshold;
+      threshold = Math.max(500, Math.min(3000, avgSilence * 0.8));
     }
+
+    // Significantly reduce threshold if current speaker likely yielded
+    if (this.turnYieldConfidence > 0.6) {
+      threshold = Math.min(threshold, 600); // Expect a response quickly
+    }
+
+    this.adaptiveTurnThreshold = threshold;
   }
 
   /**
