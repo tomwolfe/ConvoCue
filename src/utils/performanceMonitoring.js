@@ -230,19 +230,24 @@ export const measureLatency = async (fn, ...args) => {
  */
 export const monitorConversationFlow = (turnManager) => {
   const diagnostics = turnManager.getDiagnostics();
-  
-  // Calculate flow score based on various factors
+
+  // Calculate actual duration from session start time
+  const currentTime = Date.now();
+  const durationMs = currentTime - diagnostics.sessionStartTime;
+  const durationSec = Math.max(0.001, durationMs / 1000); // Prevent division by zero
+
+  // Calculate flow score based on various factors using time-based rates
   // Higher score means better flow (less stuttering, more natural turn-taking)
-  const stutterRate = diagnostics.speakerChangesDetected / Math.max(1, diagnostics.totalAudioFramesProcessed / 1000);
-  const yieldRate = diagnostics.turnYieldsDetected / Math.max(1, diagnostics.totalAudioFramesProcessed / 1000);
-  
+  const stutterRate = diagnostics.speakerChangesDetected / durationSec;
+  const yieldRate = diagnostics.turnYieldsDetected / durationSec;
+
   // Normalize rates to 0-1 scale (assuming reasonable upper bounds)
   const normalizedStutter = Math.max(0, 1 - (stutterRate / 0.1)); // Assume 0.1 as max acceptable stutter rate
   const normalizedYield = Math.min(1, yieldRate / 0.05); // Assume 0.05 as ideal yield rate
-  
+
   // Weight the components (stuttering has higher negative impact)
   const flowScore = (normalizedStutter * 0.7) + (normalizedYield * 0.3);
-  
+
   performanceTracker.recordConversationFlow(flowScore);
   return flowScore;
 };
@@ -267,9 +272,12 @@ export const recordMemoryUsage = (turnManager) => {
 /**
  * Records turn stutter rate based on diagnostics
  * @param {Object} diagnostics - Diagnostics from turn manager
+ * @param {number} durationMs - Duration in milliseconds over which to calculate stutter rate
  */
-export const recordTurnStutterRate = (diagnostics) => {
-  // Calculate stutter rate as ratio of speaker changes to time
-  const stutterRate = diagnostics.speakerChangesDetected / Math.max(1, diagnostics.totalAudioFramesProcessed / 1000);
+export const recordTurnStutterRate = (diagnostics, durationMs = 1000) => {
+  // Calculate stutter rate as ratio of speaker changes to time (in seconds)
+  // Using time-based calculation instead of frame count to avoid frame-rate dependency
+  const durationSec = Math.max(0.001, durationMs / 1000); // Prevent division by zero
+  const stutterRate = diagnostics.speakerChangesDetected / durationSec;
   performanceTracker.recordTurnStutterRate(stutterRate);
 };

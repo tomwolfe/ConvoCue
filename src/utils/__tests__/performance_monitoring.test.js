@@ -60,7 +60,7 @@ describe('Performance Monitoring Features', () => {
       errorsEncountered: 0
     };
 
-    recordTurnStutterRate(diagnostics);
+    recordTurnStutterRate(diagnostics, 10000); // 10 seconds duration
 
     const tracker = getPerformanceTracker();
     const metrics = tracker.getMetrics();

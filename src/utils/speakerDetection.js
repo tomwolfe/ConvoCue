@@ -4,6 +4,7 @@
 
 import { detectIntent } from './intentRecognition';
 import { CONVERSATION_CONFIG, validateConfig } from '../config/conversationConfig';
+import { analyzeTurnYieldBias } from './biasMonitoring';
 
 /**
  * Analyzes audio characteristics to distinguish between speakers
@@ -415,7 +416,8 @@ export class ConversationTurnManager {
       totalAudioFramesProcessed: 0,
       speakerChangesDetected: 0,
       turnYieldsDetected: 0,
-      errorsEncountered: 0
+      errorsEncountered: 0,
+      sessionStartTime: Date.now() // Track when diagnostics collection started
     };
   }
 
@@ -438,17 +440,20 @@ export class ConversationTurnManager {
       this.lastAudioData = audioData;
 
       // Analyze intent for turn-yielding signals if we have text
+      let wasYieldDetected = false;
       if (detectedText) {
         const intent = detectIntent(detectedText);
         if (intent === 'question' || detectedText.trim().endsWith('?')) {
           this.turnYieldConfidence = 0.8; // High likelihood of turn change after a question
           this.diagnostics.turnYieldsDetected++;
+          wasYieldDetected = true;
         } else if (intent === 'greeting' && this.turns.length < 2) {
           this.turnYieldConfidence = 0.5;
         } else if (this.isTurnYieldingIntent(intent, detectedText)) {
           // Additional turn-yielding intents beyond question and greeting
           this.turnYieldConfidence = 0.7; // High likelihood of turn change
           this.diagnostics.turnYieldsDetected++;
+          wasYieldDetected = true;
         } else {
           this.turnYieldConfidence = Math.max(0, this.turnYieldConfidence - this.config.yieldConfidenceDecay);
         }
@@ -520,6 +525,36 @@ export class ConversationTurnManager {
         // Reset yielding confidence when a turn actually changes
         if (speakerRole !== this.lastSpeaker) {
           this.turnYieldConfidence = 0;
+
+          // Perform bias analysis when a turn change occurs due to yield
+          if (wasYieldDetected) {
+            analyzeTurnYieldBias(
+              speakerAnalysis.features,
+              true, // wasYield (turn actually changed)
+              this.config
+            );
+          }
+        } else {
+          // Even if no turn change occurred, analyze for potential bias if yield was detected
+          // This helps identify cases where the system detected a yield but didn't change turns
+          // (e.g., when speaker continues talking despite yielding signals)
+          if (wasYieldDetected) {
+            analyzeTurnYieldBias(
+              speakerAnalysis.features,
+              false, // wasYield (no turn change occurred)
+              this.config
+            );
+          }
+        }
+      } else {
+        // If no new turn started but yield was detected, analyze for potential bias
+        // This could indicate a false positive in yield detection
+        if (wasYieldDetected) {
+          analyzeTurnYieldBias(
+            speakerAnalysis.features,
+            false, // wasYield (no turn change occurred)
+            this.config
+          );
         }
       }
 
