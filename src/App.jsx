@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Mic, Loader2, Volume2, AlertCircle, Activity, ThumbsUp, ThumbsDown, BookOpen, Settings as SettingsIcon, Layout as LayoutIcon, ChevronDown } from 'lucide-react';
+import { Mic, Loader2, Volume2, AlertCircle, Activity, ThumbsUp, ThumbsDown, BookOpen, Settings as SettingsIcon, Layout as LayoutIcon, ChevronDown, EyeOff } from 'lucide-react';
 import { Analytics } from '@vercel/analytics/react';
 import { useMLWorker } from './hooks/useMLWorker';
 import VADContent from './components/VADContent';
@@ -235,7 +235,7 @@ const App = () => {
                       <Activity size={16} /> Compact Mode
                     </button>
                     <button onClick={() => { setIsSubtleMode(!isSubtleMode); setShowViewMenu(false); }} className={isSubtleMode ? 'active' : ''}>
-                      <span>✨</span> Subtle Mode
+                      <EyeOff size={16} /> Subtle Mode
                     </button>
                     <button onClick={() => { setIsDyslexicFriendly(!isDyslexicFriendly); setShowViewMenu(false); }} className={isDyslexicFriendly ? 'active' : ''}>
                       Abc Dyslexic Font
