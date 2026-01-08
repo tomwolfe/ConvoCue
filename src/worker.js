@@ -43,6 +43,8 @@ class MLPipeline {
     static instance = null;
     static stt = null;
     static llm = null;
+    static sttPromise = null;
+    static llmPromise = null;
     static lastUsed = Date.now();
     static inactivityTimer = null;
 
@@ -54,7 +56,10 @@ class MLPipeline {
     }
 
     async loadSTT(progress_callback) {
-        if (!MLPipeline.stt) {
+        if (MLPipeline.stt) return;
+        if (MLPipeline.sttPromise) return MLPipeline.sttPromise;
+
+        MLPipeline.sttPromise = (async () => {
             try {
                 MLPipeline.stt = await pipeline('automatic-speech-recognition', AppConfig.models.stt.name, {
                     progress_callback,
@@ -63,11 +68,15 @@ class MLPipeline {
                 });
             } catch (err) {
                 console.error("STT Load Failed:", err);
+                MLPipeline.sttPromise = null;
                 throw err;
+            } finally {
+                MLPipeline.lastUsed = Date.now();
+                this.resetInactivityTimer();
             }
-        }
-        MLPipeline.lastUsed = Date.now();
-        this.resetInactivityTimer();
+        })();
+
+        return MLPipeline.sttPromise;
     }
 
     async loadLLM(progress_callback) {
@@ -83,7 +92,10 @@ class MLPipeline {
             return;
         }
 
-        if (!MLPipeline.llm) {
+        if (MLPipeline.llm) return;
+        if (MLPipeline.llmPromise) return MLPipeline.llmPromise;
+
+        MLPipeline.llmPromise = (async () => {
             try {
                 // Signal that we are starting to load heavy model
                 self.postMessage({ type: 'status', status: 'Loading Social Brain...' });
@@ -95,13 +107,16 @@ class MLPipeline {
                 });
             } catch (err) {
                 console.error("LLM Load Failed:", err);
-                // Try to recover by clearing cache or signaling error
                 self.postMessage({ type: 'error', error: 'Social Brain failed to load. Try refreshing.' });
+                MLPipeline.llmPromise = null;
                 throw err;
+            } finally {
+                MLPipeline.lastUsed = Date.now();
+                this.resetInactivityTimer();
             }
-        }
-        MLPipeline.lastUsed = Date.now();
-        this.resetInactivityTimer();
+        })();
+
+        return MLPipeline.llmPromise;
     }
 
     resetInactivityTimer() {
@@ -127,9 +142,11 @@ class MLPipeline {
                     }
                 }
                 MLPipeline.llm = null;
+                MLPipeline.llmPromise = null;
             } catch (e) {
                 console.error("Error during LLM disposal:", e);
                 MLPipeline.llm = null;
+                MLPipeline.llmPromise = null;
             }
         }
     }
