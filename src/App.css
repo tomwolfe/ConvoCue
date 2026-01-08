@@ -998,6 +998,71 @@ input:checked + .slider:before {
 }
 
 .explanation-icon {
+
+/* Emotional Analysis Consent Modal Styles */
+.emotional-analysis-consent-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.8);
+  z-index: 10000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+.emotional-analysis-consent-modal {
+  background: white;
+  border-radius: 12px;
+  max-width: 500px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  padding: 25px;
+}
+
+.emotional-analysis-consent-modal h3 {
+  margin-top: 0;
+  color: #333;
+}
+
+.consent-warning {
+  background-color: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 8px;
+  padding: 15px;
+  margin: 15px 0;
+  color: #856404;
+}
+
+.consent-buttons {
+  display: flex;
+  gap: 10px;
+  margin: 20px 0;
+  justify-content: space-between;
+}
+
+.crisis-resources {
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: 8px;
+  padding: 15px;
+  margin-top: 15px;
+}
+
+.crisis-resources ul {
+  margin: 10px 0;
+  padding-left: 20px;
+}
+
+.crisis-resources a {
+  color: #721c24;
+  text-decoration: underline;
+}
   color: var(--accent);
   margin-top: 2px;
   flex-shrink: 0;
@@ -1485,3 +1550,69 @@ input:checked + .slider:before {
   background: #fee2e2;
 }
 
+
+
+/* Emotional Analysis Consent Modal Styles */
+.emotional-analysis-consent-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.8);
+  z-index: 10000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+.emotional-analysis-consent-modal {
+  background: white;
+  border-radius: 12px;
+  max-width: 500px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  padding: 25px;
+}
+
+.emotional-analysis-consent-modal h3 {
+  margin-top: 0;
+  color: #333;
+}
+
+.consent-warning {
+  background-color: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 8px;
+  padding: 15px;
+  margin: 15px 0;
+  color: #856404;
+}
+
+.consent-buttons {
+  display: flex;
+  gap: 10px;
+  margin: 20px 0;
+  justify-content: space-between;
+}
+
+.crisis-resources {
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: 8px;
+  padding: 15px;
+  margin-top: 15px;
+}
+
+.crisis-resources ul {
+  margin: 10px 0;
+  padding-left: 20px;
+}
+
+.crisis-resources a {
+  color: #721c24;
+  text-decoration: underline;
+}

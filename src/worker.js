@@ -19,6 +19,10 @@ import {
     analyzeRelationshipCoaching,
     generateRelationshipCoachingPrompt
 } from './utils/relationshipCoaching';
+import {
+    analyzeAnxietyCoaching,
+    generateAnxietyCoachingPrompt
+} from './utils/anxietyCoaching';
 import { estimateConversationSize, logPerformanceMetric } from './utils/performanceMonitoring';
 
 // Configuration for on-device execution
@@ -287,8 +291,13 @@ self.onmessage = async (event) => {
             const emotionData = analyzeEmotion(sanitizedText);
 
             // Enhanced relationship coaching analysis for relationship persona
-            const relationshipInsights = persona === 'relationship' || persona === 'anxiety'
+            const relationshipInsights = persona === 'relationship'
                 ? analyzeRelationshipCoaching(sanitizedText, history, emotionData)
+                : null;
+
+            // Enhanced anxiety coaching analysis for anxiety persona
+            const anxietyInsights = persona === 'anxiety'
+                ? analyzeAnxietyCoaching(sanitizedText, history, emotionData)
                 : null;
 
             // Cached System Prompt Generation
@@ -336,11 +345,19 @@ self.onmessage = async (event) => {
                     contextInstruction += getProfessionalPromptTips(persona === 'meeting' ? 'business' : 'academic');
                 }
 
-                // Enhanced relationship coaching for relationship-focused personas
-                if (relationshipInsights && (persona === 'relationship' || persona === 'anxiety')) {
+                // Enhanced relationship coaching for relationship persona
+                if (relationshipInsights && persona === 'relationship') {
                     const relationshipPrompt = generateRelationshipCoachingPrompt(relationshipInsights, persona);
                     if (relationshipPrompt) {
                         contextInstruction += relationshipPrompt + " ";
+                    }
+                }
+
+                // Enhanced anxiety coaching for anxiety persona
+                if (anxietyInsights && persona === 'anxiety') {
+                    const anxietyPrompt = generateAnxietyCoachingPrompt(anxietyInsights);
+                    if (anxietyPrompt) {
+                        contextInstruction += anxietyPrompt + " ";
                     }
                 }
 

@@ -5,8 +5,18 @@
 import { analyzeEmotion } from './emotion';
 import { analyzeConversationSentiment } from './sentimentAnalysis';
 
+// Cache for relationship coaching analysis results
+const analysisCache = new Map();
+
+// Generate a cache key based on text and conversation history
+const generateCacheKey = (text, conversationHistory, emotionData) => {
+  const historyKey = conversationHistory ? JSON.stringify(conversationHistory.map(h => h.content || h)) : '';
+  const emotionKey = emotionData ? JSON.stringify(emotionData) : '';
+  return `${text.substring(0, 50)}-${historyKey.substring(0, 100)}-${emotionKey.substring(0, 50)}`;
+};
+
 /**
- * Enhanced relationship coaching analysis
+ * Enhanced relationship coaching analysis with caching
  * @param {string} text - The text to analyze
  * @param {Array} conversationHistory - Array of conversation messages
  * @param {Object} emotionData - Pre-analyzed emotion data
@@ -21,6 +31,14 @@ export const analyzeRelationshipCoaching = (text, conversationHistory = [], emot
       relationshipInsights: [],
       suggestedResponseTypes: []
     };
+  }
+
+  // Generate cache key
+  const cacheKey = generateCacheKey(text, conversationHistory, emotionData);
+
+  // Check if result is already cached
+  if (analysisCache.has(cacheKey)) {
+    return analysisCache.get(cacheKey);
   }
 
   // Analyze emotions if not provided
@@ -44,13 +62,22 @@ export const analyzeRelationshipCoaching = (text, conversationHistory = [], emot
   // Suggest response types
   const suggestedResponseTypes = suggestResponseTypes(text, emotionAnalysis, conversationContext);
 
-  return {
+  const result = {
     empathyLevel,
     activeListeningOpportunities,
     emotionalValidationNeeded,
     relationshipInsights,
     suggestedResponseTypes
   };
+
+  // Cache the result (limit cache size to prevent memory issues)
+  if (analysisCache.size >= 50) {
+    const firstKey = analysisCache.keys().next().value;
+    analysisCache.delete(firstKey);
+  }
+  analysisCache.set(cacheKey, result);
+
+  return result;
 };
 
 /**
@@ -325,7 +352,7 @@ const determineConversationStage = (conversationHistory) => {
  */
 export const generateRelationshipCoachingPrompt = (relationshipInsights, currentPersona = 'relationship') => {
   const { empathyLevel, activeListeningOpportunities, emotionalValidationNeeded, suggestedResponseTypes } = relationshipInsights;
-  
+
   let promptAdditions = '';
 
   // Add empathy considerations
@@ -359,6 +386,11 @@ export const generateRelationshipCoachingPrompt = (relationshipInsights, current
   // Specific guidance based on persona
   if (currentPersona === 'relationship') {
     promptAdditions += 'Focus on building connection, showing understanding, and using "I" statements to express your own feelings appropriately. ';
+  }
+
+  // Add ethical disclaimer for emotional support features
+  if (currentPersona === 'relationship' || currentPersona === 'anxiety') {
+    promptAdditions += 'IMPORTANT DISCLAIMER: This is not a substitute for professional mental health services. If someone is in crisis, encourage them to seek professional help or contact emergency services. ';
   }
 
   return promptAdditions.trim();

@@ -8,6 +8,7 @@ import {
 } from './culturalContext';
 import { generateIntentBasedCue, detectIntentWithContext } from './intentRecognition';
 import { analyzeRelationshipCoaching, generateRelationshipCoachingPrompt } from './relationshipCoaching';
+import { analyzeAnxietyCoaching, generateAnxietyCoachingPrompt } from './anxietyCoaching';
 
 /**
  * Gets user's preferred response patterns based on feedback history
@@ -290,12 +291,18 @@ export const enhanceResponse = async (response, persona, emotionData = null, inp
       const prev = enhancedResponse;
       enhancedResponse = applyLanguageLearningSupport(enhancedResponse, input, targetLanguage);
       if (prev !== enhancedResponse) transformations.push('language_learning');
-    } else if (persona === 'relationship' || persona === 'anxiety') {
-      // Apply enhanced relationship coaching for both relationship and anxiety personas
+    } else if (persona === 'relationship') {
+      // Apply enhanced relationship coaching for relationship persona
       const relationshipInsights = await analyzeRelationshipCoaching(input, conversationHistory, emotionData);
       const prev = enhancedResponse;
       enhancedResponse = await applyRelationshipCoaching(enhancedResponse, input, relationshipInsights, persona);
       if (prev !== enhancedResponse) transformations.push('relationship_coaching');
+    } else if (persona === 'anxiety') {
+      // Apply anxiety-specific coaching for anxiety persona
+      const anxietyInsights = await analyzeAnxietyCoaching(input, conversationHistory, emotionData);
+      const prev = enhancedResponse;
+      enhancedResponse = await applyAnxietyCoaching(enhancedResponse, input, anxietyInsights, persona);
+      if (prev !== enhancedResponse) transformations.push('anxiety_coaching');
     } else if (persona === 'professional' || persona === 'meeting') {
       const prev = enhancedResponse;
       enhancedResponse = applyProfessionalInsights(enhancedResponse, input);
@@ -462,6 +469,65 @@ const applyRelationshipCoaching = async (response, input, relationshipInsights, 
       enhancedResponse = `I'm here for you. ${enhancedResponse}`;
     }
   }
+
+  // Add ethical disclaimer for emotional support features
+  if (persona === 'relationship' || persona === 'anxiety') {
+    enhancedResponse += " Remember, I'm not a substitute for professional mental health services.";
+  }
+
+  return enhancedResponse;
+};
+
+/**
+ * Applies anxiety-specific coaching to responses
+ */
+const applyAnxietyCoaching = async (response, input, anxietyInsights, persona) => {
+  let enhancedResponse = response;
+
+  // Apply anxiety level considerations
+  if (anxietyInsights.anxietyLevel === 'high') {
+    enhancedResponse = `I can understand you're feeling anxious. ${enhancedResponse}`;
+  } else if (anxietyInsights.anxietyLevel === 'medium') {
+    enhancedResponse = `It's normal to feel concerned about this. ${enhancedResponse}`;
+  }
+
+  // Apply anxiety trigger considerations
+  for (const trigger of anxietyInsights.anxietyTriggers) {
+    if (trigger.type === 'future_worry' && !enhancedResponse.toLowerCase().includes('focus on now')) {
+      enhancedResponse = `Let's focus on the present moment rather than hypotheticals. ${enhancedResponse}`;
+    } else if (trigger.type === 'social_anxiety' && !enhancedResponse.toLowerCase().includes('others are kind')) {
+      enhancedResponse = `Most people are more understanding than we imagine. ${enhancedResponse}`;
+    }
+  }
+
+  // Apply reassurance if needed
+  if (anxietyInsights.reassuranceNeeded && !enhancedResponse.toLowerCase().includes('your feelings')) {
+    enhancedResponse = `Your feelings are completely valid and understandable. ${enhancedResponse}`;
+  }
+
+  // Apply coping strategies
+  if (anxietyInsights.copingStrategies.length > 0) {
+    const primaryStrategy = anxietyInsights.copingStrategies[0];
+
+    if (primaryStrategy.type === 'breathing' && !enhancedResponse.toLowerCase().includes('breathe')) {
+      enhancedResponse = `Take a moment to breathe deeply. ${enhancedResponse}`;
+    } else if (primaryStrategy.type === 'grounding' && !enhancedResponse.toLowerCase().includes('present')) {
+      enhancedResponse = `Try to ground yourself in the present moment. ${enhancedResponse}`;
+    } else if (primaryStrategy.type === 'cognitive_restructuring' && !enhancedResponse.toLowerCase().includes('another way')) {
+      enhancedResponse = `Is there another way to look at this situation? ${enhancedResponse}`;
+    }
+  }
+
+  // Add anxiety-specific support
+  if (persona === 'anxiety') {
+    // For anxiety persona, emphasize support and practical coping
+    if (!enhancedResponse.toLowerCase().includes('support') && !enhancedResponse.toLowerCase().includes('here for you')) {
+      enhancedResponse += " I'm here for you and supporting you through this.";
+    }
+  }
+
+  // Add ethical disclaimer for anxiety support
+  enhancedResponse += " Remember, I'm not a substitute for professional mental health services.";
 
   return enhancedResponse;
 };
