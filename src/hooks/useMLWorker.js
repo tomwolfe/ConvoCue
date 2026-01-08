@@ -128,7 +128,7 @@ export const useMLWorker = () => {
               const words = cleanText.split(' ');
               const isShort = words.length < 3;
               const hasMeaningfulCue = /^(yes|no|agree|exactly|right|thanks|thank you|sorry|hello|hi|hey|bye|goodbye|what|why|how|who|where|when|okay|alright|i see|sure|true|cool|wow|oh|really|correct)/i.test(cleanText);
-              
+
               const timeSinceLast = Date.now() - (lastMessageTimeRef.current || 0);
 
               dispatch({ type: 'STT_RESULT', text: cleanText });
@@ -163,6 +163,12 @@ export const useMLWorker = () => {
                   const speakerRole = metadata?.turnInfo?.turn?.speaker || 'user';
                   addMessage(speakerRole, cleanText);
                   dispatch({ type: 'RESET_PROCESSING' });
+
+                  // Reset status after processing if it's still showing transcribing status
+                  if (stateRef.current.status.startsWith('Transcribing') ||
+                      stateRef.current.status.startsWith('Listening to you')) {
+                      dispatch({ type: 'SET_STATUS', status: 'Ready' });
+                  }
               }
               break;
             }
@@ -171,14 +177,14 @@ export const useMLWorker = () => {
               break;
             case 'llm_result': {
               const enhanced = await enhanceResponse(
-                text, 
-                stateRef.current.persona, 
-                emotionData, 
-                stateRef.current.transcript, 
+                text,
+                stateRef.current.persona,
+                emotionData,
+                stateRef.current.transcript,
                 historyRef.current
               );
               dispatch({ type: 'LLM_RESULT', text: enhanced, emotionData });
-              
+
               if (event.data.conversationSentiment) {
                 setSentiment(event.data.conversationSentiment);
               }
@@ -187,10 +193,21 @@ export const useMLWorker = () => {
                 addMessage('assistant', enhanced);
               }
               provideHapticFeedback(enhanced);
+
+              // Ensure status is properly reset after processing
+              if (stateRef.current.status.startsWith('Processing') ||
+                  stateRef.current.status.startsWith('Listening') ||
+                  stateRef.current.status.startsWith('Analyzing')) {
+                dispatch({ type: 'SET_STATUS', status: 'Ready' });
+              }
               break;
             }
             case 'error':
               dispatch({ type: 'SET_ERROR', error: event.data.error });
+              // Reset status after a delay to allow user to see the error
+              setTimeout(() => {
+                dispatch({ type: 'SET_STATUS', status: 'Ready' });
+              }, 2000);
               break;
           }
         } catch (err) {

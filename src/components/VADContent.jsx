@@ -324,10 +324,10 @@ const VADContent = ({
         // Create a copy of the audio data for local processing (speaker detection)
         const audioArray = audio instanceof Float32Array ? audio : new Float32Array(Object.values(audio));
         const audioCopy = new Float32Array(audioArray);
-        
+
         // Process the audio through conversation turn manager
-        processConversationTurn(audioCopy, ''); 
-        
+        processConversationTurn(audioCopy, '');
+
         // Send original audio to worker
         processAudioRef.current(audio);
 
@@ -338,6 +338,14 @@ const VADContent = ({
     } catch (err) {
       console.error("Error in onSpeechEnd processing:", err);
       setStatus('Processing Error');
+      // Reset status after a delay to allow user to see the error
+      setTimeout(() => {
+        if (!isVADModeRef.current) {
+          setStatus('Ready');
+        } else {
+          setStatus('Heartbeat Active');
+        }
+      }, 2000);
     }
   }, [setStatus]);
 
@@ -404,7 +412,12 @@ const VADContent = ({
       setVadError(null);
       vad.start();
       setIsVADMode(true);
-      setStatus('Heartbeat Active');
+      // Use a slight delay to ensure VAD is properly initialized before setting status
+      setTimeout(() => {
+        if (vad.listening) {
+          setStatus('Heartbeat Active');
+        }
+      }, 100);
     }
   };
 
@@ -417,7 +430,12 @@ const VADContent = ({
       handleClear();
       setVadError(null);
       vad.start();
-      setStatus('Listening...');
+      // Use a slight delay to ensure VAD is properly initialized before setting status
+      setTimeout(() => {
+        if (vad.listening) {
+          setStatus('Listening...');
+        }
+      }, 100);
     }
   };
 
@@ -439,11 +457,12 @@ const VADContent = ({
         )}
         {!showMinimalUI && (
           <span>
-            {(vad.errored || vadError) ? `Mic Error` : 
-             (vad.loading ? "Warming up..." : 
+            {(vad.errored || vadError) ? `Mic Error` :
+             (vad.loading ? "Warming up..." :
               (processingStep === 'transcribing' ? "Listening to you..." :
-               (processingStep === 'thinking' ? "Thinking of a cue..." : 
-                (status === 'Ready' && isVADMode ? 'Heartbeat Active' : status))))}
+               (processingStep === 'thinking' ? "Thinking of a cue..." :
+                (status.includes('Processing Error') ? status :
+                 (status === 'Ready' && isVADMode ? 'Heartbeat Active' : status)))))}
           </span>
         )}
       </div>
