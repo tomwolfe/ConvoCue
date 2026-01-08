@@ -19,7 +19,7 @@ The review identified the following key strengths:
 ### Priority 1: Configuration Documentation and Management (High Impact, Low Effort)
 - [COMPLETED] Document rationale for production configuration differences
 - [COMPLETED] Ensure all configuration parameters are properly implemented
-- [COMPLETED] Add terminology clarification for "bias" parameter
+- [COMPLETED] Add terminology clarification for "bias" parameter (renamed to "weighting factor")
 
 ### Priority 2: Intent Recognition Enhancement (High Impact, Medium Effort)
 - [COMPLETED] Verify intent recognition implementation is complete and visible

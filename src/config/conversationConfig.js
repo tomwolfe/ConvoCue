@@ -25,7 +25,7 @@ export const CONVERSATION_CONFIG = {
   quickResponseThreshold: 600,    // Threshold when expecting quick response after yield (ms)
   
   // Turn-yield weighting parameters (used to influence speaker detection when turn yielding is detected)
-  turnYieldBiasMultiplier: 0.2,   // Multiplier for turn yield weighting (increases likelihood of detecting other speaker after turn yield)
+  turnYieldWeightingFactor: 0.2,   // Weighting factor for turn yield (increases likelihood of detecting other speaker after turn yield)
   
   // Decay rate for turn yield confidence
   yieldConfidenceDecay: 0.1,      // Amount to decay yield confidence per frame

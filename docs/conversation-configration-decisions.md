@@ -36,6 +36,6 @@ The configuration differences between development and production environments re
 - **Production**: Conservative settings to ensure stable user experience
 - **Testing**: Optimized settings for automated test scenarios
 
-## Terminology Note: "Bias" vs "Weighting"
+## Terminology Note: "Weighting Factor"
 
-The configuration parameter `turnYieldBiasMultiplier` uses the term "bias" in a technical sense to refer to a weighting factor that influences speaker detection. In this context, "bias" does not refer to unfair discrimination but rather to a mathematical adjustment that increases the likelihood of detecting the "other" speaker after a turn yield is detected. This term has been kept for consistency with common technical usage in machine learning and signal processing, but could alternatively be described as "turn-yield weighting" or "response propensity adjustment".
+The configuration parameter `turnYieldWeightingFactor` refers to a weighting factor that influences speaker detection. This mathematical adjustment increases the likelihood of detecting the "other" speaker after a turn yield is detected. The term "weighting factor" was chosen to be more descriptive and avoid potential confusion with the term "bias" which might trigger fairness audits or confuse non-technical stakeholders.

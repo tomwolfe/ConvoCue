@@ -66,7 +66,14 @@ export const analyzeSpeakerCharacteristics = (audioData, previousAudioData = nul
     isLikelyNewSpeaker: speakerChangeLikelihood > 0.3, // Threshold for considering it a new speaker
     confidenceScore: confidence
   };
-};
+}
+
+/**
+ * Explanation of confidence vs likelihood:
+ * - speakerChangeLikelihood: Raw probability that speaker has changed based on audio features
+ * - isLikelyNewSpeaker: Boolean derived from speakerChangeLikelihood using a threshold (0.3)
+ * - confidenceScore: Quality measure of the speaker detection based on feature stability
+ */
 
 /**
  * Calculates Root Mean Square (RMS) of audio data
@@ -431,12 +438,12 @@ export class ConversationTurnManager {
     let speakerRole = this.lastSpeaker;
 
     if (shouldStartNewTurn) {
-      // Apply turn-yielding bias: if user likely yielded, bias towards 'other'
-      const biasToOther = (this.lastSpeaker === 'user') ? this.turnYieldConfidence * this.config.turnYieldBiasMultiplier : 0;
-      const biasToUser = (this.lastSpeaker === 'other') ? this.turnYieldConfidence * this.config.turnYieldBiasMultiplier : 0;
+      // Apply turn-yielding weighting: if user likely yielded, weight towards 'other'
+      const weightToOther = (this.lastSpeaker === 'user') ? this.turnYieldConfidence * this.config.turnYieldWeightingFactor : 0;
+      const weightToUser = (this.lastSpeaker === 'other') ? this.turnYieldConfidence * this.config.turnYieldWeightingFactor : 0;
 
-      const adjustedUserSim = userSimilarity + biasToUser;
-      const adjustedOtherSim = otherSimilarity + biasToOther;
+      const adjustedUserSim = userSimilarity + weightToUser;
+      const adjustedOtherSim = otherSimilarity + weightToOther;
 
       if (Math.abs(adjustedUserSim - adjustedOtherSim) > this.config.speakerSimilarityThreshold) {
         speakerRole = adjustedUserSim > adjustedOtherSim ? 'user' : 'other';
@@ -729,6 +736,39 @@ export class ConversationTurnManager {
    */
   updateLastSpeaker(speaker) {
     this.lastSpeaker = speaker;
+  }
+
+  /**
+   * Get memory usage statistics for the conversation manager
+   * @returns {object} Memory usage information
+   */
+  getMemoryUsage() {
+    // Calculate approximate memory usage
+    const turnCount = this.turns.length;
+    const turnHistorySize = JSON.stringify(this.turns).length;
+    const profileSize = JSON.stringify(this.profiles).length;
+
+    // Estimate in bytes
+    const estimatedBytes = turnHistorySize + profileSize;
+
+    return {
+      turnCount,
+      turnHistorySize: turnHistorySize,
+      profileSize: profileSize,
+      estimatedBytes,
+      estimatedMB: parseFloat((estimatedBytes / (1024 * 1024)).toFixed(2)),
+      warning: estimatedBytes > 50 * 1024 * 1024 // 50MB warning
+    };
+  }
+
+  /**
+   * Cleans up old turns to manage memory usage
+   * @param {number} maxTurns - Maximum number of turns to keep (default: 20)
+   */
+  cleanupMemory(maxTurns = 20) {
+    if (this.turns.length > maxTurns) {
+      this.turns = this.turns.slice(-maxTurns);
+    }
   }
 }
 

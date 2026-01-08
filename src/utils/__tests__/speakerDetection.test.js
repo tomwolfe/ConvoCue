@@ -110,16 +110,16 @@ describe('ConversationTurnManager - Enhanced Features', () => {
     manager.profiles.user.getSimilarity = global.jest.fn(() => 0.6);
     manager.profiles.other.getSimilarity = global.jest.fn(() => 0.55);
     
-    // Apply bias calculation manually to test
+    // Apply weighting calculation manually to test
     const userSimilarity = 0.6;
     const otherSimilarity = 0.55;
-    const biasToOther = (manager.lastSpeaker === 'user') ? manager.turnYieldConfidence * manager.config.turnYieldBiasMultiplier : 0;
-    const biasToUser = (manager.lastSpeaker === 'other') ? manager.turnYieldConfidence * manager.config.turnYieldBiasMultiplier : 0;
-    
-    const adjustedUserSim = userSimilarity + biasToUser; // 0.6 + 0 = 0.6
-    const adjustedOtherSim = otherSimilarity + biasToOther; // 0.55 + (0.8 * 0.2) = 0.55 + 0.16 = 0.71
-    
-    expect(adjustedOtherSim).toBeGreaterThan(adjustedUserSim); // Bias should favor 'other' speaker
+    const weightToOther = (manager.lastSpeaker === 'user') ? manager.turnYieldConfidence * manager.config.turnYieldWeightingFactor : 0;
+    const weightToUser = (manager.lastSpeaker === 'other') ? manager.turnYieldConfidence * manager.config.turnYieldWeightingFactor : 0;
+
+    const adjustedUserSim = userSimilarity + weightToUser; // 0.6 + 0 = 0.6
+    const adjustedOtherSim = otherSimilarity + weightToOther; // 0.55 + (0.8 * 0.2) = 0.55 + 0.16 = 0.71
+
+    expect(adjustedOtherSim).toBeGreaterThan(adjustedUserSim); // Weighting should favor 'other' speaker
   });
 
   test('should decay turn yield confidence appropriately', () => {
@@ -168,11 +168,64 @@ describe('ConversationTurnManager - Enhanced Features', () => {
   });
 });
 
+import { detectIntent } from '../intentRecognition';
+
 describe('Intent Recognition Enhancement', () => {
-  // These tests would validate the new intent categories added to intentRecognition.js
   test('should recognize new intent categories', () => {
-    // This would require importing and testing the detectIntent function
-    // with examples of the new intent categories
-    expect(true).toBe(true); // Placeholder - actual tests would go here
+    expect(detectIntent('I see what you mean')).toBe('acknowledgment');
+    expect(detectIntent('Uh-huh')).toBe('backchannel');
+    expect(detectIntent('You\'re right about that')).toBe('concession');
+    expect(detectIntent('Go ahead and continue')).toBe('invitation');
+    expect(detectIntent('Anyway, let me add')).toBe('transition');
+    expect(detectIntent('Let me think about this')).toBe('pause_indicators');
+  });
+
+  test('should handle turn-yielding phrases correctly', () => {
+    const manager = new ConversationTurnManager();
+
+    expect(manager.isTurnYieldingIntent(null, 'Go ahead and tell me more')).toBe(true);
+    expect(manager.isTurnYieldingIntent(null, 'What do you think about this?')).toBe(true);
+    expect(manager.isTurnYieldingIntent(null, 'Over to you now')).toBe(true);
+    expect(manager.isTurnYieldingIntent(null, 'That sounds interesting')).toBe(false);
+  });
+
+  test('should differentiate between similar intents', () => {
+    expect(detectIntent('exactly right')).toBe('acknowledgment'); // Changed from agreement
+    expect(detectIntent('yes I agree')).toBe('agreement');
+    expect(detectIntent('absolutely')).toBe('agreement');
+  });
+
+  test('should monitor memory usage appropriately', () => {
+    const manager = new ConversationTurnManager();
+
+    // Add some mock turns to test memory tracking
+    manager.turns = [
+      { id: 1, text: 'Test turn 1', speaker: 'user' },
+      { id: 2, text: 'Test turn 2', speaker: 'other' },
+      { id: 3, text: 'Test turn 3', speaker: 'user' }
+    ];
+
+    const memoryInfo = manager.getMemoryUsage();
+
+    expect(memoryInfo.turnCount).toBe(3);
+    expect(memoryInfo.estimatedBytes).toBeGreaterThan(0);
+    expect(memoryInfo.estimatedMB).toBeGreaterThanOrEqual(0);
+    expect(typeof memoryInfo.warning).toBe('boolean');
+  });
+
+  test('should cleanup memory when exceeding limits', () => {
+    const manager = new ConversationTurnManager();
+
+    // Add more turns than the default limit
+    for (let i = 0; i < 25; i++) {
+      manager.turns.push({ id: i, text: `Test turn ${i}`, speaker: i % 2 === 0 ? 'user' : 'other' });
+    }
+
+    expect(manager.turns.length).toBe(25);
+
+    // Cleanup memory to default limit (20)
+    manager.cleanupMemory();
+
+    expect(manager.turns.length).toBe(20);
   });
 });
