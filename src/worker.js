@@ -15,6 +15,10 @@ import {
 import {
     analyzeConversationSentiment
 } from './utils/sentimentAnalysis';
+import {
+    analyzeRelationshipCoaching,
+    generateRelationshipCoachingPrompt
+} from './utils/relationshipCoaching';
 import { estimateConversationSize, logPerformanceMetric } from './utils/performanceMonitoring';
 
 // Configuration for on-device execution
@@ -282,6 +286,11 @@ self.onmessage = async (event) => {
             const sanitizedText = _text.trim().substring(0, AppConfig.system.maxTranscriptLength);
             const emotionData = analyzeEmotion(sanitizedText);
 
+            // Enhanced relationship coaching analysis for relationship persona
+            const relationshipInsights = persona === 'relationship' || persona === 'anxiety'
+                ? analyzeRelationshipCoaching(sanitizedText, history, emotionData)
+                : null;
+
             // Cached System Prompt Generation
             const isSubtleMode = _settings?.isSubtleMode || preferences?.isSubtleMode;
             const profileHash = communicationProfile ? communicationProfile.length : 0;
@@ -314,8 +323,8 @@ self.onmessage = async (event) => {
                 }
 
                 if (persona === 'meeting' || persona === 'professional') {
-                    const highStakesCategory = sanitizedText.toLowerCase().includes('negotiate') || sanitizedText.toLowerCase().includes('price') 
-                        ? 'negotiation' 
+                    const highStakesCategory = sanitizedText.toLowerCase().includes('negotiate') || sanitizedText.toLowerCase().includes('price')
+                        ? 'negotiation'
                         : 'leadership';
                     contextInstruction += getHighStakesTips(highStakesCategory);
                 }
@@ -327,6 +336,14 @@ self.onmessage = async (event) => {
                     contextInstruction += getProfessionalPromptTips(persona === 'meeting' ? 'business' : 'academic');
                 }
 
+                // Enhanced relationship coaching for relationship-focused personas
+                if (relationshipInsights && (persona === 'relationship' || persona === 'anxiety')) {
+                    const relationshipPrompt = generateRelationshipCoachingPrompt(relationshipInsights, persona);
+                    if (relationshipPrompt) {
+                        contextInstruction += relationshipPrompt + " ";
+                    }
+                }
+
                 if (isSubtleMode) {
                     contextInstruction += "SUBTLE MODE ACTIVE: Provide ONLY extremely brief, context-aware Quick Cues (1-5 words). No full sentences. Examples: 'Pause', 'Smile', 'Ask', 'Consider', 'Hmm'. ";
                 } else if (preferences) {
@@ -334,7 +351,7 @@ self.onmessage = async (event) => {
                 }
 
                 // Standardized Intent Tagging for Haptics & UI
-                contextInstruction += "IMPORTANT: Always include semantic tags in square brackets for specific cues: [conflict] for de-escalation, [action item] for follow-ups, [strategic] for negotiations, [social tip] for etiquette, [language tip] for phrasing, [empathy] for emotional support. ";
+                contextInstruction += "IMPORTANT: Always include semantic tags in square brackets for specific cues: [conflict] for de-escalation, [action item] for follow-ups, [strategic] for negotiations, [social tip] for etiquette, [language tip] for phrasing, [empathy] for emotional support. [empathy] tags are especially important for relationship coaching. ";
 
                 cachedSystemPrompt = {
                     key: promptKey,

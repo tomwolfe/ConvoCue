@@ -7,6 +7,7 @@ import {
   getCommunicationStyleForCulture
 } from './culturalContext';
 import { generateIntentBasedCue, detectIntentWithContext } from './intentRecognition';
+import { analyzeRelationshipCoaching, generateRelationshipCoachingPrompt } from './relationshipCoaching';
 
 /**
  * Gets user's preferred response patterns based on feedback history
@@ -289,16 +290,18 @@ export const enhanceResponse = async (response, persona, emotionData = null, inp
       const prev = enhancedResponse;
       enhancedResponse = applyLanguageLearningSupport(enhancedResponse, input, targetLanguage);
       if (prev !== enhancedResponse) transformations.push('language_learning');
-    } else if (persona === 'relationship') {
+    } else if (persona === 'relationship' || persona === 'anxiety') {
+      // Apply enhanced relationship coaching for both relationship and anxiety personas
+      const relationshipInsights = await analyzeRelationshipCoaching(input, conversationHistory, emotionData);
       const prev = enhancedResponse;
-      enhancedResponse = applySocialNuance(enhancedResponse, input);
-      if (prev !== enhancedResponse) transformations.push('social_nuance');
+      enhancedResponse = await applyRelationshipCoaching(enhancedResponse, input, relationshipInsights, persona);
+      if (prev !== enhancedResponse) transformations.push('relationship_coaching');
     } else if (persona === 'professional' || persona === 'meeting') {
       const prev = enhancedResponse;
       enhancedResponse = applyProfessionalInsights(enhancedResponse, input);
       if (prev !== enhancedResponse) transformations.push('professional_insights');
     }
-    
+
     // Apply cultural refinement if a specific culture is detected or set
     const targetCulture = options.culturalContext || 'general';
     if (targetCulture !== 'general') {
@@ -408,12 +411,68 @@ const applyLanguageLearningSupport = (response, input, language = 'english') => 
 };
 
 /**
+ * Applies enhanced relationship coaching to responses
+ */
+const applyRelationshipCoaching = async (response, input, relationshipInsights, persona) => {
+  let enhancedResponse = response;
+
+  // Apply empathy level considerations
+  if (relationshipInsights.empathyLevel === 'high') {
+    enhancedResponse = `I can really understand how that feels. ${enhancedResponse}`;
+  } else if (relationshipInsights.empathyLevel === 'medium') {
+    enhancedResponse = `I hear what you're saying. ${enhancedResponse}`;
+  }
+
+  // Apply active listening opportunities
+  for (const opportunity of relationshipInsights.activeListeningOpportunities) {
+    if (opportunity.type === 'reflect_emotion' && !enhancedResponse.toLowerCase().includes('i can see')) {
+      enhancedResponse = `I can see you're feeling ${opportunity.description.split(' ')[2] || 'that way'}. ${enhancedResponse}`;
+    } else if (opportunity.type === 'validate' && !enhancedResponse.toLowerCase().includes('that makes sense')) {
+      enhancedResponse = `That makes complete sense. ${enhancedResponse}`;
+    }
+  }
+
+  // Apply emotional validation if needed
+  if (relationshipInsights.emotionalValidationNeeded && !enhancedResponse.toLowerCase().includes('your feelings')) {
+    enhancedResponse = `Your feelings are completely valid. ${enhancedResponse}`;
+  }
+
+  // Apply persona-specific relationship coaching
+  if (persona === 'relationship') {
+    // For relationship persona, emphasize connection and understanding
+    if (!enhancedResponse.toLowerCase().includes('connection') && !enhancedResponse.toLowerCase().includes('understanding')) {
+      enhancedResponse += " This helps strengthen our connection.";
+    }
+  } else if (persona === 'anxiety') {
+    // For anxiety persona, emphasize support and reassurance
+    if (!enhancedResponse.toLowerCase().includes('support') && !enhancedResponse.toLowerCase().includes('here for you')) {
+      enhancedResponse += " I'm here for you and supporting you through this.";
+    }
+  }
+
+  // Apply suggested response types
+  if (relationshipInsights.suggestedResponseTypes.length > 0) {
+    const primarySuggestion = relationshipInsights.suggestedResponseTypes[0];
+
+    if (primarySuggestion.type === 'empathetic' && !enhancedResponse.toLowerCase().includes('understand')) {
+      enhancedResponse = `I understand how you feel. ${enhancedResponse}`;
+    } else if (primarySuggestion.type === 'validation' && !enhancedResponse.toLowerCase().includes('completely understandable')) {
+      enhancedResponse = `That's completely understandable. ${enhancedResponse}`;
+    } else if (primarySuggestion.type === 'supportive' && !enhancedResponse.toLowerCase().includes('here for you')) {
+      enhancedResponse = `I'm here for you. ${enhancedResponse}`;
+    }
+  }
+
+  return enhancedResponse;
+};
+
+/**
  * Applies social nuance enhancements for relationship coaching
  */
 const applySocialNuance = (response, input) => {
   const lowerInput = input.toLowerCase();
   const nuances = culturalContextDatabase.socialNuance;
-  
+
   for (const category in nuances) {
     for (const item of nuances[category]) {
       if (lowerInput.includes(item.trigger)) {

@@ -47,6 +47,8 @@ export const analyzeFeedbackTrends = async (feedbackHistory = null) => {
   const improvementAreas = findImprovementAreas(feedbackHistory);
   const recentImprovementAreas = findImprovementAreas(recentFeedback);
 
+  const preferredPersonas = calculatePersonaPreferences(feedbackHistory);
+
   return {
     overallSatisfaction,
     trendingPreferences,

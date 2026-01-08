@@ -19,7 +19,8 @@ describe('Subtle Mode (Quick Cues)', () => {
     const expectedCues = [
       'Calm', 'Breathe', 'Relax', 'Focus', 'Center', 'Ground', 'Quiet', 'Hmm', 'Unsure', 'Thoughtful', 'Reflect', 'Consider', 'Ponder', 'Wonder',
       'Acknowledge', 'Validate', 'Empathize', 'Listen', 'Support', 'Understand',
-      'Strategic', 'Consider implications', 'Think long-term', 'Plan ahead', 'Evaluate', 'Assess'
+      'Strategic', 'Consider implications', 'Think long-term', 'Plan ahead', 'Evaluate', 'Assess',
+      'Project Confidence'
     ];
     expect(expectedCues).toContain(result);
   });
@@ -42,7 +43,8 @@ describe('Subtle Mode (Quick Cues)', () => {
     
     const strategicCues = [
       'Lean in', 'Hold eye contact', 'Lower volume', 'Slow down', 'Wait for silence', 'Mirror', 'Pause for effect',
-      'Strategic', 'Consider implications', 'Think long-term', 'Plan ahead', 'Evaluate', 'Assess'
+      'Strategic', 'Consider implications', 'Think long-term', 'Plan ahead', 'Evaluate', 'Assess',
+      'Project Confidence'
     ];
     expect(strategicCues).toContain(result);
   });
