@@ -490,8 +490,8 @@ header.compact .subtitle {
 .suggestion-feedback {
   display: flex;
   gap: 0.5rem;
-  padding: 0 1.5rem 1rem;
-  margin-top: -0.5rem;
+  padding: 0.5rem 1.5rem 1rem;
+  margin-top: 0.25rem;
   justify-content: flex-end;
 }
 
@@ -522,16 +522,6 @@ header.compact .subtitle {
 #suggestion-content.compact-text {
   font-size: 1.125rem;
   padding: 1rem;
-}
-
-/* Glance Widget Update */
-.glance-widget {
-  background: white;
-  padding: 1.5rem;
-  border-radius: 24px;
-  box-shadow: var(--shadow-lg);
-  border-left: 6px solid var(--border);
-  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .glance-suggestion {
