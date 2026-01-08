@@ -54,7 +54,7 @@ const DisplayArea = ({
         <div className="speaker-controls">
           <button
             className={`speaker-toggle ${turn.role === 'user' ? 'active' : ''}`}
-            onClick={() => overrideSpeakerForTurn(turn.id, 'user')}
+            onClick={() => overrideSpeakerForTurn(turn.turnId, 'user')}
             title="Mark as user"
             aria-label="Mark as user"
           >
@@ -62,7 +62,7 @@ const DisplayArea = ({
           </button>
           <button
             className={`speaker-toggle ${turn.role === 'other' ? 'active' : ''}`}
-            onClick={() => overrideSpeakerForTurn(turn.id, 'other')}
+            onClick={() => overrideSpeakerForTurn(turn.turnId, 'other')}
             title="Mark as other"
             aria-label="Mark as other"
           >

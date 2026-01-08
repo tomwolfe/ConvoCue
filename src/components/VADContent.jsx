@@ -361,6 +361,13 @@ const VADContent = ({
     setStatus('Listening...');
   }, [setStatus]);
 
+  const handleClear = useCallback(() => {
+    clearHistory();
+    setTranscript('');
+    setSuggestion('');
+    if (!isProcessing) setStatus('Ready');
+  }, [clearHistory, setTranscript, setSuggestion, isProcessing, setStatus]);
+
   const vad = useMicVAD({
     startOnLoad: false,
     onSpeechStart,
@@ -442,7 +449,8 @@ const VADContent = ({
             {(vad.errored || vadError) ? `Mic Error` : 
              (vad.loading ? "Warming up..." : 
               (processingStep === 'transcribing' ? "Listening to you..." :
-               (processingStep === 'thinking' ? "Thinking of a cue..." : status)))}
+               (processingStep === 'thinking' ? "Thinking of a cue..." : 
+                (status === 'Ready' && isVADMode ? 'Heartbeat Active' : status))))}
           </span>
         )}
       </div>

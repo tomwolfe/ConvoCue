@@ -4,6 +4,7 @@ import { useConversation } from './useConversation';
 import { useAppPreferences } from './useAppPreferences';
 import { getCommunicationProfileSummary } from '../utils/personalization';
 import { provideHapticFeedback } from '../utils/haptics';
+import { resetConversationManager } from '../conversationManager';
 
 const initialState = {
   status: 'Initializing Models...',
@@ -202,7 +203,13 @@ export const useMLWorker = () => {
     } catch {
       dispatch({ type: 'SET_ERROR', error: 'Worker creation failed' });
     }
-  }, [settings, addMessage, setSentiment, updateLastMessageTime, prefsCache]);
+  }, [addMessage, setSentiment, updateLastMessageTime, prefsCache]);
+
+  useEffect(() => {
+    if (worker.current && settings) {
+      worker.current.postMessage({ type: 'update_settings', settings });
+    }
+  }, [settings]);
 
   useEffect(() => {
     return () => {
@@ -272,10 +279,15 @@ export const useMLWorker = () => {
     setPersona: updatePersona,
     setCulturalContext: updateCulturalContext,
     clearHistory: () => {
+      resetConversationManager();
       clearHistory();
       dispatch({ type: 'CLEAR_INTERACTION' });
     },
     resetWorker: initWorker,
-    settings: settings
+    settings: settings,
+    prewarmLLM: useCallback(() => worker.current?.postMessage({ type: 'prewarm_llm' }), []),
+    setTranscript: useCallback((text) => dispatch({ type: 'SET_TRANSCRIPT', text }), []),
+    setSuggestion: useCallback((text) => dispatch({ type: 'SET_SUGGESTION', text }), []),
+    setStatus: useCallback((status) => dispatch({ type: 'SET_STATUS', status }), [])
   };
 };

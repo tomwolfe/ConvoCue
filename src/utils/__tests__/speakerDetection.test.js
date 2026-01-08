@@ -143,7 +143,7 @@ describe('SpeakerProfile - Consistency Tracking', () => {
     // Initialize profile
     profile.update(mockFeatures);
 
-    profile.getSimilarity(mockFeatures);
+    profile.getSimilarity(mockFeatures, null, true);
     expect(profile.consistencyHistory.length).toBe(1);
 
     for (let i = 0; i < 6; i++) {

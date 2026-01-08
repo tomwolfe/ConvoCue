@@ -309,7 +309,8 @@ export const logPerformanceMetric = (metricName, startTime, context) => {
   const duration = endTime - startTime;
 
   // Log to console in development, could be sent to analytics in production
-  if (process.env.NODE_ENV !== 'production') {
+  const isProduction = typeof process !== 'undefined' && process.env ? process.env.NODE_ENV === 'production' : false;
+  if (!isProduction) {
     console.log(`Performance Metric - ${metricName}: ${duration}ms`, context);
   }
 };

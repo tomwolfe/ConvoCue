@@ -198,6 +198,12 @@ const performanceStats = {
 
 // Conversation turn management in worker
 let conversationTurnManager = null;
+let currentWorkerSettings = {
+    enablePersonalization: true,
+    enableSpeakerDetection: true,
+    enableSentimentAnalysis: true,
+    privacyMode: false
+};
 
 const updatePerformanceMode = (time, type) => {
     const list = type === 'audio' ? performanceStats.audioProcessingTimes : performanceStats.llmProcessingTimes;
@@ -227,13 +233,13 @@ self.onmessage = async (event) => {
     const { type, audio, taskId, text: _text, persona, history, communicationProfile, culturalContext, metadata, preferences, settings: _settings } = event.data;
     const pipelineManager = await MLPipeline.getInstance();
 
-    // Determine effective settings (prefer passed settings, fallback to minimal if missing)
-    const settings = _settings || {
-        enablePersonalization: true,
-        enableSpeakerDetection: true,
-        enableSentimentAnalysis: true,
-        privacyMode: false
-    };
+    if (type === 'update_settings' && _settings) {
+        currentWorkerSettings = { ...currentWorkerSettings, ..._settings };
+        return;
+    }
+
+    // Determine effective settings (prefer passed settings, fallback to currentWorkerSettings)
+    const settings = _settings || currentWorkerSettings;
 
     try {
         if (type === 'load') {

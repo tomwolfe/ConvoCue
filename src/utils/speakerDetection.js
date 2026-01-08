@@ -99,7 +99,7 @@ const calculateRMS = (audioData) => {
  * @returns {number} Zero crossing rate
  */
 const calculateZeroCrossingRate = (audioData) => {
-  if (!audioData || audioData.length === 0) return 0;
+  if (!audioData || audioData.length <= 1) return 0;
   let crossings = 0;
   for (let i = 1; i < audioData.length; i++) {
     if ((audioData[i] >= 0 && audioData[i-1] < 0) || (audioData[i] < 0 && audioData[i-1] >= 0)) {
@@ -142,7 +142,7 @@ const calculateFormantFrequencies = (audioData) => {
   // This is a simplified approach - real implementations use LPC
   const fftBins = 256;
   const binWidth = sampleSize / fftBins;
-  if (binWidth === 0) return [0, 0, 0, 0];
+  if (binWidth <= 0) return [0, 0, 0, 0];
 
   // Simulate FFT bins and find peaks
   for (let bin = 1; bin < Math.min(5, fftBins/2); bin++) {
@@ -191,23 +191,23 @@ const calculateFeatureStability = (currentFeatures, previousFeatures) => {
 
   // Volume stability
   const volumeRatio = Math.min(currentFeatures.volume, previousFeatures.volume) /
-                     Math.max(currentFeatures.volume, previousFeatures.volume);
+                     Math.max(currentFeatures.volume, previousFeatures.volume, 0.0001);
   stabilityFactors.push(volumeRatio);
 
   // Pitch stability
   const pitchRatio = Math.min(currentFeatures.pitchEstimate, previousFeatures.pitchEstimate) /
-                   Math.max(currentFeatures.pitchEstimate, previousFeatures.pitchEstimate);
+                   Math.max(currentFeatures.pitchEstimate, previousFeatures.pitchEstimate, 0.0001);
   stabilityFactors.push(pitchRatio);
 
   // Energy stability
   const energyRatio = Math.min(currentFeatures.energy, previousFeatures.energy) /
-                     Math.max(currentFeatures.energy, previousFeatures.energy);
+                     Math.max(currentFeatures.energy, previousFeatures.energy, 0.0001);
   stabilityFactors.push(energyRatio);
 
   // Calculate average stability
   const avgStability = stabilityFactors.reduce((sum, val) => sum + val, 0) / stabilityFactors.length;
 
-  return avgStability;
+  return isNaN(avgStability) ? 0.5 : avgStability;
 };
 
 /**
@@ -346,9 +346,10 @@ class SpeakerProfile {
    * Calculates similarity between new features and this profile (0-1)
    * @param {Object} features - Features to compare
    * @param {Object} config - Configuration object
+   * @param {boolean} trackConsistency - Whether to update consistency history
    * @returns {number} Similarity score
    */
-  getSimilarity(features, config = null) {
+  getSimilarity(features, config = null, trackConsistency = false) {
     if (this.averageFeatures.count === 0) return 0.5;
 
     const pitchDiff = Math.abs(features.pitchEstimate - this.averageFeatures.pitchEstimate) / Math.max(this.averageFeatures.pitchEstimate, 1);
@@ -359,10 +360,12 @@ class SpeakerProfile {
     const distance = (pitchDiff * 0.6 + spectralDiff * 0.2 + zcrDiff * 0.2);
     const similarity = Math.max(0, 1 - distance);
 
-    // Track consistency to detect if profile becomes "stale"
-    this.consistencyHistory.push(similarity);
-    if (this.consistencyHistory.length > 10) {
-      this.consistencyHistory.shift();
+    if (trackConsistency) {
+      // Track consistency to detect if profile becomes "stale"
+      this.consistencyHistory.push(similarity);
+      if (this.consistencyHistory.length > 10) {
+        this.consistencyHistory.shift();
+      }
     }
 
     // If profile is not yet reliable, return neutral similarity
@@ -410,6 +413,8 @@ export class ConversationTurnManager {
     };
     this.turnYieldConfidence = 0; // Likelihood the current speaker has yielded
     this.lastSpeechStartTime = 0; // Track when the current speaker started speaking
+    this.lastAudioData = null;
+    this.noiseFloorEstimator = null;
 
     // Diagnostic tracking
     this.diagnostics = {
@@ -438,6 +443,8 @@ export class ConversationTurnManager {
       // Analyze speaker characteristics
       const speakerAnalysis = analyzeSpeakerCharacteristics(audioData, this.lastAudioData);
       this.lastAudioData = audioData;
+
+      const estimatedSpeaker = this.estimateCurrentSpeaker(speakerAnalysis);
 
       // Analyze intent for turn-yielding signals if we have text
       let wasYieldDetected = false;
@@ -472,12 +479,12 @@ export class ConversationTurnManager {
       // Check if we're in a rejection window (to address race condition)
       const inRejectionWindow = this.lastSpeechStartTime &&
                                 (currentTime - this.lastSpeechStartTime < this.config.rejectionWindowMs) &&
-                                this.lastSpeaker === this.estimateCurrentSpeaker(speakerAnalysis);
+                                this.lastSpeaker === estimatedSpeaker;
 
       // Edge case: Rapid reinterruption handling - detect micro-pauses based on config
       // This distinguishes between true yield and mid-sentence correction
       const isMicroPause = timeSinceLastSpeech < this.config.microPauseThresholdMs && timeSinceLastSpeech > 0;
-      const shouldConsiderMicroPause = isMicroPause && this.lastSpeaker === this.estimateCurrentSpeaker(speakerAnalysis);
+      const shouldConsiderMicroPause = isMicroPause && this.lastSpeaker === estimatedSpeaker;
 
       // Logic for ending turn:
       // 1. Silent longer than threshold
@@ -495,16 +502,16 @@ export class ConversationTurnManager {
 
       if (!isSilent) {
         this.lastSpeechTime = currentTime;
-        // Update speech start time if this is a new speech segment from the same speaker
-        if (this.lastSpeaker !== this.estimateCurrentSpeaker(speakerAnalysis)) {
+        // Update speech start time if this is a new speech segment from a different speaker
+        if (this.lastSpeaker !== estimatedSpeaker) {
           this.lastSpeechStartTime = currentTime;
           this.diagnostics.speakerChangesDetected++;
         }
       }
 
       // Determine speaker role using profiles and turn-yielding bias
-      const userSimilarity = this.profiles.user.getSimilarity(speakerAnalysis.features, this.config);
-      const otherSimilarity = this.profiles.other.getSimilarity(speakerAnalysis.features, this.config);
+      const userSimilarity = this.profiles.user.getSimilarity(speakerAnalysis.features, this.config, true);
+      const otherSimilarity = this.profiles.other.getSimilarity(speakerAnalysis.features, this.config, true);
 
       let speakerRole = this.lastSpeaker;
 
@@ -536,8 +543,6 @@ export class ConversationTurnManager {
           }
         } else {
           // Even if no turn change occurred, analyze for potential bias if yield was detected
-          // This helps identify cases where the system detected a yield but didn't change turns
-          // (e.g., when speaker continues talking despite yielding signals)
           if (wasYieldDetected) {
             analyzeTurnYieldBias(
               speakerAnalysis.features,
@@ -548,7 +553,6 @@ export class ConversationTurnManager {
         }
       } else {
         // If no new turn started but yield was detected, analyze for potential bias
-        // This could indicate a false positive in yield detection
         if (wasYieldDetected) {
           analyzeTurnYieldBias(
             speakerAnalysis.features,
@@ -670,7 +674,7 @@ export class ConversationTurnManager {
     const rms = calculateRMS(audioData);
     // Improved noise floor detection with dynamic threshold
     const baseThreshold = 0.01;
-    const ambientNoiseLevel = this.estimateAmbientNoise(audioData);
+    const ambientNoiseLevel = this.estimateAmbientNoise(audioData, rms);
     const dynamicThreshold = Math.max(baseThreshold, ambientNoiseLevel * 2);
     return rms < dynamicThreshold;
   }
@@ -678,9 +682,10 @@ export class ConversationTurnManager {
   /**
    * Estimates ambient noise level in the audio
    * @param {Float32Array} audioData - Audio data
+   * @param {number} precalculatedRMS - Pre-calculated RMS value
    * @returns {number} Estimated ambient noise level
    */
-  estimateAmbientNoise(audioData) {
+  estimateAmbientNoise(audioData, precalculatedRMS = null) {
     // Calculate a rolling average of the lowest RMS values to estimate ambient noise
     if (!this.noiseFloorEstimator) {
       this.noiseFloorEstimator = {
@@ -689,7 +694,7 @@ export class ConversationTurnManager {
       };
     }
 
-    const rms = calculateRMS(audioData);
+    const rms = precalculatedRMS !== null ? precalculatedRMS : calculateRMS(audioData);
     this.noiseFloorEstimator.samples.push(rms);
 
     // Maintain a sliding window of samples
@@ -728,18 +733,20 @@ export class ConversationTurnManager {
     
     // Add completed turns
     this.turns.forEach(turn => {
-      turn.messages.forEach(message => {
-        history.push({
-          role: message.role,
-          content: message.content,
-          timestamp: message.timestamp,
-          turnId: turn.id
+      if (turn.messages) {
+        turn.messages.forEach(message => {
+          history.push({
+            role: message.role,
+            content: message.content,
+            timestamp: message.timestamp,
+            turnId: turn.id
+          });
         });
-      });
+      }
     });
     
     // Add current turn if it has messages
-    if (this.currentTurn && this.currentTurn.messages.length > 0) {
+    if (this.currentTurn && this.currentTurn.messages && this.currentTurn.messages.length > 0) {
       this.currentTurn.messages.forEach(message => {
         history.push({
           role: message.role,
@@ -761,6 +768,13 @@ export class ConversationTurnManager {
     this.currentTurn = null;
     this.lastSpeaker = 'user';
     this.lastSpeechTime = 0;
+    this.lastSpeechStartTime = 0;
+    this.lastAudioData = null;
+    this.noiseFloorEstimator = null;
+    this.turnYieldConfidence = 0;
+    this.profiles.user = new SpeakerProfile('user');
+    this.profiles.other = new SpeakerProfile('other');
+    this.resetDiagnostics();
   }
 
   /**
