@@ -237,7 +237,11 @@ const App = () => {
                     <button onClick={() => { setIsSubtleMode(!isSubtleMode); setShowViewMenu(false); }} className={isSubtleMode ? 'active' : ''}>
                       <EyeOff size={16} /> Subtle Mode
                     </button>
-                    <button onClick={() => { setIsDyslexicFriendly(!isDyslexicFriendly); setShowViewMenu(false); }} className={isDyslexicFriendly ? 'active' : ''}>
+                    <button
+                      onClick={() => { setIsDyslexicFriendly(!isDyslexicFriendly); setShowViewMenu(false); }}
+                      className={isDyslexicFriendly ? 'active' : ''}
+                      aria-label="Toggle Dyslexic Friendly Font"
+                    >
                       Abc Dyslexic Font
                     </button>
                     <button onClick={() => { showTutorialHandler(); setShowViewMenu(false); }}>

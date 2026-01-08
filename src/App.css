@@ -60,11 +60,17 @@ header.compact .subtitle {
   color: var(--text-muted);
   transition: all 0.2s;
   box-shadow: var(--shadow-sm);
+  font-weight: 600;
 }
 
 .btn-settings:hover {
   border-color: var(--primary);
   color: var(--primary);
+}
+
+.btn-settings:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 .btn-settings.active {
@@ -272,7 +278,7 @@ header.compact .subtitle {
   padding: 1rem;
   border-radius: 14px;
   font-size: 1rem;
-  font-weight: 700;
+  font-weight: 600;
   background: var(--primary);
   color: white;
   border: none;
@@ -288,6 +294,11 @@ header.compact .subtitle {
 .btn-main:hover:not(:disabled) {
   background: var(--primary-light);
   transform: translateY(-1px);
+}
+
+.btn-main:focus-visible:not(:disabled) {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 .btn-main:active:not(:disabled) {
@@ -516,6 +527,11 @@ header.compact .subtitle {
   transform: scale(1.1);
 }
 
+.suggestion-feedback .feedback-btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
 .suggestion-feedback .feedback-btn:active {
   transform: scale(0.95);
 }
@@ -562,6 +578,11 @@ header.compact .subtitle {
   border-color: var(--primary-light);
   color: var(--primary);
   background: #f8fafc;
+}
+
+.btn-control:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 .btn-control.active {
@@ -1047,7 +1068,7 @@ input:checked + .slider:before {
   color: var(--text);
   margin: 0;
   letter-spacing: -0.04em;
-  text-transform: capitalize;
+  text-transform: uppercase;
 }
 
 .glance-indicators {

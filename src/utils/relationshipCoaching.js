@@ -266,7 +266,24 @@ const suggestResponseTypes = (text, emotionAnalysis, conversationContext) => {
   }
 
   // Validation response for vulnerable sharing
+  const vulnerabilityPatterns = [
+    /i feel like.*not good enough/i,
+    /i feel like.*nobody understands/i,
+    /i feel like.*alone/i,
+    /i feel/i,
+    /not good enough/i,
+    /nobody understands/i,
+    /i don't belong/i,
+    /i'm not worthy/i
+  ];
+
   if (confidence > 0.4 && text.toLowerCase().includes('i feel')) {
+    suggestions.push({
+      type: 'validation',
+      description: 'Validate their feelings and experiences',
+      examples: ['Your feelings are completely understandable', 'It makes sense that you feel that way']
+    });
+  } else if (vulnerabilityPatterns.some(pattern => pattern.test(text))) {
     suggestions.push({
       type: 'validation',
       description: 'Validate their feelings and experiences',

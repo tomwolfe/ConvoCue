@@ -87,15 +87,33 @@ describe('App Component', () => {
   it('toggles dyslexic friendly mode', async () => {
     render(<App />);
 
+    // First click the View Options button to open the menu
+    const viewOptionsButton = screen.getByLabelText(/View Options/i);
+    await act(async () => {
+      viewOptionsButton.click();
+    });
+
     const dyslexicToggle = screen.getByLabelText(/Toggle Dyslexic Friendly Font/i);
     expect(dyslexicToggle).toBeInTheDocument();
+
+    // Check initial state (should not be active)
+    expect(dyslexicToggle).not.toHaveClass('active');
 
     // Click the toggle
     await act(async () => {
       dyslexicToggle.click();
     });
 
-    expect(dyslexicToggle).toHaveClass('active');
+    // The menu closes immediately after clicking, so we need to reopen it to check the state
+    await act(async () => {
+      viewOptionsButton.click();
+    });
+
+    // Re-select the dyslexic toggle after reopening the menu
+    const dyslexicToggleAfterClick = screen.getByLabelText(/Toggle Dyslexic Friendly Font/i);
+
+    // Now it should have the active class
+    expect(dyslexicToggleAfterClick).toHaveClass('active');
   });
 });
 
