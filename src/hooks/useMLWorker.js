@@ -126,7 +126,7 @@ export const useMLWorker = () => {
               // Aggregation Logic: Improved to be more inclusive of meaningful short phrases
               const words = cleanText.split(' ');
               const isShort = words.length < 3;
-              const hasMeaningfulCue = /^(yes|no|agree|exactly|right|thanks|thank you|sorry|hello|hi|hey|bye|goodbye|what|why|how|who|where|when)/i.test(cleanText);
+              const hasMeaningfulCue = /^(yes|no|agree|exactly|right|thanks|thank you|sorry|hello|hi|hey|bye|goodbye|what|why|how|who|where|when|okay|alright|i see|sure|true|cool|wow|oh|really|correct)/i.test(cleanText);
               
               const timeSinceLast = Date.now() - (lastMessageTimeRef.current || 0);
 

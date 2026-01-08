@@ -310,7 +310,7 @@ const App = () => {
             {isLowMemory && (
               <div className="warning-box" role="alert">
                 <ShieldAlert size={20} aria-hidden="true" />
-                <p>Low memory detected. AI features may be limited or slower.</p>
+                <p>Low memory detected. AI features may be limited or slower. Try closing other tabs to improve performance.</p>
               </div>
             )}
 

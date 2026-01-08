@@ -388,11 +388,33 @@ export const enhanceResponse = async (response, persona, emotionData = null, inp
     // Allow more expansion for supportive personas which add essential context/disclaimers
     const maxRatio = (persona === 'anxiety' || persona === 'relationship') ? 5.0 : 3.0;
     const minRatio = 0.2;
+    
+    // Use a minimum length threshold to avoid penalizing very short responses (like "Yes")
+    // that naturally need more context/disclaimers to be safe and helpful.
+    const maxAllowedLength = Math.max(150, response.length * maxRatio);
 
-    if (lengthRatio > maxRatio || lengthRatio < minRatio) {
-      console.warn(`Safety valve triggered: Enhancement was too aggressive (Ratio: ${lengthRatio.toFixed(2)}, Max: ${maxRatio}).`);
-      // Instead of failing completely, try to provide a partially enhanced version 
-      // or at least ensure we don't just lose all the good additions if they were intentional.
+    if (enhancedResponse.length > maxAllowedLength || lengthRatio < minRatio) {
+      console.warn(`Safety valve triggered: Enhancement was too aggressive (Length: ${enhancedResponse.length}, Max: ${maxAllowedLength}, Ratio: ${lengthRatio.toFixed(2)}).`);
+      
+      // Attempt partial enhancement for over-length responses
+      if (enhancedResponse.length > maxAllowedLength) {
+        const sentences = enhancedResponse.split(/(?<=[.!?])\s+/);
+        let trimmed = "";
+        for (const sentence of sentences) {
+          if (trimmed.length + sentence.length + 1 <= maxAllowedLength) {
+            trimmed += (trimmed ? " " : "") + sentence;
+          } else {
+            break;
+          }
+        }
+        
+        // If we managed to keep a reasonable amount of enhancement, return it
+        if (trimmed && trimmed.length / response.length >= 1.2) {
+          console.debug(`[ResponseEnhancement] Using partially trimmed enhancement (${trimmed.length} chars).`);
+          return trimmed;
+        }
+      }
+      
       return response;
     }
   }
