@@ -75,29 +75,11 @@ const DisplayArea = ({
 
   return (
     <div className="display-area" role="region" aria-label="Speech processing results">
-      {!showMinimalUI && !isCompactMode && (
-        <div className={`card transcript ${transcript || conversationTurns.length > 0 ? 'visible' : ''}`} role="region" aria-labelledby="transcript-label">
-          <div className="card-header">
-            <label id="transcript-label">Conversation</label>
-            <button className="btn-icon" onClick={handleClear} title="Clear Context">
-              <Trash2 size={14} />
-            </button>
-          </div>
-          <div id="transcript-content">
-            {conversationTurns.length > 0 ? (
-              formattedConversation
-            ) : (
-              <p>{transcript || "Waiting for speech..."}</p>
-            )}
-          </div>
-        </div>
-      )}
-
       <div className={`card suggestion ${suggestion || processingStep === 'thinking' ? 'visible' : ''} ${processingStep === 'thinking' ? 'thinking' : ''} ${isCompactMode ? 'compact-suggestion' : ''} ${showMinimalUI ? 'minimal-suggestion' : ''}`} role="region" aria-labelledby="suggestion-label">
         <div className="card-header">
           {!showMinimalUI && (
             <div className="flex items-center gap-2">
-              <label id="suggestion-label">{AppConfig.models.personas[persona]?.label || 'Cue'}</label>
+              <label id="suggestion-label">{AppConfig.models.personas[persona]?.label || 'Coaching Cue'}</label>
               <div className="glance-indicators">
                 {tags.map((tag) => (
                   <span key={tag.key} className={`glance-badge ${tag.variant}`} title={tag.description}>
@@ -114,14 +96,13 @@ const DisplayArea = ({
                 className="btn-icon"
                 onClick={() => {
                   handleCopy();
-                  // Check if personalization is enabled before submitting feedback
                   if (isPersonalizationEnabled) {
                     submitFeedback(suggestion, 'like', persona, culturalContext, transcript, transcript);
                   }
                 }}
                 title="Copy to clipboard"
               >
-                {copied ? <Check size={14} color="#4CAF50" /> : <Copy size={14} />}
+                {copied ? <Check size={14} color="var(--accent)" /> : <Copy size={14} />}
               </button>
               <button
                 className="btn-icon"
@@ -130,38 +111,51 @@ const DisplayArea = ({
               >
                 <RefreshCw size={14} />
               </button>
-              {isPersonalizationEnabled && (
-                <div className="feedback-buttons">
-                  <button
-                    className="btn-icon feedback-btn"
-                    onClick={() => submitFeedback(suggestion, 'like', persona, culturalContext, transcript, transcript)}
-                    title="Like"
-                  >
-                    <ThumbsUp size={14} />
-                  </button>
-                  <button
-                    className="btn-icon feedback-btn"
-                    onClick={() => submitFeedback(suggestion, 'dislike', persona, culturalContext, transcript, transcript)}
-                    title="Dislike"
-                  >
-                    <ThumbsDown size={14} />
-                  </button>
-                  <button
-                    className="btn-icon feedback-btn"
-                    onClick={() => submitFeedback(suggestion, 'report', persona, culturalContext, transcript, transcript)}
-                    title="Report"
-                  >
-                    <Flag size={14} />
-                  </button>
-                </div>
-              )}
             </div>
           )}
         </div>
-        <p id="suggestion-content" className={isCompactMode ? 'compact-text' : ''}>
-          {cleanText || (processingStep === 'thinking' ? "Thinking..." : "Listening for cues...")}
-        </p>
+        <div id="suggestion-content-wrapper">
+          <p id="suggestion-content" className={isCompactMode ? 'compact-text' : ''}>
+            {cleanText || (processingStep === 'thinking' ? "Thinking..." : "Listening for social cues...")}
+          </p>
+          {!showMinimalUI && suggestion && isPersonalizationEnabled && (
+            <div className="suggestion-feedback">
+               <button
+                  className="btn-icon feedback-btn"
+                  onClick={() => submitFeedback(suggestion, 'like', persona, culturalContext, transcript, transcript)}
+                  title="Helpful"
+                >
+                  <ThumbsUp size={16} />
+                </button>
+                <button
+                  className="btn-icon feedback-btn"
+                  onClick={() => submitFeedback(suggestion, 'dislike', persona, culturalContext, transcript, transcript)}
+                  title="Not helpful"
+                >
+                  <ThumbsDown size={16} />
+                </button>
+            </div>
+          )}
+        </div>
       </div>
+
+      {!showMinimalUI && !isCompactMode && (
+        <div className={`card transcript ${transcript || conversationTurns.length > 0 ? 'visible' : ''}`} role="region" aria-labelledby="transcript-label">
+          <div className="card-header">
+            <label id="transcript-label">Recent Context</label>
+            <button className="btn-icon" onClick={handleClear} title="Clear Context">
+              <Trash2 size={14} />
+            </button>
+          </div>
+          <div id="transcript-content">
+            {conversationTurns.length > 0 ? (
+              formattedConversation
+            ) : (
+              <p>{transcript || "Waiting for speech..."}</p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

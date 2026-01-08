@@ -14,7 +14,7 @@ const ControlPanel = ({
   return (
     <div className="controls" role="group" aria-label="Control buttons">
       <button
-        className={`btn-control pulse-btn ${!isVADMode ? 'active' : ''} ${isCompactMode ? 'compact' : ''}`}
+        className={`btn-control pulse ${!isVADMode ? 'active' : ''} ${isCompactMode ? 'compact' : ''}`}
         onClick={handleManualTrigger}
         disabled={!isReady || isVADMode || vadLoading || (vadErrored && !vadError)}
         title="Manual Trigger"

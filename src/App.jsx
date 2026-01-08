@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Mic, Loader2, Volume2, AlertCircle, Activity, ThumbsUp, ThumbsDown, BookOpen, Settings as SettingsIcon } from 'lucide-react';
+import { Mic, Loader2, Volume2, AlertCircle, Activity, ThumbsUp, ThumbsDown, BookOpen, Settings as SettingsIcon, Layout as LayoutIcon, ChevronDown } from 'lucide-react';
 import { Analytics } from '@vercel/analytics/react';
 import { useMLWorker } from './hooks/useMLWorker';
 import VADContent from './components/VADContent';
@@ -25,6 +25,7 @@ const App = () => {
   const [showTutorial, setShowTutorial] = useState(false);
   const [showPersonaCustomization, setShowPersonaCustomization] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showViewMenu, setShowViewMenu] = useState(false);
   const [availablePersonas, setAvailablePersonas] = useState(AppConfig.models.personas);
 
   useEffect(() => {
@@ -214,34 +215,37 @@ const App = () => {
         <header role="banner" className={hasInteracted ? 'compact' : ''}>
           <div className="header-top">
             <div className="logo-area">
-              <Volume2 size={hasInteracted ? 24 : 40} color="#6C5CE7" aria-hidden="true" />
+              <Volume2 size={hasInteracted ? 20 : 32} color="var(--primary)" aria-hidden="true" />
               <h1>ConvoCue</h1>
             </div>
             <div className="header-actions">
-              <button
-                className={`btn-settings ${isCompactMode ? 'active' : ''}`}
-                onClick={() => setIsCompactMode(!isCompactMode)}
-                aria-label="Toggle Compact Mode"
-                title="Toggle Compact Mode"
-              >
-                <Activity size={18} />
-              </button>
-              <button
-                className={`btn-settings ${isSubtleMode ? 'active' : ''}`}
-                onClick={() => setIsSubtleMode(!isSubtleMode)}
-                aria-label="Toggle Subtle Mode"
-                title="Toggle Subtle Mode"
-              >
-                <span className="subtle-icon">✨</span>
-              </button>
-              <button
-                className="btn-settings"
-                onClick={showTutorialHandler}
-                aria-label="Show Tutorial"
-                title="Show Tutorial"
-              >
-                <BookOpen size={18} />
-              </button>
+              <div className="view-menu-container">
+                <button
+                  className={`btn-settings ${isCompactMode || isSubtleMode || isDyslexicFriendly ? 'active' : ''}`}
+                  onClick={() => setShowViewMenu(!showViewMenu)}
+                  aria-label="View Options"
+                  title="View Options"
+                >
+                  <LayoutIcon size={18} />
+                  <ChevronDown size={14} />
+                </button>
+                {showViewMenu && (
+                  <div className="view-menu">
+                    <button onClick={() => { setIsCompactMode(!isCompactMode); setShowViewMenu(false); }} className={isCompactMode ? 'active' : ''}>
+                      <Activity size={16} /> Compact Mode
+                    </button>
+                    <button onClick={() => { setIsSubtleMode(!isSubtleMode); setShowViewMenu(false); }} className={isSubtleMode ? 'active' : ''}>
+                      <span>✨</span> Subtle Mode
+                    </button>
+                    <button onClick={() => { setIsDyslexicFriendly(!isDyslexicFriendly); setShowViewMenu(false); }} className={isDyslexicFriendly ? 'active' : ''}>
+                      Abc Dyslexic Font
+                    </button>
+                    <button onClick={() => { showTutorialHandler(); setShowViewMenu(false); }}>
+                      <BookOpen size={16} /> Tutorial
+                    </button>
+                  </div>
+                )}
+              </div>
               <button
                 className="btn-settings"
                 onClick={() => setShowSettings(true)}
@@ -249,14 +253,6 @@ const App = () => {
                 title="Settings"
               >
                 <SettingsIcon size={18} />
-              </button>
-              <button
-                className={`btn-settings ${isDyslexicFriendly ? 'active' : ''}`}
-                onClick={() => setIsDyslexicFriendly(!isDyslexicFriendly)}
-                aria-label="Toggle Dyslexic Friendly Font"
-                title="Toggle Dyslexic Friendly Font"
-              >
-                Abc
               </button>
             </div>
           </div>

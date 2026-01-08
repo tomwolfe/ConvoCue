@@ -214,11 +214,11 @@ const AudioVisualizer = ({ isActive, analyser, isCompactMode }) => {
       for (let i = 0; i < bufferLength; i++) {
         barHeight = (dataArray[i] / 255) * canvas.height;
 
-        const blue = 231;
-        const green = 92;
-        const red = 108;
+        const blue = 241;
+        const green = 102;
+        const red = 99;
         
-        ctx.fillStyle = `rgba(${red}, ${green}, ${blue}, ${barHeight / canvas.height + 0.2})`;
+        ctx.fillStyle = `rgba(${red}, ${green}, ${blue}, ${barHeight / canvas.height + 0.3})`;
         ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
 
         x += barWidth + 1;

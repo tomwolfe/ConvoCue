@@ -8,12 +8,16 @@ import { useEvent } from '../hooks/useEvent';
 const SocialSuccessScore = ({ conversationTurns, settings }) => {
   const [metrics, setMetrics] = useState(null);
   const [isExpanded, setIsExpanded] = useState(false);
-  const [showHelp, setShowHelp] = useState(false);
+  const [showExplanation, setShowExplanation] = useState(false);
+  const [historicalData, setHistoricalData] = useState([]);
 
   const updateMetrics = useCallback(async () => {
     if (!conversationTurns || conversationTurns.length === 0) return;
     const scoreData = await calculateSocialSuccessScore(conversationTurns);
     setMetrics(scoreData);
+    
+    const history = await getHistoricalScores();
+    setHistoricalData(history);
   }, [conversationTurns]);
 
   useEffect(() => {
@@ -27,10 +31,10 @@ const SocialSuccessScore = ({ conversationTurns, settings }) => {
 
   return (
     <div className={`social-success-container ${isExpanded ? 'expanded' : ''}`}>
-      <div className="social-success-header">
-        <div className="score-summary" onClick={() => setIsExpanded(!isExpanded)}>
+      <div className="social-success-header" onClick={() => setIsExpanded(!isExpanded)}>
+        <div className="score-summary">
           <Award size={18} className="score-icon" />
-          <span className="score-label">Social Success Score:</span>
+          <span className="score-label">Social Success:</span>
           <span className="score-value">{metrics.score}</span>
         </div>
         <div className="score-actions">
@@ -44,7 +48,7 @@ const SocialSuccessScore = ({ conversationTurns, settings }) => {
           >
             <HelpCircle size={16} />
           </button>
-          <div className="score-level-badge" onClick={() => setIsExpanded(!isExpanded)}>
+          <div className="score-level-badge">
             {metrics.level}
             {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           </div>
