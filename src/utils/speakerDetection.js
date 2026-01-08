@@ -327,17 +327,21 @@ class SpeakerProfile {
 }
 
 import { detectIntent } from './intentRecognition';
+import { CONVERSATION_CONFIG } from '../config/conversationConfig';
 
 /**
  * Manages conversation turns and speaker identification
  */
 export class ConversationTurnManager {
-  constructor() {
+  constructor(config = {}) {
+    // Merge provided config with defaults
+    this.config = { ...CONVERSATION_CONFIG, ...config };
+
     this.turns = [];
     this.currentTurn = null;
     this.lastSpeaker = 'user'; // Start assuming user is speaking
-    this.baseTurnThreshold = 1500; // Base threshold: 1.5 seconds of silence to consider turn end
-    this.adaptiveTurnThreshold = 1500; // Will be adjusted based on conversation patterns
+    this.baseTurnThreshold = this.config.baseTurnThreshold;
+    this.adaptiveTurnThreshold = this.config.baseTurnThreshold; // Will be adjusted based on conversation patterns
     this.lastSpeechTime = 0;
     this.silenceHistory = []; // Track silence patterns to adapt thresholds
     this.conversationDynamics = {
@@ -350,6 +354,7 @@ export class ConversationTurnManager {
       other: new SpeakerProfile('other')
     };
     this.turnYieldConfidence = 0; // Likelihood the current speaker has yielded
+    this.lastSpeechStartTime = 0; // Track when the current speaker started speaking
   }
 
   /**
@@ -373,8 +378,11 @@ export class ConversationTurnManager {
         this.turnYieldConfidence = 0.8; // High likelihood of turn change after a question
       } else if (intent === 'greeting' && this.turns.length < 2) {
         this.turnYieldConfidence = 0.5;
+      } else if (this.isTurnYieldingIntent(intent, detectedText)) {
+        // Additional turn-yielding intents beyond question and greeting
+        this.turnYieldConfidence = 0.7; // High likelihood of turn change
       } else {
-        this.turnYieldConfidence = Math.max(0, this.turnYieldConfidence - 0.1);
+        this.turnYieldConfidence = Math.max(0, this.turnYieldConfidence - this.config.yieldConfidenceDecay);
       }
     }
 
@@ -387,19 +395,30 @@ export class ConversationTurnManager {
 
     // Check if enough time has passed to consider a new turn
     const timeSinceLastSpeech = currentTime - this.lastSpeechTime;
-    
+
+    // Check if we're in a rejection window (to address race condition)
+    const inRejectionWindow = this.lastSpeechStartTime &&
+                              (currentTime - this.lastSpeechStartTime < this.config.rejectionWindowMs) &&
+                              this.lastSpeaker === this.estimateCurrentSpeaker(speakerAnalysis);
+
     // Logic for ending turn:
     // 1. Silent longer than threshold
     // 2. High confidence speaker change detected
     // 3. User yielded turn (intent) AND some silence or moderate speaker change confidence
-    const shouldStartNewTurn = 
-      timeSinceLastSpeech > this.adaptiveTurnThreshold || 
-      (isLikelyNewSpeaker && speakerConfidence > 0.6) ||
-      (this.turnYieldConfidence > 0.7 && timeSinceLastSpeech > 500) ||
-      (this.turnYieldConfidence > 0.5 && isLikelyNewSpeaker && speakerConfidence > 0.3);
+    // 4. Not in rejection window (to prevent jarring turn changes)
+    const shouldStartNewTurn = !inRejectionWindow && (
+      timeSinceLastSpeech > this.adaptiveTurnThreshold ||
+      (isLikelyNewSpeaker && speakerConfidence > this.config.speakerConfidenceHigh) ||
+      (this.turnYieldConfidence > this.config.highYieldConfidence && timeSinceLastSpeech > this.config.silenceThresholdForIntent) ||
+      (this.turnYieldConfidence > this.config.moderateYieldConfidence && isLikelyNewSpeaker && speakerConfidence > this.config.speakerConfidenceModerate)
+    );
 
     if (!isSilent) {
       this.lastSpeechTime = currentTime;
+      // Update speech start time if this is a new speech segment from the same speaker
+      if (this.lastSpeaker !== this.estimateCurrentSpeaker(speakerAnalysis)) {
+        this.lastSpeechStartTime = currentTime;
+      }
     }
 
     // Determine speaker role using profiles and turn-yielding bias
@@ -410,18 +429,18 @@ export class ConversationTurnManager {
 
     if (shouldStartNewTurn) {
       // Apply turn-yielding bias: if user likely yielded, bias towards 'other'
-      const biasToOther = (this.lastSpeaker === 'user') ? this.turnYieldConfidence * 0.2 : 0;
-      const biasToUser = (this.lastSpeaker === 'other') ? this.turnYieldConfidence * 0.2 : 0;
+      const biasToOther = (this.lastSpeaker === 'user') ? this.turnYieldConfidence * this.config.turnYieldBiasMultiplier : 0;
+      const biasToUser = (this.lastSpeaker === 'other') ? this.turnYieldConfidence * this.config.turnYieldBiasMultiplier : 0;
 
       const adjustedUserSim = userSimilarity + biasToUser;
       const adjustedOtherSim = otherSimilarity + biasToOther;
 
-      if (Math.abs(adjustedUserSim - adjustedOtherSim) > 0.1) {
+      if (Math.abs(adjustedUserSim - adjustedOtherSim) > this.config.speakerSimilarityThreshold) {
         speakerRole = adjustedUserSim > adjustedOtherSim ? 'user' : 'other';
-      } else if (isLikelyNewSpeaker && speakerConfidence > 0.4) {
+      } else if (isLikelyNewSpeaker && speakerConfidence > (this.config.speakerConfidenceHigh - 0.2)) { // 0.4 threshold
         speakerRole = this.lastSpeaker === 'user' ? 'other' : 'user';
       }
-      
+
       // Reset yielding confidence when a turn actually changes
       if (speakerRole !== this.lastSpeaker) {
         this.turnYieldConfidence = 0;
@@ -429,7 +448,7 @@ export class ConversationTurnManager {
     }
 
     // Update the profile for the detected speaker - only if confidence is reasonable
-    if (!isSilent && speakerConfidence > 0.2) {
+    if (!isSilent && speakerConfidence > this.config.speakerConfidenceUpdate) {
       this.profiles[speakerRole].update(speakerAnalysis.features);
     }
 
@@ -502,12 +521,12 @@ export class ConversationTurnManager {
       const avgSilence = recentSilences.reduce((sum, s) => sum + s.duration, 0) / recentSilences.length;
 
       // Adjust threshold: shorter for fast-paced conversations, longer for slower ones
-      threshold = Math.max(500, Math.min(3000, avgSilence * 0.8));
+      threshold = Math.max(this.config.minAdaptiveThreshold, Math.min(this.config.maxAdaptiveThreshold, avgSilence * 0.8));
     }
 
     // Significantly reduce threshold if current speaker likely yielded
     if (this.turnYieldConfidence > 0.6) {
-      threshold = Math.min(threshold, 600); // Expect a response quickly
+      threshold = Math.min(threshold, this.config.quickResponseThreshold); // Expect a response quickly
     }
 
     this.adaptiveTurnThreshold = threshold;
@@ -642,6 +661,63 @@ export class ConversationTurnManager {
         }
       }
     }
+  }
+
+  /**
+   * Determines if an intent indicates the speaker is yielding their turn
+   * @param {string} intent - Detected intent
+   * @param {string} text - Original text
+   * @returns {boolean} True if the intent suggests turn yielding
+   */
+  isTurnYieldingIntent(intent, text) {
+    // Define intents that typically indicate turn yielding
+    const turnYieldingIntents = [
+      'agreement',      // "Yes, that's right" - often followed by other speaker
+      'acknowledgment', // "I see", "Right" - may yield to other speaker
+      'backchannel',    // "Uh-huh", "Mm-hmm" - acknowledging, yielding to speaker
+      'concession',     // "You're right", "Fair point" - yielding after agreement
+      'invitation',     // "Go ahead", "Tell me more" - explicitly inviting other to speak
+      'transition',     // "Anyway", "So", "Well" - often precede turn yielding
+      'pause_indicators' // "Hmm", "Let me think" - pausing, may yield turn
+    ];
+
+    // Additional text-based heuristics for turn yielding
+    const turnYieldingPhrases = [
+      'go ahead',
+      'you tell me',
+      'what do you think',
+      'what about you',
+      'how about you',
+      'over to you',
+      'your turn',
+      'tell me more',
+      'continue',
+      'proceed',
+      'i\'m listening',
+      'please continue'
+    ];
+
+    // Check if intent is in turn-yielding category
+    if (turnYieldingIntents.includes(intent)) {
+      return true;
+    }
+
+    // Check for specific turn-yielding phrases in the text
+    const lowerText = text.toLowerCase();
+    return turnYieldingPhrases.some(phrase => lowerText.includes(phrase));
+  }
+
+  /**
+   * Estimates the current speaker based on similarity scores
+   * @param {Object} speakerAnalysis - Analysis of current speaker characteristics
+   * @returns {string} Estimated speaker role ('user' or 'other')
+   */
+  estimateCurrentSpeaker(speakerAnalysis) {
+    const userSimilarity = this.profiles.user.getSimilarity(speakerAnalysis.features);
+    const otherSimilarity = this.profiles.other.getSimilarity(speakerAnalysis.features);
+
+    // Return the speaker with higher similarity
+    return userSimilarity > otherSimilarity ? 'user' : 'other';
   }
 
   /**
