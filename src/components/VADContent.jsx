@@ -291,13 +291,6 @@ const VADContent = ({
 
   const vadRef = useRef(null);
 
-  const handleClear = () => {
-    clearHistory();
-    setTranscript('');
-    setSuggestion('');
-    if (!isProcessing) setStatus('Ready');
-  };
-
   const handleCopy = () => {
     if (suggestion) {
       navigator.clipboard.writeText(suggestion);
