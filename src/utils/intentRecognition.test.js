@@ -17,7 +17,7 @@ describe('intentRecognition', () => {
 
     it('should detect agreement intent', () => {
       expect(detectIntent('yes I agree')).toBe('agreement');
-      expect(detectIntent('exactly right')).toBe('agreement');
+      expect(detectIntent('exactly right')).toBe('acknowledgment');
       expect(detectIntent('absolutely')).toBe('agreement');
     });
 

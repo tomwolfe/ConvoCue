@@ -24,8 +24,8 @@ export const CONVERSATION_CONFIG = {
   silenceThresholdForIntent: 500, // Minimum silence when intent suggests turn yield (ms)
   quickResponseThreshold: 600,    // Threshold when expecting quick response after yield (ms)
   
-  // Bias parameters
-  turnYieldBiasMultiplier: 0.2,   // Multiplier for turn yield bias
+  // Turn-yield weighting parameters (used to influence speaker detection when turn yielding is detected)
+  turnYieldBiasMultiplier: 0.2,   // Multiplier for turn yield weighting (increases likelihood of detecting other speaker after turn yield)
   
   // Decay rate for turn yield confidence
   yieldConfidenceDecay: 0.1,      // Amount to decay yield confidence per frame

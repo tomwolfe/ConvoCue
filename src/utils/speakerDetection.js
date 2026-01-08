@@ -296,15 +296,18 @@ class SpeakerProfile {
    * Updates the profile with new audio features using a moving average
    * @param {Object} features - New features to incorporate
    */
-  update(features) {
+  update(features, config = null) {
     const c = this.averageFeatures.count;
     // Weighted moving average - give more weight to recent speech but maintain history
-    const alpha = Math.max(0.1, 1 / (c + 1));
-    
+    // Use configurable alpha if available, otherwise use default
+    const alpha = config && config.profileUpdateAlpha !== undefined
+      ? Math.max(0.01, config.profileUpdateAlpha)
+      : Math.max(0.1, 1 / (c + 1));
+
     this.averageFeatures.pitchEstimate = (1 - alpha) * this.averageFeatures.pitchEstimate + alpha * features.pitchEstimate;
     this.averageFeatures.spectralCentroid = (1 - alpha) * this.averageFeatures.spectralCentroid + alpha * features.spectralCentroid;
     this.averageFeatures.zeroCrossingRate = (1 - alpha) * this.averageFeatures.zeroCrossingRate + alpha * features.zeroCrossingRate;
-    
+
     this.averageFeatures.count++;
   }
 
@@ -449,7 +452,7 @@ export class ConversationTurnManager {
 
     // Update the profile for the detected speaker - only if confidence is reasonable
     if (!isSilent && speakerConfidence > this.config.speakerConfidenceUpdate) {
-      this.profiles[speakerRole].update(speakerAnalysis.features);
+      this.profiles[speakerRole].update(speakerAnalysis.features, this.config);
     }
 
     // Create or continue turn
@@ -647,7 +650,7 @@ export class ConversationTurnManager {
       
       // Update profile with the features from this turn
       if (this.currentTurn.audioFeatures) {
-        this.profiles[correctSpeaker].update(this.currentTurn.audioFeatures);
+        this.profiles[correctSpeaker].update(this.currentTurn.audioFeatures, this.config);
       }
     } else {
       const turn = this.turns.find(t => t.id === turnId);
@@ -657,7 +660,7 @@ export class ConversationTurnManager {
         
         // Update profile with the features from this turn
         if (turn.audioFeatures) {
-          this.profiles[correctSpeaker].update(turn.audioFeatures);
+          this.profiles[correctSpeaker].update(turn.audioFeatures, this.config);
         }
       }
     }
