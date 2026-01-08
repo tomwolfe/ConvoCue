@@ -38,7 +38,10 @@ export const CONVERSATION_CONFIG = {
   
   // Profile update parameters
   profileUpdateAlpha: 0.1,        // Learning rate for speaker profile updates
-  minProfileUpdates: 5            // Minimum number of updates before profile is considered reliable
+  minProfileUpdates: 5,           // Minimum number of updates before profile is considered reliable
+
+  // Memory management parameters
+  maxConversationTurns: 20        // Maximum number of turns to keep in memory
 };
 
 /**
@@ -59,21 +62,24 @@ export const ENV_CONFIGS = {
     // More sensitive settings for development/testing
     speakerConfidenceHigh: 0.5,
     speakerConfidenceUpdate: 0.15,
-    rejectionWindowMs: 200
+    rejectionWindowMs: 200,
+    profileUpdateAlpha: 0.15  // Faster learning in development
   },
   production: {
     ...CONVERSATION_CONFIG,
     // More conservative settings for production
     speakerConfidenceHigh: 0.65,
     speakerConfidenceUpdate: 0.25,
-    rejectionWindowMs: 350
+    rejectionWindowMs: 350,
+    profileUpdateAlpha: 0.05  // Slower learning in production for stability
   },
   testing: {
     ...CONVERSATION_CONFIG,
     // Settings optimized for automated testing
     baseTurnThreshold: 1000,
     speakerConfidenceHigh: 0.4,
-    rejectionWindowMs: 100
+    rejectionWindowMs: 100,
+    profileUpdateAlpha: 0.2    // Fast learning for testing
   }
 };
 
@@ -83,5 +89,5 @@ export const ENV_CONFIGS = {
  * @returns {Object} Configuration object
  */
 export const getConfigByEnv = (env = process.env.NODE_ENV || 'development') => {
-  return ENV_CONFIGS[env] || { ...CONVERSATION_CONFIG, ...ENV_CONFIGS.development };
+  return ENV_CONFIGS[env] || CONVERSATION_CONFIG;
 };

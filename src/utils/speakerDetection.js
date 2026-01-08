@@ -592,10 +592,10 @@ export class ConversationTurnManager {
     if (this.currentTurn) {
       this.currentTurn.endTime = Date.now();
       this.turns.push(this.currentTurn);
-      
+
       // Keep only recent turns to manage memory
-      if (this.turns.length > 20) {
-        this.turns = this.turns.slice(-20);
+      if (this.turns.length > this.config.maxConversationTurns) {
+        this.turns = this.turns.slice(-this.config.maxConversationTurns);
       }
     }
   }
@@ -763,9 +763,9 @@ export class ConversationTurnManager {
 
   /**
    * Cleans up old turns to manage memory usage
-   * @param {number} maxTurns - Maximum number of turns to keep (default: 20)
+   * @param {number} maxTurns - Maximum number of turns to keep (default: from config)
    */
-  cleanupMemory(maxTurns = 20) {
+  cleanupMemory(maxTurns = this.config.maxConversationTurns) {
     if (this.turns.length > maxTurns) {
       this.turns = this.turns.slice(-maxTurns);
     }
