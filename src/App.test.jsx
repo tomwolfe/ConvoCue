@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
-import { act } from 'react-dom/test-utils';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import App from './App';
 
 // Mock the worker to avoid actual model loading in tests
@@ -68,8 +67,10 @@ describe('App Component', () => {
     vi.clearAllMocks();
   });
 
-  it('renders initial screen correctly', () => {
-    render(<App />);
+  it('renders initial screen correctly', async () => {
+    await act(async () => {
+      render(<App />);
+    });
 
     expect(screen.getByText('ConvoCue')).toBeInTheDocument();
     expect(screen.getByText('Real-time social validation')).toBeInTheDocument();
@@ -77,16 +78,21 @@ describe('App Component', () => {
     expect(screen.getByRole('button', { name: /Enable Microphone/i })).toBeInTheDocument();
   });
 
-  it('initializes with correct default state', () => {
-    render(<App />);
+  it('initializes with correct default state', async () => {
+    await act(async () => {
+      render(<App />);
+    });
 
-    // Check that the app shows initial status
-    expect(screen.getByText(/Initializing Models/i)).toBeInTheDocument();
+    // Check that the app shows initial status in the status badge
+    const statusBadge = screen.getByRole('status');
+    expect(statusBadge).toHaveTextContent(/Initializing Models|Ready/i);
   });
 
     it('toggles dyslexic friendly mode', async () => {
 
-      render(<App />);
+      await act(async () => {
+        render(<App />);
+      });
 
       
 

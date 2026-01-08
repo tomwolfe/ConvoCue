@@ -9,6 +9,7 @@ const initialState = {
   status: 'Initializing Models...',
   progress: 0,
   isReady: false,
+  isLowMemory: false,
   transcript: '',
   suggestion: '',
   emotionData: null,
@@ -22,7 +23,12 @@ const initialState = {
 function workerReducer(state, action) {
   switch (action.type) {
     case 'SET_STATUS':
-      return { ...state, status: action.status, progress: action.progress ?? state.progress };
+      return { 
+        ...state, 
+        status: action.status, 
+        progress: action.progress ?? state.progress,
+        isLowMemory: action.isLowMemory ?? state.isLowMemory
+      };
     case 'SET_READY':
       return { ...state, isReady: true, status: 'Ready', progress: 100 };
     case 'START_STT':
@@ -101,11 +107,11 @@ export const useMLWorker = () => {
 
       newWorker.onmessage = async (event) => {
         try {
-          const { type, text, status, progress, metadata, emotionData } = event.data;
+          const { type, text, status, progress, metadata, emotionData, isLowMemory } = event.data;
 
           switch (type) {
             case 'status':
-              dispatch({ type: 'SET_STATUS', status, progress });
+              dispatch({ type: 'SET_STATUS', status, progress, isLowMemory });
               break;
             case 'ready':
               dispatch({ type: 'SET_READY' });
@@ -117,14 +123,21 @@ export const useMLWorker = () => {
               }
               const cleanText = text.trim();
 
-              // aggregation Logic
-              const isShort = cleanText.split(' ').length < 3;
+              // Aggregation Logic: Improved to be more inclusive of meaningful short phrases
+              const words = cleanText.split(' ');
+              const isShort = words.length < 3;
+              const hasMeaningfulCue = /^(yes|no|agree|exactly|right|thanks|thank you|sorry|hello|hi|hey|bye|goodbye|what|why|how|who|where|when)/i.test(cleanText);
+              
               const timeSinceLast = Date.now() - (lastMessageTimeRef.current || 0);
 
               dispatch({ type: 'STT_RESULT', text: cleanText });
 
               // Trigger LLM if:
-              if (!isShort || timeSinceLast > 5000 || cleanText.includes('?')) {
+              // 1. Not too short OR
+              // 2. Contains a meaningful conversational cue (even if short) OR
+              // 3. It's been a while since the last message OR
+              // 4. It's a question
+              if (!isShort || hasMeaningfulCue || timeSinceLast > 5000 || cleanText.includes('?')) {
                   const communicationProfile = settings.enablePersonalization !== false && !settings.privacyMode
                       ? await getCommunicationProfileSummary()
                       : "";

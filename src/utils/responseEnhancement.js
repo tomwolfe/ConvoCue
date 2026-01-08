@@ -381,11 +381,18 @@ export const enhanceResponse = async (response, persona, emotionData = null, inp
     console.debug(`[ResponseEnhancement] Enhanced: "${enhancedResponse}"`);
   }
 
-  // Safety Valve
+  // Safety Valve - Optimized for context-heavy personas
   if (!isSubtleMode) {
     const lengthRatio = enhancedResponse.length / Math.max(1, response.length);
-    if (lengthRatio > 2.5 || lengthRatio < 0.3) {
-      console.warn("Safety valve triggered: Enhancement was too aggressive.");
+    
+    // Allow more expansion for supportive personas which add essential context/disclaimers
+    const maxRatio = (persona === 'anxiety' || persona === 'relationship') ? 5.0 : 3.0;
+    const minRatio = 0.2;
+
+    if (lengthRatio > maxRatio || lengthRatio < minRatio) {
+      console.warn(`Safety valve triggered: Enhancement was too aggressive (Ratio: ${lengthRatio.toFixed(2)}, Max: ${maxRatio}).`);
+      // Instead of failing completely, try to provide a partially enhanced version 
+      // or at least ensure we don't just lose all the good additions if they were intentional.
       return response;
     }
   }

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import VADContent from '../components/VADContent';
 
 // Mock the useMicVAD hook
@@ -71,68 +71,74 @@ describe('VADContent Component', () => {
     vi.clearAllMocks();
   });
 
-  it('renders without crashing', () => {
-    render(
-      <VADContent {...defaultProps} />
-    );
+  it('renders without crashing', async () => {
+    await act(async () => {
+      render(<VADContent {...defaultProps} />);
+    });
 
     expect(screen.getByRole('main')).toBeInTheDocument();
     expect(screen.getByText('Ready')).toBeInTheDocument();
   });
 
-  it('displays transcript when provided', () => {
-    render(
-      <VADContent {...defaultProps} transcript="Hello, how are you?" />
-    );
+  it('displays transcript when provided', async () => {
+    await act(async () => {
+      render(<VADContent {...defaultProps} transcript="Hello, how are you?" />);
+    });
 
     expect(screen.getByText('Hello, how are you?')).toBeInTheDocument();
   });
 
-  it('displays suggestion when provided', () => {
-    render(
-      <VADContent {...defaultProps} suggestion="That sounds great!" />
-    );
+  it('displays suggestion when provided', async () => {
+    await act(async () => {
+      render(<VADContent {...defaultProps} suggestion="That sounds great!" />);
+    });
 
     expect(screen.getByText('That sounds great!')).toBeInTheDocument();
   });
 
-  it('allows persona selection', () => {
-    render(
-      <VADContent {...defaultProps} />
-    );
+  it('allows persona selection', async () => {
+    await act(async () => {
+      render(<VADContent {...defaultProps} />);
+    });
 
     const personaButton = screen.getByText('Professional');
-    fireEvent.click(personaButton);
+    await act(async () => {
+      fireEvent.click(personaButton);
+    });
 
     expect(defaultProps.setPersona).toHaveBeenCalledWith('professional');
   });
 
-  it('shows cultural context selector for crosscultural persona', () => {
-    render(
-      <VADContent {...defaultProps} persona="crosscultural" />
-    );
+  it('shows cultural context selector for crosscultural persona', async () => {
+    await act(async () => {
+      render(<VADContent {...defaultProps} persona="crosscultural" />);
+    });
 
     expect(screen.getByLabelText('Cultural Context:')).toBeInTheDocument();
   });
 
-  it('calls clearHistory when clear button is clicked', () => {
-    render(
-      <VADContent {...defaultProps} transcript="Test transcript" />
-    );
+  it('calls clearHistory when clear button is clicked', async () => {
+    await act(async () => {
+      render(<VADContent {...defaultProps} transcript="Test transcript" />);
+    });
 
     const clearButton = screen.getByTitle('Clear Context');
-    fireEvent.click(clearButton);
+    await act(async () => {
+      fireEvent.click(clearButton);
+    });
 
     expect(defaultProps.clearHistory).toHaveBeenCalled();
   });
 
-  it('calls refreshSuggestion when refresh button is clicked', () => {
-    render(
-      <VADContent {...defaultProps} transcript="Test transcript" suggestion="Test suggestion" />
-    );
+  it('calls refreshSuggestion when refresh button is clicked', async () => {
+    await act(async () => {
+      render(<VADContent {...defaultProps} transcript="Test transcript" suggestion="Test suggestion" />);
+    });
 
     const refreshButton = screen.getByTitle('New suggestion');
-    fireEvent.click(refreshButton);
+    await act(async () => {
+      fireEvent.click(refreshButton);
+    });
 
     expect(defaultProps.refreshSuggestion).toHaveBeenCalled();
   });
@@ -145,22 +151,24 @@ describe('VADContent Component', () => {
       },
     });
 
-    render(
-      <VADContent {...defaultProps} transcript="Test transcript" suggestion="Test suggestion" />
-    );
+    await act(async () => {
+      render(<VADContent {...defaultProps} transcript="Test transcript" suggestion="Test suggestion" />);
+    });
 
     const copyButton = screen.getByTitle('Copy to clipboard');
-    fireEvent.click(copyButton);
+    await act(async () => {
+      fireEvent.click(copyButton);
+    });
 
     await waitFor(() => {
       expect(navigator.clipboard.writeText).toHaveBeenCalledWith('Test suggestion');
     });
   });
 
-  it('disables controls when not ready', () => {
-    render(
-      <VADContent {...defaultProps} isReady={false} />
-    );
+  it('disables controls when not ready', async () => {
+    await act(async () => {
+      render(<VADContent {...defaultProps} isReady={false} />);
+    });
 
     const pulseButton = screen.getByTitle('Manual Trigger');
     const heartbeatButton = screen.getByTitle('Continuous Mode');
@@ -169,10 +177,10 @@ describe('VADContent Component', () => {
     expect(heartbeatButton).toBeDisabled();
   });
 
-  it('shows error recovery when VAD error occurs', () => {
-    render(
-      <VADContent {...defaultProps} initialError="Microphone access denied" />
-    );
+  it('shows error recovery when VAD error occurs', async () => {
+    await act(async () => {
+      render(<VADContent {...defaultProps} initialError="Microphone access denied" />);
+    });
 
     expect(screen.getByText('Microphone access denied')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();

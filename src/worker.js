@@ -75,11 +75,19 @@ class MLPipeline {
         const mem = checkMemoryUsage();
         if (AppConfig.isMobile && mem && mem.usagePercent > AppConfig.system.memory.modelUnloadThreshold) {
             console.warn("Memory too high to load LLM:", mem.usagePercent);
+            self.postMessage({ 
+                type: 'status', 
+                status: 'Social Brain deferred (Low Memory)', 
+                isLowMemory: true 
+            });
             return;
         }
 
         if (!MLPipeline.llm) {
             try {
+                // Signal that we are starting to load heavy model
+                self.postMessage({ type: 'status', status: 'Loading Social Brain...' });
+                
                 MLPipeline.llm = await pipeline('text-generation', AppConfig.models.llm.name, {
                     progress_callback,
                     device: AppConfig.models.llm.device,
@@ -87,6 +95,8 @@ class MLPipeline {
                 });
             } catch (err) {
                 console.error("LLM Load Failed:", err);
+                // Try to recover by clearing cache or signaling error
+                self.postMessage({ type: 'error', error: 'Social Brain failed to load. Try refreshing.' });
                 throw err;
             }
         }

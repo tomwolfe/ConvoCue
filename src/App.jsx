@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Mic, Loader2, Volume2, AlertCircle, Activity, ThumbsUp, ThumbsDown, BookOpen, Settings as SettingsIcon, Layout as LayoutIcon, ChevronDown, EyeOff, Type } from 'lucide-react';
+import { Mic, Loader2, Volume2, AlertCircle, Activity, ThumbsUp, ThumbsDown, BookOpen, Settings as SettingsIcon, Layout as LayoutIcon, ChevronDown, EyeOff, Type, ShieldAlert } from 'lucide-react';
 import { Analytics } from '@vercel/analytics/react';
 import { useMLWorker } from './hooks/useMLWorker';
 import VADContent from './components/VADContent';
@@ -47,6 +47,7 @@ const App = () => {
     status,
     progress,
     isReady,
+    isLowMemory,
     error,
     transcript,
     suggestion,
@@ -305,6 +306,13 @@ const App = () => {
                 <span>Enable Microphone</span>
               </button>
             </div>
+
+            {isLowMemory && (
+              <div className="warning-box" role="alert">
+                <ShieldAlert size={20} aria-hidden="true" />
+                <p>Low memory detected. AI features may be limited or slower.</p>
+              </div>
+            )}
 
             {micPermissionError && (
               <div className="error-box" role="alert" aria-live="assertive">
