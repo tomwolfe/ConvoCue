@@ -281,3 +281,35 @@ export const recordTurnStutterRate = (diagnostics, durationMs = 1000) => {
   const stutterRate = diagnostics.speakerChangesDetected / durationSec;
   performanceTracker.recordTurnStutterRate(stutterRate);
 };
+
+/**
+ * Estimates the size of a conversation history in characters
+ * @param {Array} conversationHistory - Array of conversation messages
+ * @returns {number} Estimated size in characters
+ */
+export const estimateConversationSize = (conversationHistory) => {
+  if (!Array.isArray(conversationHistory)) {
+    return 0;
+  }
+
+  return conversationHistory.reduce((totalSize, message) => {
+    const content = message.content || '';
+    return totalSize + (typeof content === 'string' ? content.length : 0);
+  }, 0);
+};
+
+/**
+ * Logs a performance metric
+ * @param {string} metricName - Name of the metric
+ * @param {number} startTime - Start time of the operation
+ * @param {any} context - Contextual data for the metric
+ */
+export const logPerformanceMetric = (metricName, startTime, context) => {
+  const endTime = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
+  const duration = endTime - startTime;
+
+  // Log to console in development, could be sent to analytics in production
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`Performance Metric - ${metricName}: ${duration}ms`, context);
+  }
+};
