@@ -33,12 +33,16 @@ export const CONVERSATION_CONFIG = {
   // Rejection window (to address race condition)
   rejectionWindowMs: 300,         // Time window to cancel turn change if same speaker continues
 
+  // Micro-pause threshold for distinguishing true yield from mid-sentence correction
+  microPauseThresholdMs: 100,     // Threshold for detecting micro-pauses that indicate mid-sentence correction
+
   // Intent-specific parameters
   intentConfidenceThreshold: 0.3, // Minimum confidence for intent detection
 
   // Profile update parameters
   profileUpdateAlpha: 0.1,        // Learning rate for speaker profile updates
   minProfileUpdates: 5,           // Minimum number of updates before profile is considered reliable
+  dynamicAlphaMultiplier: 1.5,    // Multiplier for alpha after minProfileUpdates is met
 
   // Memory management parameters
   maxConversationTurns: 20        // Maximum number of turns to keep in memory
@@ -109,6 +113,16 @@ export const validateConfig = (config) => {
 
   if (typeof config.minProfileUpdates !== 'number' || config.minProfileUpdates < 1) {
     errors.push('minProfileUpdates must be a positive integer');
+  }
+
+  // Validate micro-pause threshold
+  if (typeof config.microPauseThresholdMs !== 'number' || config.microPauseThresholdMs < 0) {
+    errors.push('microPauseThresholdMs must be a non-negative number');
+  }
+
+  // Validate dynamic alpha multiplier
+  if (typeof config.dynamicAlphaMultiplier !== 'number' || config.dynamicAlphaMultiplier <= 0) {
+    errors.push('dynamicAlphaMultiplier must be a positive number');
   }
 
   // Validate memory management parameters

@@ -309,23 +309,29 @@ class SpeakerProfile {
    */
   update(features, config = null) {
     const c = this.averageFeatures.count;
-    
+
     // Check for "stale" or inconsistent profile performance
-    const isInconsistent = this.consistencyHistory.length > 5 && 
+    const isInconsistent = this.consistencyHistory.length > 5 &&
                          (this.consistencyHistory.reduce((a, b) => a + b, 0) / this.consistencyHistory.length < 0.4);
 
     // Weighted moving average - give more weight to recent speech but maintain history
     // Use alpha = 1.0 for the first update to initialize the profile
     // Use configurable alpha if available, otherwise use default
     // If inconsistent, temporarily increase learning rate (soft reset)
-    let alpha = c === 0 
-      ? 1.0 
+    let alpha = c === 0
+      ? 1.0
       : (config && config.profileUpdateAlpha !== undefined
           ? Math.max(0.01, config.profileUpdateAlpha)
           : Math.max(0.1, 1 / (c + 1)));
-    
+
     if (isInconsistent) {
       alpha = Math.min(0.3, alpha * 2); // Faster adaptation if profile is performing poorly
+    }
+
+    // Dynamic alpha that increases after minProfileUpdates is met
+    // This allows faster adaptation for users with atypical speech patterns after initial profile establishment
+    if (config && c >= (config.minProfileUpdates || 5)) {
+      alpha = Math.min(0.2, alpha * (config.dynamicAlphaMultiplier || 1.5)); // Increase learning rate after profile is established
     }
 
     this.averageFeatures.pitchEstimate = (1 - alpha) * this.averageFeatures.pitchEstimate + alpha * features.pitchEstimate;
@@ -463,12 +469,19 @@ export class ConversationTurnManager {
                                 (currentTime - this.lastSpeechStartTime < this.config.rejectionWindowMs) &&
                                 this.lastSpeaker === this.estimateCurrentSpeaker(speakerAnalysis);
 
+      // Edge case: Rapid reinterruption handling - detect micro-pauses based on config
+      // This distinguishes between true yield and mid-sentence correction
+      const isMicroPause = timeSinceLastSpeech < this.config.microPauseThresholdMs && timeSinceLastSpeech > 0;
+      const shouldConsiderMicroPause = isMicroPause && this.lastSpeaker === this.estimateCurrentSpeaker(speakerAnalysis);
+
       // Logic for ending turn:
       // 1. Silent longer than threshold
       // 2. High confidence speaker change detected
       // 3. User yielded turn (intent) AND some silence or moderate speaker change confidence
       // 4. Not in rejection window (to prevent jarring turn changes)
-      const shouldStartNewTurn = !inRejectionWindow && (
+      // 5. Not a micro-pause (to distinguish true yield from mid-sentence correction)
+      const shouldStartNewTurn = !inRejectionWindow &&
+                                 !shouldConsiderMicroPause && (
         timeSinceLastSpeech > this.adaptiveTurnThreshold ||
         (isLikelyNewSpeaker && speakerConfidence > this.config.speakerConfidenceHigh) ||
         (this.turnYieldConfidence > this.config.highYieldConfidence && timeSinceLastSpeech > this.config.silenceThresholdForIntent) ||
@@ -814,10 +827,46 @@ export class ConversationTurnManager {
    * @returns {object} Memory usage information
    */
   getMemoryUsage() {
-    // Calculate approximate memory usage
+    // Calculate approximate memory usage using a more accurate method
     const turnCount = this.turns.length;
-    const turnHistorySize = JSON.stringify(this.turns).length;
-    const profileSize = JSON.stringify(this.profiles).length;
+
+    // More accurate memory estimation using object property counting
+    const estimateObjectSize = (obj) => {
+      let bytes = 0;
+      const objStack = [obj];
+
+      while (objStack.length) {
+        const currentObj = objStack.pop();
+
+        for (const prop in currentObj) {
+          if (typeof currentObj[prop] === 'string') {
+            bytes += currentObj[prop].length * 2; // 2 bytes per character
+          } else if (typeof currentObj[prop] === 'number') {
+            bytes += 8; // 8 bytes per number
+          } else if (typeof currentObj[prop] === 'boolean') {
+            bytes += 4; // 4 bytes per boolean
+          } else if (typeof currentObj[prop] === 'object' && currentObj[prop] !== null) {
+            objStack.push(currentObj[prop]);
+          } else if (Array.isArray(currentObj[prop])) {
+            bytes += 8; // Array overhead
+            currentObj[prop].forEach(item => {
+              if (typeof item === 'string') {
+                bytes += item.length * 2;
+              } else if (typeof item === 'number') {
+                bytes += 8;
+              } else if (typeof item === 'object' && item !== null) {
+                objStack.push(item);
+              }
+            });
+          }
+        }
+      }
+
+      return bytes;
+    };
+
+    const turnHistorySize = estimateObjectSize(this.turns);
+    const profileSize = estimateObjectSize(this.profiles);
 
     // Estimate in bytes
     const estimatedBytes = turnHistorySize + profileSize;
