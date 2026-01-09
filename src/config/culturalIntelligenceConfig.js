@@ -33,7 +33,10 @@ export const CulturalIntelligenceConfig = {
   confidence: {
     high: 0.8,    // Very confident in cultural identification
     medium: 0.5,  // Moderately confident
-    low: 0.3      // Less confident, rely on default settings
+    low: 0.3,     // Less confident, rely on default settings
+    overrideThreshold: 0.75, // Default confidence required to override user setting
+    minOverrideThreshold: 0.4, // Minimum threshold if user wants more experimental guidance
+    maxOverrideThreshold: 0.95  // Maximum threshold for high-certainty overrides only
   },
   
   // Cultural dimension weights for multi-dimensional analysis

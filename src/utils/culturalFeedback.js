@@ -10,12 +10,14 @@
  * @param {string} userFeedback - 'positive' (👍) or 'negative' (👎)
  * @param {string} culturalContext - The cultural context where the recommendation was made
  * @param {string} userContext - Additional context about the user's situation
+ * @param {string} category - The category of the recommendation (e.g., 'directness', 'formality')
  */
-export const submitCulturalFeedback = (recommendationId, recommendationText, userFeedback, culturalContext, userContext = '') => {
+export const submitCulturalFeedback = (recommendationId, recommendationText, userFeedback, culturalContext, userContext = '', category = 'general') => {
   // Create a feedback entry
   const feedbackEntry = {
     id: recommendationId || generateFeedbackId(),
     recommendation: recommendationText,
+    category,
     feedback: userFeedback,
     culturalContext,
     userContext,
@@ -160,6 +162,48 @@ export const shouldFlagRecommendation = (recommendationText) => {
 
   const negativeRatio = feedbackStats.negative / feedbackStats.total;
   return negativeRatio >= 0.6; // Flag if 60% or more feedback is negative
+};
+
+/**
+ * Get user-specific bias adjustments based on their feedback history
+ * This allows the system to adapt to the user's specific communication style preferences
+ * @returns {Object} Map of categories to weight adjustments (e.g., { directness: -0.2 })
+ */
+export const getUserCulturalBiasAdjustments = () => {
+  const feedbackKey = 'convoCue_culturalGuidanceFeedback';
+  let allFeedback = [];
+  
+  try {
+    const stored = localStorage.getItem(feedbackKey);
+    allFeedback = stored ? JSON.parse(stored) : [];
+  } catch (error) {
+    return {};
+  }
+
+  const categoryStats = {};
+  allFeedback.forEach(entry => {
+    const cat = entry.category || 'general';
+    if (!categoryStats[cat]) {
+      categoryStats[cat] = { positive: 0, negative: 0 };
+    }
+    categoryStats[cat][entry.feedback === 'positive' ? 'positive' : 'negative']++;
+  });
+
+  const adjustments = {};
+  Object.entries(categoryStats).forEach(([cat, stats]) => {
+    const total = stats.positive + stats.negative;
+    if (total >= 3) {
+      const ratio = stats.positive / total;
+      // If user consistently dislikes a category (ratio < 0.4), provide a negative adjustment
+      if (ratio < 0.4) {
+        adjustments[cat] = -0.3; // Reduce weight of this category
+      } else if (ratio > 0.8) {
+        adjustments[cat] = 0.2; // Slightly increase weight of this category
+      }
+    }
+  });
+
+  return adjustments;
 };
 
 /**

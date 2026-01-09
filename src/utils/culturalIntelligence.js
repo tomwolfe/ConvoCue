@@ -11,38 +11,43 @@
 
 import { detectMultipleIntents } from './intentRecognition';
 import { AppConfig } from '../config';
-import { submitCulturalFeedback, shouldFlagRecommendation } from './culturalFeedback';
+import { 
+  submitCulturalFeedback, 
+  shouldFlagRecommendation, 
+  getUserCulturalBiasAdjustments 
+} from './culturalFeedback';
 
 // Cultural dimensions based on Hofstede's model and other cultural frameworks
 const CULTURAL_DIMENSIONS = {
   powerDistance: {
-    high: ['asia', 'latin-america', 'middle-east', 'africa'],
+    high: ['east-asian', 'south-asian', 'latin-american', 'middle-eastern', 'african'],
     low: ['nordic', 'germanic', 'anglo', 'anglo-canada']
   },
   individualism: {
-    individualistic: ['anglo', 'germanic', 'nordic', 'anglo-canuba'],
-    collectivistic: ['asia', 'latin-america', 'africa', 'middle-east']
+    individualistic: ['anglo', 'germanic', 'nordic', 'anglo-canada'],
+    collectivistic: ['east-asian', 'south-asian', 'latin-american', 'african', 'middle-eastern']
   },
   uncertaintyAvoidance: {
-    high: ['japan', 'germany', 'greece', 'portugal', 'korea'],
-    low: ['singapore', 'jamaica', 'ireland', 'denmark', 'sweden']
+    high: ['japan', 'germanic', 'latin-american', 'middle-eastern'], // Japan is a country-specific key now
+    low: ['nordic', 'anglo', 'anglo-canada']
   },
   masculinity: {
-    masculine: ['japan', 'hungary', 'germany', 'austria', 'venezuela'],
-    feminine: ['nordic', 'netherlands', 'spain', 'portugal', 'thailand']
+    masculine: ['japan', 'germanic', 'anglo', 'latin-american'],
+    feminine: ['nordic', 'anglo-canada']
   },
   longTermOrientation: {
-    longTerm: ['china', 'japan', 'south-korea', 'singapore', 'hong-kong'],
-    shortTerm: ['pakistan', 'nigeria', 'philippines', 'thailand', 'italy']
+    longTerm: ['east-asian', 'japan', 'south-korea', 'china'],
+    shortTerm: ['african', 'latin-american', 'anglo']
   },
   indulgence: {
-    indulgent: ['venezuela', 'mexico', 'colombia', 'thailand', 'malaysia'],
-    restrained: ['pakistan', 'china', 'poland', 'jordan', 'ukraine']
+    indulgent: ['latin-american', 'african', 'anglo', 'nordic'],
+    restrained: ['east-asian', 'middle-eastern', 'germanic']
   }
 };
 
 // Communication style mappings by culture
-const COMMUNICATION_STYLES = {
+// These serve as regional templates that can be overridden by country-specific data
+const REGIONAL_STYLES = {
   'east-asian': {
     directness: 'indirect',
     formality: 'high',
@@ -52,8 +57,7 @@ const COMMUNICATION_STYLES = {
     conflictApproach: 'avoidance',
     decisionMaking: 'consensus',
     feedbackStyle: 'implicit',
-    greetingStyle: 'respectful',
-    examples: ['China', 'Japan', 'South Korea', 'Taiwan', 'Singapore']
+    greetingStyle: 'respectful'
   },
   'south-asian': {
     directness: 'indirect',
@@ -64,8 +68,7 @@ const COMMUNICATION_STYLES = {
     conflictApproach: 'mediation',
     decisionMaking: 'authority',
     feedbackStyle: 'diplomatic',
-    greetingStyle: 'respectful',
-    examples: ['India', 'Pakistan', 'Bangladesh', 'Sri Lanka', 'Nepal']
+    greetingStyle: 'respectful'
   },
   'latin-american': {
     directness: 'moderate',
@@ -76,8 +79,7 @@ const COMMUNICATION_STYLES = {
     conflictApproach: 'personal',
     decisionMaking: 'relationship-based',
     feedbackStyle: 'diplomatic',
-    greetingStyle: 'warm',
-    examples: ['Mexico', 'Brazil', 'Argentina', 'Colombia', 'Peru']
+    greetingStyle: 'warm'
   },
   'middle-eastern': {
     directness: 'indirect',
@@ -88,8 +90,7 @@ const COMMUNICATION_STYLES = {
     conflictApproach: 'avoidance',
     decisionMaking: 'authority',
     feedbackStyle: 'diplomatic',
-    greetingStyle: 'respectful',
-    examples: ['Saudi Arabia', 'UAE', 'Egypt', 'Iran', 'Turkey']
+    greetingStyle: 'respectful'
   },
   'nordic': {
     directness: 'direct',
@@ -100,8 +101,7 @@ const COMMUNICATION_STYLES = {
     conflictApproach: 'open',
     decisionMaking: 'consensus',
     feedbackStyle: 'direct',
-    greetingStyle: 'casual',
-    examples: ['Sweden', 'Norway', 'Denmark', 'Finland', 'Iceland']
+    greetingStyle: 'casual'
   },
   'germanic': {
     directness: 'direct',
@@ -112,8 +112,7 @@ const COMMUNICATION_STYLES = {
     conflictApproach: 'structured',
     decisionMaking: 'logical',
     feedbackStyle: 'constructive',
-    greetingStyle: 'formal',
-    examples: ['Germany', 'Netherlands', 'Switzerland', 'Austria']
+    greetingStyle: 'formal'
   },
   'anglo': {
     directness: 'moderate',
@@ -124,8 +123,7 @@ const COMMUNICATION_STYLES = {
     conflictApproach: 'direct',
     decisionMaking: 'individual',
     feedbackStyle: 'constructive',
-    greetingStyle: 'casual',
-    examples: ['USA', 'UK', 'Australia', 'New Zealand']
+    greetingStyle: 'casual'
   },
   'anglo-canada': {
     directness: 'moderate',
@@ -136,8 +134,7 @@ const COMMUNICATION_STYLES = {
     conflictApproach: 'diplomatic',
     decisionMaking: 'individual',
     feedbackStyle: 'constructive',
-    greetingStyle: 'friendly',
-    examples: ['Canada']
+    greetingStyle: 'friendly'
   },
   'african': {
     directness: 'moderate',
@@ -148,10 +145,34 @@ const COMMUNICATION_STYLES = {
     conflictApproach: 'community',
     decisionMaking: 'collective',
     feedbackStyle: 'diplomatic',
-    greetingStyle: 'warm',
-    examples: ['Nigeria', 'South Africa', 'Kenya', 'Ghana', 'Ethiopia']
+    greetingStyle: 'warm'
   }
 };
+
+// Mapping of countries to their respective regional styles and specific overrides
+const COUNTRY_DATA = {
+  'china': { region: 'east-asian' },
+  'japan': { region: 'east-asian', directness: 'very-indirect', conflictApproach: 'extreme-avoidance' },
+  'south-korea': { region: 'east-asian', hierarchyAware: 'extremely-high' },
+  'india': { region: 'south-asian' },
+  'germany': { region: 'germanic', directness: 'very-direct' },
+  'usa': { region: 'anglo', directness: 'direct' },
+  'uk': { region: 'anglo', directness: 'moderate-indirect' },
+  'nigeria': { region: 'african', formality: 'high' },
+  'brazil': { region: 'latin-american', greetingStyle: 'very-warm' },
+  'mexico': { region: 'latin-american' },
+  'egypt': { region: 'middle-eastern' }
+};
+
+// Maintain COMMUNICATION_STYLES for backward compatibility but populate it dynamically
+const COMMUNICATION_STYLES = { ...REGIONAL_STYLES };
+Object.entries(COUNTRY_DATA).forEach(([country, data]) => {
+  COMMUNICATION_STYLES[country] = {
+    ...REGIONAL_STYLES[data.region],
+    ...data,
+    isCountrySpecific: true
+  };
+});
 
 // Cultural sensitivity phrases and expressions
 const CULTURAL_SENSITIVITY_PHRASES = {
@@ -247,8 +268,22 @@ const analyzeCulturalIndicators = (text) => {
     culturalReferences: []
   };
   
-  // Detect greetings in multiple languages
+  // Detect greetings in multiple languages and specific countries
   const greetingPatterns = [
+    { culture: 'china', patterns: ['nihao', 'xiexie'] },
+    { culture: 'japan', patterns: ['konichiwa', 'arigato'] },
+    { culture: 'south-korea', patterns: ['annyeong', 'gamsahamnida'] },
+    { culture: 'india', patterns: ['namaste', 'vanakkam'] },
+    { culture: 'mexico', patterns: ['hola', 'buenos dias'] },
+    { culture: 'brazil', patterns: ['ola', 'obrigado', 'tudo bem'] },
+    { culture: 'egypt', patterns: ['salam', 'marhaban'] },
+    { culture: 'nigeria', patterns: ['sawubona', 'jambo'] }, // Nigeria uses many, these are placeholders
+    { culture: 'germany', patterns: ['hallo', 'danke', 'guten tag'] },
+    { culture: 'usa', patterns: ['howdy', "what's up"] }
+  ];
+
+  // Add regional fallbacks if country-specific detection fails
+  const regionalPatterns = [
     { culture: 'east-asian', patterns: ['nihao', 'konichiwa', 'annyeong', 'xiexie', 'arigato', 'gamsahamnida'] },
     { culture: 'south-asian', patterns: ['namaste', 'vanakkam', 'salaam', 'adab', 'jai shri krishna'] },
     { culture: 'latin-american', patterns: ['hola', 'buenos dias', 'buenas tardes', 'buenas noches', 'como esta'] },
@@ -311,17 +346,21 @@ const determineCulturalContext = (text, currentCulturalContext, culturalIndicato
   
   // Score based on formality markers
   if (culturalIndicators.formalityMarkers.length > 0) {
-    // High formality cultures get a boost
-    ['east-asian', 'south-asian', 'middle-eastern'].forEach(culture => {
-      scores[culture] += 0.3;
+    // Cultures with high formality expectations get a boost
+    Object.entries(COMMUNICATION_STYLES).forEach(([culture, style]) => {
+      if (style.formality === 'high') {
+        scores[culture] += 0.3;
+      }
     });
   }
   
   // Score based on relationship indicators
   if (culturalIndicators.relationshipIndicators.some(rel => ['boss', 'manager', 'supervisor', 'teacher'].includes(rel))) {
     // Hierarchy-aware cultures get a boost
-    Object.keys(COMMUNICATION_STYLES).filter(c => COMMUNICATION_STYLES[c].hierarchyAware).forEach(culture => {
-      scores[culture] += 0.4;
+    Object.entries(COMMUNICATION_STYLES).forEach(([culture, style]) => {
+      if (style.hierarchyAware) {
+        scores[culture] += 0.4;
+      }
     });
   }
   
@@ -329,13 +368,17 @@ const determineCulturalContext = (text, currentCulturalContext, culturalIndicato
   intents.forEach(intent => {
     if (intent.intent === 'conflict' && intent.confidence > 0.5) {
       // Some cultures prefer conflict avoidance
-      ['east-asian', 'middle-eastern'].forEach(culture => {
-        scores[culture] += 0.2;
+      Object.entries(COMMUNICATION_STYLES).forEach(([culture, style]) => {
+        if (style.conflictApproach === 'avoidance') {
+          scores[culture] += 0.2;
+        }
       });
     } else if (intent.intent === 'empathy' && intent.confidence > 0.5) {
-      // Some cultures emphasize empathy
-      ['nordic', 'latin-american'].forEach(culture => {
-        scores[culture] += 0.2;
+      // Some cultures emphasize empathy/relationship in communication
+      Object.entries(COMMUNICATION_STYLES).forEach(([culture, style]) => {
+        if (style.greetingStyle === 'warm' || style.decisionMaking === 'relationship-based') {
+          scores[culture] += 0.2;
+        }
       });
     }
   });
@@ -412,19 +455,37 @@ const getSituationalContext = (text, intents) => {
     formalityLevel: 'neutral',
     urgency: 'low',
     relationshipType: 'neutral',
-    communicationChannel: 'general'
+    communicationChannel: 'general',
+    interactionGoal: 'general',
+    isPublicSetting: false
   };
   
+  const lowerText = text.toLowerCase();
+  
   // Determine formality based on language use
-  if (text.includes('sir') || text.includes('madam') || text.includes('please') || text.includes('excuse me')) {
+  if (lowerText.includes('sir') || lowerText.includes('madam') || lowerText.includes('please') || lowerText.includes('excuse me')) {
     context.formalityLevel = 'high';
-  } else if (text.includes('hey') || text.includes('hi') || text.includes('dude')) {
+  } else if (lowerText.includes('hey') || lowerText.includes('hi') || lowerText.includes('dude') || lowerText.includes('sup')) {
     context.formalityLevel = 'low';
+  }
+  
+  // Determine interaction goal from intents and keywords
+  if (intents.some(i => i.intent === 'strategic') || lowerText.includes('negotiate') || lowerText.includes('price') || lowerText.includes('contract')) {
+    context.interactionGoal = 'negotiation';
+  } else if (lowerText.includes('weather') || lowerText.includes('how are you') || lowerText.includes('nice day')) {
+    context.interactionGoal = 'small-talk';
+  } else if (intents.some(i => i.intent === 'conflict') || lowerText.includes('disagree') || lowerText.includes('wrong')) {
+    context.interactionGoal = 'conflict-resolution';
+  }
+  
+  // Detect setting indicators
+  if (lowerText.includes('everyone') || lowerText.includes('all') || lowerText.includes('team') || lowerText.includes('group')) {
+    context.isPublicSetting = true;
   }
   
   // Determine urgency from intents
   const urgentIntents = ['conflict', 'strategic', 'action'];
-  if (intents.some(intent => urgentIntents.includes(intent.intent) && intent.confidence > 0.6)) {
+  if (intents.some(intent => urgentIntents.includes(intent.intent) && intent.confidence > 0.6) || lowerText.includes('asap') || lowerText.includes('urgent')) {
     context.urgency = 'high';
   }
   
@@ -451,9 +512,18 @@ const generateCulturalGuidance = (culturalAnalysis, text) => {
   const recommendations = [];
   const sensitivityPhrases = [];
 
+  // Get user-specific bias adjustments based on their feedback history
+  const biasAdjustments = getUserCulturalBiasAdjustments();
+
   if (primaryCulture !== 'general') {
+    // Helper to determine if a category should be included based on user bias
+    const shouldIncludeCategory = (category) => {
+      const adjustment = biasAdjustments[category] || 0;
+      return (0.5 + adjustment) > 0.3; // Threshold for inclusion
+    };
+
     // Generate recommendations based on communication style
-    if (communicationStyle.directness === 'indirect') {
+    if (communicationStyle.directness === 'indirect' && shouldIncludeCategory('directness')) {
       const suggestion = 'Use more indirect language to avoid confrontation';
       // Check if this recommendation has been flagged as problematic
       if (!shouldFlagRecommendation(suggestion)) {
@@ -464,7 +534,7 @@ const generateCulturalGuidance = (culturalAnalysis, text) => {
           priority: 'high'
         });
       }
-    } else if (communicationStyle.directness === 'direct') {
+    } else if (communicationStyle.directness === 'direct' && shouldIncludeCategory('directness')) {
       const suggestion = 'Be clear and direct in your communication';
       // Check if this recommendation has been flagged as problematic
       if (!shouldFlagRecommendation(suggestion)) {
@@ -477,7 +547,7 @@ const generateCulturalGuidance = (culturalAnalysis, text) => {
       }
     }
 
-    if (communicationStyle.formality === 'high') {
+    if (communicationStyle.formality === 'high' && shouldIncludeCategory('formality')) {
       const suggestion = 'Maintain formal language and titles';
       // Check if this recommendation has been flagged as problematic
       if (!shouldFlagRecommendation(suggestion)) {
@@ -490,7 +560,7 @@ const generateCulturalGuidance = (culturalAnalysis, text) => {
       }
     }
 
-    if (communicationStyle.faceSaving) {
+    if (communicationStyle.faceSaving && shouldIncludeCategory('face-saving')) {
       const suggestion = 'Frame suggestions to preserve dignity and respect';
       // Check if this recommendation has been flagged as problematic
       if (!shouldFlagRecommendation(suggestion)) {
@@ -503,7 +573,7 @@ const generateCulturalGuidance = (culturalAnalysis, text) => {
       }
     }
 
-    if (communicationStyle.hierarchyAware) {
+    if (communicationStyle.hierarchyAware && shouldIncludeCategory('hierarchy')) {
       const suggestion = 'Acknowledge status differences appropriately';
       // Check if this recommendation has been flagged as problematic
       if (!shouldFlagRecommendation(suggestion)) {
@@ -680,6 +750,8 @@ const createDecisionLog = (text, currentCulturalContext, culturalIndicators, int
   return log;
 };
 
-export const submitCulturalRecommendationFeedback = (recommendationId, recommendationText, userFeedback, culturalContext, userContext = '') => {
-  return submitCulturalFeedback(recommendationId, recommendationText, userFeedback, culturalContext, userContext);
+export const submitCulturalRecommendationFeedback = (recommendationId, recommendationText, userFeedback, culturalContext, userContext = '', category = 'general') => {
+
+  return submitCulturalFeedback(recommendationId, recommendationText, userFeedback, culturalContext, userContext, category);
+
 };

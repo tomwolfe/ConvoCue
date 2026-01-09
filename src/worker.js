@@ -596,9 +596,14 @@ self.onmessage = async (event) => {
                 }
 
                 // Use detected cultural context if more specific than current context AND if confidence is high enough
-                // Only override user's cultural context if confidence is > 0.85 (critical threshold to prevent unwanted overrides)
+                // Only override user's cultural context if confidence is above the threshold
+                // The threshold is dynamic: it can be provided by user settings, or falls back to AppConfig/CulturalIntelligenceConfig
+                const culturalOverrideThreshold = _settings?.culturalOverrideThreshold || 
+                                                 AppConfig.culturalIntelligenceConfig?.confidence?.overrideThreshold || 
+                                                 0.85;
+
                 const effectiveCulturalContext = detectedCulturalContext.primaryCulture !== 'general' &&
-                                                detectedCulturalContext.confidence > 0.85
+                                                detectedCulturalContext.confidence > culturalOverrideThreshold
                     ? detectedCulturalContext.primaryCulture
                     : culturalContext;
 
