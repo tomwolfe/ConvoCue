@@ -113,6 +113,13 @@ export const CulturalIntelligenceConfig = {
       context: 'high-context',
       faceSaving: true,
       hierarchyAware: true
+    },
+    'general': {
+      directness: 'moderate',
+      formality: 'moderate',
+      context: 'neutral',
+      faceSaving: false,
+      hierarchyAware: false
     }
   },
   

@@ -146,6 +146,17 @@ const REGIONAL_STYLES = {
     decisionMaking: 'collective',
     feedbackStyle: 'diplomatic',
     greetingStyle: 'warm'
+  },
+  'general': {
+    directness: 'moderate',
+    formality: 'moderate',
+    context: 'neutral',
+    faceSaving: false,
+    hierarchyAware: false,
+    conflictApproach: 'balanced',
+    decisionMaking: 'collaborative',
+    feedbackStyle: 'constructive',
+    greetingStyle: 'neutral'
   }
 };
 
@@ -158,10 +169,20 @@ const COUNTRY_DATA = {
   'germany': { region: 'germanic', directness: 'very-direct' },
   'usa': { region: 'anglo', directness: 'direct' },
   'uk': { region: 'anglo', directness: 'moderate-indirect' },
+  'canada': { region: 'anglo-canada' },
+  'australia': { region: 'anglo', greetingStyle: 'casual-warm' },
+  'france': { region: 'germanic', formality: 'high', context: 'high-context' }, // Simplified
+  'sweden': { region: 'nordic' },
+  'norway': { region: 'nordic' },
+  'denmark': { region: 'nordic' },
   'nigeria': { region: 'african', formality: 'high' },
+  'kenya': { region: 'african' },
+  'south-africa': { region: 'african', directness: 'moderate-direct' },
   'brazil': { region: 'latin-american', greetingStyle: 'very-warm' },
   'mexico': { region: 'latin-american' },
-  'egypt': { region: 'middle-eastern' }
+  'argentina': { region: 'latin-american' },
+  'egypt': { region: 'middle-eastern' },
+  'saudi-arabia': { region: 'middle-eastern', formality: 'very-high' }
 };
 
 // Maintain COMMUNICATION_STYLES for backward compatibility but populate it dynamically
@@ -205,6 +226,18 @@ const CULTURAL_SENSITIVITY_PHRASES = {
     faceSaving: ['equality', 'respect', 'consideration'],
     formalTerms: ['Mr.', 'Ms.', 'Dr.', 'Professor'],
     indirectPhrases: ['maybe', 'perhaps', 'possibly', 'could be']
+  },
+  'african': {
+    honorifics: ['sir', 'ma\'am', 'elder', 'chief'],
+    faceSaving: ['respect', 'community', 'honor', 'dignity'],
+    formalTerms: ['Mr.', 'Mrs.', 'Ms.', 'Dr.'],
+    indirectPhrases: ['we will see', 'God willing', 'by his grace']
+  },
+  'germanic': {
+    honorifics: ['please', 'thank you'],
+    faceSaving: ['efficiency', 'clarity', 'honesty'],
+    formalTerms: ['Herr', 'Frau', 'Dr.', 'Professor'],
+    indirectPhrases: ['actually', 'in fact', 'clearly']
   }
 };
 
@@ -254,6 +287,38 @@ export const analyzeCulturalContext = (text, currentCulturalContext = 'general',
   };
 };
 
+// Detect greetings in multiple languages and specific countries
+const GREETING_PATTERNS = [
+  { culture: 'china', patterns: ['nihao', 'xiexie'] },
+  { culture: 'japan', patterns: ['konichiwa', 'arigato'] },
+  { culture: 'south-korea', patterns: ['annyeong', 'gamsahamnida'] },
+  { culture: 'india', patterns: ['namaste', 'vanakkam'] },
+  { culture: 'mexico', patterns: ['hola', 'buenos dias'] },
+  { culture: 'brazil', patterns: ['ola', 'obrigado', 'tudo bem'] },
+  { culture: 'egypt', patterns: ['salam', 'marhaban'] },
+  { culture: 'nigeria', patterns: ['sawubona', 'jambo'] }, // Nigeria uses many, these are placeholders
+  { culture: 'germany', patterns: ['hallo', 'danke', 'guten tag'] },
+  { culture: 'usa', patterns: ['howdy', "what's up"] }
+];
+
+// Pre-compile greeting regexes for performance
+const GREETING_REGEXES = GREETING_PATTERNS.map(group => ({
+  culture: group.culture,
+  regexes: group.patterns.map(p => new RegExp(`\\b${p}\\b`, 'i'))
+}));
+
+const FORMALITY_MARKERS = ['sir', 'madam', 'mr.', 'ms.', 'dr.', 'professor', 'please', 'excuse me'];
+const FORMALITY_REGEXES = FORMALITY_MARKERS.map(m => ({
+  marker: m,
+  regex: new RegExp(`\\b${m.replace('.', '\\.')}\\b`, 'i')
+}));
+
+const RELATIONSHIP_INDICATORS = ['boss', 'manager', 'supervisor', 'teacher', 'student', 'parent', 'child', 'friend', 'colleague'];
+const RELATIONSHIP_REGEXES = RELATIONSHIP_INDICATORS.map(ri => ({
+  indicator: ri,
+  regex: new RegExp(`\\b${ri}\\b`, 'i')
+}));
+
 /**
  * Analyzes cultural indicators in the text
  * @param {string} text - Lowercase input text
@@ -268,50 +333,29 @@ const analyzeCulturalIndicators = (text) => {
     culturalReferences: []
   };
   
-  // Detect greetings in multiple languages and specific countries
-  const greetingPatterns = [
-    { culture: 'china', patterns: ['nihao', 'xiexie'] },
-    { culture: 'japan', patterns: ['konichiwa', 'arigato'] },
-    { culture: 'south-korea', patterns: ['annyeong', 'gamsahamnida'] },
-    { culture: 'india', patterns: ['namaste', 'vanakkam'] },
-    { culture: 'mexico', patterns: ['hola', 'buenos dias'] },
-    { culture: 'brazil', patterns: ['ola', 'obrigado', 'tudo bem'] },
-    { culture: 'egypt', patterns: ['salam', 'marhaban'] },
-    { culture: 'nigeria', patterns: ['sawubona', 'jambo'] }, // Nigeria uses many, these are placeholders
-    { culture: 'germany', patterns: ['hallo', 'danke', 'guten tag'] },
-    { culture: 'usa', patterns: ['howdy', "what's up"] }
-  ];
-
-  // Add regional fallbacks if country-specific detection fails
-  const regionalPatterns = [
-    { culture: 'east-asian', patterns: ['nihao', 'konichiwa', 'annyeong', 'xiexie', 'arigato', 'gamsahamnida'] },
-    { culture: 'south-asian', patterns: ['namaste', 'vanakkam', 'salaam', 'adab', 'jai shri krishna'] },
-    { culture: 'latin-american', patterns: ['hola', 'buenos dias', 'buenas tardes', 'buenas noches', 'como esta'] },
-    { culture: 'middle-eastern', patterns: ['salam', 'marhaban', 'ahlan wa sahlan', 'marhaban bik', 'sabah al khair'] },
-    { culture: 'african', patterns: ['sawubona', 'jambo', 'hujambo', 'salama', 'mambo'] }
-  ];
-  
-  greetingPatterns.forEach(greetingGroup => {
-    greetingGroup.patterns.forEach(pattern => {
-      if (text.includes(pattern)) {
-        indicators.greetings.push({ culture: greetingGroup.culture, greeting: pattern });
+  // Detect greetings using pre-compiled regexes
+  GREETING_REGEXES.forEach(group => {
+    group.regexes.forEach((regex, index) => {
+      if (regex.test(text)) {
+        indicators.greetings.push({ 
+          culture: group.culture, 
+          greeting: GREETING_PATTERNS.find(p => p.culture === group.culture).patterns[index] 
+        });
       }
     });
   });
   
-  // Detect formality markers
-  const formalityMarkers = ['sir', 'madam', 'mr.', 'ms.', 'dr.', 'professor', 'please', 'excuse me'];
-  formalityMarkers.forEach(marker => {
-    if (text.includes(marker)) {
-      indicators.formalityMarkers.push(marker);
+  // Detect formality markers using pre-compiled regexes
+  FORMALITY_REGEXES.forEach(item => {
+    if (item.regex.test(text)) {
+      indicators.formalityMarkers.push(item.marker);
     }
   });
   
-  // Detect relationship indicators
-  const relationshipIndicators = ['boss', 'manager', 'supervisor', 'teacher', 'student', 'parent', 'child', 'friend', 'colleague'];
-  relationshipIndicators.forEach(indicator => {
-    if (text.includes(indicator)) {
-      indicators.relationshipIndicators.push(indicator);
+  // Detect relationship indicators using pre-compiled regexes
+  RELATIONSHIP_REGEXES.forEach(item => {
+    if (item.regex.test(text)) {
+      indicators.relationshipIndicators.push(item.indicator);
     }
   });
   
@@ -407,8 +451,15 @@ const determineCulturalContext = (text, currentCulturalContext, culturalIndicato
   const bestCulture = sortedScores[0][0];
   const confidence = maxScore > 0 ? Math.min(1.0, maxScore / 2.0) : 0;
 
-  // Only return a specific culture if confidence is above threshold
-  const effectiveCulture = confidence > 0.3 ? bestCulture : 'general';
+  // If confidence is high, use the new detection
+  // If confidence is low, stick with current context if it's specific
+  // Otherwise default to general
+  let effectiveCulture = 'general';
+  if (confidence > 0.3) {
+    effectiveCulture = bestCulture;
+  } else if (currentCulturalContext !== 'general' && COMMUNICATION_STYLES[currentCulturalContext]) {
+    effectiveCulture = currentCulturalContext;
+  }
 
   // Get cultural dimensions for the selected culture
   const dimensions = effectiveCulture !== 'general' ? getCulturalDimensions(effectiveCulture) : {};
@@ -564,11 +615,27 @@ const generateCulturalGuidance = (culturalAnalysis, text) => {
       const suggestion = 'Frame suggestions to preserve dignity and respect';
       // Check if this recommendation has been flagged as problematic
       if (!shouldFlagRecommendation(suggestion)) {
+        // For direct cultures, use slightly more direct face-saving framing
+        const isDirectCulture = communicationStyle.directness === 'direct' || communicationStyle.directness === 'very-direct';
         recommendations.push({
           category: 'face-saving',
           suggestion: suggestion,
-          examples: ['This is just a thought...', 'Others might consider...', 'What if we tried...'],
+          examples: isDirectCulture 
+            ? ['One alternative approach is...', 'Let\'s consider another perspective...', 'How about we try...']
+            : ['This is just a thought...', 'Others might consider...', 'What if we tried...'],
           priority: 'high'
+        });
+      }
+    }
+
+    if (communicationStyle.directness === 'direct' && !communicationStyle.faceSaving) {
+      const suggestion = 'Prioritize clarity and efficiency in your points';
+      if (!shouldFlagRecommendation(suggestion)) {
+        recommendations.push({
+          category: 'efficiency',
+          suggestion: suggestion,
+          examples: ['The goal is...', 'To be efficient...', 'In short...'],
+          priority: 'medium'
         });
       }
     }
