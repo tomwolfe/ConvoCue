@@ -62,7 +62,21 @@ const CONFLICT_RESOLUTION = {
 export const resolveFeatureConflicts = (insights, persona) => {
   // Create a copy of insights to modify
   const resolvedInsights = { ...insights };
-  
+
+  // Check for high bias risk in cultural insights and adjust accordingly
+  if (resolvedInsights.cultural) {
+    // If cultural insight has high bias risk, reduce its influence
+    if (resolvedInsights.cultural.biasRiskLevel === 'high') {
+      resolvedInsights.cultural.confidence = resolvedInsights.cultural.confidence * 0.5; // Reduce confidence by half
+      resolvedInsights.cultural.advisoryNote = "This cultural suggestion has a high bias risk. Consider verifying with the individual directly.";
+    }
+
+    // If cultural insight has medium bias risk, add cautionary note
+    if (resolvedInsights.cultural.biasRiskLevel === 'medium') {
+      resolvedInsights.cultural.advisoryNote = "This cultural suggestion is based on generalizations. Individual preferences may vary.";
+    }
+  }
+
   // Check for known conflicts and resolve them
   if (resolvedInsights.cultural && resolvedInsights.language) {
     const conflict = CONFLICT_RESOLUTION['cultural_languagelearning_conflict'];
@@ -72,7 +86,7 @@ export const resolveFeatureConflicts = (insights, persona) => {
       resolvedInsights.language = result.languageInsight;
     }
   }
-  
+
   if (resolvedInsights.professional && resolvedInsights.cultural) {
     const conflict = CONFLICT_RESOLUTION['professional_cultural_conflict'];
     if (conflict) {
@@ -81,17 +95,17 @@ export const resolveFeatureConflicts = (insights, persona) => {
       resolvedInsights.cultural = result.culturalInsight;
     }
   }
-  
+
   // Apply feature priorities to determine which insights take precedence
   const orderedFeatures = Object.keys(resolvedInsights)
     .sort((a, b) => (FEATURE_PRIORITIES[b] || 0) - (FEATURE_PRIORITIES[a] || 0));
-  
+
   // Create a priority-ordered result
   const prioritizedInsights = {};
   orderedFeatures.forEach(feature => {
     prioritizedInsights[feature] = resolvedInsights[feature];
   });
-  
+
   return prioritizedInsights;
 };
 

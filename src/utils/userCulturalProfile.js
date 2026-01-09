@@ -104,7 +104,11 @@ export const mergeCulturalContext = (detectedContext) => {
         emotional_expression: userCulturalProfile.emotionalExpression,
         conflict_avoidance: userCulturalProfile.conflictApproach === 'avoidant' ? 'high' :
                            userCulturalProfile.conflictApproach === 'direct' ? 'low' : 'moderate'
-      }
+      },
+      // Add user override indicator
+      userOverrideApplied: true,
+      // Reduce bias risk since user preferences are applied
+      biasRiskLevel: 'low'
     };
   }
 
@@ -112,8 +116,111 @@ export const mergeCulturalContext = (detectedContext) => {
   return {
     ...detectedContext,
     isGeneralGuidance: true, // Flag indicating this is general guidance, not personalized
-    disclaimer: "This is general cultural guidance. Individual preferences may vary."
+    userOverrideApplied: false, // No user override applied
+    disclaimer: "This is general cultural guidance. Individual preferences may vary.",
+    // Allow users to easily reject this suggestion
+    rejectionOptionAvailable: true
   };
+};
+
+/**
+ * Allows users to temporarily override detected cultural context
+ * @param {string} overrideType - Type of override ('communication_style', 'formality_level', etc.)
+ * @param {any} overrideValue - Value to override with
+ * @param {number} durationMinutes - How long the override should last (default: 30 minutes)
+ * @returns {Object} Updated context with temporary override
+ */
+export const applyTemporaryCulturalOverride = (overrideType, overrideValue, durationMinutes = 30) => {
+  const tempOverridesKey = 'convoCue_tempCulturalOverrides';
+
+  try {
+    let tempOverrides = JSON.parse(localStorage.getItem(tempOverridesKey) || '{}');
+
+    // Add the temporary override with expiration
+    tempOverrides[overrideType] = {
+      value: overrideValue,
+      expiresAt: Date.now() + (durationMinutes * 60 * 1000) // Convert minutes to milliseconds
+    };
+
+    localStorage.setItem(tempOverridesKey, JSON.stringify(tempOverrides));
+  } catch (error) {
+    console.warn('Could not save temporary cultural override to storage:', error);
+  }
+};
+
+/**
+ * Checks for and applies any temporary cultural overrides
+ * @param {Object} context - Current cultural context
+ * @returns {Object} Context with temporary overrides applied
+ */
+export const applyTemporaryOverrides = (context) => {
+  const tempOverridesKey = 'convoCue_tempCulturalOverrides';
+
+  try {
+    const tempOverrides = JSON.parse(localStorage.getItem(tempOverridesKey) || '{}');
+    const now = Date.now();
+
+    // Clean up expired overrides and apply active ones
+    let hasChanges = false;
+    const cleanedOverrides = {};
+
+    for (const [overrideType, overrideData] of Object.entries(tempOverrides)) {
+      if (now < overrideData.expiresAt) {
+        // Override is still valid
+        cleanedOverrides[overrideType] = overrideData;
+
+        // Apply the override to the context
+        if (context.characteristics) {
+          context.characteristics[overrideType] = overrideData.value;
+          hasChanges = true;
+        }
+      }
+    }
+
+    // Save cleaned overrides back to storage
+    localStorage.setItem(tempOverridesKey, JSON.stringify(cleanedOverrides));
+
+    if (hasChanges) {
+      return {
+        ...context,
+        hasTemporaryOverrides: true,
+        temporaryOverridesApplied: Object.keys(cleanedOverrides)
+      };
+    }
+  } catch (error) {
+    console.warn('Could not apply temporary cultural overrides from storage:', error);
+  }
+
+  return {
+    ...context,
+    hasTemporaryOverrides: false
+  };
+};
+
+/**
+ * Allows users to completely opt out of cultural suggestions
+ * @param {boolean} optedOut - Whether to opt out of cultural suggestions
+ */
+export const setCulturalOptOut = (optedOut) => {
+  try {
+    localStorage.setItem('convoCue_culturalOptOut', JSON.stringify(optedOut));
+  } catch (error) {
+    console.warn('Could not save cultural opt-out preference to storage:', error);
+  }
+};
+
+/**
+ * Checks if user has opted out of cultural suggestions
+ * @returns {boolean} Whether user has opted out
+ */
+export const isCulturalOptOut = () => {
+  try {
+    const optOutStr = localStorage.getItem('convoCue_culturalOptOut');
+    return JSON.parse(optOutStr || 'false');
+  } catch (error) {
+    console.warn('Could not load cultural opt-out preference from storage:', error);
+    return false;
+  }
 };
 
 /**
@@ -125,6 +232,48 @@ export const mergeCulturalContext = (detectedContext) => {
 export const provideCulturalFeedback = (suggestion, isAccurate, feedback = '') => {
   // Log feedback for potential future learning
   console.log(`Cultural feedback: Suggestion "${suggestion}" - Accurate: ${isAccurate}`, feedback);
+
+  // Use bias monitoring system to track feedback
+  if (typeof window !== 'undefined' && window.localStorage) {
+    // Asynchronous import to avoid blocking the main thread
+    import('./biasMonitoring.js')
+      .then(module => {
+        if (module && module.logCulturalFeedback) {
+          module.logCulturalFeedback(suggestion, isAccurate, feedback);
+        }
+      })
+      .catch(() => {
+        // Fallback to direct logging if import fails
+        try {
+          const monitoringKey = 'convoCue_biasMonitoring';
+          const monitoringData = JSON.parse(window.localStorage.getItem(monitoringKey) || '{}');
+
+          monitoringData.userFeedbackCount = (monitoringData.userFeedbackCount || 0) + 1;
+
+          // Log the feedback for review
+          monitoringData.biasIncidents = monitoringData.biasIncidents || [];
+          monitoringData.biasIncidents.push({
+            timestamp: Date.now(),
+            type: 'user_feedback',
+            suggestion,
+            isAccurate,
+            feedbackText: feedback,
+            source: 'user_direct_feedback'
+          });
+
+          // Limit incidents to last 1000 entries
+          if (monitoringData.biasIncidents.length > 1000) {
+            monitoringData.biasIncidents = monitoringData.biasIncidents.slice(-1000);
+          }
+
+          monitoringData.lastUpdated = Date.now();
+
+          window.localStorage.setItem(monitoringKey, JSON.stringify(monitoringData));
+        } catch (innerError) {
+          console.warn('Could not log cultural feedback to bias monitoring:', innerError);
+        }
+      });
+  }
 
   // In a future version, this could be used to improve the cultural models
   // For now, we'll store it for potential analysis

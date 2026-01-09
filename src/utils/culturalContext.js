@@ -93,20 +93,83 @@ export const getCulturalContext = (situation, targetCulture = null) => {
  * @returns {object} Detected cultural elements
  */
 export const detectCulturalContext = (text, currentCulture = 'general') => {
+  // Check if user has opted out of cultural suggestions
+  const isOptedOut = typeof window !== 'undefined' && window.localStorage ?
+    JSON.parse(window.localStorage.getItem('convoCue_culturalOptOut') || 'false') : false;
+  if (isOptedOut) {
+    return {
+      detectedCultures: [],
+      culturalElements: [],
+      primaryCulture: currentCulture,
+      needsCulturalAwareness: false,
+      confidence: 0,
+      characteristics: null,
+      disclaimer: "Cultural suggestions are disabled per user preference.",
+      warning: "User has opted out of cultural guidance features."
+    };
+  }
+
   // Use enhanced cultural detection first
   const enhancedDetection = detectEnhancedCulturalContext(text, currentCulture);
 
   // If enhanced detection finds a specific culture with high confidence, use it
   if (enhancedDetection.confidence > 0.5 && enhancedDetection.primaryCulture !== 'general') {
+    // Apply any temporary overrides
+    const tempOverridesKey = 'convoCue_tempCulturalOverrides';
+    let contextWithOverrides = enhancedDetection;
+
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        const tempOverrides = JSON.parse(window.localStorage.getItem(tempOverridesKey) || '{}');
+        const now = Date.now();
+
+        // Clean up expired overrides and apply active ones
+        let hasChanges = false;
+        const cleanedOverrides = {};
+
+        for (const [overrideType, overrideData] of Object.entries(tempOverrides)) {
+          if (now < overrideData.expiresAt) {
+            // Override is still valid
+            cleanedOverrides[overrideType] = overrideData;
+
+            // Apply the override to the context
+            if (contextWithOverrides.characteristics) {
+              contextWithOverrides.characteristics[overrideType] = overrideData.value;
+              hasChanges = true;
+            }
+          }
+        }
+
+        // Save cleaned overrides back to storage
+        window.localStorage.setItem(tempOverridesKey, JSON.stringify(cleanedOverrides));
+
+        if (hasChanges) {
+          contextWithOverrides = {
+            ...contextWithOverrides,
+            hasTemporaryOverrides: true,
+            temporaryOverridesApplied: Object.keys(cleanedOverrides)
+          };
+        }
+      } catch (error) {
+        console.warn('Could not apply temporary cultural overrides from storage:', error);
+      }
+    }
+
     return {
       detectedCultures: [enhancedDetection.primaryCulture],
       culturalElements: enhancedDetection.detectedCultures,
       primaryCulture: enhancedDetection.primaryCulture,
       needsCulturalAwareness: true,
       confidence: enhancedDetection.confidence,
-      characteristics: enhancedDetection.characteristics,
+      characteristics: contextWithOverrides.characteristics,
       disclaimer: enhancedDetection.disclaimer,
-      warning: enhancedDetection.warning
+      warning: enhancedDetection.warning,
+      biasRiskLevel: enhancedDetection.biasRiskLevel,
+      biasAlert: enhancedDetection.biasAlert,
+      ...(contextWithOverrides.hasTemporaryOverrides && {
+        hasTemporaryOverrides: true,
+        temporaryOverridesApplied: contextWithOverrides.temporaryOverridesApplied
+      })
     };
   }
 

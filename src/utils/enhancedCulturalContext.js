@@ -21,6 +21,14 @@ const CULTURAL_PATTERNS = {
       emotional_expression: 'moderate',
       conflict_avoidance: 'high'
     },
+    dimensions: {
+      power_distance: 'high',        // Acceptance of hierarchical order
+      individualism: 'low',          // Collective orientation
+      masculinity: 'moderate',       // Balance between competition and care
+      uncertainty_avoidance: 'moderate', // Tolerance for ambiguity
+      long_term_orientation: 'high', // Focus on long-term results
+      indulgence: 'low'              // Restraint vs gratification
+    },
     phrases: {
       formal_greetings: ['it\'s an honor', 'respectfully', 'with respect', 'honored to'],
       indirect_expressions: ['perhaps', 'possibly', 'it might be', 'one could consider'],
@@ -35,6 +43,14 @@ const CULTURAL_PATTERNS = {
       directness: 'low',
       emotional_expression: 'moderate',
       conflict_avoidance: 'moderate'
+    },
+    dimensions: {
+      power_distance: 'high',
+      individualism: 'low',
+      masculinity: 'moderate',
+      uncertainty_avoidance: 'high',
+      long_term_orientation: 'moderate',
+      indulgence: 'moderate'
     },
     phrases: {
       formal_greetings: ['namaste', 'respect', 'regards', 'with regards'],
@@ -51,6 +67,14 @@ const CULTURAL_PATTERNS = {
       emotional_expression: 'high',
       conflict_avoidance: 'moderate'
     },
+    dimensions: {
+      power_distance: 'high',
+      individualism: 'low',
+      masculinity: 'high',
+      uncertainty_avoidance: 'high',
+      long_term_orientation: 'low',
+      indulgence: 'high'
+    },
     phrases: {
       personal_greetings: ['how are your family', 'how\'s home', 'hope all is well'],
       relationship_focused: ['personal', 'relationship', 'together', 'bond'],
@@ -65,6 +89,14 @@ const CULTURAL_PATTERNS = {
       directness: 'moderate',
       emotional_expression: 'moderate',
       conflict_avoidance: 'high'
+    },
+    dimensions: {
+      power_distance: 'high',
+      individualism: 'low',
+      masculinity: 'high',
+      uncertainty_avoidance: 'high',
+      long_term_orientation: 'moderate',
+      indulgence: 'moderate'
     },
     phrases: {
       formal_greetings: ['peace be upon you', 'blessings', 'honor', 'grace'],
@@ -81,6 +113,14 @@ const CULTURAL_PATTERNS = {
       emotional_expression: 'moderate',
       conflict_avoidance: 'low'
     },
+    dimensions: {
+      power_distance: 'low',
+      individualism: 'high',
+      masculinity: 'moderate',
+      uncertainty_avoidance: 'moderate',
+      long_term_orientation: 'moderate',
+      indulgence: 'moderate'
+    },
     phrases: {
       direct_communication: ['clearly', 'directly', 'straightforward', 'to the point'],
       efficiency_focused: ['efficient', 'effective', 'productive', 'results-oriented'],
@@ -95,6 +135,14 @@ const CULTURAL_PATTERNS = {
       directness: 'high',
       emotional_expression: 'high',
       conflict_avoidance: 'low'
+    },
+    dimensions: {
+      power_distance: 'low',
+      individualism: 'high',
+      masculinity: 'moderate',
+      uncertainty_avoidance: 'low',
+      long_term_orientation: 'moderate',
+      indulgence: 'high'
     },
     phrases: {
       friendly_formal: ['hi there', 'hey', 'good to see you', 'how\'s it going'],
@@ -111,10 +159,86 @@ const CULTURAL_PATTERNS = {
       emotional_expression: 'high',
       conflict_avoidance: 'moderate'
     },
+    dimensions: {
+      power_distance: 'moderate-high',
+      individualism: 'low-moderate',
+      masculinity: 'moderate',
+      uncertainty_avoidance: 'moderate',
+      long_term_orientation: 'low-moderate',
+      indulgence: 'moderate-high'
+    },
     phrases: {
       community_focused: ['community', 'together', 'us', 'our people'],
       respect_oriented: ['elder', 'respect', 'wisdom', 'tradition'],
       oral_tradition: ['story', 'tell', 'share', 'experience']
+    }
+  },
+  // Additional cultural dimensions for more nuanced understanding
+  'professional': {
+    keywords: ['workplace', 'corporate', 'business', 'colleague', 'team', 'collaboration', 'efficiency'],
+    characteristics: {
+      communication_style: 'context-dependent',
+      formality_level: 'moderate-high',
+      directness: 'moderate',
+      emotional_expression: 'controlled',
+      conflict_avoidance: 'moderate'
+    },
+    dimensions: {
+      power_distance: 'context-dependent',
+      individualism: 'context-dependent',
+      masculinity: 'context-dependent',
+      uncertainty_avoidance: 'moderate-high',
+      long_term_orientation: 'high',
+      indulgence: 'low-moderate'
+    },
+    phrases: {
+      corporate: ['per my email', 'let\'s circle back', 'touch base', 'synergy', 'bandwidth'],
+      collaborative: ['team effort', 'brainstorm', 'align on', 'let\'s collaborate'],
+      formal: ['respectfully', 'regarding', 'further to', 'pursuant to']
+    }
+  },
+  'religious': {
+    keywords: ['faith', 'spiritual', 'worship', 'belief', 'doctrine', 'worship', 'devotion', 'sacred'],
+    characteristics: {
+      communication_style: 'respectful',
+      formality_level: 'high',
+      directness: 'varies',
+      emotional_expression: 'meaningful',
+      conflict_avoidance: 'high'
+    },
+    dimensions: {
+      power_distance: 'high',
+      individualism: 'varies',
+      masculinity: 'varies',
+      uncertainty_avoidance: 'high',
+      long_term_orientation: 'high',
+      indulgence: 'varies'
+    },
+    phrases: {
+      reverent: ['blessed', 'grace', 'divine', 'holy', 'sacred'],
+      peaceful: ['peace', 'harmony', 'compassion', 'mercy', 'forgiveness']
+    }
+  },
+  'generational': {
+    keywords: ['traditional', 'modern', 'contemporary', 'classic', 'innovative', 'change', 'progress'],
+    characteristics: {
+      communication_style: 'varies',
+      formality_level: 'varies',
+      directness: 'varies',
+      emotional_expression: 'varies',
+      conflict_avoidance: 'varies'
+    },
+    dimensions: {
+      power_distance: 'varies',
+      individualism: 'varies',
+      masculinity: 'varies',
+      uncertainty_avoidance: 'varies',
+      long_term_orientation: 'varies',
+      indulgence: 'varies'
+    },
+    phrases: {
+      traditional: ['the old ways', 'as we\'ve always done', 'traditional values'],
+      modern: ['cutting-edge', 'disruptive', 'innovative', 'next-gen', 'digital native']
     }
   }
 };
@@ -182,33 +306,79 @@ export const detectEnhancedCulturalContext = (text, currentContext = 'general') 
     }
 
     if (score > 0) {
+      // Calculate confidence with consideration for cultural overlap
+      let confidence = Math.min(1.0, score / 10); // Normalize to 0-1 range
+
+      // Reduce confidence if this is a broad/general category that might overlap with others
+      if (['professional', 'religious', 'generational'].includes(cultureKey)) {
+        confidence *= 0.8; // Lower confidence for overlapping categories
+      }
+
       detectedCultures.push({
         culture: cultureKey,
         score,
-        confidence: Math.min(1.0, score / 10) // Normalize to 0-1 range
+        confidence,
+        dimensions: cultureData.dimensions || {},
+        characteristics: cultureData.characteristics || {}
       });
     }
   }
 
-  // Sort by score and get the top culture
+  // Sort by score and get the top cultures
   detectedCultures.sort((a, b) => b.score - a.score);
 
+  // Consider multiple cultural influences if scores are close
   const primaryCulture = detectedCultures.length > 0 ? detectedCultures[0].culture : currentContext;
   const confidence = detectedCultures.length > 0 ? detectedCultures[0].confidence : 0;
+
+  // Check for secondary cultural influences (within 20% of primary score)
+  const secondaryCultures = detectedCultures.filter((culture, index) =>
+    index > 0 && culture.score >= detectedCultures[0].score * 0.8
+  );
 
   // Create the base detection result
   const baseResult = {
     primaryCulture,
     confidence,
     detectedCultures,
+    secondaryCultures,
     characteristics: CULTURAL_PATTERNS[primaryCulture]?.characteristics || null,
+    dimensions: CULTURAL_PATTERNS[primaryCulture]?.dimensions || null,
+    isMixedCulturalInfluence: secondaryCultures.length > 0,
     isGeneralGuidance: true, // Flag indicating this is general guidance, not personalized
+    isHighAmbiguity: confidence < 0.3, // Flag for low-confidence detections
+    biasRiskLevel: confidence > 0.7 ? 'medium' : 'high', // Higher confidence in generalizations poses higher bias risk
     disclaimer: "This is general cultural guidance based on detected patterns. Individual preferences may vary significantly.",
-    warning: "Cultural patterns are broad generalizations. Always verify with the individual's actual preferences."
+    warning: "Cultural patterns are broad generalizations. Always verify with the individual's actual preferences.",
+    biasAlert: confidence > 0.8 ? "High confidence detected. Be cautious of over-relying on cultural generalizations." : null,
+    culturalComplexityNote: secondaryCultures.length > 0 ?
+      `Multiple cultural influences detected: ${[primaryCulture, ...secondaryCultures.map(c => c.culture)].join(', ')}. Individual identity may reflect multiple cultural backgrounds.` : null
   };
 
   // Merge with user profile if available
   const mergedResult = mergeCulturalContext(baseResult);
+
+  // Log the cultural suggestion for bias monitoring
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      const monitoringKey = 'convoCue_biasMonitoring';
+      const monitoringData = JSON.parse(window.localStorage.getItem(monitoringKey) || '{}');
+
+      // Update statistics
+      monitoringData.totalCulturalSuggestions = (monitoringData.totalCulturalSuggestions || 0) + 1;
+
+      // Track cultural pattern usage
+      const culture = mergedResult.primaryCulture || 'unknown';
+      monitoringData.culturalPatternUsage = monitoringData.culturalPatternUsage || {};
+      monitoringData.culturalPatternUsage[culture] = (monitoringData.culturalPatternUsage[culture] || 0) + 1;
+
+      monitoringData.lastUpdated = Date.now();
+
+      window.localStorage.setItem(monitoringKey, JSON.stringify(monitoringData));
+    } catch (error) {
+      console.warn('Could not log cultural suggestion to bias monitoring:', error);
+    }
+  }
 
   return mergedResult;
 };
@@ -422,6 +592,11 @@ export const analyzeCulturalAppropriateness = (text, targetCulture) => {
     issues,
     suggestions,
     confidence,
-    disclaimer: "This analysis is based on general cultural patterns. Always verify with the individual's actual preferences."
+    confidenceRange: [Math.max(0, confidence - 0.2), Math.min(1, confidence + 0.2)], // Add confidence range
+    issuesCount: issues.length,
+    suggestionsCount: suggestions.length,
+    biasRiskLevel: issues.length > 0 ? 'medium' : 'low',
+    disclaimer: "This analysis is based on general cultural patterns. Always verify with the individual's actual preferences.",
+    biasAlert: issues.length > 2 ? "Multiple cultural mismatches detected. Consider that individual preferences may differ significantly from cultural generalizations." : null
   };
 };

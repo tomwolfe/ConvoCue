@@ -42,6 +42,50 @@ export const storeLanguageLearningFeedback = (originalText, analysis, isHelpful,
     // Save back to storage
     localStorage.setItem(FEEDBACK_STORAGE_KEY, JSON.stringify(existingFeedback));
 
+    // Also log to bias monitoring if this is related to cultural suggestions
+    if (userComment.toLowerCase().includes('culture') || userComment.toLowerCase().includes('cultural')) {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        // Asynchronous import to avoid blocking the main thread
+        import('./biasMonitoring.js')
+          .then(module => {
+            if (module && module.logCulturalFeedback) {
+              module.logCulturalFeedback('language learning feedback', !isHelpful, userComment);
+            }
+          })
+          .catch(() => {
+            // Fallback to direct logging if import fails
+            try {
+              const monitoringKey = 'convoCue_biasMonitoring';
+              const monitoringData = JSON.parse(window.localStorage.getItem(monitoringKey) || '{}');
+
+              monitoringData.userFeedbackCount = (monitoringData.userFeedbackCount || 0) + 1;
+
+              // Log the feedback for review
+              monitoringData.biasIncidents = monitoringData.biasIncidents || [];
+              monitoringData.biasIncidents.push({
+                timestamp: Date.now(),
+                type: 'user_feedback',
+                suggestion: 'language learning feedback',
+                isAccurate: isHelpful,
+                feedbackText: userComment,
+                source: 'language_learning_module'
+              });
+
+              // Limit incidents to last 1000 entries
+              if (monitoringData.biasIncidents.length > 1000) {
+                monitoringData.biasIncidents = monitoringData.biasIncidents.slice(-1000);
+              }
+
+              monitoringData.lastUpdated = Date.now();
+
+              window.localStorage.setItem(monitoringKey, JSON.stringify(monitoringData));
+            } catch (innerError) {
+              console.warn('Could not log language learning feedback to bias monitoring:', innerError);
+            }
+          });
+      }
+    }
+
     console.log('Language learning feedback stored successfully');
   } catch (error) {
     console.error('Failed to store language learning feedback:', error);
