@@ -8,6 +8,8 @@
  */
 
 import { IntentDetectionConfig } from '../config/intentDetection';
+import intentPerformanceTracker from './intentPerformance';
+import intentAnalytics from './intentAnalytics';
 
 // Intent patterns with weights for similarity matching
 const intentPatterns = {
@@ -141,6 +143,8 @@ const tokenize = (text) => {
 
 /**
  * Detect intent from input text using pattern matching and similarity
+ * @param {string} input - The input text to analyze for intent
+ * @returns {string|null} The detected intent or null if no intent is detected
  */
 export const detectIntent = (input) => {
   const { intent } = detectIntentWithConfidence(input);
@@ -149,38 +153,41 @@ export const detectIntent = (input) => {
 
 /**
  * Get a confidence score for the detected intent
+ * @param {string} input - The input text to analyze for intent
+ * @returns {Object} An object containing the detected intent and confidence score
  */
 export const detectIntentWithConfidence = (input) => {
   if (!input || typeof input !== 'string') return { intent: null, confidence: 0 };
-  
-  const tokens = tokenize(input);
+
+  // Measure tokenization performance
+  const tokens = intentPerformanceTracker.measureTokenization(tokenize, input);
   const inputLower = input.toLowerCase();
-  
+
   let bestMatch = null;
   let bestScore = 0;
-  
+
   for (const [intent, patterns] of Object.entries(compiledPatterns)) {
     let maxIntentScore = 0;
-    
+
     for (const pattern of patterns) {
       let patternScore = 0;
-      
+
       // Phase 1: Fast Matches (Exact & RegEx)
       for (const patternItem of pattern.regexes) {
         // Direct token match (exact word)
         if (tokens.includes(patternItem.text)) {
           patternScore = Math.max(patternScore, pattern.weight);
         }
-        
+
         // Substring/RegEx match at word boundaries
         if (patternScore < pattern.weight && patternItem.regex.test(inputLower)) {
           const weightMultiplier = patternItem.isMultiWord ? 1.0 : 0.6;
           patternScore = Math.max(patternScore, pattern.weight * weightMultiplier);
         }
-        
+
         if (patternScore >= 1.0) break;
       }
-      
+
       // Phase 2: Similarity Match (Slow, only if no strong match yet)
       if (patternScore < 0.8) {
         // Optimization: Limit similarity checks to first 10 tokens
@@ -190,8 +197,9 @@ export const detectIntentWithConfidence = (input) => {
             for (const token of limitedTokens) {
               if (Math.abs(token.length - patternItem.text.length) > 2) continue;
               if (token.length > 15) continue;
-              
-              const similarity = calculateSimilarity(token, patternItem.text);
+
+              // Measure similarity calculation performance
+              const similarity = intentPerformanceTracker.measureSimilarityCalculation(calculateSimilarity, token, patternItem.text);
               if (similarity > 0.85) {
                 patternScore = Math.max(patternScore, pattern.weight * similarity);
               }
@@ -201,11 +209,11 @@ export const detectIntentWithConfidence = (input) => {
           if (patternScore >= 0.85) break;
         }
       }
-      
+
       maxIntentScore = Math.max(maxIntentScore, patternScore);
       if (maxIntentScore >= 1.0) break;
     }
-    
+
     if (maxIntentScore > bestScore) {
       bestScore = maxIntentScore;
       bestMatch = intent;
@@ -217,14 +225,22 @@ export const detectIntentWithConfidence = (input) => {
   // Use default threshold (0.4) - the configurable version will be handled in the calling function
   const threshold = 0.4;
 
-  return {
+  const result = {
     intent: bestScore > threshold ? bestMatch : null,
     confidence: Math.min(1.0, bestScore)
   };
+
+  // Record analytics for this detection
+  intentAnalytics.recordDetection(input, result.intent, result.confidence);
+
+  return result;
 };
 
 /**
  * Detect intent from input text using pattern matching and similarity with configurable threshold
+ * @param {string} input - The input text to analyze for intent
+ * @param {number} threshold - The confidence threshold for intent detection (default: 0.4)
+ * @returns {Object} An object containing the detected intent and confidence score
  */
 export const detectIntentWithConfidenceAndThreshold = (input, threshold = 0.4) => {
   if (!input || typeof input !== 'string') return { intent: null, confidence: 0 };
@@ -299,6 +315,9 @@ export const detectIntentWithConfidenceAndThreshold = (input, threshold = 0.4) =
 /**
  * High-performance intent detection for real-time processing
  * Optimized for speed over accuracy, with early termination
+ * @param {string} input - The input text to analyze for intent
+ * @param {number} threshold - The confidence threshold for intent detection (default: 0.5)
+ * @returns {Object} An object containing the detected intent and confidence score
  */
 export const detectIntentHighPerformance = (input, threshold = 0.5) => {
   if (!input || typeof input !== 'string') return { intent: null, confidence: 0 };
@@ -309,7 +328,8 @@ export const detectIntentHighPerformance = (input, threshold = 0.5) => {
     input = input.substring(0, 100);
   }
 
-  const tokens = tokenize(input);
+  // Measure tokenization performance
+  const tokens = intentPerformanceTracker.measureTokenization(tokenize, input);
   const inputLower = input.toLowerCase();
 
   // Early termination: if we have few tokens, skip similarity checks
@@ -353,7 +373,8 @@ export const detectIntentHighPerformance = (input, threshold = 0.5) => {
               if (Math.abs(token.length - patternItem.text.length) > 2) continue;
               if (token.length > 15) continue;
 
-              const similarity = calculateSimilarity(token, patternItem.text);
+              // Measure similarity calculation performance
+              const similarity = intentPerformanceTracker.measureSimilarityCalculation(calculateSimilarity, token, patternItem.text);
               if (similarity > 0.85) {
                 patternScore = Math.max(patternScore, pattern.weight * similarity);
                 // Early exit if we have a strong match
@@ -383,41 +404,50 @@ export const detectIntentHighPerformance = (input, threshold = 0.5) => {
     if (bestScore >= 1.0) break;
   }
 
-  return {
+  const result = {
     intent: bestScore > threshold ? bestMatch : null,
     confidence: Math.min(1.0, bestScore)
   };
+
+  // Record analytics for this detection
+  intentAnalytics.recordDetection(input, result.intent, result.confidence);
+
+  return result;
 };
 
 /**
  * Detect all intents above a threshold
+ * @param {string} input - The input text to analyze for intents
+ * @param {number} threshold - The confidence threshold for intent detection (default: 0.4)
+ * @returns {Array} An array of objects containing detected intents and their confidence scores
  */
 export const detectMultipleIntents = (input, threshold = 0.4) => {
   if (!input || typeof input !== 'string') return [];
-  
-  const tokens = tokenize(input);
+
+  // Measure tokenization performance
+  const tokens = intentPerformanceTracker.measureTokenization(tokenize, input);
   const inputLower = input.toLowerCase();
   const results = [];
-  
+
   for (const [intent, patterns] of Object.entries(compiledPatterns)) {
     let maxIntentScore = 0;
-    
+
     for (const pattern of patterns) {
       let patternScore = 0;
-      
+
       // Phase 1: Fast Matches
       for (const patternItem of pattern.regexes) {
         if (tokens.includes(patternItem.text)) {
           patternScore = Math.max(patternScore, pattern.weight);
         }
-        
+
         if (patternScore < pattern.weight && patternItem.regex.test(inputLower)) {
           const weightMultiplier = patternItem.isMultiWord ? 1.0 : 0.6;
           patternScore = Math.max(patternScore, pattern.weight * weightMultiplier);
         }
         if (patternScore >= 1.0) break;
       }
-      
+
       // Phase 2: Similarity Match
       if (patternScore < threshold && patternScore < 0.8) {
         const limitedTokens = tokens.slice(0, 10);
@@ -426,8 +456,9 @@ export const detectMultipleIntents = (input, threshold = 0.4) => {
             for (const token of limitedTokens) {
               if (Math.abs(token.length - patternItem.text.length) > 2) continue;
               if (token.length > 15) continue;
-              
-              const similarity = calculateSimilarity(token, patternItem.text);
+
+              // Measure similarity calculation performance
+              const similarity = intentPerformanceTracker.measureSimilarityCalculation(calculateSimilarity, token, patternItem.text);
               if (similarity > 0.85) {
                 patternScore = Math.max(patternScore, pattern.weight * similarity);
               }
@@ -437,21 +468,30 @@ export const detectMultipleIntents = (input, threshold = 0.4) => {
           if (patternScore >= 0.85) break;
         }
       }
-      
+
       maxIntentScore = Math.max(maxIntentScore, patternScore);
       if (maxIntentScore >= 1.0) break;
     }
-    
+
     if (maxIntentScore >= threshold) {
       results.push({ intent, confidence: maxIntentScore });
     }
   }
-  
+
+  // Record analytics for each detected intent
+  results.forEach(result => {
+    intentAnalytics.recordDetection(input, result.intent, result.confidence);
+  });
+
   return results.sort((a, b) => b.confidence - a.confidence);
 };
 
 /**
- * Enhanced intent-based cue generation
+ * Generates an intent-based cue based on the detected intent from input text
+ * @param {string} input - The input text to analyze for intent
+ * @param {string} response - The AI response to consider for cue generation
+ * @param {Array} conversationHistory - The conversation history for context
+ * @returns {string} A contextual cue based on the detected intent
  */
 export const generateIntentBasedCue = (input, response = '', conversationHistory = []) => {
   const { intent, confidence } = detectIntentWithConfidence(input);
@@ -483,7 +523,10 @@ export const generateIntentBasedCue = (input, response = '', conversationHistory
 };
 
 /**
- * Generate cue from response content
+ * Generates a cue based on the content of the AI response
+ * @param {string} response - The AI response to analyze
+ * @param {Array} conversationHistory - The conversation history for context
+ * @returns {string} A contextual cue based on the response content
  */
 const generateCueFromResponse = (response, conversationHistory = []) => {
   if (!response) return 'Pause';
@@ -520,9 +563,16 @@ const generateCueFromResponse = (response, conversationHistory = []) => {
 
 /**
  * Enhanced intent detection that also considers conversation context
+ * @param {string} input - The input text to analyze for intent
+ * @param {Array} conversationHistory - The conversation history for context
+ * @returns {Object} An object containing the detected intent and confidence score
  */
 export const detectIntentWithContext = (input, conversationHistory = []) => {
+  // Measure context-aware detection performance
+  const startTime = performance.now();
   const baseResult = detectIntentWithConfidence(input);
+  const endTime = performance.now();
+  intentPerformanceTracker.recordIntentDetectionTime('contextDetectionTime', endTime - startTime);
 
   // Handle intent ambiguity for specific cases like "I'm sorry"
   if (baseResult.intent && input.toLowerCase().includes('sorry')) {
@@ -544,6 +594,111 @@ export const detectIntentWithContext = (input, conversationHistory = []) => {
       return {
         intent: 'conflict',
         confidence: Math.min(1.0, baseResult.confidence + 0.15)
+      };
+    }
+  }
+
+  // Enhanced disambiguation for "maybe" and similar terms
+  if (input.toLowerCase().includes('maybe') || input.toLowerCase().includes('perhaps')) {
+    // Check if it's in a business context (strategic intent)
+    const businessIndicators = ['proposal', 'deal', 'contract', 'negotiation', 'meeting', 'project', 'budget', 'strategy'];
+    const isBusinessContext = businessIndicators.some(indicator =>
+      input.toLowerCase().includes(indicator) ||
+      conversationHistory.some(turn => turn.content.toLowerCase().includes(indicator))
+    );
+
+    if (isBusinessContext) {
+      return {
+        intent: 'strategic',
+        confidence: Math.min(1.0, baseResult.confidence + 0.1)
+      };
+    }
+  }
+
+  // Enhanced disambiguation for "action" vs "strategic" based on context
+  if (baseResult.intent === 'action' || baseResult.intent === 'strategic') {
+    // Look for temporal indicators that suggest strategic planning vs immediate action
+    const strategicIndicators = ['plan', 'strategy', 'future', 'long-term', 'vision', 'goal', 'objective', 'timeline'];
+    const immediateIndicators = ['now', 'immediately', 'right away', 'today', 'this week', 'urgent', 'asap'];
+
+    const inputLower = input.toLowerCase();
+    const hasStrategicIndicator = strategicIndicators.some(indicator => inputLower.includes(indicator));
+    const hasImmediateIndicator = immediateIndicators.some(indicator => inputLower.includes(indicator));
+
+    // If both types of indicators exist, check conversation history for context
+    if (hasStrategicIndicator && hasImmediateIndicator) {
+      // Look at recent conversation for context
+      const recentContext = conversationHistory.slice(-5).map(turn => turn.content.toLowerCase()).join(' ');
+      if (strategicIndicators.some(indicator => recentContext.includes(indicator))) {
+        return {
+          intent: 'strategic',
+          confidence: Math.min(1.0, baseResult.confidence + 0.1)
+        };
+      } else if (immediateIndicators.some(indicator => recentContext.includes(indicator))) {
+        return {
+          intent: 'action',
+          confidence: Math.min(1.0, baseResult.confidence + 0.1)
+        };
+      }
+    } else if (hasStrategicIndicator) {
+      return {
+        intent: 'strategic',
+        confidence: Math.min(1.0, baseResult.confidence + 0.1)
+      };
+    } else if (hasImmediateIndicator) {
+      return {
+        intent: 'action',
+        confidence: Math.min(1.0, baseResult.confidence + 0.1)
+      };
+    }
+  }
+
+  // Enhanced disambiguation for question vs language based on context
+  if (baseResult.intent === 'question' || baseResult.intent === 'language') {
+    const questionWords = ['what', 'how', 'why', 'when', 'where', 'who'];
+    const languageWords = ['explain', 'clarify', 'phrasing', 'word', 'grammar', 'vocabulary'];
+
+    const inputLower = input.toLowerCase();
+    const hasQuestionWord = questionWords.some(word => inputLower.startsWith(word));
+    const hasLanguageWord = languageWords.some(word => inputLower.includes(word));
+
+    // If it's clearly a question word at the start, favor question intent
+    if (hasQuestionWord && !hasLanguageWord) {
+      return {
+        intent: 'question',
+        confidence: Math.min(1.0, baseResult.confidence + 0.1)
+      };
+    } else if (hasLanguageWord && !hasQuestionWord) {
+      return {
+        intent: 'language',
+        confidence: Math.min(1.0, baseResult.confidence + 0.1)
+      };
+    }
+  }
+
+  // Enhanced disambiguation for empathy vs social based on emotional context
+  if (baseResult.intent === 'empathy' || baseResult.intent === 'social') {
+    const emotionalWords = ['feel', 'emotion', 'sad', 'happy', 'angry', 'frustrated', 'anxious', 'excited', 'scared', 'worried'];
+    const socialWords = ['hello', 'hi', 'hey', 'good morning', 'thanks', 'please', 'you', 'nice'];
+
+    const inputLower = input.toLowerCase();
+    const hasEmotionalWord = emotionalWords.some(word => inputLower.includes(word));
+    const hasSocialWord = socialWords.some(word => inputLower.includes(word));
+
+    // Check conversation history for emotional context
+    const recentEmotionalContext = conversationHistory.slice(-3).some(turn =>
+      emotionalWords.some(word => turn.content.toLowerCase().includes(word))
+    );
+
+    if (hasEmotionalWord || recentEmotionalContext) {
+      return {
+        intent: 'empathy',
+        confidence: Math.min(1.0, baseResult.confidence + 0.15)
+      };
+    } else if (hasSocialWord && !hasEmotionalWord) {
+      return {
+        intent: 'social',
+        confidence: Math.min(1.0, baseResult.confidence + 0.1)
       };
     }
   }
@@ -572,13 +727,30 @@ export const detectIntentWithContext = (input, conversationHistory = []) => {
         confidence: Math.min(1.0, baseResult.confidence + 0.15)
       };
     }
+
+    // Enhanced context analysis: Check if the current input is a response to a question
+    if (lastContent.includes('?') && baseResult.intent === 'social') {
+      // If the last turn was a question and current intent is social,
+      // it might be a response that should be classified differently
+      const responseIndicators = ['yes', 'no', 'maybe', 'i think', 'i believe', 'probably', 'definitely'];
+      const isResponse = responseIndicators.some(indicator => inputLower.includes(indicator));
+
+      if (isResponse) {
+        // Re-evaluate with higher confidence for a more appropriate intent
+        const reevaluatedResult = detectIntentWithConfidence(input);
+        if (reevaluatedResult.confidence > baseResult.confidence) {
+          return reevaluatedResult;
+        }
+      }
+    }
   }
 
   return baseResult;
 };
 
 /**
- * Metadata for semantic tags
+ * Metadata for semantic tags used in the intent detection system
+ * Maps intent types to their visual representation and behavior
  */
 export const TAG_METADATA = {
   conflict: {
@@ -640,7 +812,9 @@ export const TAG_METADATA = {
 };
 
 /**
- * Parses semantic tags from text
+ * Parses semantic tags from text and returns clean text and tag information
+ * @param {string} text - The text to parse for semantic tags
+ * @returns {Object} An object containing the clean text and array of detected tags
  */
 export const parseSemanticTags = (text) => {
   if (!text) return { cleanText: '', tags: [] };

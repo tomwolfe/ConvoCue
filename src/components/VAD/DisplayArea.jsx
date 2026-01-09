@@ -275,13 +275,18 @@ const DisplayArea = ({
                 {processingStep === 'thinking' && detectedIntent && TAG_METADATA[detectedIntent] &&
                  settings.enabledIntents?.includes(detectedIntent) && (
                   <span
-                    className={`glance-badge ${TAG_METADATA[detectedIntent].variant} pulse-animation`}
-                    title={`PREVIEW: ${TAG_METADATA[detectedIntent].description}. This is a real-time analysis - the final response may differ.`}
+                    className={`glance-badge ${TAG_METADATA[detectedIntent].variant} pulse-animation live-preview-indicator`}
+                    title={`LIVE PREVIEW: ${TAG_METADATA[detectedIntent].description}. This is a real-time analysis - the final response may differ. Click for more info.`}
                     role="status"
                     aria-label={`Real-time preview: ${TAG_METADATA[detectedIntent].label}. This is preliminary - final response may differ.`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      alert(`LIVE PREVIEW INDICATOR\n\nThis badge shows a real-time analysis of your input while the AI is still processing.\n\nFinal results may differ from this preview.\n\nIntent: ${TAG_METADATA[detectedIntent].label}\nDescription: ${TAG_METADATA[detectedIntent].description}`);
+                    }}
                   >
                     <TagIcon name={TAG_METADATA[detectedIntent].icon} size={10} />
-                    {TAG_METADATA[detectedIntent].label} (Live Preview)
+                    {TAG_METADATA[detectedIntent].label} (Live)
+                    <Info size={10} className="live-preview-info-icon" />
                   </span>
                 )}
                 {tags.map((tag) => (

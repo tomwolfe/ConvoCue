@@ -121,6 +121,16 @@ const Tutorial = ({ onComplete, isCompactMode }) => {
       title: "Understanding Intent Labels",
       content: "ConvoCue uses these intent categories: Social (greetings & affirmations), Question (inquiries & clarifications), Conflict (disagreements & tensions), Strategic (business & planning), Action (suggestions & recommendations), Empathy (emotional support), Language (phrasing & clarity). Each helps tailor the AI's response.",
       visual: "intent-breakdown"
+    },
+    {
+      title: "Customizing Intent Detection",
+      content: "You can customize how ConvoCue detects and displays intents in Settings. Adjust the confidence threshold, debounce window, and sticky duration to match your conversation style and preferences.",
+      visual: "intent-settings"
+    },
+    {
+      title: "Intent Filtering",
+      content: "Choose which intent types appear in the live preview. You can enable/disable specific intents like Conflict, Action, or Empathy based on your current needs and comfort level.",
+      visual: "intent-filtering"
     }
   ];
 
@@ -250,6 +260,96 @@ const Tutorial = ({ onComplete, isCompactMode }) => {
                 <div className="intent-card">
                   <div className="intent-badge language">Language</div>
                   <p>Phrasing &amp; clarity</p>
+                </div>
+              </div>
+            )}
+
+            {/* Intent settings visualization */}
+            {steps[currentStep].visual === 'intent-settings' && (
+              <div className="settings-preview">
+                <div className="setting-item-preview">
+                  <label>Confidence Threshold</label>
+                  <div className="slider-preview">
+                    <div className="slider-track">
+                      <div className="slider-thumb" style={{left: '50%'}}></div>
+                    </div>
+                    <span>0.5</span>
+                  </div>
+                  <p className="setting-desc">Minimum confidence for live intent display</p>
+                </div>
+                <div className="setting-item-preview">
+                  <label>Debounce Window</label>
+                  <div className="slider-preview">
+                    <div className="slider-track">
+                      <div className="slider-thumb" style={{left: '40%'}}></div>
+                    </div>
+                    <span>800ms</span>
+                  </div>
+                  <p className="setting-desc">Prevents rapid switching between intents</p>
+                </div>
+                <div className="setting-item-preview">
+                  <label>Sticky Duration</label>
+                  <div className="slider-preview">
+                    <div className="slider-track">
+                      <div className="slider-thumb" style={{left: '60%'}}></div>
+                    </div>
+                    <span>2000ms</span>
+                  </div>
+                  <p className="setting-desc">Keep same intent visible before allowing change</p>
+                </div>
+              </div>
+            )}
+
+            {/* Intent filtering visualization */}
+            {steps[currentStep].visual === 'intent-filtering' && (
+              <div className="filter-preview">
+                <div className="intent-toggle-preview">
+                  <div className="toggle-switch-preview">
+                    <input type="checkbox" id="social-enabled" defaultChecked />
+                    <span className="slider-preview"></span>
+                  </div>
+                  <div className="intent-info-preview">
+                    <div className="intent-header-preview">
+                      <span className="glance-badge social">Social</span>
+                    </div>
+                    <p className="intent-description-preview">Greetings &amp; affirmations</p>
+                  </div>
+                </div>
+                <div className="intent-toggle-preview">
+                  <div className="toggle-switch-preview">
+                    <input type="checkbox" id="question-enabled" defaultChecked />
+                    <span className="slider-preview"></span>
+                  </div>
+                  <div className="intent-info-preview">
+                    <div className="intent-header-preview">
+                      <span className="glance-badge question">Question</span>
+                    </div>
+                    <p className="intent-description-preview">Inquiries &amp; clarifications</p>
+                  </div>
+                </div>
+                <div className="intent-toggle-preview">
+                  <div className="toggle-switch-preview">
+                    <input type="checkbox" id="conflict-enabled" defaultChecked />
+                    <span className="slider-preview"></span>
+                  </div>
+                  <div className="intent-info-preview">
+                    <div className="intent-header-preview">
+                      <span className="glance-badge conflict">Conflict</span>
+                    </div>
+                    <p className="intent-description-preview">Disagreements &amp; tensions</p>
+                  </div>
+                </div>
+                <div className="intent-toggle-preview">
+                  <div className="toggle-switch-preview">
+                    <input type="checkbox" id="action-enabled" />
+                    <span className="slider-preview"></span>
+                  </div>
+                  <div className="intent-info-preview">
+                    <div className="intent-header-preview">
+                      <span className="glance-badge action">Action</span>
+                    </div>
+                    <p className="intent-description-preview">Suggestions &amp; recommendations</p>
+                  </div>
                 </div>
               </div>
             )}

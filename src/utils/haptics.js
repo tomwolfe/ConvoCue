@@ -142,11 +142,101 @@ export const provideHapticFeedback = (suggestion) => {
   if (navigator.vibrate) {
     if (navigator.vibrate(pattern)) {
       lastVibrationTime = now;
+      // Log successful haptic feedback for analytics
+      logHapticFeedback(intentType, 'success');
       return; // Successfully provided haptic feedback
+    } else {
+      // Log failed haptic feedback for analytics
+      logHapticFeedback(intentType, 'failed');
     }
+  } else {
+    // Log that haptic feedback isn't supported
+    logHapticFeedback(intentType, 'unsupported');
   }
 
   // Fall back to visual feedback if haptics are unavailable or failed
   provideVisualFeedback(intentType);
   lastVibrationTime = now;
+};
+
+/**
+ * Logs haptic feedback events for analytics and user feedback
+ * @param {string} intentType - The type of intent triggering haptic feedback
+ * @param {string} status - The status of the haptic feedback ('success', 'failed', 'unsupported')
+ */
+export const logHapticFeedback = (intentType, status) => {
+  // In a real implementation, this would send data to an analytics service
+  // For now, we'll store in localStorage for demonstration purposes
+
+  const feedbackLog = JSON.parse(localStorage.getItem('hapticFeedbackLog') || '[]');
+  const logEntry = {
+    timestamp: Date.now(),
+    intentType,
+    status,
+    userAgent: navigator.userAgent
+  };
+
+  feedbackLog.push(logEntry);
+
+  // Keep only the last 100 entries to prevent storage bloat
+  if (feedbackLog.length > 100) {
+    feedbackLog.shift();
+  }
+
+  localStorage.setItem('hapticFeedbackLog', JSON.stringify(feedbackLog));
+};
+
+/**
+ * Retrieves haptic feedback analytics
+ * @returns {Array} Array of haptic feedback log entries
+ */
+export const getHapticFeedbackAnalytics = () => {
+  return JSON.parse(localStorage.getItem('hapticFeedbackLog') || '[]');
+};
+
+/**
+ * Clears haptic feedback analytics
+ */
+export const clearHapticFeedbackAnalytics = () => {
+  localStorage.removeItem('hapticFeedbackLog');
+};
+
+/**
+ * Provides user interface for haptic feedback preference adjustment
+ * Allows users to customize vibration intensity or disable haptics
+ */
+export const showHapticFeedbackSettings = () => {
+  // In a real implementation, this would show a modal or settings panel
+  // For now, we'll just log the intent to show settings
+
+  console.log('Showing haptic feedback settings');
+
+  // Example of how settings could be stored
+  const currentSettings = JSON.parse(localStorage.getItem('hapticSettings') || '{}');
+
+  // Default settings if none exist
+  const defaultSettings = {
+    enabled: true,
+    intensity: 'medium', // 'low', 'medium', 'high'
+    patterns: { ...VIBRATION_PATTERNS } // Allow custom patterns
+  };
+
+  const settings = { ...defaultSettings, ...currentSettings };
+
+  // Return settings for UI to use
+  return settings;
+};
+
+/**
+ * Updates haptic feedback settings
+ * @param {Object} newSettings - New haptic feedback settings
+ */
+export const updateHapticSettings = (newSettings) => {
+  const currentSettings = JSON.parse(localStorage.getItem('hapticSettings') || '{}');
+  const updatedSettings = { ...currentSettings, ...newSettings };
+
+  localStorage.setItem('hapticSettings', JSON.stringify(updatedSettings));
+
+  // Apply settings immediately if needed
+  // (In a real implementation, this would affect how haptics are triggered)
 };

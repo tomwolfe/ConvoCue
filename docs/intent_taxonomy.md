@@ -67,3 +67,41 @@ New intents should be added when:
 3. The new intent has clear, distinguishable triggers and coaching applications
 
 Before adding new intents, consider whether refinement of existing categories might be more appropriate than expansion.
+
+## Disambiguation Rules
+
+The system uses several rules to handle ambiguous cases:
+
+### Context-Sensitive Disambiguation
+- **"I'm sorry"**: Context determines intent
+  - "I'm sorry to hear about your loss" → `empathy`
+  - "I'm sorry but that won't work" → `conflict`
+  - "I'm sorry for the delay" → `social`
+
+### Priority Hierarchy
+When multiple intents could apply, the system follows this priority:
+1. More specific intent over general intent
+2. `conflict` takes precedence when tension is detected
+3. `empathy` over `social` for emotional content
+4. `strategic` over `social` in business contexts
+
+### Confidence Thresholds
+- Default confidence threshold: 0.4
+- High-performance mode uses threshold: 0.5
+- Configurable via Intent Detection Settings
+
+## Implementation Guidelines
+
+### Adding New Intents
+To add a new intent:
+1. Define the intent in `src/utils/intentRecognition.js`
+2. Add corresponding styling in `src/App.css`
+3. Update `TAG_METADATA` in the same file
+4. Add UI components for the new intent
+5. Update documentation in this file
+
+### Performance Considerations
+- Limit similarity checks to first 10 tokens for performance
+- Use exact token matching as the primary method
+- Reserve similarity matching for edge cases only
+- Consider memory usage on low-end devices

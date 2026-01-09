@@ -2624,6 +2624,78 @@ input:checked + .slider:before {
   opacity: 0.85;
 }
 
+/* Enhanced Live Preview Indicator */
+.live-preview-indicator {
+  position: relative;
+  border-style: dashed !important;
+  border-width: 2px !important;
+  animation: livePreviewPulse 2s infinite;
+  outline: 2px dotted transparent; /* For keyboard focus indication */
+}
+
+.live-preview-indicator .live-preview-info-icon {
+  margin-left: 4px;
+  opacity: 0.8;
+  cursor: pointer;
+  flex-shrink: 0; /* Prevent icon from shrinking */
+}
+
+.live-preview-indicator:focus-within {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+@keyframes livePreviewPulse {
+  0% { opacity: 0.8; box-shadow: 0 0 0 0 rgba(251, 146, 60, 0.4); }
+  50% { opacity: 1; box-shadow: 0 0 0 6px rgba(251, 146, 60, 0); }
+  100% { opacity: 0.8; box-shadow: 0 0 0 0 rgba(251, 146, 60, 0); }
+}
+
+/* Different animation for live preview to distinguish from final results */
+.glance-badge.live-preview-indicator {
+  animation: livePreviewPulse 2s infinite;
+  transform: scale(0.95);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+  border-radius: 16px; /* Better for accessibility */
+}
+
+.glance-badge.live-preview-indicator:hover {
+  transform: scale(1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Accessibility improvements for reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .live-preview-indicator {
+    animation: none;
+    opacity: 1;
+  }
+
+  .glance-badge.live-preview-indicator {
+    animation: none;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .live-preview-indicator {
+    border-style: solid !important;
+    border-width: 2px !important;
+    opacity: 1 !important;
+  }
+
+  .glance-badge.live-preview-indicator {
+    font-weight: bold;
+  }
+}
+
+/* Better focus styles for keyboard navigation */
+.glance-badge.live-preview-indicator:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-color: var(--primary) !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .pulse-animation,
   .glance-badge.conflict.pulse-animation {
