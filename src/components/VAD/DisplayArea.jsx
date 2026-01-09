@@ -86,17 +86,24 @@ const DisplayArea = ({
     const config = CoachingConfig[persona] || CoachingConfig.default;
     const rawInsights = config.insightPath(coachingInsights) || [];
     
+    if (!rawInsights.length) return [];
+    
     // Map with config and sort by category feedback scores
-    return rawInsights
-      .map(insight => ({
-        ...insight,
-        config
-      }))
-      .sort((a, b) => {
+    const mapped = rawInsights.map(insight => ({
+      ...insight,
+      config
+    }));
+
+    // Only sort if we have multiple insights to prioritize
+    if (mapped.length > 1) {
+      mapped.sort((a, b) => {
         const scoreA = categoryScores[a.category] || 0;
         const scoreB = categoryScores[b.category] || 0;
         return scoreB - scoreA; // Descending order: highest score first
       });
+    }
+
+    return mapped;
   }, [coachingInsights, persona, categoryScores]);
 
   // Filter out dismissed insights and get current one
@@ -105,6 +112,7 @@ const DisplayArea = ({
   [allInsights, dismissedInsights, persona]);
 
   const activeInsight = visibleInsights[currentInsightIndex] || null;
+  const allInsightsDismissed = isStorageLoaded && allInsights.length > 0 && visibleInsights.length === 0;
 
   const handleDismiss = () => {
     const originalIndex = allInsights.indexOf(activeInsight);
@@ -294,6 +302,18 @@ const DisplayArea = ({
                   )}
                 </div>
               </div>
+            </div>
+          )}
+
+          {allInsightsDismissed && (
+            <div className="card insight-card default-insight compact-insight" role="status">
+              <div className="card-header">
+                <div className="flex items-center gap-2">
+                  <Check size={14} className="text-emerald-500" />
+                  <label>All Caught Up</label>
+                </div>
+              </div>
+              <p className="insight-text">You've dismissed all current coaching insights. New tips will appear as the conversation evolves.</p>
             </div>
           )}
         </>

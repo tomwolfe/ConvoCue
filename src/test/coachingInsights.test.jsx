@@ -90,6 +90,35 @@ describe('CoachingInsights functionality', () => {
     expect(screen.queryByText('Insight 1: You seem anxious.')).not.toBeInTheDocument();
   });
 
+  it('shows "All Caught Up" message when all insights are dismissed', async () => {
+    const singleInsight = {
+      anxiety: {
+        insights: [{ category: 'anxiety', insight: 'Single insight', priority: 'high' }]
+      }
+    };
+
+    render(
+      <DisplayArea 
+        persona="anxiety" 
+        coachingInsights={singleInsight} 
+      />
+    );
+    
+    await waitFor(() => {
+      expect(screen.getByText('Single insight')).toBeInTheDocument();
+    });
+    
+    const dismissBtn = screen.getByLabelText('Dismiss insight');
+    await act(async () => {
+      fireEvent.click(dismissBtn);
+    });
+    
+    // Should now show the "All Caught Up" message instead of nothing
+    expect(screen.getByText('All Caught Up')).toBeInTheDocument();
+    expect(screen.getByText(/You've dismissed all current coaching insights/)).toBeInTheDocument();
+    expect(screen.queryByText('Single insight')).not.toBeInTheDocument();
+  });
+
   it('toggles logic info when info button is clicked', async () => {
     render(
       <DisplayArea 
