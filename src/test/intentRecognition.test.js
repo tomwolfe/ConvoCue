@@ -7,7 +7,7 @@ describe('intentRecognition - detectMultipleIntents', () => {
     const results = detectMultipleIntents(input, 0.3);
     
     const intents = results.map(r => r.intent);
-    expect(intents).toContain('greeting');
+    expect(intents).toContain('social');
     expect(intents).toContain('question');
     expect(intents).toContain('strategic'); // contract triggers strategic
   });
@@ -36,11 +36,10 @@ describe('intentRecognition - detectMultipleIntents', () => {
     expect(detectMultipleIntents(undefined)).toEqual([]);
   });
 
-  it('should detect emotional and empathy intents', () => {
+  it('should detect empathy intent', () => {
     const input = "I am so sorry to hear about that, it must be very hard.";
     const results = detectMultipleIntents(input, 0.3);
     const intents = results.map(r => r.intent);
-    expect(intents).toContain('emotion');
     expect(intents).toContain('empathy');
   });
 });

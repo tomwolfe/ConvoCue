@@ -108,6 +108,7 @@ export const useMLWorker = () => {
   const lastMessageTimeRef = useRef(lastMessageTime);
   const lastHapticTimeRef = useRef(0);
   const lastHapticIntentRef = useRef(null);
+  const lastIntentSwitchTimeRef = useRef(0);
   const stickyIntentRef = useRef({ intent: null, timestamp: 0 });
 
   const { performOrchestration, handleManualPersonaChange, undoPersonaSwitch, lastSwitchReason } = usePersonaOrchestration(
@@ -153,28 +154,42 @@ export const useMLWorker = () => {
               const cleanText = text.trim();
 
               // Immediate Intent Recognition for subtle feedback
-              const { intent: rawIntent, confidence } = detectIntentWithConfidence(cleanText);
-              let intent = rawIntent;
+              let intent = null;
+              if (!stateRef.current.isLowMemory) {
+                const { intent: rawIntent, confidence } = detectIntentWithConfidence(cleanText);
+                intent = rawIntent;
 
-              // Sticky Intent Logic: Keep the badge visible for at least 2 seconds 
-              // to prevent flickering if detection momentarily drops out
-              const now = Date.now();
-              if (intent && confidence > 0.5) {
-                stickyIntentRef.current = { intent, timestamp: now };
-              } else if (stickyIntentRef.current.intent && (now - stickyIntentRef.current.timestamp < 2000)) {
-                intent = stickyIntentRef.current.intent;
-              } else {
-                stickyIntentRef.current = { intent: null, timestamp: 0 };
-              }
+                // Sticky Intent Logic: Keep the badge visible for at least 2 seconds 
+                // to prevent flickering, and debounce switches between different intents
+                const now = Date.now();
+                const currentSticky = stickyIntentRef.current.intent;
 
-              if (rawIntent && confidence > 0.5) {
-                const cooldown = rawIntent === lastHapticIntentRef.current ? 3000 : 1000;
-                
-                if (now - lastHapticTimeRef.current > cooldown) {
-                  // Trigger immediate haptics based on intent before LLM finishes
-                  provideHapticFeedback(`[${rawIntent}]`);
-                  lastHapticTimeRef.current = now;
-                  lastHapticIntentRef.current = rawIntent;
+                if (intent && confidence > 0.5) {
+                  // Only switch to a DIFFERENT intent if enough time has passed (debounce)
+                  if (!currentSticky || intent === currentSticky || (now - lastIntentSwitchTimeRef.current > 800)) {
+                    if (intent !== currentSticky) {
+                      lastIntentSwitchTimeRef.current = now;
+                    }
+                    stickyIntentRef.current = { intent, timestamp: now };
+                  } else {
+                    // Keep the old intent for now to avoid rapid switching
+                    intent = currentSticky;
+                  }
+                } else if (currentSticky && (now - stickyIntentRef.current.timestamp < 2000)) {
+                  intent = currentSticky;
+                } else {
+                  stickyIntentRef.current = { intent: null, timestamp: 0 };
+                }
+
+                if (rawIntent && confidence > 0.5) {
+                  const cooldown = rawIntent === lastHapticIntentRef.current ? 3000 : 1000;
+                  
+                  if (now - lastHapticTimeRef.current > cooldown) {
+                    // Trigger immediate haptics based on intent before LLM finishes
+                    provideHapticFeedback(`[${rawIntent}]`);
+                    lastHapticTimeRef.current = now;
+                    lastHapticIntentRef.current = rawIntent;
+                  }
                 }
               }
 

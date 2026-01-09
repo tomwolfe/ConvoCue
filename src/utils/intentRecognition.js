@@ -431,7 +431,7 @@ export const TAG_METADATA = {
     aliases: ['[support]', '[emotion]'],
     label: 'Empathy',
     icon: 'Heart',
-    variant: 'social',
+    variant: 'empathy',
     description: 'Emotional support or validation'
   },
   question: {
@@ -439,7 +439,7 @@ export const TAG_METADATA = {
     aliases: ['[ask]'],
     label: 'Question',
     icon: 'MessageCircle',
-    variant: 'social',
+    variant: 'question',
     description: 'Follow-up question'
   }
 };

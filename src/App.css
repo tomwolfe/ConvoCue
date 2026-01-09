@@ -1589,6 +1589,8 @@ input:checked + .slider:before {
 .glance-badge.language { color: #047857; background: rgba(4, 120, 87, 0.1); }
 .glance-badge.social { color: #c2410c; background: rgba(194, 65, 12, 0.1); }
 .glance-badge.strategic { color: #1d4ed8; background: rgba(29, 78, 216, 0.1); }
+.glance-badge.empathy { color: #db2777; background: rgba(219, 39, 119, 0.1); }
+.glance-badge.question { color: #7c3aed; background: rgba(124, 58, 237, 0.1); }
 
 /* Glance Widget Explanation Tooltip */
 .glance-explanation-tooltip {
@@ -2488,5 +2490,37 @@ input:checked + .slider:before {
   }
   100% {
     box-shadow: 0 0 0 0 rgba(4, 120, 87, 0);
+  }
+}
+
+.glance-badge.empathy.pulse-animation {
+  animation: pulse-empathy 2s infinite;
+}
+
+@keyframes pulse-empathy {
+  0% {
+    box-shadow: 0 0 0 0 rgba(219, 39, 119, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(219, 39, 119, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(219, 39, 119, 0);
+  }
+}
+
+.glance-badge.question.pulse-animation {
+  animation: pulse-question 2s infinite;
+}
+
+@keyframes pulse-question {
+  0% {
+    box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(124, 58, 237, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(124, 58, 237, 0);
   }
 }

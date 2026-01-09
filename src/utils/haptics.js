@@ -16,7 +16,7 @@ export const _resetHapticCooldown = () => {
 export const VIBRATION_PATTERNS = {
   SUCCESS: [20],                   // Single short vibration (Positive reinforcement)
   ACTION: [20, 50, 20],            // Double short vibration (Action item detected)
-  CONFLICT: [20, 50, 20, 50, 20],  // Triple short vibration (Conflict/Alert)
+  CONFLICT: [150],                 // Single long urgent vibration (Conflict/Alert)
   SUGGESTION: [50],                // Single medium vibration (General cue/suggestion)
   QUESTION: [20, 100],             // Short then medium (Inquisitive pattern)
   TRANSITION: [10, 30, 10, 30],    // Rapid pulses (Topic change)
