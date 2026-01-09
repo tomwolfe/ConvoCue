@@ -4,7 +4,7 @@
  */
 
 import { maybeShowCulturalDisclaimer } from '../components/CulturalDisclaimer.js';
-import { areCulturalFeaturesEnabled, recordCulturalDisclaimerShown } from '../config/conservativeDefaults.js';
+import { areCulturalFeaturesEnabled } from '../config/conservativeDefaults.js';
 
 /**
  * Initialize ethical features for ConvoCue
@@ -12,17 +12,14 @@ import { areCulturalFeaturesEnabled, recordCulturalDisclaimerShown } from '../co
  */
 export const initializeEthicalFeatures = () => {
   console.log('Initializing ethical features for ConvoCue...');
-  
+
   // Show cultural disclaimer if appropriate
   maybeShowCulturalDisclaimer();
-  
+
   // Log the current state of cultural features
   const culturalFeaturesEnabled = areCulturalFeaturesEnabled();
   console.log(`Cultural features enabled: ${culturalFeaturesEnabled}`);
-  
-  // Record that disclaimer was shown as part of initialization
-  recordCulturalDisclaimerShown();
-  
+
   console.log('Ethical features initialized successfully.');
 };
 
