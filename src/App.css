@@ -531,6 +531,17 @@ header.compact .subtitle {
   background: repeating-linear-gradient(45deg, #000, #000 1px, transparent 1px, transparent 10px);
 }
 
+.pattern-diagonal::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 40px;
+  height: 40px;
+  opacity: 0.05;
+  background: repeating-linear-gradient(-45deg, #000, #000 1px, transparent 1px, transparent 10px);
+}
+
 .insight-card .card-header {
   background: rgba(255, 255, 255, 0.5);
   display: flex;

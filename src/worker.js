@@ -23,6 +23,9 @@ import {
     analyzeAnxietyCoaching,
     generateAnxietyCoachingPrompt
 } from './utils/anxietyCoaching';
+import {
+    analyzeProfessionalCoaching
+} from './utils/professionalCoaching';
 import { estimateConversationSize, logPerformanceMetric, monitorAndOptimizeHistory } from './utils/performanceMonitoring';
 
 // Configuration for on-device execution
@@ -310,6 +313,11 @@ self.onmessage = async (event) => {
                 ? analyzeAnxietyCoaching(sanitizedText, history, emotionData)
                 : null;
 
+            // Enhanced professional coaching analysis
+            const professionalInsights = (persona === 'professional' || persona === 'meeting')
+                ? analyzeProfessionalCoaching(sanitizedText, history, emotionData)
+                : null;
+
             // Cached System Prompt Generation
             const isSubtleMode = _settings?.isSubtleMode || preferences?.isSubtleMode;
             const profileHash = communicationProfile ? communicationProfile.length : 0;
@@ -492,7 +500,8 @@ self.onmessage = async (event) => {
               conversationSentiment, // Include conversation sentiment
               coachingInsights: {
                 relationship: relationshipInsights,
-                anxiety: anxietyInsights
+                anxiety: anxietyInsights,
+                professional: professionalInsights
               },
               metadata: {
                 performance: {

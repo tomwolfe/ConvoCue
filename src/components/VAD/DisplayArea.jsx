@@ -9,6 +9,7 @@ import { CoachingConfig } from '../../config/coachingConfig';
 import { submitFeedback } from '../../utils/feedback';
 import { overrideSpeakerForTurn } from '../../conversationManager';
 import { parseSemanticTags } from '../../utils/intentRecognition';
+import { secureLocalStorageGet, secureLocalStorageSet } from '../../utils/encryption';
 
 const TagIcon = ({ name, size = 14 }) => {
   switch (name) {
@@ -41,9 +42,20 @@ const DisplayArea = ({
   const [currentInsightIndex, setCurrentInsightIndex] = useState(0);
   const [dismissedInsights, setDismissedInsights] = useState(new Set());
   const [showInfo, setShowInfo] = useState(false);
+  const [isStorageLoaded, setIsStorageLoaded] = useState(false);
 
   // Determine if feedback should be enabled based on settings
   const isPersonalizationEnabled = settings.enablePersonalization !== false && !settings.privacyMode;
+
+  // Load dismissed insights from persistence
+  useEffect(() => {
+    const loadDismissed = async () => {
+      const saved = await secureLocalStorageGet('dismissed_coaching_insights', []);
+      setDismissedInsights(new Set(saved));
+      setIsStorageLoaded(true);
+    };
+    loadDismissed();
+  }, []);
 
   // Reset index when persona or insights change
   useEffect(() => {
@@ -72,7 +84,12 @@ const DisplayArea = ({
 
   const handleDismiss = () => {
     const originalIndex = allInsights.indexOf(activeInsight);
-    setDismissedInsights(prev => new Set(prev).add(`${persona}-${originalIndex}`));
+    setDismissedInsights(prev => {
+      const id = `${persona}-${originalIndex}`;
+      const next = new Set(prev).add(id);
+      secureLocalStorageSet('dismissed_coaching_insights', Array.from(next));
+      return next;
+    });
     if (currentInsightIndex >= visibleInsights.length - 1 && currentInsightIndex > 0) {
       setCurrentInsightIndex(prev => prev - 1);
     }
@@ -129,7 +146,7 @@ const DisplayArea = ({
 
   return (
     <div className="display-area" role="region" aria-label="Speech processing results">
-      {activeInsight && !showMinimalUI && (
+      {activeInsight && !showMinimalUI && isStorageLoaded && (
         <div 
           className={`card insight-card ${activeInsight.config.className} ${activeInsight.config.pattern} ${isCompactMode ? 'compact-insight' : ''}`} 
           role="complementary"
@@ -174,12 +191,16 @@ const DisplayArea = ({
           
           <div className="insight-footer">
             <div className="coping-wrapper">
-              {persona === 'anxiety' && coachingInsights.anxiety?.copingStrategies?.length > 0 && (
-                <div className="coping-strategy">
-                  <Zap size={14} />
-                  <span>Tip: {coachingInsights.anxiety.copingStrategies[0].technique}</span>
-                </div>
-              )}
+              {(() => {
+                const strategies = activeInsight.config.copingPath(coachingInsights);
+                if (!strategies || strategies.length === 0) return null;
+                return (
+                  <div className="coping-strategy">
+                    <Zap size={14} />
+                    <span>Tip: {strategies[0].technique || strategies[0].insight || 'Try this strategy'}</span>
+                  </div>
+                );
+              })()}
             </div>
             
             <div className="insight-actions">
