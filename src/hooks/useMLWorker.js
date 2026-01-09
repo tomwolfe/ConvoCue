@@ -106,6 +106,9 @@ export const useMLWorker = () => {
   const stateRef = useRef(state);
   const historyRef = useRef(history);
   const lastMessageTimeRef = useRef(lastMessageTime);
+  const lastHapticTimeRef = useRef(0);
+  const lastHapticIntentRef = useRef(null);
+  const stickyIntentRef = useRef({ intent: null, timestamp: 0 });
 
   const { performOrchestration, handleManualPersonaChange, undoPersonaSwitch, lastSwitchReason } = usePersonaOrchestration(
     state.persona,
@@ -150,10 +153,29 @@ export const useMLWorker = () => {
               const cleanText = text.trim();
 
               // Immediate Intent Recognition for subtle feedback
-              const { intent, confidence } = detectIntentWithConfidence(cleanText);
+              const { intent: rawIntent, confidence } = detectIntentWithConfidence(cleanText);
+              let intent = rawIntent;
+
+              // Sticky Intent Logic: Keep the badge visible for at least 2 seconds 
+              // to prevent flickering if detection momentarily drops out
+              const now = Date.now();
               if (intent && confidence > 0.5) {
-                // Trigger immediate haptics based on intent before LLM finishes
-                provideHapticFeedback(`[${intent}]`);
+                stickyIntentRef.current = { intent, timestamp: now };
+              } else if (stickyIntentRef.current.intent && (now - stickyIntentRef.current.timestamp < 2000)) {
+                intent = stickyIntentRef.current.intent;
+              } else {
+                stickyIntentRef.current = { intent: null, timestamp: 0 };
+              }
+
+              if (rawIntent && confidence > 0.5) {
+                const cooldown = rawIntent === lastHapticIntentRef.current ? 3000 : 1000;
+                
+                if (now - lastHapticTimeRef.current > cooldown) {
+                  // Trigger immediate haptics based on intent before LLM finishes
+                  provideHapticFeedback(`[${rawIntent}]`);
+                  lastHapticTimeRef.current = now;
+                  lastHapticIntentRef.current = rawIntent;
+                }
               }
 
               // Aggregation Logic: Improved to be more inclusive of meaningful short phrases
@@ -210,6 +232,7 @@ export const useMLWorker = () => {
               dispatch({ type: 'LLM_CHUNK', text });
               break;
             case 'llm_result': {
+              stickyIntentRef.current = { intent: null, timestamp: 0 };
               const enhanced = await enhanceResponse(
                 text, 
                 stateRef.current.persona, 

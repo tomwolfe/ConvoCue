@@ -2481,12 +2481,12 @@ input:checked + .slider:before {
 
 @keyframes pulse-language {
   0% {
-    box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.4);
+    box-shadow: 0 0 0 0 rgba(4, 120, 87, 0.4);
   }
   70% {
-    box-shadow: 0 0 0 6px rgba(139, 92, 246, 0);
+    box-shadow: 0 0 0 6px rgba(4, 120, 87, 0);
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(139, 92, 246, 0);
+    box-shadow: 0 0 0 0 rgba(4, 120, 87, 0);
   }
 }
