@@ -11,6 +11,7 @@ import { overrideSpeakerForTurn } from '../../conversationManager';
 import { parseSemanticTags } from '../../utils/intentRecognition';
 import { secureLocalStorageGet, secureLocalStorageSet } from '../../utils/encryption';
 import InsightCard from './InsightCard';
+import CoachingDisclaimer from './CoachingDisclaimer';
 
 const TagIcon = ({ name, size = 14 }) => {
   switch (name) {
@@ -238,6 +239,7 @@ const DisplayArea = ({
                 You've dismissed all current coaching insights. New, personalized tips will appear based on your next conversation. 
                 Try sharing more about your day or a specific challenge to get tailored advice.
               </p>
+              <CoachingDisclaimer compact={isCompactMode} />
             </div>
           )}
         </>

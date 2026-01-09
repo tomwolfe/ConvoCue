@@ -39,6 +39,7 @@ describe('CoachingInsights functionality', () => {
       expect(screen.getByText('Insight 1: You seem anxious.')).toBeInTheDocument();
     });
     expect(screen.getByText('Anxiety Support')).toBeInTheDocument();
+    expect(screen.getByText(/Not a substitute for professional advice/)).toBeInTheDocument();
   });
 
   it('allows navigating between insights', async () => {
@@ -116,6 +117,7 @@ describe('CoachingInsights functionality', () => {
     // Should now show the "All Caught Up" message instead of nothing
     expect(screen.getByText('All Caught Up')).toBeInTheDocument();
     expect(screen.getByText(/You've dismissed all current coaching insights/)).toBeInTheDocument();
+    expect(screen.getByText(/Not a substitute for professional advice/)).toBeInTheDocument();
     expect(screen.queryByText('Single insight')).not.toBeInTheDocument();
   });
 

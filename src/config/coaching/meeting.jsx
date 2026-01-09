@@ -4,8 +4,6 @@ import { getSafeInsights, getSafeCoping } from './helpers';
 
 /**
  * Meeting Coach configuration.
- * Note: Currently reuses 'professional' insights as the underlying logic 
- * for both is aligned around workplace communication.
  */
 export default {
   title: 'Meeting Coach',

@@ -683,6 +683,27 @@ header.compact .subtitle {
   100% { background-position: -200% 0; }
 }
 
+.coaching-disclaimer {
+  padding: 0.5rem 1rem;
+  background: rgba(245, 158, 11, 0.05);
+  border-top: 1px solid rgba(245, 158, 11, 0.1);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.coaching-disclaimer.compact {
+  padding: 0.4rem 0.75rem;
+}
+
+.disclaimer-text {
+  margin: 0;
+  line-height: 1.4;
+}
+
+.disclaimer-text strong {
+  color: #d97706;
+}
+
 /* Hero Suggestion */
 .suggestion {
   border-left: 4px solid var(--primary);
@@ -1517,6 +1538,15 @@ input:checked + .slider:before {
 
     background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
 
+  }
+
+  .coaching-disclaimer {
+    background: rgba(245, 158, 11, 0.03);
+    border-top-color: rgba(245, 158, 11, 0.1);
+  }
+
+  .disclaimer-text strong {
+    color: #f59e0b;
   }
 
 }

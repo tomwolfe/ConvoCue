@@ -1,5 +1,6 @@
 import React from 'react';
 import { ChevronLeft, ChevronRight, X, Info, Zap, ThumbsUp, ThumbsDown, RefreshCw } from 'lucide-react';
+import CoachingDisclaimer from './CoachingDisclaimer';
 
 const InsightNavigation = ({ visibleInsights, currentInsightIndex, onPrev, onNext }) => {
   if (visibleInsights.length <= 1) return null;
@@ -134,6 +135,8 @@ const InsightCard = ({
           )}
         </div>
       </div>
+      
+      <CoachingDisclaimer compact={isCompactMode} />
     </div>
   );
 };
