@@ -354,13 +354,16 @@ self.onmessage = async (event) => {
             const sanitizedText = _text.trim().substring(0, AppConfig.system.maxTranscriptLength);
             const emotionData = analyzeEmotion(sanitizedText);
 
+            // Perform coaching analysis based on persona
+            const coachingStartTime = performance.now();
+            
             // Existing relationship coaching analysis
             const relationshipInsights = (persona === 'relationship')
                 ? analyzeRelationshipCoaching(sanitizedText, history, emotionData, insightCategoryScores)
                 : null;
 
             // Enhanced anxiety coaching analysis for anxiety persona
-            const anxietyInsights = persona === 'anxiety'
+            const anxietyInsights = (persona === 'anxiety')
                 ? analyzeAnxietyCoaching(sanitizedText, history, emotionData)
                 : null;
 
@@ -372,6 +375,8 @@ self.onmessage = async (event) => {
             const meetingInsights = (persona === 'meeting')
                 ? analyzeMeetingCoaching(sanitizedText, history, emotionData, insightCategoryScores)
                 : null;
+                
+            const coachingAnalysisTime = performance.now() - coachingStartTime;
 
             // Cached System Prompt Generation
             const isSubtleMode = _settings?.isSubtleMode || preferences?.isSubtleMode;
@@ -562,10 +567,11 @@ self.onmessage = async (event) => {
               metadata: {
                 performance: {
                   llmProcessingTime,
-                  sentimentAnalysisTime,
+                  coachingAnalysisTime,
+                  totalTime: performance.now() - startTime,
                   historySize
                 }
-              },
+              }
               taskId
             });
         }

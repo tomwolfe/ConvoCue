@@ -16,12 +16,12 @@ const generateCacheKey = (text, conversationHistory, emotionData) => {
 };
 
 /**
- * Enhanced relationship coaching analysis with caching
- * @param {string} text - The text to analyze
- * @param {Array} conversationHistory - Array of conversation messages
- * @param {Object} emotionData - Pre-analyzed emotion data
- * @param {Object} categoryScores - User feedback scores for categories
- * @returns {Object} Relationship coaching insights
+ * Analyzes text for relationship coaching insights, focusing on empathy and active listening.
+ * @param {string} text - The transcript of the current conversation turn.
+ * @param {Array<Object>} [conversationHistory=[]] - Array of previous conversation messages.
+ * @param {Object} [emotionData=null] - Pre-analyzed emotion data (emotion, confidence).
+ * @param {Object} [categoryScores={}] - User feedback scores for different insight categories.
+ * @returns {Object} Relationship coaching insights including empathy level and suggested strategies.
  */
 export const analyzeRelationshipCoaching = (text, conversationHistory = [], emotionData = null, categoryScores = {}) => {
   if (!text || typeof text !== 'string') {
@@ -82,11 +82,11 @@ export const analyzeRelationshipCoaching = (text, conversationHistory = [], emot
 };
 
 /**
- * Assess the empathy level needed in the response
- * @param {string} text - Input text
- * @param {Object} emotionAnalysis - Emotion analysis result
- * @param {Object} conversationContext - Conversation context
- * @returns {string} Empathy level ('high', 'medium', 'low', 'neutral')
+ * Assess the empathy level needed in the response based on emotional context.
+ * @param {string} text - Input text.
+ * @param {Object} emotionAnalysis - Emotion analysis result (emotion, confidence).
+ * @param {Object} conversationContext - Conversation context data.
+ * @returns {'high'|'medium'|'neutral'} Calculated empathy level.
  */
 const assessEmpathyLevel = (text, emotionAnalysis, conversationContext) => {
   const { emotion, confidence } = emotionAnalysis;
@@ -115,10 +115,10 @@ const assessEmpathyLevel = (text, emotionAnalysis, conversationContext) => {
 };
 
 /**
- * Identify active listening opportunities
- * @param {string} text - Input text
- * @param {Object} conversationContext - Conversation context
- * @returns {Array} Active listening opportunities
+ * Identify active listening opportunities such as paraphrasing or reflection.
+ * @param {string} text - Input text.
+ * @param {Object} conversationContext - Conversation context data.
+ * @returns {Array<Object>} List of identified opportunities (type, description, priority).
  */
 const identifyActiveListeningOpportunities = (text, conversationContext) => {
   const opportunities = [];
@@ -174,10 +174,10 @@ const identifyActiveListeningOpportunities = (text, conversationContext) => {
 };
 
 /**
- * Check if emotional validation is needed
- * @param {string} text - Input text
- * @param {Object} emotionAnalysis - Emotion analysis
- * @returns {boolean} Whether emotional validation is needed
+ * Check if emotional validation is needed based on strong emotions or vulnerability.
+ * @param {string} text - Input text.
+ * @param {Object} emotionAnalysis - Emotion analysis result.
+ * @returns {boolean} True if validation is needed.
  */
 const checkEmotionalValidationNeeds = (text, emotionAnalysis) => {
   const { emotion, confidence } = emotionAnalysis;
@@ -256,7 +256,8 @@ const suggestCopingStrategies = (text, emotionAnalysis, conversationContext) => 
   if (['sadness', 'fear', 'anger', 'disgust'].includes(emotion) && confidence > 0.5) {
     strategies.push({
       type: 'empathy',
-      technique: 'Acknowledge impact: "I can see that\'s really difficult for you. That sounds incredibly challenging."'
+      technique: 'Acknowledge and Reflect',
+      details: 'Show you understand the emotional impact. Try: "I can see that\'s really difficult for you. That sounds incredibly challenging." This builds safety and trust.'
     });
   }
 
@@ -275,7 +276,8 @@ const suggestCopingStrategies = (text, emotionAnalysis, conversationContext) => 
   if ((confidence > 0.4 && text.toLowerCase().includes('i feel')) || vulnerabilityPatterns.some(pattern => pattern.test(text))) {
     strategies.push({
       type: 'validation',
-      technique: 'Normalize feelings: "Your feelings are completely understandable. It makes sense that you feel that way."'
+      technique: 'Emotional Normalization',
+      details: 'Let them know their reaction is valid and human. Try: "Your feelings are completely understandable. It makes sense that you feel that way in this situation."'
     });
   }
 
@@ -283,7 +285,8 @@ const suggestCopingStrategies = (text, emotionAnalysis, conversationContext) => 
   if (text && text.match(/(what|how|why|when|where|who)/i)) {
     strategies.push({
       type: 'exploration',
-      technique: 'Deepen understanding: "What would be most helpful right now?" or "How do you feel about that?"'
+      technique: 'Open-Ended Inquiry',
+      details: 'Encourage them to share more without judgment. Ask: "What would be most helpful right now?" or "How do you feel about that?" to deepen the conversation.'
     });
   }
 
@@ -291,7 +294,8 @@ const suggestCopingStrategies = (text, emotionAnalysis, conversationContext) => 
   if (text && (text.includes('problem') || text.includes('difficulty') || text.includes('struggle') || text.includes('challenge'))) {
     strategies.push({
       type: 'support',
-      technique: 'Offer presence: "I\'m here for you. What do you need right now?"'
+      technique: 'Offer Supportive Presence',
+      details: 'Focus on being there rather than solving. Say: "I\'m here for you. What do you need right now?" This reduces the pressure on them to perform.'
     });
   }
 
@@ -299,7 +303,8 @@ const suggestCopingStrategies = (text, emotionAnalysis, conversationContext) => 
   if (emotion === 'joy' && confidence > 0.5) {
     strategies.push({
       type: 'affirmation',
-      technique: 'Celebrate: "That\'s wonderful! I\'m so happy for you."'
+      technique: 'Shared Celebration',
+      details: 'Boost their positive experience by reflecting it back. Say: "That\'s wonderful! I\'m so happy for you." This strengthens the bond through positive reinforcement.'
     });
   }
 

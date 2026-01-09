@@ -2,6 +2,8 @@ import { detectMultipleIntents } from './intentRecognition';
 
 /**
  * Shared helper to deduplicate insights by category.
+ * @param {Array<Object>} insights - The list of insights to deduplicate.
+ * @returns {Array<Object>} Unique insights by category.
  */
 const getUniqueInsights = (insights) => {
   const uniqueInsights = [];
@@ -19,6 +21,11 @@ const getUniqueInsights = (insights) => {
 
 /**
  * Shared helper to calculate priority based on confidence and user feedback scores.
+ * @param {number} confidence - The AI's confidence in the detected intent.
+ * @param {string} category - The category of the insight.
+ * @param {Object} categoryScores - User's historical feedback scores for this category.
+ * @param {number} [threshold=2] - The score threshold to upgrade priority to high.
+ * @returns {'high'|'medium'} The calculated priority level.
  */
 const getPriority = (confidence, category, categoryScores, threshold = 2) => {
   const score = categoryScores[category] || 0;
@@ -27,6 +34,11 @@ const getPriority = (confidence, category, categoryScores, threshold = 2) => {
 
 /**
  * Professional coaching utilities for analyzing communication in work settings.
+ * @param {string} text - The transcript of the current conversation turn.
+ * @param {Array<Object>} [history=[]] - The conversation history for context.
+ * @param {Object} [emotionData={}] - Emotional analysis results (emotion, confidence).
+ * @param {Object} [categoryScores={}] - Historical user feedback for coaching categories.
+ * @returns {Object|null} An object containing insights and coping strategies, or null if nothing relevant is found.
  */
 export const analyzeProfessionalCoaching = (text, history = [], emotionData = {}, categoryScores = {}) => {
   if (!text) return null;
@@ -99,7 +111,11 @@ export const analyzeProfessionalCoaching = (text, history = [], emotionData = {}
 };
 
 /**
- * Suggest professional communication strategies.
+ * Suggest professional communication strategies based on detected intents and emotions.
+ * @param {string} text - The transcript text.
+ * @param {Object} emotionData - Emotional state data.
+ * @param {Array<Object>} [intents=[]] - List of detected intents.
+ * @returns {Array<Object>} List of suggested strategies (type, technique).
  */
 const suggestProfessionalStrategies = (text, emotionData, intents = []) => {
   const strategies = [];
@@ -108,27 +124,35 @@ const suggestProfessionalStrategies = (text, emotionData, intents = []) => {
   if (emotion === 'anger' || emotion === 'fear') {
     strategies.push({
       type: 'de-escalation',
-      technique: 'Use "I" statements to focus on impact: "I am concerned about the timeline," rather than "You are late."'
+      technique: 'Use "I" Statements',
+      details: 'Focus on the impact on you rather than the other person\'s actions. For example: "I am concerned about the project timeline" instead of "You are delaying the project."'
     });
   }
 
   if (intents.some(i => i.intent === 'negotiation')) {
     strategies.push({
       type: 'negotiation',
-      technique: 'Focus on interests, not positions. Ask "Why is that important to you?" to uncover deeper needs.'
+      technique: 'Interest-Based Negotiation',
+      details: 'Look for the "Why" behind their "What". Instead of arguing over a price, ask what outcomes they are trying to achieve to find mutually beneficial solutions.'
     });
   }
 
   strategies.push({
     type: 'clarity',
-    technique: 'Bottom Line Up Front (BLUF): State your main point in the first sentence for maximum impact.'
+    technique: 'BLUF (Bottom Line Up Front)',
+    details: 'Start your response with the most important information or the core request. This respects everyone\'s time and ensures your main point isn\'t lost in the details.'
   });
 
   return strategies;
 };
 
 /**
- * Meeting-specific coaching analysis.
+ * Meeting-specific coaching analysis for turn-taking, facilitation, and agenda management.
+ * @param {string} text - The transcript of the current conversation turn.
+ * @param {Array<Object>} [history=[]] - Conversation history for turn-taking analysis.
+ * @param {Object} [emotionData={}] - Emotional analysis results.
+ * @param {Object} [categoryScores={}] - Historical user feedback for coaching categories.
+ * @returns {Object|null} Meeting-specific insights and strategies.
  */
 export const analyzeMeetingCoaching = (text, history = [], emotionData = {}, categoryScores = {}) => {
   if (!text) return null;
@@ -219,7 +243,11 @@ export const analyzeMeetingCoaching = (text, history = [], emotionData = {}, cat
 };
 
 /**
- * Suggest meeting facilitation strategies
+ * Suggest meeting facilitation strategies based on detected intents.
+ * @param {string} text - The transcript text.
+ * @param {Array<Object>} history - Conversation history.
+ * @param {Array<Object>} [intents=[]] - List of detected intents.
+ * @returns {Array<Object>} Meeting strategies.
  */
 const suggestMeetingStrategies = (text, history, intents = []) => {
   const strategies = [];

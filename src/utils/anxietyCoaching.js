@@ -54,11 +54,11 @@ export const analyzeAnxietyCoaching = (text, conversationHistory = [], emotionDa
 };
 
 /**
- * Assess the anxiety level in the text
- * @param {string} text - Input text
- * @param {Object} emotionAnalysis - Emotion analysis result
- * @param {Object} conversationContext - Conversation context
- * @returns {string} Anxiety level ('high', 'medium', 'low', 'none')
+ * Assess the anxiety level in the text based on keywords and emotional data.
+ * @param {string} text - Input text.
+ * @param {Object} emotionAnalysis - Emotion analysis result.
+ * @param {Object} conversationContext - Conversation context.
+ * @returns {'high'|'medium'|'low'|'none'} Calculated anxiety level.
  */
 const assessAnxietyLevel = (text, emotionAnalysis, conversationContext) => {
   const { emotion, confidence } = emotionAnalysis;
@@ -114,10 +114,10 @@ const assessAnxietyLevel = (text, emotionAnalysis, conversationContext) => {
 };
 
 /**
- * Identify anxiety triggers in the text
- * @param {string} text - Input text
- * @param {Object} conversationContext - Conversation context
- * @returns {Array} Anxiety triggers
+ * Identify specific anxiety triggers like future worry or perfectionism.
+ * @param {string} text - Input text.
+ * @param {Object} conversationContext - Conversation context.
+ * @returns {Array<Object>} List of identified triggers (type, description, priority).
  */
 const identifyAnxietyTriggers = (text, conversationContext) => {
   const triggers = [];
@@ -165,11 +165,11 @@ const identifyAnxietyTriggers = (text, conversationContext) => {
 };
 
 /**
- * Suggest coping strategies based on context
- * @param {string} text - Input text
- * @param {Object} emotionAnalysis - Emotion analysis
- * @param {Object} conversationContext - Conversation context
- * @returns {Array} Coping strategies
+ * Suggest anxiety-focused coping strategies like breathing or grounding.
+ * @param {string} text - Input text.
+ * @param {Object} emotionAnalysis - Emotion analysis.
+ * @param {Object} conversationContext - Conversation context.
+ * @returns {Array<Object>} Suggested coping strategies.
  */
 const suggestCopingStrategies = (text, emotionAnalysis, conversationContext) => {
   const strategies = [];
@@ -180,7 +180,8 @@ const suggestCopingStrategies = (text, emotionAnalysis, conversationContext) => 
     strategies.push({
       type: 'breathing',
       description: 'Suggest breathing exercises',
-      technique: '4-7-8 breathing: inhale for 4, hold for 7, exhale for 8',
+      technique: '4-7-8 breathing',
+      details: 'Inhale through your nose for 4 seconds, hold for 7 seconds, and exhale forcefully through your mouth for 8 seconds. This helps reset your parasympathetic nervous system.',
       priority: 'high'
     });
   }
@@ -190,7 +191,8 @@ const suggestCopingStrategies = (text, emotionAnalysis, conversationContext) => 
     strategies.push({
       type: 'grounding',
       description: 'Grounding technique suggested',
-      technique: '5-4-3-2-1: Name 5 things you see, 4 you can touch, 3 you hear, 2 you smell, 1 you taste',
+      technique: '5-4-3-2-1 Grounding',
+      details: 'Acknowledge 5 things you see, 4 things you can touch, 3 things you hear, 2 things you can smell, and 1 thing you can taste. This pulls your focus away from anxious thoughts and back to the present.',
       priority: 'high'
     });
   }
@@ -209,7 +211,8 @@ const suggestCopingStrategies = (text, emotionAnalysis, conversationContext) => 
     strategies.push({
       type: 'cognitive_restructuring',
       description: 'Challenge catastrophic thoughts',
-      technique: 'What\'s the evidence? Is there another way to look at this?',
+      technique: 'Reality Testing',
+      details: 'Ask yourself: What is the evidence for this thought? What is the evidence against it? What is the most likely (not worst-case) outcome?',
       priority: 'medium'
     });
   }

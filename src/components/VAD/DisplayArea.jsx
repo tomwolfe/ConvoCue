@@ -169,17 +169,17 @@ const DisplayArea = ({
     secureLocalStorageSet('coaching_coping_indices', nextCopingIndices);
   };
 
-  const handleInsightFeedback = async (category, type) => {
+  const handleInsightFeedback = async (category, type, reason = null) => {
     if (!isPersonalizationEnabled) return;
     
     // Submit to persistent storage
-    const updatedScores = await submitInsightFeedback(category, type);
+    const updatedScores = await submitInsightFeedback(category, type, reason);
     
     // Update local state for immediate re-sorting if insights refresh
     setCategoryScores(updatedScores);
     
     // Also call generic feedback for general analytics
-    submitFeedback(activeInsight.insight, type, `insight-${persona}`, culturalContext);
+    submitFeedback(activeInsight.insight, type, `insight-${persona}${reason ? '-' + reason : ''}`, culturalContext);
   };
 
   // Parse semantic tags for visual indicators

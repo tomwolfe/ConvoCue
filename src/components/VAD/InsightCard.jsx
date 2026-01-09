@@ -23,22 +23,50 @@ const InsightNavigation = ({ visibleInsights, currentInsightIndex, onPrev, onNex
 };
 
 const CopingTip = ({ strategies, currentCopingIndex, onNextCoping, insightId }) => {
+  const [showDetails, setShowDetails] = useState(false);
+  
   if (!strategies || strategies.length === 0) return null;
   const strategy = strategies[currentCopingIndex] || strategies[0];
 
   return (
-    <div className="coping-strategy">
-      <Zap size={14} />
-      <span>Tip: {strategy.technique || strategy.insight || 'Try this strategy'}</span>
-      {strategies.length > 1 && (
-        <button
-          className="insight-action-btn"
-          onClick={(e) => onNextCoping(e, strategies.length, insightId)}
-          title="Next tip"
-          aria-label="Next tip"
-        >
-          <RefreshCw size={12} />
-        </button>
+    <div className="coping-strategy-container">
+      <div className="coping-strategy">
+        <Zap size={14} />
+        <span>Tip: {strategy.technique || strategy.insight || 'Try this strategy'}</span>
+        <div className="flex gap-1">
+          {strategy.details && (
+            <button
+              className={`insight-action-btn ${showDetails ? 'active' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowDetails(!showDetails);
+              }}
+              title={showDetails ? "Hide details" : "Show details"}
+              aria-label={showDetails ? "Hide details" : "Show details"}
+            >
+              <Info size={12} />
+            </button>
+          )}
+          {strategies.length > 1 && (
+            <button
+              className="insight-action-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                onNextCoping(e, strategies.length, insightId);
+                setShowDetails(false); // Hide details when switching tips
+              }}
+              title="Next tip"
+              aria-label="Next tip"
+            >
+              <RefreshCw size={12} />
+            </button>
+          )}
+        </div>
+      </div>
+      {showDetails && strategy.details && (
+        <div className="coping-details animate-in fade-in slide-in-from-top-1">
+          <p>{strategy.details}</p>
+        </div>
       )}
     </div>
   );
@@ -63,15 +91,29 @@ const InsightCard = ({
   insightId
 }) => {
   const [showSubtleActions, setShowSubtleActions] = useState(false);
+  const [showFeedbackReasons, setShowFeedbackReasons] = useState(false);
 
   if (!activeInsight) return null;
 
   const strategies = activeInsight.config.copingPath(coachingInsights);
 
-  const handleFeedback = (type) => {
-    onFeedback(activeInsight.category, type);
+  const handleFeedback = (type, reason = null) => {
+    if (type === 'not_helpful' && !reason && !showFeedbackReasons) {
+      setShowFeedbackReasons(true);
+      return;
+    }
+    
+    onFeedback(activeInsight.category, type, reason);
     setShowSubtleActions(false);
+    setShowFeedbackReasons(false);
   };
+
+  const feedbackReasons = [
+    { id: 'vague', label: 'Too vague' },
+    { id: 'repetitive', label: 'Repetitive' },
+    { id: 'irrelevant', label: 'Not relevant' },
+    { id: 'complex', label: 'Too complex' }
+  ];
 
   return (
     <div 
@@ -108,6 +150,29 @@ const InsightCard = ({
       <p className="insight-text">
         {(showInfo && !showSubtleCoaching) ? `Logic: Based on ${activeInsight.category} pattern with ${activeInsight.priority} priority.` : activeInsight.insight}
       </p>
+
+      {showFeedbackReasons && (
+        <div className="feedback-reasons-overlay animate-in fade-in slide-in-from-bottom-2">
+          <p className="reason-prompt">Why was this not helpful?</p>
+          <div className="reason-grid">
+            {feedbackReasons.map(reason => (
+              <button 
+                key={reason.id} 
+                className="reason-btn"
+                onClick={() => handleFeedback('not_helpful', reason.id)}
+              >
+                {reason.label}
+              </button>
+            ))}
+            <button 
+              className="reason-btn cancel-reason"
+              onClick={() => setShowFeedbackReasons(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
       
       <div className="insight-footer">
         <div className="coping-wrapper">

@@ -249,12 +249,26 @@ export const resetPersonalizationData = async () => {
  * Submit feedback for a specific insight category to drive personalization
  * @param {string} category - The insight category (e.g., 'negotiation', 'empathy')
  * @param {string} feedbackType - 'very_helpful', 'somewhat_helpful', or 'not_helpful'
+ * @param {string} [reason=null] - Optional reason for negative feedback
  * @returns {Promise<object>} Updated scores
  */
-export const submitInsightFeedback = async (category, feedbackType) => {
+export const submitInsightFeedback = async (category, feedbackType, reason = null) => {
   try {
     const scores = await secureLocalStorageGet('convocue_insight_category_scores', {});
     const currentScore = scores[category] || 0;
+
+    // Track detailed feedback reasons for analytics
+    if (reason && feedbackType === 'not_helpful') {
+      const feedbackReasons = await secureLocalStorageGet('convocue_insight_feedback_reasons', []);
+      feedbackReasons.push({
+        category,
+        reason,
+        timestamp: new Date().toISOString()
+      });
+      // Limit size of reasons log
+      const trimmedReasons = feedbackReasons.slice(-100);
+      await secureLocalStorageSet('convocue_insight_feedback_reasons', trimmedReasons);
+    }
 
     // Map feedback types to score changes
     let scoreChange = 0;
