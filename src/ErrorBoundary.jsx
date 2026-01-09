@@ -26,10 +26,10 @@ class ErrorBoundary extends React.Component {
           <details style={{ whiteSpace: 'pre-wrap' }}>
             {this.state.error && this.state.error.toString()}
             <br />
-            {this.state.errorInfo.componentStack}
+            {this.state.errorInfo && this.state.errorInfo.componentStack ? this.state.errorInfo.componentStack : 'Component stack not available'}
           </details>
-          <button 
-            onClick={() => window.location.reload()} 
+          <button
+            onClick={() => window.location.reload()}
             style={{
               marginTop: '1rem',
               padding: '0.5rem 1rem',
