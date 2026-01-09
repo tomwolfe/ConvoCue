@@ -155,43 +155,65 @@ const addDisclaimerStyles = () => {
 
 // Attach event listeners to disclaimer buttons
 const attachDisclaimerEventListeners = (isCustomized) => {
-  // Close button
-  document.getElementById('close-disclaimer-btn').addEventListener('click', () => {
-    document.getElementById('cultural-disclaimer-modal').remove();
-  });
-  
-  // Customize button
-  if (!isCustomized) {
-    document.getElementById('customize-culture-btn').addEventListener('click', () => {
-      // Redirect to cultural preferences page or open preferences modal
-      alert('Redirecting to cultural preferences setup...');
-      // In a real implementation, this would open the cultural preferences UI
-      document.getElementById('cultural-disclaimer-modal').remove();
-    });
-  }
-  
-  // Reset preferences button
-  if (isCustomized) {
-    document.getElementById('reset-culture-prefs-btn').addEventListener('click', () => {
-      if (confirm('Are you sure you want to reset your cultural preferences to defaults?')) {
-        resetCulturalProfile();
-        alert('Cultural preferences have been reset to defaults.');
-        document.getElementById('cultural-disclaimer-modal').remove();
-      }
-    });
-  }
-  
-  // Opt out button
-  document.getElementById('opt-out-culture-btn').addEventListener('click', () => {
-    if (confirm('Are you sure you want to opt out of all cultural suggestions? You can change this later in settings.')) {
-      // Import dynamically to avoid circular dependencies
-      import('../utils/userCulturalProfile.js').then(({ setCulturalOptOut }) => {
-        setCulturalOptOut(true);
-        alert('You have opted out of cultural suggestions. This can be changed in settings.');
-        document.getElementById('cultural-disclaimer-modal').remove();
+  // Use a small timeout to ensure DOM is ready
+  setTimeout(() => {
+    // Close button
+    const closeBtn = document.getElementById('close-disclaimer-btn');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => {
+        const modal = document.getElementById('cultural-disclaimer-modal');
+        if (modal) modal.remove();
       });
     }
-  });
+
+    // Customize button
+    if (!isCustomized) {
+      const customizeBtn = document.getElementById('customize-culture-btn');
+      if (customizeBtn) {
+        customizeBtn.addEventListener('click', () => {
+          // Redirect to cultural preferences page or open preferences modal
+          alert('Redirecting to cultural preferences setup...');
+          // In a real implementation, this would open the cultural preferences UI
+          const modal = document.getElementById('cultural-disclaimer-modal');
+          if (modal) modal.remove();
+        });
+      }
+    }
+
+    // Reset preferences button
+    if (isCustomized) {
+      const resetBtn = document.getElementById('reset-culture-prefs-btn');
+      if (resetBtn) {
+        resetBtn.addEventListener('click', () => {
+          if (confirm('Are you sure you want to reset your cultural preferences to defaults?')) {
+            resetCulturalProfile();
+            alert('Cultural preferences have been reset to defaults.');
+            const modal = document.getElementById('cultural-disclaimer-modal');
+            if (modal) modal.remove();
+          }
+        });
+      }
+    }
+
+    // Opt out button
+    const optOutBtn = document.getElementById('opt-out-culture-btn');
+    if (optOutBtn) {
+      optOutBtn.addEventListener('click', () => {
+        if (confirm('Are you sure you want to opt out of all cultural suggestions? You can change this later in settings.')) {
+          // Import dynamically to avoid circular dependencies
+          import('../utils/userCulturalProfile.js').then(({ setCulturalOptOut }) => {
+            setCulturalOptOut(true);
+            alert('You have opted out of cultural suggestions. This can be changed in settings.');
+            const modal = document.getElementById('cultural-disclaimer-modal');
+            if (modal) modal.remove();
+          }).catch(err => {
+            console.error('Error importing userCulturalProfile:', err);
+            alert('There was an issue processing your request. Please try again.');
+          });
+        }
+      });
+    }
+  }, 0);
 };
 
 // Function to determine if disclaimer should be shown
