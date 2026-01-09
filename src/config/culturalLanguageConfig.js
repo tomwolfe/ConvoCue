@@ -26,18 +26,21 @@ export const CulturalLanguageConfig = {
   languageLearningSettings: {
     // Whether to enable language learning feedback
     enableLanguageLearning: true,
-    
+
     // Level of grammar correction (0-2, where 2 is most aggressive)
     grammarCorrectionLevel: 1,
-    
+
     // Whether to suggest vocabulary enhancements
     suggestVocabulary: true,
-    
+
     // Whether to provide pronunciation feedback (text-based)
     providePronunciationFeedback: true,
-    
+
     // Whether to show disclaimers with language suggestions
-    showLanguageDisclaimers: true
+    showLanguageDisclaimers: true,
+
+    // User's native language for language learning feedback (separate from cultural context)
+    nativeLanguage: 'general' // Options: 'general', 'en', 'es', 'fr', 'de', 'it', 'pt', 'ru', 'zh', 'ja', 'ko', 'ar', 'hi'
   },
   
   // Controls for feature coordination

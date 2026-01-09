@@ -63,13 +63,10 @@ export const analyzeProfessionalCoaching = (text, history = [], emotionData = {}
       }
 
       case 'strategic': {
-        const isHighTensionNeg = (emotion === 'anger' || emotion === 'fear') && emotionConfidence > 0.6;
         insights.push({
-          category: 'Negotiation',
-          insight: isHighTensionNeg
-            ? 'Tension detected in negotiation. Try to de-escalate: "I want to find a solution that works for both of us."'
-            : 'Maintain value focus rather than just price. Ask: "What value are we looking to achieve here?"',
-          priority: getPriority(confidence, 'Negotiation', categoryScores)
+          category: 'Strategy',
+          insight: 'Focus on long-term implications. Ask: "How does this align with our strategic objectives?"',
+          priority: getPriority(confidence, 'Strategy', categoryScores)
         });
         break;
       }
@@ -97,9 +94,9 @@ export const analyzeProfessionalCoaching = (text, history = [], emotionData = {}
 
       case 'action': {
         insights.push({
-          category: 'Execution',
-          insight: 'Define clear next steps and owners. Ask: "Who is the lead on this and what is the timeline?"',
-          priority: getPriority(confidence, 'Execution', categoryScores)
+          category: 'Action',
+          insight: 'Define clear next steps. Ask: "What is the immediate next step?"',
+          priority: getPriority(confidence, 'Action', categoryScores)
         });
         break;
       }
@@ -107,7 +104,7 @@ export const analyzeProfessionalCoaching = (text, history = [], emotionData = {}
       case 'execution': {
         insights.push({
           category: 'Execution',
-          insight: 'Define clear next steps and owners. Ask: "Who is the lead on this and what is the timeline?"',
+          insight: 'Focus on implementation details. Ask: "Who is the lead on this and what is the timeline?"',
           priority: getPriority(confidence, 'Execution', categoryScores)
         });
         break;

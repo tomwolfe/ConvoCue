@@ -302,7 +302,7 @@ export const generateLanguageLearningResponse = (originalText, analysis) => {
 /**
  * Provides contextual language learning feedback
  * @param {string} inputText - User's input text
- * @param {string} nativeLanguage - User's native language
+ * @param {string} nativeLanguage - User's native language (separate from cultural context)
  * @param {Array} conversationHistory - Conversation history for context
  * @returns {Object} Contextual language learning feedback
  */

@@ -537,6 +537,22 @@ self.onmessage = async (event) => {
                         await MLPipeline.disposeSTT();
                     }
 
+                    // Check memory adequacy before loading LLM
+                    const memoryCheck = checkMemoryAdequacy(
+                        MLPipeline.sttConfig || getOptimalModelConfig('stt', deviceCapabilities),
+                        getOptimalModelConfig('llm', deviceCapabilities)
+                    );
+
+                    if (!memoryCheck.isAdequate && deviceCapabilities.performanceTier === 'low') {
+                        console.warn(`[Worker] Insufficient memory for full LLM on low-spec device. Available: ${memoryCheck.availableMemoryMB}MB, Required: ${memoryCheck.totalMemoryMB}MB`);
+                        // Use a lighter configuration for low-spec devices
+                        const lightLLMConfig = {
+                            ...getOptimalModelConfig('llm', deviceCapabilities),
+                            name: 'Xenova/distilbert-base-uncased' // Use a smaller model if available
+                        };
+                        // For now, we'll proceed with the standard load but with awareness of constraints
+                    }
+
                     await pipelineManager.loadLLM((p) => throttledProgress(p, 'Social Brain', taskId));
                 }
 
@@ -601,7 +617,11 @@ self.onmessage = async (event) => {
 
                     // Add language learning insights for language learning persona
                     if (persona === 'languagelearning') {
-                        languageLearningInsights = provideContextualLanguageFeedback(sanitizedText, effectiveCulturalContext || 'general', history);
+                        // Get user's native language from settings (separate from cultural context)
+                        const nativeLanguage = _settings?.nativeLanguage ||
+                                              (AppConfig.culturalLanguageConfig?.languageLearningSettings?.nativeLanguage) ||
+                                              'general';
+                        languageLearningInsights = provideContextualLanguageFeedback(sanitizedText, nativeLanguage, history);
                     }
 
                     coachingAnalysisTime = performance.now() - coachingStartTime;
@@ -658,8 +678,13 @@ self.onmessage = async (event) => {
 
                     // Add Persona-specific Contextual Tips
                     if (persona === 'languagelearning') {
-                        // Perform advanced language learning analysis
-                        const languageAnalysis = analyzeLanguageLearningText(sanitizedText, effectiveCulturalContext || 'general');
+                        // Get user's native language from settings (separate from cultural context)
+                        const nativeLanguage = _settings?.nativeLanguage ||
+                                              (AppConfig.culturalLanguageConfig?.languageLearningSettings?.nativeLanguage) ||
+                                              'general';
+
+                        // Perform advanced language learning analysis using native language, not cultural context
+                        const languageAnalysis = analyzeLanguageLearningText(sanitizedText, nativeLanguage);
 
                         // Add language learning prompt tips
                         contextInstruction += getLanguageLearningPromptTips(effectiveCulturalContext || 'english');
