@@ -20,7 +20,7 @@ const hasKeyword = (text, keyword) => {
  * @param {Array} history - Conversation history
  * @param {string} currentPersona - The currently active persona
  * @param {Object} options - Additional options including dampening
- * @returns {Object} { suggestedPersona: string, confidence: number }
+ * @returns {Object} { suggestedPersona: string, confidence: number, debug: Object }
  */
 export const orchestratePersona = (input, history = [], currentPersona, options = {}) => {
   const config = AppConfig.system.orchestrator;
@@ -29,22 +29,34 @@ export const orchestratePersona = (input, history = [], currentPersona, options 
   const intents = detectMultipleIntents(input, 0.3);
   
   const scores = {};
+  const debug = {};
   
   // Initialize scores with a slight bias towards the current persona to avoid jitter
   Object.keys(intentMap).forEach(persona => {
     scores[persona] = persona === currentPersona ? config.currentPersonaBias : 0;
+    debug[persona] = {
+      total: scores[persona],
+      intents: [],
+      keywords: [],
+      history: 0,
+      bias: persona === currentPersona ? config.currentPersonaBias : 0
+    };
   });
 
   // Score based on detected intents
   intents.forEach(({ intent, confidence }) => {
     Object.entries(intentMap).forEach(([persona, pConfig]) => {
       if (pConfig.intents.includes(intent)) {
-        scores[persona] += confidence * (pConfig.weight || 1.0);
+        const contribution = confidence * (pConfig.weight || 1.0);
+        scores[persona] += contribution;
+        debug[persona].intents.push({ intent, confidence, contribution });
       }
       
-      // Negative intents (if we had any defined, for now we use keywords more)
+      // Negative intents
       if (pConfig.negativeIntents?.includes(intent)) {
-        scores[persona] -= confidence * (pConfig.weight || 1.0);
+        const penalty = confidence * (pConfig.weight || 1.0);
+        scores[persona] -= penalty;
+        debug[persona].intents.push({ intent, confidence, penalty: -penalty });
       }
     });
   });
@@ -54,14 +66,18 @@ export const orchestratePersona = (input, history = [], currentPersona, options 
     // Positive Keywords
     pConfig.keywords?.forEach(keyword => {
       if (hasKeyword(input, keyword)) {
-        scores[persona] += config.keywordWeight * (pConfig.weight || 1.0);
+        const contribution = config.keywordWeight * (pConfig.weight || 1.0);
+        scores[persona] += contribution;
+        debug[persona].keywords.push({ keyword, contribution });
       }
     });
 
     // Negative Keywords (Negative Reinforcement)
     pConfig.negativeKeywords?.forEach(keyword => {
       if (hasKeyword(input, keyword)) {
-        scores[persona] -= config.keywordWeight * 2.0; // Stronger penalty for negative matches
+        const penalty = config.keywordWeight * 2.0; // Stronger penalty for negative matches
+        scores[persona] -= penalty;
+        debug[persona].keywords.push({ keyword, penalty: -penalty });
       }
     });
   });
@@ -72,7 +88,9 @@ export const orchestratePersona = (input, history = [], currentPersona, options 
     Object.entries(intentMap).forEach(([persona, pConfig]) => {
       pConfig.keywords?.forEach(keyword => {
         if (hasKeyword(recentHistory, keyword)) {
-          scores[persona] += config.historyWeight * (pConfig.weight || 1.0);
+          const contribution = config.historyWeight * (pConfig.weight || 1.0);
+          scores[persona] += contribution;
+          debug[persona].history += contribution;
         }
       });
     });
@@ -83,6 +101,7 @@ export const orchestratePersona = (input, history = [], currentPersona, options 
   let maxScore = -Infinity;
 
   Object.entries(scores).forEach(([persona, score]) => {
+    debug[persona].total = score;
     if (score > maxScore) {
       maxScore = score;
       bestPersona = persona;
@@ -96,13 +115,21 @@ export const orchestratePersona = (input, history = [], currentPersona, options 
   let threshold = baseThreshold * sensitivityMultiplier;
 
   // Apply dampening if provided (user rejection logic)
-  if (options.rejectionDampening) {
-    threshold += options.rejectionDampening;
-  }
+  const dampening = options.rejectionDampening || 0;
+  threshold += dampening;
 
-  // Only suggest a change if the confidence is high enough
-  return {
+  const result = {
     suggestedPersona: maxScore > threshold ? bestPersona : currentPersona,
-    confidence: Math.max(0, Math.min(1.0, maxScore))
+    confidence: Math.max(0, Math.min(1.0, maxScore)),
+    debug: {
+      scores: debug,
+      threshold,
+      dampening,
+      sensitivity,
+      winner: bestPersona,
+      wasSwitch: maxScore > threshold && bestPersona !== currentPersona
+    }
   };
+
+  return result;
 };

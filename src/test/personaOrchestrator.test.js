@@ -95,6 +95,22 @@ describe('personaOrchestrator', () => {
     expect(suggestedPersona).toBe('professional');
   });
 
+  it('should return detailed debug information', () => {
+    const input = "I need to discuss the contract manager";
+    const result = orchestratePersona(input, [], 'meeting');
+    
+    expect(result.debug).toBeDefined();
+    expect(result.debug.scores.professional.total).toBeGreaterThan(0);
+    expect(result.debug.threshold).toBeDefined();
+    expect(result.debug.winner).toBe('professional');
+    expect(result.debug.wasSwitch).toBe(true);
+    
+    // Check keyword contribution
+    const profDebug = result.debug.scores.professional;
+    expect(profDebug.keywords.length).toBeGreaterThan(0);
+    expect(profDebug.keywords.some(k => k.keyword === 'contract')).toBe(true);
+  });
+
   it('should handle multiple personas by picking the strongest match', () => {
     // Mentions both "contract" (professional) and "grammar" (languagelearning)
     // Professional has 'contract' as keyword, weight 1.1

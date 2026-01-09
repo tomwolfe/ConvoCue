@@ -95,13 +95,36 @@ export const useMLWorker = () => {
   const historyRef = useRef(history);
   const lastMessageTimeRef = useRef(lastMessageTime);
   const autoSwitchInfoRef = useRef({ time: 0, from: null, to: null });
-  const rejectionDampeningRef = useRef({}); // Store dampening per persona
+  const rejectionDampeningRef = useRef({}); // Store dampening per persona: { persona: { value, timestamp } }
 
   useEffect(() => {
     stateRef.current = state;
     historyRef.current = history;
     lastMessageTimeRef.current = lastMessageTime;
   }, [state, history, lastMessageTime]);
+
+  /**
+   * Calculates the current dampening for a persona, applying temporal decay.
+   * Uses a 5-minute half-life for the dampening effect.
+   */
+  const getDecayedDampening = useCallback((persona) => {
+    const entry = rejectionDampeningRef.current[persona];
+    if (!entry) return 0;
+    
+    const now = Date.now();
+    const elapsedMinutes = (now - entry.timestamp) / (1000 * 60);
+    const halfLife = 5; // Dampening reduces by half every 5 minutes
+    
+    const decayedValue = entry.value * Math.pow(0.5, elapsedMinutes / halfLife);
+    
+    // If it's negligible, just clear it
+    if (decayedValue < 0.05) {
+      delete rejectionDampeningRef.current[persona];
+      return 0;
+    }
+    
+    return decayedValue;
+  }, []);
 
   useEffect(() => {
     // Proactive performance management based on device constraints
@@ -119,19 +142,25 @@ export const useMLWorker = () => {
       updatePerformanceMode('low_memory');
     }
 
-    // Battery Status API monitoring
-    if ('getBattery' in navigator) {
-      navigator.getBattery().then(battery => {
-        const checkBattery = () => {
-          if ((battery.level < 0.2 && !battery.charging) || battery.saveMode) {
-            updatePerformanceMode('low_battery');
-          }
-        };
+    // Battery Status API monitoring with defensive checks for Safari/non-supporting browsers
+    if (typeof navigator !== 'undefined' && 'getBattery' in navigator) {
+      try {
+        navigator.getBattery().then(battery => {
+          const checkBattery = () => {
+            if ((battery.level < 0.2 && !battery.charging) || battery.saveMode) {
+              updatePerformanceMode('low_battery');
+            }
+          };
 
-        battery.addEventListener('levelchange', checkBattery);
-        battery.addEventListener('chargingchange', checkBattery);
-        checkBattery();
-      });
+          battery.addEventListener('levelchange', checkBattery);
+          battery.addEventListener('chargingchange', checkBattery);
+          checkBattery();
+        }).catch(err => {
+          console.warn('[Performance] Battery API supported but failed:', err);
+        });
+      } catch (err) {
+        console.warn('[Performance] Battery API access error:', err);
+      }
     }
   }, []);
 
@@ -180,8 +209,8 @@ export const useMLWorker = () => {
                   // Auto-Persona Orchestration
                   let activePersona = stateRef.current.persona;
                   if (settings.enableAutoPersona !== false && !settings.privacyMode) {
-                      const dampening = rejectionDampeningRef.current[activePersona] || 0;
-                      const { suggestedPersona, confidence } = orchestratePersona(
+                      const dampening = getDecayedDampening(activePersona);
+                      const { suggestedPersona, confidence, debug } = orchestratePersona(
                           cleanText, 
                           historyRef.current, 
                           activePersona,
@@ -192,7 +221,11 @@ export const useMLWorker = () => {
                       );
                       
                       if (suggestedPersona !== activePersona) {
-                          console.log(`[Orchestrator] Switching persona: ${activePersona} -> ${suggestedPersona} (Confidence: ${confidence.toFixed(2)}, Sensitivity: ${settings.autoPersonaSensitivity})`);
+                          console.log(`[Orchestrator] Switching persona: ${activePersona} -> ${suggestedPersona}`, {
+                            confidence: confidence.toFixed(2),
+                            sensitivity: settings.autoPersonaSensitivity,
+                            debug
+                          });
                           autoSwitchInfoRef.current = { 
                             time: Date.now(), 
                             from: activePersona, 
@@ -200,6 +233,11 @@ export const useMLWorker = () => {
                           };
                           activePersona = suggestedPersona;
                           dispatch({ type: 'SET_PERSONA', persona: suggestedPersona });
+                      } else if (debug.wasSwitch === false && debug.winner !== activePersona) {
+                        // Log why it DIDN'T switch if it was close or interesting
+                        if (debug.scores[debug.winner].total > debug.threshold * 0.8) {
+                          console.debug(`[Orchestrator] Decision: STAY on ${activePersona}. Switch to ${debug.winner} rejected by threshold/dampening.`, debug);
+                        }
                       }
                   }
 
@@ -350,8 +388,13 @@ export const useMLWorker = () => {
       const lastSwitch = autoSwitchInfoRef.current;
       if (lastSwitch.time > 0 && (now - lastSwitch.time < 15000) && persona !== lastSwitch.to) {
         console.warn(`[Orchestrator] User rejected auto-switch to ${lastSwitch.to}. Applying dampening.`);
-        const currentDampening = rejectionDampeningRef.current[lastSwitch.to] || 0;
-        rejectionDampeningRef.current[lastSwitch.to] = currentDampening + (AppConfig.system.orchestrator?.rejectionDampening || 0.3);
+        const currentEntry = rejectionDampeningRef.current[lastSwitch.to];
+        const currentDampening = currentEntry ? currentEntry.value : 0;
+        
+        rejectionDampeningRef.current[lastSwitch.to] = {
+          value: currentDampening + (AppConfig.system.orchestrator?.rejectionDampening || 0.3),
+          timestamp: now
+        };
       }
       updatePersona(persona);
     },

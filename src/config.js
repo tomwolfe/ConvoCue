@@ -135,7 +135,7 @@ export const AppConfig = {
 
     // Persona Orchestration settings
     orchestrator: {
-      thresholdBase: 1.0, // Base threshold for switching
+      thresholdBase: 0.7, // Base threshold for switching
       keywordWeight: 0.3,
       historyWeight: 0.1,
       currentPersonaBias: 0.2,
