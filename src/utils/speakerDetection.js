@@ -328,22 +328,27 @@ class SpeakerProfile {
 
 import { detectIntentWithConfidence } from './intentRecognition';
 
-// Constants for turn management
-const YIELD_CONFIDENCE_HALF_LIFE_MS = 1500;
-const MAX_TURN_THRESHOLD_MS = 3000;
-const MIN_TURN_THRESHOLD_MS = 500;
-const INTENT_YIELD_THRESHOLD = 0.6;
-const SPEAKER_CHANGE_CONFIDENCE_THRESHOLD = 0.6;
-const BIAS_STRENGTH = 0.2;
+// Default configuration for turn management
+const DEFAULT_CONFIG = {
+  YIELD_CONFIDENCE_HALF_LIFE_MS: 1500,
+  MAX_TURN_THRESHOLD_MS: 3000,
+  MIN_TURN_THRESHOLD_MS: 500,
+  INTENT_YIELD_THRESHOLD: 0.6,
+  SPEAKER_CHANGE_CONFIDENCE_THRESHOLD: 0.6,
+  BIAS_STRENGTH: 0.2,
+  RESET_CONFIDENCE_THRESHOLD: 0.4
+};
 
 /**
  * Manages conversation turns and speaker identification
  */
 export class ConversationTurnManager {
-  constructor() {
+  constructor(config = {}) {
+    this.config = { ...DEFAULT_CONFIG, ...config };
     this.turns = [];
     this.currentTurn = null;
-    this.lastSpeaker = 'user'; // Start assuming user is speaking
+    this.lastSpeaker = 'user';
+    this.lastAudioData = null;
     this.baseTurnThreshold = 1500; // Base threshold: 1.5 seconds of silence to consider turn end
     this.adaptiveTurnThreshold = 1500; // Will be adjusted based on conversation patterns
     this.lastSpeechTime = 0;
@@ -351,14 +356,15 @@ export class ConversationTurnManager {
     this.silenceHistory = []; // Track silence patterns to adapt thresholds
     this.conversationDynamics = {
       avgTurnLength: 0,
-      avgSilenceDuration: 0,
-      turnFrequency: 0
+      turnFrequency: 0,
+      interruptionRate: 0
     };
     this.profiles = {
       user: new SpeakerProfile('user'),
       other: new SpeakerProfile('other')
     };
     this.turnYieldConfidence = 0; // Likelihood the current speaker has yielded
+    this.analyzeSpeakerCharacteristics = analyzeSpeakerCharacteristics;
   }
 
   /**
@@ -374,37 +380,40 @@ export class ConversationTurnManager {
     this.lastProcessTime = currentTime;
 
     // Analyze speaker characteristics
-    const speakerAnalysis = analyzeSpeakerCharacteristics(audioData, this.lastAudioData);
+    const speakerAnalysis = this.analyzeSpeakerCharacteristics(audioData, this.lastAudioData);
     this.lastAudioData = audioData;
 
     // Time-based decay for turnYieldConfidence (independent of frame rate or text presence)
     if (this.turnYieldConfidence > 0) {
       // Exponential decay: value = value * (0.5 ^ (dt / halfLife))
-      const decayFactor = Math.pow(0.5, deltaTime / YIELD_CONFIDENCE_HALF_LIFE_MS);
+      const decayFactor = Math.pow(0.5, deltaTime / this.config.YIELD_CONFIDENCE_HALF_LIFE_MS);
       this.turnYieldConfidence *= decayFactor;
       
       // Clean up very small values
       if (this.turnYieldConfidence < 0.05) this.turnYieldConfidence = 0;
     }
 
-    // Reset yielding confidence if speech starts again (interruption or continuation)
-    if (!isSilent && speakerAnalysis.confidenceScore > 0.4) {
-      this.turnYieldConfidence = 0;
-    }
-
     // Analyze intent for turn-yielding signals if we have text
     if (detectedText) {
-      const intentResult = detectIntentWithConfidence(detectedText);
-      const intent = intentResult.intent;
-      const confidence = intentResult.confidence;
+      try {
+        const intentResult = detectIntentWithConfidence(detectedText);
+        if (intentResult) {
+          const intent = intentResult.intent;
+          const confidence = intentResult.confidence;
 
-      if (intent === 'question' || (typeof detectedText === 'string' && detectedText.trim().endsWith('?'))) {
-        // Use the higher of current yield confidence or intent confidence
-        this.turnYieldConfidence = Math.max(this.turnYieldConfidence, 0.8 * confidence);
-      } else if (intent === 'greeting' && this.turns.length < 2) {
-        this.turnYieldConfidence = Math.max(this.turnYieldConfidence, 0.5 * confidence);
+          if (intent === 'question' || (typeof detectedText === 'string' && detectedText.trim().endsWith('?'))) {
+            // Use the higher of current yield confidence or intent confidence
+            this.turnYieldConfidence = Math.max(this.turnYieldConfidence, 0.8 * confidence);
+          } else if (intent === 'greeting' && this.turns.length < 2) {
+            // Bias towards allowing a greeting exchange without immediate turn cutoff
+            // only at the very beginning of the interaction to prevent greeting loops
+            this.turnYieldConfidence = Math.max(this.turnYieldConfidence, 0.5 * confidence);
+          }
+        }
+      } catch (error) {
+        console.error('Error in intent-based turn detection:', error);
+        // Fallback: don't update turnYieldConfidence based on intent if it fails
       }
-      // Non-yielding text doesn't cause immediate decay anymore; it's handled by time-based decay above
     }
 
     // Update adaptive threshold based on conversation dynamics and intent
@@ -423,7 +432,7 @@ export class ConversationTurnManager {
     // 3. User yielded turn (intent) AND some silence or moderate speaker change confidence
     const shouldStartNewTurn = 
       timeSinceLastSpeech > this.adaptiveTurnThreshold || 
-      (isLikelyNewSpeaker && speakerConfidence > SPEAKER_CHANGE_CONFIDENCE_THRESHOLD) ||
+      (isLikelyNewSpeaker && speakerConfidence > this.config.SPEAKER_CHANGE_CONFIDENCE_THRESHOLD) ||
       (this.turnYieldConfidence > 0.7 && timeSinceLastSpeech > 500) ||
       (this.turnYieldConfidence > 0.5 && isLikelyNewSpeaker && speakerConfidence > 0.3);
 
@@ -439,8 +448,8 @@ export class ConversationTurnManager {
 
     if (shouldStartNewTurn) {
       // Apply turn-yielding bias: if user likely yielded, bias towards 'other'
-      const biasToOther = (this.lastSpeaker === 'user') ? this.turnYieldConfidence * BIAS_STRENGTH : 0;
-      const biasToUser = (this.lastSpeaker === 'other') ? this.turnYieldConfidence * BIAS_STRENGTH : 0;
+      const biasToOther = (this.lastSpeaker === 'user') ? this.turnYieldConfidence * this.config.BIAS_STRENGTH : 0;
+      const biasToUser = (this.lastSpeaker === 'other') ? this.turnYieldConfidence * this.config.BIAS_STRENGTH : 0;
 
       const adjustedUserSim = userSimilarity + biasToUser;
       const adjustedOtherSim = otherSimilarity + biasToOther;
@@ -455,6 +464,12 @@ export class ConversationTurnManager {
       if (speakerRole !== this.lastSpeaker) {
         this.turnYieldConfidence = 0;
       }
+    }
+
+    // Reset yielding confidence if someone is clearly speaking (continuation or new speaker)
+    // This happens AFTER turn detection so it can influence the decision.
+    if (!isSilent && speakerConfidence > this.config.RESET_CONFIDENCE_THRESHOLD) {
+      this.turnYieldConfidence = 0;
     }
 
     // Update the profile for the detected speaker - only if confidence is reasonable
@@ -531,11 +546,11 @@ export class ConversationTurnManager {
       const avgSilence = recentSilences.reduce((sum, s) => sum + s.duration, 0) / recentSilences.length;
 
       // Adjust threshold: shorter for fast-paced conversations, longer for slower ones
-      threshold = Math.max(MIN_TURN_THRESHOLD_MS, Math.min(MAX_TURN_THRESHOLD_MS, avgSilence * 0.8));
+      threshold = Math.max(this.config.MIN_TURN_THRESHOLD_MS, Math.min(this.config.MAX_TURN_THRESHOLD_MS, avgSilence * 0.8));
     }
 
     // Significantly reduce threshold if current speaker likely yielded
-    if (this.turnYieldConfidence > INTENT_YIELD_THRESHOLD) {
+    if (this.turnYieldConfidence > this.config.INTENT_YIELD_THRESHOLD) {
       threshold = Math.min(threshold, 600); // Expect a response quickly
     }
 
