@@ -344,6 +344,7 @@ self.onmessage = async (event) => {
         }
 
         if (type === 'llm') {
+            const startTime = performance.now();
             if (!MLPipeline.llm) await pipelineManager.loadLLM((p) => throttledProgress(p, 'Social Brain', taskId));
             if (!MLPipeline.llm) throw new Error("Social Brain failed to load or was deferred due to memory.");
 
