@@ -19,6 +19,9 @@ ort.env.wasm.wasmPaths = {
   'ort-wasm-simd-threaded.jsep.mjs': '/ort-wasm-simd-threaded.jsep.mjs',
 };
 
+// Add error handling for WASM initialization
+ort.env.wasm.throwOnOnnxFileError = true;
+
 const rootElement = document.getElementById('root');
 
 if (rootElement) {

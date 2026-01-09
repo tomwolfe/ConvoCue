@@ -5,7 +5,7 @@ import { useConversation } from './useConversation';
 import { useAppPreferences } from './useAppPreferences';
 import { getCommunicationProfileSummary } from '../utils/personalization';
 import { provideHapticFeedback } from '../utils/haptics';
-import { detectIntentWithConfidence } from '../utils/intentRecognition';
+import { detectIntentWithConfidence, detectIntentHighPerformance } from '../utils/intentRecognition';
 import { getInsightCategoryScores } from '../utils/feedback';
 import { usePerformanceMonitor } from './usePerformanceMonitor';
 import { usePersonaOrchestration } from './usePersonaOrchestration';
@@ -202,7 +202,7 @@ export const useMLWorker = () => {
               const words = cleanText.split(' ');
               const isShort = words.length < 3;
               const hasMeaningfulCue = /^(yes|no|agree|exactly|right|thanks|thank you|sorry|hello|hi|hey|bye|goodbye|what|why|how|who|where|when|okay|alright|i see|sure|true|cool|wow|oh|really|correct)/i.test(cleanText);
-              
+
               const timeSinceLast = Date.now() - (lastMessageTimeRef.current || 0);
 
               dispatch({ type: 'STT_RESULT', text: cleanText, intent });
@@ -219,7 +219,7 @@ export const useMLWorker = () => {
                   const communicationProfile = settings.enablePersonalization !== false && !settings.privacyMode
                       ? await getCommunicationProfileSummary()
                       : "";
-                  
+
                   const insightCategoryScores = settings.enablePersonalization !== false && !settings.privacyMode
                       ? await getInsightCategoryScores()
                       : {};
@@ -254,19 +254,19 @@ export const useMLWorker = () => {
             case 'llm_result': {
               stickyIntentRef.current = { intent: null, timestamp: 0 };
               const enhanced = await enhanceResponse(
-                text, 
-                stateRef.current.persona, 
-                emotionData, 
-                stateRef.current.transcript, 
+                text,
+                stateRef.current.persona,
+                emotionData,
+                stateRef.current.transcript,
                 historyRef.current
               );
-              dispatch({ 
-                type: 'LLM_RESULT', 
-                text: enhanced, 
+              dispatch({
+                type: 'LLM_RESULT',
+                text: enhanced,
                 emotionData,
-                coachingInsights: event.data.coachingInsights 
+                coachingInsights: event.data.coachingInsights
               });
-              
+
               if (event.data.conversationSentiment) {
                 setSentiment(event.data.conversationSentiment);
               }
@@ -283,7 +283,15 @@ export const useMLWorker = () => {
           }
         } catch (err) {
           console.error("Error in worker message handler:", err);
-          dispatch({ type: 'SET_ERROR', error: 'Main thread processing failed' });
+          // Provide more specific error information
+          let errorMessage = 'Main thread processing failed';
+          if (err.message) {
+            errorMessage += `: ${err.message}`;
+          }
+          if (err.stack) {
+            console.error("Stack trace:", err.stack);
+          }
+          dispatch({ type: 'SET_ERROR', error: errorMessage });
         }
       };
 
