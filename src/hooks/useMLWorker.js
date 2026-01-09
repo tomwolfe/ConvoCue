@@ -5,6 +5,7 @@ import { useAppPreferences } from './useAppPreferences';
 import { getCommunicationProfileSummary } from '../utils/personalization';
 import { provideHapticFeedback } from '../utils/haptics';
 import { getInsightCategoryScores } from '../utils/feedback';
+import { orchestratePersona } from '../utils/personaOrchestrator';
 
 const initialState = {
   status: 'Initializing Models...',
@@ -99,6 +100,28 @@ export const useMLWorker = () => {
     lastMessageTimeRef.current = lastMessageTime;
   }, [state, history, lastMessageTime]);
 
+  useEffect(() => {
+    // Battery Status API monitoring for proactive performance management
+    if ('getBattery' in navigator) {
+      navigator.getBattery().then(battery => {
+        const updateBatteryStatus = () => {
+          if ((battery.level < 0.2 && !battery.charging) || battery.saveMode) {
+            console.warn('[Performance] Low battery detected, notifying worker to reduce load');
+            worker.current?.postMessage({ 
+              type: 'performance_update', 
+              mode: 'minimal',
+              reason: 'low_battery' 
+            });
+          }
+        };
+
+        battery.addEventListener('levelchange', updateBatteryStatus);
+        battery.addEventListener('chargingchange', updateBatteryStatus);
+        updateBatteryStatus();
+      });
+    }
+  }, []);
+
   const initWorker = useCallback(() => {
     if (worker.current) {
       worker.current.terminate();
@@ -141,6 +164,22 @@ export const useMLWorker = () => {
               // 3. It's been a while since the last message OR
               // 4. It's a question
               if (!isShort || hasMeaningfulCue || timeSinceLast > 5000 || cleanText.includes('?')) {
+                  // Auto-Persona Orchestration
+                  let activePersona = stateRef.current.persona;
+                  if (settings.enableAutoPersona !== false && !settings.privacyMode) {
+                      const { suggestedPersona, confidence } = orchestratePersona(
+                          cleanText, 
+                          historyRef.current, 
+                          activePersona
+                      );
+                      
+                      if (suggestedPersona !== activePersona && confidence > 0.6) {
+                          console.log(`[Orchestrator] Switching persona: ${activePersona} -> ${suggestedPersona} (Confidence: ${confidence.toFixed(2)})`);
+                          activePersona = suggestedPersona;
+                          dispatch({ type: 'SET_PERSONA', persona: suggestedPersona });
+                      }
+                  }
+
                   const communicationProfile = settings.enablePersonalization !== false && !settings.privacyMode
                       ? await getCommunicationProfileSummary()
                       : "";
@@ -153,7 +192,7 @@ export const useMLWorker = () => {
                       type: 'llm',
                       text: cleanText,
                       history: historyRef.current,
-                      persona: stateRef.current.persona,
+                      persona: activePersona,
                       culturalContext: stateRef.current.culturalContext,
                       communicationProfile,
                       insightCategoryScores,

@@ -283,6 +283,11 @@ self.onmessage = async (event) => {
             await pipelineManager.loadLLM();
         }
 
+        if (type === 'performance_update') {
+            performanceStats.mode = event.data.mode;
+            console.log(`[Worker] Performance mode manually set to: ${performanceStats.mode} (Reason: ${event.data.reason})`);
+        }
+
         if (type === 'stt') {
             if (!MLPipeline.stt) await pipelineManager.loadSTT();
             MLPipeline.lastUsed = Date.now();
@@ -355,29 +360,41 @@ self.onmessage = async (event) => {
             const sanitizedText = _text.trim().substring(0, AppConfig.system.maxTranscriptLength);
             const emotionData = analyzeEmotion(sanitizedText);
 
-            // Perform coaching analysis based on persona
-            const coachingStartTime = performance.now();
-            
-            // Existing relationship coaching analysis
-            const relationshipInsights = (persona === 'relationship')
-                ? analyzeRelationshipCoaching(sanitizedText, history, emotionData, insightCategoryScores)
-                : null;
+            // Dynamic Resource Allocation based on Performance Mode
+            const maxTokens = performanceStats.mode === 'minimal' 
+                ? Math.min(32, AppConfig.models.llm.max_new_tokens)
+                : performanceStats.mode === 'balanced'
+                    ? Math.min(64, AppConfig.models.llm.max_new_tokens)
+                    : AppConfig.models.llm.max_new_tokens;
 
-            // Enhanced anxiety coaching analysis for anxiety persona
-            const anxietyInsights = (persona === 'anxiety')
-                ? analyzeAnxietyCoaching(sanitizedText, history, emotionData)
-                : null;
+            // Perform coaching analysis based on persona - Skip if in minimal mode
+            let relationshipInsights = null;
+            let anxietyInsights = null;
+            let professionalInsights = null;
+            let meetingInsights = null;
+            let coachingAnalysisTime = 0;
 
-            // Enhanced professional coaching analysis
-            const professionalInsights = (persona === 'professional')
-                ? analyzeProfessionalCoaching(sanitizedText, history, emotionData, insightCategoryScores)
-                : null;
-            
-            const meetingInsights = (persona === 'meeting')
-                ? analyzeMeetingCoaching(sanitizedText, history, emotionData, insightCategoryScores)
-                : null;
+            if (performanceStats.mode !== 'minimal') {
+                const coachingStartTime = performance.now();
                 
-            const coachingAnalysisTime = performance.now() - coachingStartTime;
+                relationshipInsights = (persona === 'relationship')
+                    ? analyzeRelationshipCoaching(sanitizedText, history, emotionData, insightCategoryScores)
+                    : null;
+
+                anxietyInsights = (persona === 'anxiety')
+                    ? analyzeAnxietyCoaching(sanitizedText, history, emotionData)
+                    : null;
+
+                professionalInsights = (persona === 'professional')
+                    ? analyzeProfessionalCoaching(sanitizedText, history, emotionData, insightCategoryScores)
+                    : null;
+                
+                meetingInsights = (persona === 'meeting')
+                    ? analyzeMeetingCoaching(sanitizedText, history, emotionData, insightCategoryScores)
+                    : null;
+                    
+                coachingAnalysisTime = performance.now() - coachingStartTime;
+            }
 
             // Cached System Prompt Generation
             const isSubtleMode = _settings?.isSubtleMode || preferences?.isSubtleMode;
@@ -535,7 +552,7 @@ self.onmessage = async (event) => {
             });
 
             const output = await MLPipeline.llm(messages, {
-                max_new_tokens: AppConfig.models.llm.max_new_tokens,
+                max_new_tokens: maxTokens,
                 temperature: AppConfig.models.llm.temperature,
                 do_sample: AppConfig.models.llm.do_sample,
                 streamer,

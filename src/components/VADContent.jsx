@@ -466,6 +466,7 @@ const VADContent = ({
         culturalContext={culturalContext}
         setCulturalContext={setCulturalContext}
         availablePersonas={availablePersonas}
+        settings={settings}
       />
       )}
 

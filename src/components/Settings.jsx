@@ -10,6 +10,7 @@ const Settings = ({ isOpen, onClose }) => {
     enablePersonalization: true,
     enableSpeakerDetection: true,
     enableSentimentAnalysis: true,
+    enableAutoPersona: true,
     showCoachingInsights: true,
     showSubtleCoaching: false,
     privacyMode: false,
@@ -108,6 +109,7 @@ const Settings = ({ isOpen, onClose }) => {
         enablePersonalization: true,
         enableSpeakerDetection: true,
         enableSentimentAnalysis: true,
+        enableAutoPersona: true,
         showCoachingInsights: true,
         showSubtleCoaching: false,
         privacyMode: false,
@@ -147,6 +149,21 @@ const Settings = ({ isOpen, onClose }) => {
           <section className="settings-section">
             <h3 className="section-title">Personalization</h3>
             
+            <div className="setting-item">
+              <div className="setting-info">
+                <h3>Auto-Persona Selection</h3>
+                <p>Automatically switch personas based on conversation context</p>
+              </div>
+              <label className="toggle-switch">
+                <input
+                  type="checkbox"
+                  checked={settings.enableAutoPersona}
+                  onChange={(e) => handleSettingChange('enableAutoPersona', e.target.checked)}
+                />
+                <span className="slider"></span>
+              </label>
+            </div>
+
             <div className="setting-item">
               <div className="setting-info">
                 <h3>Improvement Suggestions</h3>

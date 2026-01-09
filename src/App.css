@@ -308,7 +308,31 @@ header.compact .subtitle {
 .btn-main:disabled { background: #cbd5e1; box-shadow: none; cursor: not-allowed; }
 
 /* Persona Selector */
-.persona-selector { margin-bottom: 1.5rem; }
+.persona-selector {
+  margin-bottom: 1.5rem;
+  position: relative;
+}
+
+.persona-auto-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--primary);
+  background: var(--primary-light);
+  padding: 0.25rem 0.75rem;
+  border-radius: 1rem;
+  width: fit-content;
+  margin-bottom: 0.75rem;
+  font-weight: 500;
+  border: 1px solid var(--primary-border);
+  animation: fadeIn 0.3s ease-out;
+}
+
+.persona-auto-indicator svg {
+  color: var(--primary);
+}
+
 .persona-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));

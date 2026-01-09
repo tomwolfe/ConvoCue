@@ -10,6 +10,7 @@ export const useAppPreferences = (initialDispatch) => {
     enablePersonalization: true,
     enableSpeakerDetection: true,
     enableSentimentAnalysis: true,
+    enableAutoPersona: true,
     privacyMode: false,
     isSubtleMode: false,
     showAnalytics: true

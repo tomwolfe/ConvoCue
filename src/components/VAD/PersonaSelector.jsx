@@ -1,11 +1,18 @@
 import React from 'react';
+import { Sparkles } from 'lucide-react';
 import { AppConfig } from '../../config';
 
-const PersonaSelector = ({ persona, setPersona, culturalContext, setCulturalContext, availablePersonas }) => {
+const PersonaSelector = ({ persona, setPersona, culturalContext, setCulturalContext, availablePersonas, settings }) => {
   if (!availablePersonas || Object.keys(availablePersonas).length === 0) return null;
   
   return (
     <div className="persona-selector" role="group" aria-label="Select conversation mode">
+      {settings?.enableAutoPersona && (
+        <div className="persona-auto-indicator" title="Auto-Persona is active. The app will switch based on context.">
+          <Sparkles size={14} />
+          <span>Smart Switch Active</span>
+        </div>
+      )}
       <div className="persona-grid">
         {Object.values(availablePersonas).map((p) => (
           <button
