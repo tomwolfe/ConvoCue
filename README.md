@@ -12,11 +12,13 @@ ConvoCue is a privacy-first, on-device AI conversation assistant that provides r
 - **Advanced AI Intelligence**:
     - **Context-Aware Suggestions**: Powered by SmolLM2-135M-Instruct for natural, relevant responses.
     - **Intent Recognition**: Detects conversational goals (e.g., conflict resolution, strategic planning) with semantic tagging.
-      - **7 Intent Categories**: social, question, conflict, strategic, action, empathy, language
-      - **Confidence Threshold**: Adjustable sensitivity (default: 0.3 for better initial experience)
+      - **11 Intent Categories**: social, question, conflict, strategic, action, empathy, language, negotiation, leadership, clarity, execution, cultural, learning
+      - **Configurable Confidence Threshold**: Adjustable sensitivity (default: 0.4 for better initial experience)
       - **Context-Aware Disambiguation**: Differentiates between similar phrases based on surrounding context
       - **Sarcasm Detection**: Advanced algorithms to identify potential sarcasm and idiomatic expressions
       - **Intent-Based Semantic Tags**: Automatically tags responses with semantic markers for better UI feedback
+      - **Multi-Intent Detection**: Ability to detect multiple intents simultaneously
+      - **High-Performance Real-Time Detection**: Optimized for fast processing during live conversations
     - **Emotion Analysis**: Monitors emotional tone to provide more empathetic cues.
     - **Sentiment Analysis**: Tracks conversation sentiment trends over time.
     - **Cultural Intelligence**: Multi-layered support for culturally sensitive communication with context detection.
@@ -27,6 +29,14 @@ ConvoCue is a privacy-first, on-device AI conversation assistant that provides r
     - **Meeting Aide**: Strategic interjections and summaries for professional meetings.
     - **Language Learning**: Natural phrasing and grammar corrections for language learners.
     - **Cross-Cultural Guide**: Culturally sensitive phrasing suggestions with context awareness.
+    - **Coaching Insights**: Personalized, AI-driven feedback with priority system and category scoring.
+- **Auto-Persona Orchestration**:
+    - **Smart Persona Switching**: Automatically switches between personas based on conversation context.
+    - **Intent-Based Orchestration**: Uses detected intents to determine optimal persona.
+    - **Keyword Recognition**: Identifies relevant keywords to trigger persona changes.
+    - **History Context**: Considers conversation history for better persona selection.
+    - **Sensitivity Controls**: Adjustable sensitivity for persona switching.
+    - **Manual Override**: Allows users to manually select personas when needed.
 - **Customization & Personalization**:
     - **Persona Engine**: Choose from preset personas or create custom AI behaviors.
     - **Persona Customization**: Create, edit, and save custom personas with tailored prompts.
@@ -35,6 +45,8 @@ ConvoCue is a privacy-first, on-device AI conversation assistant that provides r
     - **Subtle Mode**: Minimalist UI cues for discreet assistance with haptic feedback.
     - **Dyslexic-Friendly Mode**: Specialized font and layout for users with dyslexia.
     - **Compact Mode**: Minimal UI for focused interaction.
+    - **Intent Detection Settings**: Configurable confidence thresholds, debounce windows, and sticky durations.
+    - **Haptic Feedback Settings**: Adjustable intensity and patterns for tactile notifications.
 - **Accessibility Features**:
     - **Dyslexic-Friendly Font**: Specialized typography for improved readability.
     - **Haptic Feedback**: Tactile responses for subtle mode notifications (device/browser dependent).
@@ -43,12 +55,15 @@ ConvoCue is a privacy-first, on-device AI conversation assistant that provides r
       - **Browser Compatibility**: Works on most mobile browsers; visual feedback on unsupported platforms.
     - **Screen Reader Support**: Full ARIA compliance for visually impaired users.
     - **High Contrast Mode**: Enhanced visibility for users with visual impairments.
+    - **Keyboard Navigation**: Full keyboard support for all interface elements.
+    - **Non-Color Visual Patterns**: Visual indicators that don't rely on color alone.
 - **Privacy & Security**:
     - **100% On-Device**: All processing (audio, ML inference, storage) stays on your device.
     - **Encrypted Storage**: Local personalization data is encrypted before being saved to the browser.
     - **Privacy Mode**: Option to disable personalization and data collection.
     - **Data Portability**: Full control to export or hard-reset your conversation history and learned data.
     - **Secure Local Storage**: Client-side encryption for all persistent user data.
+    - **Structured Transparency**: Detailed logs showing exactly how your data is used.
 - **User Experience**:
     - **Interactive Onboarding**: Guided tutorial for new users.
     - **Performance Diagnostics**: Real-time monitoring of system health, inference latency, and VAD performance.
@@ -56,12 +71,17 @@ ConvoCue is a privacy-first, on-device AI conversation assistant that provides r
     - **Conversation History**: Track and review past interactions with sentiment analysis.
     - **Feedback System**: Like/dislike functionality to improve AI suggestions.
     - **Settings Panel**: Comprehensive configuration options for all features.
+    - **Bias Monitoring Dashboard**: Tools to monitor and address potential AI bias.
+    - **Cultural Disclaimer**: Clear disclaimers about cultural guidance limitations.
 - **Performance Optimization**:
     - **Memory Management**: Aggressive memory management for mobile devices with automatic model unloading.
     - **Adaptive Performance**: Dynamic adjustment based on device capabilities and memory usage.
     - **Web Workers**: Background processing to keep the UI responsive during heavy ML tasks.
     - **Model Quantization**: Q4 quantized models for efficient on-device inference.
     - **Thread Optimization**: Dynamic thread allocation based on hardware capabilities.
+    - **Low Memory Mode**: Automatic optimization for devices with limited resources.
+    - **Progressive Loading**: Models load progressively to reduce initial wait times.
+    - **Aggressive Caching**: Intelligent caching to reduce redundant processing.
 
 ## Use Cases
 
@@ -85,6 +105,10 @@ ConvoCue leverages a modern, decoupled architecture to ensure high performance a
 - **UI Framework**: Tailwind CSS with Lucide React icons for consistent design.
 - **Analytics**: Vercel Analytics for performance monitoring (opt-in).
 - **Testing**: Vitest with React Testing Library for comprehensive test coverage.
+- **Configuration**: Centralized AppConfig with device detection and adaptive settings.
+- **Performance Monitoring**: Built-in tools for tracking latency, memory usage, and processing times.
+- **Cultural Intelligence**: Multi-dimensional analysis based on Hofstede's cultural dimensions.
+- **Intent Recognition**: Sophisticated NLP system with pattern matching and similarity algorithms.
 
 ## Documentation
 
@@ -94,6 +118,8 @@ For more detailed technical insights, see the `docs/` directory:
 - [Performance Optimization](./docs/performance-optimization.md)
 - [Props Handling](./docs/props-handling.md)
 - [Coaching Insights System](./docs/coaching-insights.md)
+- [Cultural Intelligence System](./docs/cultural_intelligence_system.md)
+- [Intent Taxonomy](./docs/intent_taxonomy.md)
 
 ## Getting Started
 
@@ -116,6 +142,14 @@ For more detailed technical insights, see the `docs/` directory:
 5.  **Lint Code**:
     ```bash
     npm run lint
+    ```
+6.  **Run Tests with UI**:
+    ```bash
+    npm run test:ui
+    ```
+7.  **Preview Production Build**:
+    ```bash
+    npm run preview
     ```
 
 ## Privacy Policy
