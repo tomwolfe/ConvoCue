@@ -269,9 +269,9 @@ const Tutorial = ({ onComplete, isCompactMode }) => {
               <div className="settings-preview">
                 <div className="setting-item-preview">
                   <label>Confidence Threshold</label>
-                  <div className="slider-preview">
-                    <div className="slider-track">
-                      <div className="slider-thumb" style={{left: '50%'}}></div>
+                  <div className="setting-slider-preview">
+                    <div className="setting-slider-track">
+                      <div className="setting-slider-thumb" style={{left: '50%'}}></div>
                     </div>
                     <span>0.5</span>
                   </div>
@@ -279,9 +279,9 @@ const Tutorial = ({ onComplete, isCompactMode }) => {
                 </div>
                 <div className="setting-item-preview">
                   <label>Debounce Window</label>
-                  <div className="slider-preview">
-                    <div className="slider-track">
-                      <div className="slider-thumb" style={{left: '40%'}}></div>
+                  <div className="setting-slider-preview">
+                    <div className="setting-slider-track">
+                      <div className="setting-slider-thumb" style={{left: '40%'}}></div>
                     </div>
                     <span>800ms</span>
                   </div>
@@ -289,9 +289,9 @@ const Tutorial = ({ onComplete, isCompactMode }) => {
                 </div>
                 <div className="setting-item-preview">
                   <label>Sticky Duration</label>
-                  <div className="slider-preview">
-                    <div className="slider-track">
-                      <div className="slider-thumb" style={{left: '60%'}}></div>
+                  <div className="setting-slider-preview">
+                    <div className="setting-slider-track">
+                      <div className="setting-slider-thumb" style={{left: '60%'}}></div>
                     </div>
                     <span>2000ms</span>
                   </div>
@@ -306,7 +306,7 @@ const Tutorial = ({ onComplete, isCompactMode }) => {
                 <div className="intent-toggle-preview">
                   <div className="toggle-switch-preview">
                     <input type="checkbox" id="social-enabled" defaultChecked />
-                    <span className="slider-preview"></span>
+                    <span className="toggle-slider-preview"></span>
                   </div>
                   <div className="intent-info-preview">
                     <div className="intent-header-preview">
@@ -318,7 +318,7 @@ const Tutorial = ({ onComplete, isCompactMode }) => {
                 <div className="intent-toggle-preview">
                   <div className="toggle-switch-preview">
                     <input type="checkbox" id="question-enabled" defaultChecked />
-                    <span className="slider-preview"></span>
+                    <span className="toggle-slider-preview"></span>
                   </div>
                   <div className="intent-info-preview">
                     <div className="intent-header-preview">
@@ -330,7 +330,7 @@ const Tutorial = ({ onComplete, isCompactMode }) => {
                 <div className="intent-toggle-preview">
                   <div className="toggle-switch-preview">
                     <input type="checkbox" id="conflict-enabled" defaultChecked />
-                    <span className="slider-preview"></span>
+                    <span className="toggle-slider-preview"></span>
                   </div>
                   <div className="intent-info-preview">
                     <div className="intent-header-preview">
@@ -342,7 +342,7 @@ const Tutorial = ({ onComplete, isCompactMode }) => {
                 <div className="intent-toggle-preview">
                   <div className="toggle-switch-preview">
                     <input type="checkbox" id="action-enabled" />
-                    <span className="slider-preview"></span>
+                    <span className="toggle-slider-preview"></span>
                   </div>
                   <div className="intent-info-preview">
                     <div className="intent-header-preview">
