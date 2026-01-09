@@ -10,6 +10,7 @@ const Settings = ({ isOpen, onClose }) => {
     enablePersonalization: true,
     enableSpeakerDetection: true,
     enableSentimentAnalysis: true,
+    showCoachingInsights: true,
     privacyMode: false,
     isSubtleMode: false,
     showAnalytics: true
@@ -106,6 +107,7 @@ const Settings = ({ isOpen, onClose }) => {
         enablePersonalization: true,
         enableSpeakerDetection: true,
         enableSentimentAnalysis: true,
+        showCoachingInsights: true,
         privacyMode: false,
         isSubtleMode: false,
         showAnalytics: true
@@ -147,6 +149,21 @@ const Settings = ({ isOpen, onClose }) => {
                   type="checkbox"
                   checked={settings.enablePersonalization}
                   onChange={(e) => handleSettingChange('enablePersonalization', e.target.checked)}
+                />
+                <span className="slider"></span>
+              </label>
+            </div>
+
+            <div className="setting-item">
+              <div className="setting-info">
+                <h3>Coaching Insights</h3>
+                <p>Show real-time behavioral insights and coaching tips</p>
+              </div>
+              <label className="toggle-switch">
+                <input
+                  type="checkbox"
+                  checked={settings.showCoachingInsights}
+                  onChange={(e) => handleSettingChange('showCoachingInsights', e.target.checked)}
                 />
                 <span className="slider"></span>
               </label>

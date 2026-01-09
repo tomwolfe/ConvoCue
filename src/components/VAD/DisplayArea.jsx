@@ -156,103 +156,109 @@ const DisplayArea = ({
 
   return (
     <div className="display-area" role="region" aria-label="Speech processing results">
-      {activeInsight && !showMinimalUI && isStorageLoaded && (
-        <div 
-          className={`card insight-card ${activeInsight.config.className} ${activeInsight.config.pattern} ${isCompactMode ? 'compact-insight' : ''}`} 
-          role="complementary"
-          aria-label={activeInsight.config.ariaLabel}
-        >
-          <div className="card-header">
-            <div className="flex items-center gap-2">
-              {activeInsight.config.icon}
-              <label>{activeInsight.config.title}</label>
-              {visibleInsights.length > 1 && (
-                <div className="insight-navigation" role="group" aria-label="Insight navigation">
-                  <button className="insight-action-btn" onClick={handlePrevInsight} aria-label="Previous insight">
-                    <ChevronLeft size={12} />
-                  </button>
-                  <div className="flex gap-1">
-                    {visibleInsights.map((_, idx) => (
-                      <div key={idx} className={`nav-dot ${idx === currentInsightIndex ? 'active' : ''}`} />
-                    ))}
-                  </div>
-                  <button className="insight-action-btn" onClick={handleNextInsight} aria-label="Next insight">
-                    <ChevronRight size={12} />
+      {settings.showCoachingInsights !== false && !showMinimalUI && (
+        <>
+          {!isStorageLoaded && <div className="insight-skeleton" aria-hidden="true" />}
+          
+          {isStorageLoaded && activeInsight && (
+            <div 
+              className={`card insight-card ${activeInsight.config.className} ${activeInsight.config.pattern} ${isCompactMode ? 'compact-insight' : ''}`} 
+              role="complementary"
+              aria-label={activeInsight.config.ariaLabel}
+            >
+              <div className="card-header">
+                <div className="flex items-center gap-2">
+                  {activeInsight.config.icon}
+                  <label>{activeInsight.config.title}</label>
+                  {visibleInsights.length > 1 && (
+                    <div className="insight-navigation" role="group" aria-label="Insight navigation">
+                      <button className="insight-action-btn" onClick={handlePrevInsight} aria-label="Previous insight">
+                        <ChevronLeft size={12} />
+                      </button>
+                      <div className="flex gap-1">
+                        {visibleInsights.map((_, idx) => (
+                          <div key={idx} className={`nav-dot ${idx === currentInsightIndex ? 'active' : ''}`} />
+                        ))}
+                      </div>
+                      <button className="insight-action-btn" onClick={handleNextInsight} aria-label="Next insight">
+                        <ChevronRight size={12} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="insight-badge">{activeInsight.category || 'Focus'}</span>
+                  <button 
+                    className="insight-action-btn dismiss-btn" 
+                    onClick={handleDismiss}
+                    title="Dismiss insight"
+                    aria-label="Dismiss insight"
+                  >
+                    <X size={14} />
                   </button>
                 </div>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="insight-badge">{activeInsight.category || 'Focus'}</span>
-              <button 
-                className="insight-action-btn dismiss-btn" 
-                onClick={handleDismiss}
-                title="Dismiss insight"
-                aria-label="Dismiss insight"
-              >
-                <X size={14} />
-              </button>
-            </div>
-          </div>
-          
-          <p className="insight-text">
-            {showInfo ? `Logic: Based on ${activeInsight.category} pattern with ${activeInsight.priority} priority.` : activeInsight.insight}
-          </p>
-          
-          <div className="insight-footer">
-            <div className="coping-wrapper">
-              {(() => {
-                const strategies = activeInsight.config.copingPath(coachingInsights);
-                if (!strategies || strategies.length === 0) return null;
-                const strategy = strategies[currentCopingIndex] || strategies[0];
-                return (
-                  <div className="coping-strategy">
-                    <Zap size={14} />
-                    <span>Tip: {strategy.technique || strategy.insight || 'Try this strategy'}</span>
-                    {strategies.length > 1 && (
+              </div>
+              
+              <p className="insight-text">
+                {showInfo ? `Logic: Based on ${activeInsight.category} pattern with ${activeInsight.priority} priority.` : activeInsight.insight}
+              </p>
+              
+              <div className="insight-footer">
+                <div className="coping-wrapper">
+                  {(() => {
+                    const strategies = activeInsight.config.copingPath(coachingInsights);
+                    if (!strategies || strategies.length === 0) return null;
+                    const strategy = strategies[currentCopingIndex] || strategies[0];
+                    return (
+                      <div className="coping-strategy">
+                        <Zap size={14} />
+                        <span>Tip: {strategy.technique || strategy.insight || 'Try this strategy'}</span>
+                        {strategies.length > 1 && (
+                          <button 
+                            className="insight-action-btn" 
+                            onClick={(e) => handleNextCoping(e, strategies.length)}
+                            title="Next tip"
+                            aria-label="Next tip"
+                          >
+                            <RefreshCw size={12} />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+                
+                <div className="insight-actions">
+                  <button 
+                    className={`insight-action-btn ${showInfo ? 'active' : ''}`}
+                    onClick={() => setShowInfo(!showInfo)}
+                    title="Why am I seeing this?"
+                  >
+                    <Info size={14} />
+                  </button>
+                  {isPersonalizationEnabled && (
+                    <>
                       <button 
-                        className="insight-action-btn" 
-                        onClick={(e) => handleNextCoping(e, strategies.length)}
-                        title="Next tip"
-                        aria-label="Next tip"
+                        className="insight-action-btn"
+                        onClick={() => submitFeedback(activeInsight.insight, 'like', `insight-${persona}`, culturalContext)}
+                        title="Helpful"
                       >
-                        <RefreshCw size={12} />
+                        <ThumbsUp size={14} />
                       </button>
-                    )}
-                  </div>
-                );
-              })()}
+                      <button 
+                        className="insight-action-btn"
+                        onClick={() => submitFeedback(activeInsight.insight, 'dislike', `insight-${persona}`, culturalContext)}
+                        title="Not helpful"
+                      >
+                        <ThumbsDown size={14} />
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
-            
-            <div className="insight-actions">
-              <button 
-                className={`insight-action-btn ${showInfo ? 'active' : ''}`}
-                onClick={() => setShowInfo(!showInfo)}
-                title="Why am I seeing this?"
-              >
-                <Info size={14} />
-              </button>
-              {isPersonalizationEnabled && (
-                <>
-                  <button 
-                    className="insight-action-btn"
-                    onClick={() => submitFeedback(activeInsight.insight, 'like', `insight-${persona}`, culturalContext)}
-                    title="Helpful"
-                  >
-                    <ThumbsUp size={14} />
-                  </button>
-                  <button 
-                    className="insight-action-btn"
-                    onClick={() => submitFeedback(activeInsight.insight, 'dislike', `insight-${persona}`, culturalContext)}
-                    title="Not helpful"
-                  >
-                    <ThumbsDown size={14} />
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
+          )}
+        </>
       )}
 
       <div className={`card suggestion ${suggestion || processingStep === 'thinking' ? 'visible' : ''} ${processingStep === 'thinking' ? 'thinking' : ''} ${isCompactMode ? 'compact-suggestion' : ''} ${showMinimalUI ? 'minimal-suggestion' : ''}`} role="region" aria-labelledby="suggestion-label">
