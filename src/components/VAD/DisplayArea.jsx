@@ -12,17 +12,7 @@ import { parseSemanticTags, TAG_METADATA } from '../../utils/intentRecognition';
 import { secureLocalStorageGet, secureLocalStorageSet } from '../../utils/encryption';
 import InsightCard from './InsightCard';
 import CoachingDisclaimer from './CoachingDisclaimer';
-
-const TagIcon = ({ name, size = 14 }) => {
-  switch (name) {
-    case 'AlertTriangle': return <AlertTriangle size={size} />;
-    case 'Zap': return <Zap size={size} />;
-    case 'Target': return <Target size={size} />;
-    case 'MessageCircle': return <MessageCircle size={size} />;
-    case 'Heart': return <Heart size={size} />;
-    default: return <MessageCircle size={size} />; // Fallback icon
-  }
-};
+import TagIcon from './TagIcon';
 
 const DisplayArea = ({
   transcript,

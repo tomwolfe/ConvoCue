@@ -51,6 +51,22 @@ describe('intentRecognition', () => {
       expect(result.intent).toBe('greeting');
       expect(result.confidence).toBeLessThan(0.7);
     });
+
+    it('should boost conflict intent over simple disagreement', () => {
+      // "wrong" is in both disagreement and conflict, but conflict gets a boost
+      const result = detectIntentWithConfidence('That is wrong');
+      expect(result.intent).toBe('conflict');
+    });
+
+    it('should detect suggestion intent', () => {
+      const result = detectIntentWithConfidence('I suggest we try something else');
+      expect(result.intent).toBe('suggestion');
+    });
+
+    it('should detect question intent for clarifying questions', () => {
+      const result = detectIntentWithConfidence('Can you clarify what you mean?');
+      expect(result.intent).toBe('question');
+    });
   });
 
   describe('generateIntentBasedCue', () => {

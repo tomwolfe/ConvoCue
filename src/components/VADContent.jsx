@@ -9,8 +9,9 @@ import ControlPanel from './VAD/ControlPanel';
 import SocialSuccessScore from './SocialSuccessScore';
 import { getMergedPersonas } from '../utils/preferences';
 import { submitSubtleModeFeedback } from '../utils/feedback';
-import { parseSemanticTags } from '../utils/intentRecognition';
+import { parseSemanticTags, TAG_METADATA } from '../utils/intentRecognition';
 import performanceMonitor from '../utils/performance';
+import TagIcon from './VAD/TagIcon';
 
 const GlanceWidget = ({ suggestion, emotionData, isProcessing, detectedIntent }) => {
   const [feedbackGiven, setFeedbackGiven] = useState(false);
@@ -143,13 +144,13 @@ const GlanceWidget = ({ suggestion, emotionData, isProcessing, detectedIntent })
         {/* Live Intent Indicator (Subtle Mode) */}
         {isProcessing && detectedIntent && TAG_METADATA[detectedIntent] && (
           <div className={`glance-badge ${TAG_METADATA[detectedIntent].variant} pulse-animation`} title={`Immediate detection: ${TAG_METADATA[detectedIntent].description}`}>
-            {detectedIntent === 'conflict' ? <ShieldAlert size={14} aria-hidden="true" /> : <Zap size={14} aria-hidden="true" />}
+            <TagIcon name={TAG_METADATA[detectedIntent].icon} size={14} />
             <span>{TAG_METADATA[detectedIntent].label} (Live)</span>
           </div>
         )}
         {tags.map(tag => (
           <div key={tag.key} className={`glance-badge ${tag.variant}`} title={tag.description} aria-label={tag.label} role="status">
-            {tag.key === 'conflict' ? <ShieldAlert size={14} aria-hidden="true" /> : <Zap size={14} aria-hidden="true" />}
+            <TagIcon name={TAG_METADATA[tag.key]?.icon || tag.icon} size={14} />
             <span>{tag.label}</span>
           </div>
         ))}

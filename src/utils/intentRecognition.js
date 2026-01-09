@@ -245,29 +245,44 @@ export const detectIntentWithConfidence = (input) => {
     
     for (const pattern of patterns) {
       let patternScore = 0;
+      
+      // Phase 1: Fast Matches (Exact & RegEx)
       for (const patternItem of pattern.regexes) {
-        // 1. Direct token match (exact word)
+        // Direct token match (exact word)
         if (tokens.includes(patternItem.text)) {
           patternScore = Math.max(patternScore, pattern.weight);
         }
         
-        // 2. Partial match using similarity (only for single tokens)
-        if (!patternItem.isMultiWord) {
-          for (const token of tokens) {
-            const similarity = calculateSimilarity(token, patternItem.text);
-            if (similarity > 0.85) {
-              patternScore = Math.max(patternScore, pattern.weight * similarity);
-            }
-          }
-        }
-        
-        // 3. Substring/RegEx match at word boundaries
-        if (patternItem.regex.test(inputLower)) {
+        // Substring/RegEx match at word boundaries
+        if (patternScore < pattern.weight && patternItem.regex.test(inputLower)) {
           const weightMultiplier = patternItem.isMultiWord ? 1.0 : 0.6;
           patternScore = Math.max(patternScore, pattern.weight * weightMultiplier);
         }
+        
+        if (patternScore >= 1.0) break;
       }
+      
+      // Phase 2: Similarity Match (Slow, only if no strong match yet)
+      if (patternScore < 0.8) {
+        for (const patternItem of pattern.regexes) {
+          if (!patternItem.isMultiWord) {
+            for (const token of tokens) {
+              // Quick length check before expensive similarity
+              if (Math.abs(token.length - patternItem.text.length) > 2) continue;
+              
+              const similarity = calculateSimilarity(token, patternItem.text);
+              if (similarity > 0.85) {
+                patternScore = Math.max(patternScore, pattern.weight * similarity);
+              }
+              if (patternScore >= 0.85) break;
+            }
+          }
+          if (patternScore >= 0.85) break;
+        }
+      }
+      
       maxPatternScore = Math.max(maxPatternScore, patternScore);
+      if (maxPatternScore >= 1.0) break;
     }
     
     // Conflict vs Disagreement prioritization
@@ -280,6 +295,8 @@ export const detectIntentWithConfidence = (input) => {
       bestScore = score;
       bestMatch = intent;
     }
+    
+    if (bestScore >= 1.0 && intent !== 'disagreement') break; // Early exit unless we might want to boost conflict
   }
   
   return {
@@ -303,26 +320,40 @@ export const detectMultipleIntents = (input, threshold = 0.4) => {
     
     for (const pattern of patterns) {
       let patternScore = 0;
+      
+      // Phase 1: Fast Matches (Exact & RegEx)
       for (const patternItem of pattern.regexes) {
         if (tokens.includes(patternItem.text)) {
           patternScore = Math.max(patternScore, pattern.weight);
         }
         
-        if (!patternItem.isMultiWord) {
-          for (const token of tokens) {
-            const similarity = calculateSimilarity(token, patternItem.text);
-            if (similarity > 0.85) {
-              patternScore = Math.max(patternScore, pattern.weight * similarity);
-            }
-          }
-        }
-        
-        if (patternItem.regex.test(inputLower)) {
+        if (patternScore < pattern.weight && patternItem.regex.test(inputLower)) {
           const weightMultiplier = patternItem.isMultiWord ? 1.0 : 0.6;
           patternScore = Math.max(patternScore, pattern.weight * weightMultiplier);
         }
+        if (patternScore >= 1.0) break;
       }
+      
+      // Phase 2: Similarity Match (Slow, only if no strong match yet)
+      if (patternScore < threshold && patternScore < 0.8) {
+        for (const patternItem of pattern.regexes) {
+          if (!patternItem.isMultiWord) {
+            for (const token of tokens) {
+              if (Math.abs(token.length - patternItem.text.length) > 2) continue;
+              
+              const similarity = calculateSimilarity(token, patternItem.text);
+              if (similarity > 0.85) {
+                patternScore = Math.max(patternScore, pattern.weight * similarity);
+              }
+              if (patternScore >= 0.85) break;
+            }
+          }
+          if (patternScore >= 0.85) break;
+        }
+      }
+      
       maxPatternScore = Math.max(maxPatternScore, patternScore);
+      if (maxPatternScore >= 1.0) break;
     }
     
     if (maxPatternScore >= threshold) {
@@ -451,7 +482,7 @@ export const TAG_METADATA = {
     tag: '[conflict]',
     aliases: ['[diplomatic]'],
     label: 'Conflict Alert',
-    icon: 'AlertTriangle',
+    icon: 'ShieldAlert',
     variant: 'conflict',
     description: 'De-escalation needed'
   },
@@ -492,8 +523,24 @@ export const TAG_METADATA = {
     aliases: ['[support]'],
     label: 'Empathy',
     icon: 'Heart',
-    variant: 'language',
+    variant: 'social',
     description: 'Emotional support/validation'
+  },
+  question: {
+    tag: '[question]',
+    aliases: ['[ask]'],
+    label: 'Question',
+    icon: 'MessageCircle',
+    variant: 'social',
+    description: 'Follow-up question'
+  },
+  suggestion: {
+    tag: '[suggestion]',
+    aliases: ['[recommendation]'],
+    label: 'Suggestion',
+    icon: 'Zap',
+    variant: 'action',
+    description: 'Actionable advice'
   }
 };
 
