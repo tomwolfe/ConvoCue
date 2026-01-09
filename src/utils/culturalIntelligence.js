@@ -177,12 +177,18 @@ const COUNTRY_DATA = {
   'denmark': { region: 'nordic' },
   'nigeria': { region: 'african', formality: 'high' },
   'kenya': { region: 'african' },
+  'ghana': { region: 'african', greetingStyle: 'warm' },
+  'ethiopia': { region: 'african', formality: 'high' },
   'south-africa': { region: 'african', directness: 'moderate-direct' },
   'brazil': { region: 'latin-american', greetingStyle: 'very-warm' },
   'mexico': { region: 'latin-american' },
   'argentina': { region: 'latin-american' },
   'egypt': { region: 'middle-eastern' },
-  'saudi-arabia': { region: 'middle-eastern', formality: 'very-high' }
+  'saudi-arabia': { region: 'middle-eastern', formality: 'very-high' },
+  'uae': { region: 'middle-eastern', formality: 'high' },
+  'israel': { region: 'middle-eastern', directness: 'direct', context: 'low-context' },
+  'philippines': { region: 'east-asian', directness: 'indirect', context: 'high-context', greetingStyle: 'very-warm' },
+  'thailand': { region: 'east-asian', directness: 'very-indirect', faceSaving: true }
 };
 
 // Maintain COMMUNICATION_STYLES for backward compatibility but populate it dynamically
@@ -292,19 +298,28 @@ const GREETING_PATTERNS = [
   { culture: 'china', patterns: ['nihao', 'xiexie'] },
   { culture: 'japan', patterns: ['konichiwa', 'arigato'] },
   { culture: 'south-korea', patterns: ['annyeong', 'gamsahamnida'] },
-  { culture: 'india', patterns: ['namaste', 'vanakkam'] },
-  { culture: 'mexico', patterns: ['hola', 'buenos dias'] },
+  { culture: 'india', patterns: ['namaste', 'vanakkam', 'dhanyavad'] },
+  { culture: 'mexico', patterns: ['hola', 'buenos dias', 'gracias'] },
   { culture: 'brazil', patterns: ['ola', 'obrigado', 'tudo bem'] },
-  { culture: 'egypt', patterns: ['salam', 'marhaban'] },
-  { culture: 'nigeria', patterns: ['sawubona', 'jambo'] }, // Nigeria uses many, these are placeholders
+  { culture: 'egypt', patterns: ['salam', 'marhaba', 'as-salamu alaykum', 'ahlan'] },
+  { culture: 'saudi-arabia', patterns: ['as-salamu alaykum', 'ahlan wa sahlan'] },
+  { culture: 'uae', patterns: ['as-salamu alaykum', 'marhaba'] },
+  { culture: 'israel', patterns: ['shalom', 'toda'] },
+  { culture: 'nigeria', patterns: ['sawubona', 'bawo ni', 'e kuabo'] },
+  { culture: 'kenya', patterns: ['jambo', 'habari', 'asante'] },
+  { culture: 'ghana', patterns: ['akwaaba', 'eti sen'] },
+  { culture: 'ethiopia', patterns: ['selam', 'ameseginalehu'] },
+  { culture: 'philippines', patterns: ['mabuhay', 'salamat'] },
+  { culture: 'thailand', patterns: ['sawasdee', 'khop khun'] },
   { culture: 'germany', patterns: ['hallo', 'danke', 'guten tag'] },
-  { culture: 'usa', patterns: ['howdy', "what's up"] }
+  { culture: 'usa', patterns: ['howdy', "what's up", 'hello'] },
+  { culture: 'uk', patterns: ['cheers', 'hello', 'hi'] }
 ];
 
 // Pre-compile greeting regexes for performance
 const GREETING_REGEXES = GREETING_PATTERNS.map(group => ({
   culture: group.culture,
-  regexes: group.patterns.map(p => new RegExp(`\\b${p}\\b`, 'i'))
+  regexes: group.patterns.map(p => new RegExp(`\\b${p.replace(' ', '\\s+')}\\b`, 'i'))
 }));
 
 const FORMALITY_MARKERS = ['sir', 'madam', 'mr.', 'ms.', 'dr.', 'professor', 'please', 'excuse me'];
@@ -451,14 +466,27 @@ const determineCulturalContext = (text, currentCulturalContext, culturalIndicato
   const bestCulture = sortedScores[0][0];
   const confidence = maxScore > 0 ? Math.min(1.0, maxScore / 2.0) : 0;
 
-  // If confidence is high, use the new detection
-  // If confidence is low, stick with current context if it's specific
-  // Otherwise default to general
+  // Determine effective culture based on confidence and user settings
+  // Use CulturalIntelligenceConfig threshold if available
+  const overrideThreshold = AppConfig.culturalIntelligenceConfig?.confidence?.overrideThreshold || 0.75;
+  const detectionThreshold = AppConfig.culturalIntelligenceConfig?.confidence?.low || 0.3;
+
   let effectiveCulture = 'general';
-  if (confidence > 0.3) {
-    effectiveCulture = bestCulture;
-  } else if (currentCulturalContext !== 'general' && COMMUNICATION_STYLES[currentCulturalContext]) {
-    effectiveCulture = currentCulturalContext;
+  
+  if (currentCulturalContext !== 'general' && COMMUNICATION_STYLES[currentCulturalContext]) {
+    // If user has a specific setting, only override if detection is VERY confident
+    if (confidence >= overrideThreshold && bestCulture !== currentCulturalContext) {
+      effectiveCulture = bestCulture;
+    } else {
+      effectiveCulture = currentCulturalContext;
+    }
+  } else {
+    // If no user setting (general), use detection if it meets minimum confidence
+    if (confidence >= detectionThreshold) {
+      effectiveCulture = bestCulture;
+    } else {
+      effectiveCulture = 'general';
+    }
   }
 
   // Get cultural dimensions for the selected culture

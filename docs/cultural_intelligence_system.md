@@ -71,17 +71,18 @@ The system includes prominent disclaimers that:
 
 ### Ethical Considerations
 - Cultural patterns are treated as probabilistic guides, not absolute rules
-- Individual preferences override cultural generalizations
+- Individual preferences override cultural generalizations (the system requires a high confidence threshold of 0.75 to override a user-specified cultural setting)
 - Users can customize or disable cultural features
 - All processing occurs on-device with no data transmission
+- Structured transparency logs are provided for each cultural detection decision
 
 ## Integration Points
 
 The cultural intelligence system integrates with:
-- Main worker thread for real-time analysis
+- Main worker thread for real-time analysis, providing structured `culturalInsights` to the frontend
 - Persona orchestration for cultural-aware persona switching
 - Response generation for culturally appropriate suggestions
-- User feedback systems for continuous improvement
+- User feedback systems (👍/👎) for continuous improvement and bias adjustment
 
 ## Testing
 

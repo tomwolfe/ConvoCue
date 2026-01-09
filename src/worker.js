@@ -690,10 +690,10 @@ self.onmessage = async (event) => {
                         if (!isPowerSavingMode && isAdvancedCulturalGuidanceEnabled && detectedCulturalContext.recommendations) {
                             const culturalRecommendations = detectedCulturalContext.recommendations
                                 .filter(rec => rec.priority === 'high')
-                                .map(rec => rec.suggestion)
+                                .map(rec => `💡 ${rec.suggestion}`)
                                 .join(' ');
                             if (culturalRecommendations) {
-                                contextInstruction += `Cultural guidance: ${culturalRecommendations} `;
+                                contextInstruction += `Cultural Tips: ${culturalRecommendations} `;
                             }
                         }
                     }
@@ -888,7 +888,8 @@ self.onmessage = async (event) => {
                     anxiety: validateCoachingInsights(anxietyInsights),
                     professional: validateCoachingInsights(professionalInsights),
                     meeting: validateCoachingInsights(meetingInsights),
-                    language: validateCoachingInsights(languageLearningInsights)
+                    language: validateCoachingInsights(languageLearningInsights),
+                    cultural: detectedCulturalContext
                   },
                   metadata: {
                     performance: {
