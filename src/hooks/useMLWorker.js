@@ -97,7 +97,7 @@ export const useMLWorker = () => {
   const historyRef = useRef(history);
   const lastMessageTimeRef = useRef(lastMessageTime);
 
-  const { performOrchestration, handleManualPersonaChange, lastSwitchReason } = usePersonaOrchestration(
+  const { performOrchestration, handleManualPersonaChange, undoPersonaSwitch, lastSwitchReason } = usePersonaOrchestration(
     state.persona,
     settings,
     historyRef,
@@ -309,6 +309,7 @@ export const useMLWorker = () => {
     },
     resetWorker: initWorker,
     settings: settings,
-    lastSwitchReason
+    lastSwitchReason,
+    undoPersonaSwitch
   };
 };

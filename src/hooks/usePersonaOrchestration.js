@@ -109,9 +109,22 @@ export const usePersonaOrchestration = (currentPersona, settings, historyRef, di
     }
   }, []);
 
+  /**
+   * Manually reverts an auto-switch.
+   */
+  const undoPersonaSwitch = useCallback(() => {
+    const lastSwitch = autoSwitchInfoRef.current;
+    if (lastSwitch.from && lastSwitch.to === currentPersona) {
+      handleManualPersonaChange(lastSwitch.from);
+      dispatch({ type: 'SET_PERSONA', persona: lastSwitch.from });
+      autoSwitchInfoRef.current = { time: 0, from: null, to: null };
+    }
+  }, [currentPersona, handleManualPersonaChange, dispatch]);
+
   return {
     performOrchestration,
     handleManualPersonaChange,
+    undoPersonaSwitch,
     lastSwitchReason
   };
 };

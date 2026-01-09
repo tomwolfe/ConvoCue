@@ -71,7 +71,8 @@ const App = () => {
     setCulturalContext,
     clearHistory,
     settings,
-    lastSwitchReason
+    lastSwitchReason,
+    undoPersonaSwitch
   } = useMLWorker();
 
   const [micPermissionError, setMicPermissionError] = useState(null);
@@ -357,6 +358,7 @@ const App = () => {
             settings={settings}
             coachingInsights={coachingInsights}
             lastSwitchReason={lastSwitchReason}
+            undoPersonaSwitch={undoPersonaSwitch}
             onReset={() => {
               setHasInteracted(false);
               setMicPermissionError(null);

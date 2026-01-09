@@ -1,33 +1,62 @@
-# Intent Recognition System
+# Intent Recognition & Auto-Persona Orchestration
 
 ## Overview
 
-ConvoCue uses a weighted NLP-based intent recognition system to provide context-aware suggestions (cues). This replaces simple keyword matching with a similarity-based approach that understands the "intent" behind a user's speech.
+ConvoCue uses a sophisticated, weighted NLP-based intent recognition system to provide context-aware suggestions and automatically adapt coaching personas. This system replaces simple keyword matching with a multi-factor analysis that understands the "intent" and "context" behind a user's speech in real-time.
+
+## Privacy & Security
+
+**100% Client-Side Implementation.**
+The intent recognition system is designed with absolute privacy in mind. All pattern analysis, keyword matching, and scoring algorithms run entirely within the user's browser/device. 
+- No conversational transcripts or intent data are ever sent to a server for analysis.
+- Pattern matching is performed against local, pre-defined rules.
+- Verification: The implementation in `src/utils/intentRecognition.js` uses only local JavaScript logic and avoids all external API calls.
 
 ## Core Logic
 
-The system is located in `src/utils/intentRecognition.js`. It uses:
-1.  **Pattern Matching**: Pre-defined patterns for common intents.
-2.  **Weighted Scoring**: Different words within a pattern have different "weights" (importance).
-3.  **Similarity Matching**: Uses character overlap and substring matching to handle slight variations in speech.
+Located in `src/utils/intentRecognition.js` and `src/utils/personaOrchestrator.js`.
+
+1.  **Pattern Matching**: Pre-defined patterns for over 15 intents (e.g., `strategic`, `conflict`, `empathy`).
+2.  **Pre-compiled RegEx**: Patterns are pre-compiled on initialization to ensure sub-millisecond analysis on every conversational turn.
+3.  **Similarity Matching**: Uses character-based similarity (Jaccard index) to handle variations and typos.
+4.  **Weighted Scoring**: Different intents and keywords have configurable weights that contribute to a total confidence score.
+
+## Auto-Persona Orchestration ("Smart Switch")
+
+The app intelligently switches between coaching personas based on the detected context.
+
+### The Scoring Algorithm
+For every transcript update, the system calculates a score for each available persona:
+- **Positive Reinforcement**: Detected intents and keywords matching the persona's profile (e.g., "negotiate" boosts `professional`).
+- **Negative Reinforcement**: Certain keywords act as penalties for specific personas (e.g., "business contract" penalizes `languagelearning`).
+- **Contextual History**: Considers the last 3-5 turns of conversation for holistic understanding.
+- **Current Persona Bias**: A small score advantage is given to the active persona to prevent "jitter" or frequent unnecessary switches.
+
+### Sensitivity & Control
+Users can tune the system's reactivity in the **Settings** panel:
+- **High Sensitivity**: Quick to adapt, switches even on subtle context changes.
+- **Medium Sensitivity**: Balanced approach.
+- **Low Sensitivity**: Stable, requires strong evidence before switching.
+
+### User Rejection Dampening
+If a user manually reverts an automatic switch (via the **Undo** button or manual selector) within 15 seconds, the system:
+1.  Temporarily increases the threshold for that persona.
+2.  Applies a temporal decay to this "rejection penalty" (5-minute half-life), allowing the system to eventually try again if the context persists.
 
 ## Supported Intents
 
-| Intent | Triggers | Generated Cues |
+| Intent | Triggers | Coaching Application |
 | :--- | :--- | :--- |
-| **Strategic** | negotiation, boss, priority, important | Strategic, Plan ahead, Evaluate |
-| **Conflict** | wrong, disagree, problem, issue | De-escalate, Soft tone, Breathe |
-| **Action** | need to, should, let's, deadline | Suggest, Try, Propose |
-| **Emotion** | anxious, worried, stressed | Acknowledge, Validate, Support |
-| **Greeting** | hello, hi, good morning | Wave, Smile, Warmly |
+| **Strategic** | negotiate, boss, priority, contract | `professional` persona boost |
+| **Conflict** | wrong, disagree, problem, issue | `anxiety` persona boost (De-escalation) |
+| **Action** | next steps, todo, schedule | `meeting` persona boost |
+| **Emotion** | anxious, worried, sorry | `anxiety` / `relationship` boost |
+| **Cultural** | custom, meaning, slang, idiom | `crosscultural` boost |
+| **Learning** | practice, grammar, correct | `languagelearning` boost |
 
-## Architecture
+## Performance Optimization
 
-The `detectIntentWithConfidence` function returns both the detected intent and a confidence score (0.0 to 1.0). Cues are only generated if confidence exceeds a specific threshold (default: 0.3).
-
-### Context Awareness
-The `detectIntentWithContext` function enhances detection by looking at previous turns. For example, if the previous turn was a question, the system increases the probability that the current turn is an answer or a follow-up inquiry.
-
-## Usage in Pipeline
-
-Intent recognition is integrated into the `enhanceResponse` pipeline in `src/utils/responseEnhancement.js`. When `Subtle Mode` is enabled, the detected intent directly drives the selection of the "Quick Cue" displayed in the `GlanceWidget`.
+The orchestration logic is optimized for low-end devices:
+- **Pattern Pre-compilation**: RegEx objects are created once, not on every turn.
+- **Throttled Analysis**: Orchestration only fires on meaningful updates (e.g., sentences > 3 words or questions).
+- **Performance Monitor**: If the device is in low-battery or high-memory state, the system can reduce analysis depth to prioritize responsiveness.

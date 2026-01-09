@@ -153,6 +153,19 @@ const intentPatterns = {
   }
 };
 
+// Pre-compile regex patterns for better performance
+const compiledPatterns = {};
+Object.entries(intentPatterns).forEach(([intent, config]) => {
+  compiledPatterns[intent] = config.patterns.map(pattern => ({
+    ...pattern,
+    regexes: pattern.text.map(t => ({
+      text: t,
+      regex: new RegExp(`\\b${t.replace(/[.*+?^${}()|[\/]/g, '\\$&')}\\b`, 'i'),
+      isMultiWord: t.includes(' ')
+    }))
+  }));
+});
+
 /**
  * Calculate similarity between two strings using a simple algorithm
  * @param {string} str1 - First string
@@ -227,35 +240,31 @@ export const detectIntentWithConfidence = (input) => {
   let bestMatch = null;
   let bestScore = 0;
   
-  for (const [intent, config] of Object.entries(intentPatterns)) {
+  for (const [intent, patterns] of Object.entries(compiledPatterns)) {
     let maxPatternScore = 0;
     
-    for (const pattern of config.patterns) {
+    for (const pattern of patterns) {
       let patternScore = 0;
-      for (const patternText of pattern.text) {
+      for (const patternItem of pattern.regexes) {
         // 1. Direct token match (exact word)
-        if (tokens.includes(patternText)) {
+        if (tokens.includes(patternItem.text)) {
           patternScore = Math.max(patternScore, pattern.weight);
         }
         
-        // 2. Partial match using similarity (only for tokens)
-        for (const token of tokens) {
-          const similarity = calculateSimilarity(token, patternText);
-          if (similarity > 0.85) {
-            patternScore = Math.max(patternScore, pattern.weight * similarity);
+        // 2. Partial match using similarity (only for single tokens)
+        if (!patternItem.isMultiWord) {
+          for (const token of tokens) {
+            const similarity = calculateSimilarity(token, patternItem.text);
+            if (similarity > 0.85) {
+              patternScore = Math.max(patternScore, pattern.weight * similarity);
+            }
           }
         }
         
-        // 3. Substring match
-        // Only allow if it's a multi-word pattern or at word boundaries
-        if (inputLower.includes(patternText)) {
-          const isMultiWord = patternText.includes(' ');
-          const isAtWordBoundary = new RegExp(`\b${patternText.replace(/[.*+?^${}()|[\/]/g, '\$&')}\b`, 'i').test(inputLower);
-          
-          if (isMultiWord || isAtWordBoundary) {
-            const weightMultiplier = isMultiWord ? 1.0 : 0.6;
-            patternScore = Math.max(patternScore, pattern.weight * weightMultiplier);
-          }
+        // 3. Substring/RegEx match at word boundaries
+        if (patternItem.regex.test(inputLower)) {
+          const weightMultiplier = patternItem.isMultiWord ? 1.0 : 0.6;
+          patternScore = Math.max(patternScore, pattern.weight * weightMultiplier);
         }
       }
       maxPatternScore = Math.max(maxPatternScore, patternScore);
@@ -289,31 +298,28 @@ export const detectMultipleIntents = (input, threshold = 0.4) => {
   const inputLower = input.toLowerCase();
   const results = [];
   
-  for (const [intent, config] of Object.entries(intentPatterns)) {
+  for (const [intent, patterns] of Object.entries(compiledPatterns)) {
     let maxPatternScore = 0;
     
-    for (const pattern of config.patterns) {
+    for (const pattern of patterns) {
       let patternScore = 0;
-      for (const patternText of pattern.text) {
-        if (tokens.includes(patternText)) {
+      for (const patternItem of pattern.regexes) {
+        if (tokens.includes(patternItem.text)) {
           patternScore = Math.max(patternScore, pattern.weight);
         }
         
-        for (const token of tokens) {
-          const similarity = calculateSimilarity(token, patternText);
-          if (similarity > 0.85) {
-            patternScore = Math.max(patternScore, pattern.weight * similarity);
+        if (!patternItem.isMultiWord) {
+          for (const token of tokens) {
+            const similarity = calculateSimilarity(token, patternItem.text);
+            if (similarity > 0.85) {
+              patternScore = Math.max(patternScore, pattern.weight * similarity);
+            }
           }
         }
         
-        if (inputLower.includes(patternText)) {
-          const isMultiWord = patternText.includes(' ');
-          const isAtWordBoundary = new RegExp(`\b${patternText.replace(/[.*+?^${}()|[\/]/g, '\$&')}\b`, 'i').test(inputLower);
-          
-          if (isMultiWord || isAtWordBoundary) {
-            const weightMultiplier = isMultiWord ? 1.0 : 0.6;
-            patternScore = Math.max(patternScore, pattern.weight * weightMultiplier);
-          }
+        if (patternItem.regex.test(inputLower)) {
+          const weightMultiplier = patternItem.isMultiWord ? 1.0 : 0.6;
+          patternScore = Math.max(patternScore, pattern.weight * weightMultiplier);
         }
       }
       maxPatternScore = Math.max(maxPatternScore, patternScore);

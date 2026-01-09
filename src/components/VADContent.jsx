@@ -267,7 +267,8 @@ const VADContent = ({
   settings,
   onReset,
   coachingInsights,
-  lastSwitchReason
+  lastSwitchReason,
+  undoPersonaSwitch
 }) => {
   const [availablePersonas, setAvailablePersonas] = useState(AppConfig.models.personas);
 
@@ -466,6 +467,7 @@ const VADContent = ({
         availablePersonas={availablePersonas}
         settings={settings}
         lastSwitchReason={lastSwitchReason}
+        undoPersonaSwitch={undoPersonaSwitch}
       />
       )}
 

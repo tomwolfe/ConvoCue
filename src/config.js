@@ -178,7 +178,7 @@ export const AppConfig = {
         languagelearning: {
           intents: ['clarity', 'learning'],
           keywords: ['grammar', 'vocabulary', 'phrase', 'speak', 'say', 'correct', 'pronounce', 'word', 'fluent', 'practice', 'expression', 'translate'],
-          negativeKeywords: ['contract', 'deal', 'negotiate', 'strategy'],
+          negativeKeywords: ['business contract', 'legal agreement', 'strategic partnership', 'quarterly results'],
           weight: 1.1
         },
         concise: {

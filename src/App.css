@@ -383,6 +383,25 @@ header.compact .subtitle {
   color: var(--primary);
 }
 
+.btn-undo-switch {
+  background: white;
+  border: 1px solid var(--primary-border);
+  color: var(--primary);
+  font-size: 0.65rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  margin-left: 0.5rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.btn-undo-switch:hover {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
 .persona-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
