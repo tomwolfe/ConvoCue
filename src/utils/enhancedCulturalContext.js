@@ -3,7 +3,9 @@
  * Improves cross-cultural communication capabilities
  */
 
-// Cultural communication patterns by region
+import { mergeCulturalContext, provideCulturalFeedback } from './userCulturalProfile.js';
+
+// Cultural communication patterns by region - NOTE: These are generalizations for initial detection only
 const CULTURAL_PATTERNS = {
   'east-asian': {
     keywords: ['respect', 'hierarchy', 'face-saving', 'harmony', 'indirect', 'politeness', 'formality'],
@@ -157,14 +159,14 @@ export const detectEnhancedCulturalContext = (text, currentContext = 'general') 
   // Check for each cultural pattern
   for (const [cultureKey, cultureData] of Object.entries(CULTURAL_PATTERNS)) {
     let score = 0;
-    
+
     // Score based on keywords
     for (const keyword of cultureData.keywords) {
       if (lowerText.includes(keyword)) {
         score += 2;
       }
     }
-    
+
     // Score based on phrases
     for (const [phraseType, phrases] of Object.entries(cultureData.phrases)) {
       for (const phrase of phrases) {
@@ -173,7 +175,7 @@ export const detectEnhancedCulturalContext = (text, currentContext = 'general') 
         }
       }
     }
-    
+
     if (score > 0) {
       detectedCultures.push({
         culture: cultureKey,
@@ -185,16 +187,25 @@ export const detectEnhancedCulturalContext = (text, currentContext = 'general') 
 
   // Sort by score and get the top culture
   detectedCultures.sort((a, b) => b.score - a.score);
-  
+
   const primaryCulture = detectedCultures.length > 0 ? detectedCultures[0].culture : currentContext;
   const confidence = detectedCultures.length > 0 ? detectedCultures[0].confidence : 0;
 
-  return {
+  // Create the base detection result
+  const baseResult = {
     primaryCulture,
     confidence,
     detectedCultures,
-    characteristics: CULTURAL_PATTERNS[primaryCulture]?.characteristics || null
+    characteristics: CULTURAL_PATTERNS[primaryCulture]?.characteristics || null,
+    isGeneralGuidance: true, // Flag indicating this is general guidance, not personalized
+    disclaimer: "This is general cultural guidance based on detected patterns. Individual preferences may vary significantly.",
+    warning: "Cultural patterns are broad generalizations. Always verify with the individual's actual preferences."
   };
+
+  // Merge with user profile if available
+  const mergedResult = mergeCulturalContext(baseResult);
+
+  return mergedResult;
 };
 
 /**
@@ -269,33 +280,39 @@ export const generateCulturallyAppropriateResponses = (inputText, targetCulture)
   const responses = [];
   const inputLower = inputText.toLowerCase();
 
+  // Add disclaimer about generalizations
+  responses.push('Note: These are general cultural guidelines. Individual preferences may differ significantly.');
+
   // Generate responses based on cultural characteristics
   if (cultureData.characteristics.formality_level === 'high') {
-    responses.push('Address with appropriate titles and formal language');
+    responses.push('Address with appropriate titles and formal language (general guidance)');
     if (inputLower.includes('hello') || inputLower.includes('hi')) {
-      responses.push('Use formal greeting structures');
+      responses.push('Use formal greeting structures (general guidance)');
     }
   }
 
   if (cultureData.characteristics.directness === 'low') {
-    responses.push('Use indirect language and soften statements');
-    responses.push('Suggest alternatives rather than direct refusals');
+    responses.push('Use indirect language and soften statements (general guidance)');
+    responses.push('Suggest alternatives rather than direct refusals (general guidance)');
   }
 
   if (cultureData.characteristics.conflict_avoidance === 'high') {
-    responses.push('Avoid confrontational language');
-    responses.push('Use diplomatic and harmonious phrasing');
+    responses.push('Avoid confrontational language (general guidance)');
+    responses.push('Use diplomatic and harmonious phrasing (general guidance)');
   }
 
   if (cultureData.characteristics.emotional_expression === 'high') {
-    responses.push('Acknowledge emotions and relationships');
-    responses.push('Use warmer, more expressive language');
+    responses.push('Acknowledge emotions and relationships (general guidance)');
+    responses.push('Use warmer, more expressive language (general guidance)');
   }
 
   // Add specific phrase suggestions
   if (cultureData.phrases.indirect_expressions && cultureData.characteristics.directness === 'low') {
-    responses.push(`Consider using indirect expressions like: "${cultureData.phrases.indirect_expressions.slice(0, 2).join('", "')}"`);
+    responses.push(`Consider using indirect expressions like: "${cultureData.phrases.indirect_expressions.slice(0, 2).join('", "')}" (general guidance)`);
   }
+
+  // Add reminder to verify with individual
+  responses.push('Always confirm communication preferences directly with the individual when possible.');
 
   return responses;
 };
@@ -348,44 +365,58 @@ export const getCulturalCommunicationTips = (culture) => {
  */
 export const analyzeCulturalAppropriateness = (text, targetCulture) => {
   if (!text || !targetCulture || targetCulture === 'general') {
-    return { isAppropriate: true, suggestions: [], confidence: 0.5 };
+    return {
+      isAppropriate: true,
+      suggestions: [],
+      confidence: 0.5,
+      disclaimer: "This analysis is based on general cultural patterns. Individual preferences may vary significantly."
+    };
   }
 
   const cultureData = CULTURAL_PATTERNS[targetCulture];
   if (!cultureData) {
-    return { isAppropriate: true, suggestions: [], confidence: 0.5 };
+    return {
+      isAppropriate: true,
+      suggestions: [],
+      confidence: 0.5,
+      disclaimer: "This analysis is based on general cultural patterns. Individual preferences may vary significantly."
+    };
   }
 
   const issues = [];
   const suggestions = [];
   const textLower = text.toLowerCase();
 
+  // Add disclaimer about generalizations
+  suggestions.push('Note: This analysis is based on general cultural patterns. Individual preferences may differ significantly.');
+
   // Check for cultural mismatches
-  if (cultureData.characteristics.formality_level === 'high' && 
+  if (cultureData.characteristics.formality_level === 'high' &&
       (textLower.includes('hey') || textLower.includes('dude') || textLower.includes('man'))) {
-    issues.push('Informal language may be inappropriate');
-    suggestions.push('Use more formal address terms');
+    issues.push('Informal language detected (based on general pattern)');
+    suggestions.push('Consider more formal address terms (general guidance)');
   }
 
-  if (cultureData.characteristics.directness === 'low' && 
+  if (cultureData.characteristics.directness === 'low' &&
       text.match(/\byou should\b|\byou must\b|\byou need to\b/i)) {
-    issues.push('Direct imperative language detected');
-    suggestions.push('Rephrase using softer language like "perhaps" or "you might consider"');
+    issues.push('Direct imperative language detected (based on general pattern)');
+    suggestions.push('Consider softer language like "perhaps" or "you might consider" (general guidance)');
   }
 
-  if (cultureData.characteristics.conflict_avoidance === 'high' && 
+  if (cultureData.characteristics.conflict_avoidance === 'high' &&
       text.match(/\bbut\b|\bhowever\b|\bnevertheless\b/i)) {
-    issues.push('Potentially confrontational transition words detected');
-    suggestions.push('Use more harmonious transitions');
+    issues.push('Potentially confrontational transition words detected (based on general pattern)');
+    suggestions.push('Consider more harmonious transitions (general guidance)');
   }
 
   const isAppropriate = issues.length === 0;
-  const confidence = isAppropriate ? 0.9 : Math.max(0.1, 1.0 - (issues.length * 0.2));
+  const confidence = isAppropriate ? 0.7 : Math.max(0.1, 0.7 - (issues.length * 0.2)); // Lower confidence due to generalizations
 
   return {
     isAppropriate,
     issues,
     suggestions,
-    confidence
+    confidence,
+    disclaimer: "This analysis is based on general cultural patterns. Always verify with the individual's actual preferences."
   };
 };

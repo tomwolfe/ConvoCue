@@ -3,6 +3,8 @@
  * Provides grammar correction, pronunciation feedback, and language learning support
  */
 
+import { storeLanguageLearningFeedback } from './languageLearningFeedback.js';
+
 // Common grammar patterns and corrections
 const GRAMMAR_PATTERNS = {
   // Subject-verb agreement
@@ -129,6 +131,8 @@ export const detectGrammarErrors = (text) => {
 
 /**
  * Provides pronunciation feedback based on language background
+ * NOTE: This function analyzes text content only, not actual speech audio.
+ * It identifies potential pronunciation challenges based on words present in the text.
  * @param {string} text - Input text to analyze
  * @param {string} nativeLanguage - User's native language
  * @returns {Array} Pronunciation challenges and suggestions
@@ -138,7 +142,7 @@ export const providePronunciationFeedback = (text, nativeLanguage = 'general') =
 
   const challenges = [];
   const lowerText = text.toLowerCase();
-  
+
   const languageChallenges = PRONUNCIATION_CHALLENGES[nativeLanguage.toLowerCase()];
   if (!languageChallenges) return [];
 
@@ -149,11 +153,20 @@ export const providePronunciationFeedback = (text, nativeLanguage = 'general') =
         sound,
         example: details.example,
         challenge: details.challenge,
-        suggestion: `Practice the ${sound} sound by focusing on the position of your tongue and lips`
+        suggestion: `Practice the ${sound} sound by focusing on the position of your tongue and lips`,
+        note: "This is a text-based analysis identifying potential challenges. Actual pronunciation would require audio analysis."
       });
     }
   }
-  
+
+  // Add disclaimer about text-based nature
+  if (challenges.length > 0) {
+    challenges.push({
+      type: 'disclaimer',
+      message: "Note: This is text-based pronunciation guidance. For actual pronunciation feedback, audio analysis would be needed."
+    });
+  }
+
   return challenges;
 };
 
@@ -291,20 +304,29 @@ export const generateLanguageLearningResponse = (originalText, analysis) => {
 export const provideContextualLanguageFeedback = (inputText, nativeLanguage, conversationHistory = []) => {
   const analysis = analyzeLanguageLearningText(inputText, nativeLanguage);
   const response = generateLanguageLearningResponse(inputText, analysis);
-  
+
   // Add context from conversation history
   let contextualFeedback = response;
-  
+
   if (conversationHistory.length > 0) {
     const lastTurn = conversationHistory[conversationHistory.length - 1];
     if (lastTurn && lastTurn.content.toLowerCase().includes('how')) {
       contextualFeedback += ' Since the question was about a process, consider using more specific action words.';
     }
   }
-  
-  return {
+
+  // Create result object
+  const result = {
     ...analysis,
     contextualResponse: contextualFeedback,
     isLearningFocused: true
   };
+
+  // Store feedback for future improvement (this would be triggered by user action in practice)
+  // For now, we'll just make the function available for when user provides feedback
+  result.feedbackCollector = (isHelpful, userComment = '') => {
+    storeLanguageLearningFeedback(inputText, analysis, isHelpful, userComment, nativeLanguage);
+  };
+
+  return result;
 };

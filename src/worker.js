@@ -39,6 +39,11 @@ import {
     analyzeLanguageLearningText,
     generateLanguageLearningResponse
 } from './utils/languageLearning';
+import {
+    coordinateFeaturesInResponse,
+    resolveFeatureConflicts,
+    validateInsightsConsistency
+} from './utils/featureCoordination';
 
 // Configuration for on-device execution
 const deviceCapabilities = assessDeviceCapabilities();
@@ -600,6 +605,25 @@ self.onmessage = async (event) => {
                     }
 
                     coachingAnalysisTime = performance.now() - coachingStartTime;
+
+                    // Coordinate insights to handle potential conflicts between features
+                    const allInsights = {
+                        relationship: relationshipInsights,
+                        anxiety: anxietyInsights,
+                        professional: professionalInsights,
+                        meeting: meetingInsights,
+                        language: languageLearningInsights
+                    };
+
+                    // Resolve conflicts between different insights
+                    const coordinatedInsights = resolveFeatureConflicts(allInsights, persona);
+
+                    // Update the insight variables with coordinated versions
+                    relationshipInsights = coordinatedInsights.relationship;
+                    anxietyInsights = coordinatedInsights.anxiety;
+                    professionalInsights = coordinatedInsights.professional;
+                    meetingInsights = coordinatedInsights.meeting;
+                    languageLearningInsights = coordinatedInsights.language;
                 }
 
                 // Cached System Prompt Generation
@@ -783,8 +807,17 @@ self.onmessage = async (event) => {
                 // Log performance metrics for large histories
                 logPerformanceMetric('llm_processing', llmStartTime, history);
 
+                // Apply feature coordination to the final response
+                const coordinatedResponse = coordinateFeaturesInResponse(response, {
+                    relationship: relationshipInsights,
+                    anxiety: anxietyInsights,
+                    professional: professionalInsights,
+                    meeting: meetingInsights,
+                    language: languageLearningInsights
+                }, persona);
+
                 // Sanitize the response before sending it back
-                const sanitizedResponse = sanitizeText(response.trim());
+                const sanitizedResponse = sanitizeText(coordinatedResponse.trim());
                 self.postMessage({
                   type: 'llm_result',
                   text: sanitizedResponse,

@@ -104,7 +104,9 @@ export const detectCulturalContext = (text, currentCulture = 'general') => {
       primaryCulture: enhancedDetection.primaryCulture,
       needsCulturalAwareness: true,
       confidence: enhancedDetection.confidence,
-      characteristics: enhancedDetection.characteristics
+      characteristics: enhancedDetection.characteristics,
+      disclaimer: enhancedDetection.disclaimer,
+      warning: enhancedDetection.warning
     };
   }
 
