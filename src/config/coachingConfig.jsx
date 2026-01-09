@@ -10,7 +10,7 @@ export const CoachingConfig = {
     title: 'Anxiety Support',
     icon: <Heart size={16} className="text-rose-500" />,
     className: 'anxiety-insight',
-    pattern: 'pattern-dots', // Visual differentiator for accessibility
+    pattern: 'insight-pattern-dots', // Visual differentiator for accessibility
     insightPath: (insights) => insights?.anxiety?.anxietySpecificInsights,
     copingPath: (insights) => insights?.anxiety?.copingStrategies,
     ariaLabel: 'Personalized anxiety support insight'
@@ -19,7 +19,7 @@ export const CoachingConfig = {
     title: 'EQ Coach',
     icon: <Users size={16} className="text-blue-500" />,
     className: 'relationship-insight',
-    pattern: 'pattern-lines',
+    pattern: 'insight-pattern-lines',
     insightPath: (insights) => insights?.relationship?.relationshipInsights,
     copingPath: (insights) => null,
     ariaLabel: 'Emotional intelligence coaching insight'
@@ -28,10 +28,19 @@ export const CoachingConfig = {
     title: 'Professional Insight',
     icon: <Briefcase size={16} className="text-slate-500" />,
     className: 'professional-insight',
-    pattern: 'pattern-diagonal',
+    pattern: 'insight-pattern-diagonal',
     insightPath: (insights) => insights?.professional?.insights,
     copingPath: (insights) => null,
     ariaLabel: 'Professional communication insight'
+  },
+  meeting: {
+    title: 'Meeting Coach',
+    icon: <Briefcase size={16} className="text-slate-500" />,
+    className: 'professional-insight',
+    pattern: 'insight-pattern-diagonal',
+    insightPath: (insights) => insights?.professional?.insights,
+    copingPath: (insights) => null,
+    ariaLabel: 'Professional meeting coaching insight'
   },
   // Default fallback
   default: {

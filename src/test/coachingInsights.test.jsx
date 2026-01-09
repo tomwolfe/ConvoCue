@@ -115,17 +115,41 @@ describe('CoachingInsights functionality', () => {
     expect(screen.getByText('Insight 1: You seem anxious.')).toBeInTheDocument();
   });
 
-  it('shows coping tip for anxiety persona', async () => {
+  it('allows cycling through multiple coping tips', async () => {
+    const multiCopingInsights = {
+      anxiety: {
+        anxietySpecificInsights: [
+          { category: 'anxiety', insight: 'You seem stressed.', priority: 'high' }
+        ],
+        copingStrategies: [
+          { technique: 'Deep Breathing' },
+          { technique: 'Grounding Exercise' }
+        ]
+      }
+    };
+
     render(
       <DisplayArea 
         persona="anxiety" 
-        coachingInsights={mockCoachingInsights} 
+        coachingInsights={multiCopingInsights} 
       />
     );
     
     await waitFor(() => {
-      expect(screen.getByText('Tip: 4-7-8 breathing')).toBeInTheDocument();
+      expect(screen.getByText('Tip: Deep Breathing')).toBeInTheDocument();
     });
+
+    const nextTipBtn = screen.getByLabelText('Next tip');
+    await act(async () => {
+      fireEvent.click(nextTipBtn);
+    });
+    
+    expect(screen.getByText('Tip: Grounding Exercise')).toBeInTheDocument();
+    
+    await act(async () => {
+      fireEvent.click(nextTipBtn);
+    });
+    expect(screen.getByText('Tip: Deep Breathing')).toBeInTheDocument();
   });
 
   it('renders professional insights correctly', async () => {

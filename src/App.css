@@ -507,8 +507,13 @@ header.compact .subtitle {
   background: linear-gradient(to bottom right, #f8fafc, #ffffff);
 }
 
+.insight-card.default-insight {
+  border-left-color: #f59e0b;
+  background: linear-gradient(to bottom right, #fffbeb, #ffffff);
+}
+
 /* Accessibility Patterns (Non-color cues) */
-.pattern-dots::after {
+.insight-pattern-dots::after {
   content: "";
   position: absolute;
   top: 0;
@@ -520,7 +525,7 @@ header.compact .subtitle {
   background-size: 8px 8px;
 }
 
-.pattern-lines::after {
+.insight-pattern-lines::after {
   content: "";
   position: absolute;
   top: 0;
@@ -531,7 +536,7 @@ header.compact .subtitle {
   background: repeating-linear-gradient(45deg, #000, #000 1px, transparent 1px, transparent 10px);
 }
 
-.pattern-diagonal::after {
+.insight-pattern-diagonal::after {
   content: "";
   position: absolute;
   top: 0;

@@ -40,6 +40,7 @@ const DisplayArea = ({
 }) => {
   // Local state for insight interaction
   const [currentInsightIndex, setCurrentInsightIndex] = useState(0);
+  const [currentCopingIndex, setCurrentCopingIndex] = useState(0);
   const [dismissedInsights, setDismissedInsights] = useState(new Set());
   const [showInfo, setShowInfo] = useState(false);
   const [isStorageLoaded, setIsStorageLoaded] = useState(false);
@@ -57,9 +58,10 @@ const DisplayArea = ({
     loadDismissed();
   }, []);
 
-  // Reset index when persona or insights change
+  // Reset indices when persona or insights change
   useEffect(() => {
     setCurrentInsightIndex(0);
+    setCurrentCopingIndex(0);
   }, [persona, coachingInsights]);
 
   // Extract all relevant insights based on persona and config
@@ -93,16 +95,24 @@ const DisplayArea = ({
     if (currentInsightIndex >= visibleInsights.length - 1 && currentInsightIndex > 0) {
       setCurrentInsightIndex(prev => prev - 1);
     }
+    setCurrentCopingIndex(0);
   };
 
   const handleNextInsight = (e) => {
     e.stopPropagation();
     setCurrentInsightIndex(prev => (prev + 1) % visibleInsights.length);
+    setCurrentCopingIndex(0);
   };
 
   const handlePrevInsight = (e) => {
     e.stopPropagation();
     setCurrentInsightIndex(prev => (prev - 1 + visibleInsights.length) % visibleInsights.length);
+    setCurrentCopingIndex(0);
+  };
+
+  const handleNextCoping = (e, total) => {
+    e.stopPropagation();
+    setCurrentCopingIndex(prev => (prev + 1) % total);
   };
 
   // Parse semantic tags for visual indicators
@@ -194,10 +204,21 @@ const DisplayArea = ({
               {(() => {
                 const strategies = activeInsight.config.copingPath(coachingInsights);
                 if (!strategies || strategies.length === 0) return null;
+                const strategy = strategies[currentCopingIndex] || strategies[0];
                 return (
                   <div className="coping-strategy">
                     <Zap size={14} />
-                    <span>Tip: {strategies[0].technique || strategies[0].insight || 'Try this strategy'}</span>
+                    <span>Tip: {strategy.technique || strategy.insight || 'Try this strategy'}</span>
+                    {strategies.length > 1 && (
+                      <button 
+                        className="insight-action-btn" 
+                        onClick={(e) => handleNextCoping(e, strategies.length)}
+                        title="Next tip"
+                        aria-label="Next tip"
+                      >
+                        <RefreshCw size={12} />
+                      </button>
+                    )}
                   </div>
                 );
               })()}
