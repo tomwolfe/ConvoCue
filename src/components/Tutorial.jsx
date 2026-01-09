@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, ArrowRight, ArrowLeft, Heart, Users, Globe, Briefcase, GraduationCap } from 'lucide-react';
+import { X, ArrowRight, ArrowLeft, Heart, Users, Globe, Briefcase, GraduationCap, Zap } from 'lucide-react';
 import './Tutorial.css';
 
 const Tutorial = ({ onComplete, isCompactMode }) => {
