@@ -192,7 +192,7 @@ const App = () => {
 
   return (
     <ErrorBoundary>
-      <Analytics />
+      {(!settings.privacyMode && settings.showAnalytics) && <Analytics />}
       <PrivacyConsent onConsentGiven={handlePrivacyConsent} />
       <div className={`app-container ${isCompactMode ? 'compact-view' : ''}`} role="main" aria-label="ConvoCue Application">
         {showTutorial && (
@@ -345,6 +345,7 @@ const App = () => {
             isProcessing={isProcessing}
             processingStep={processingStep}
             processAudio={processAudio}
+            prewarmLLM={prewarmLLM}
             refreshSuggestion={refreshSuggestion}
             setTranscript={setTranscript}
             setSuggestion={setSuggestion}

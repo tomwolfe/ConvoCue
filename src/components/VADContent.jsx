@@ -271,6 +271,7 @@ const VADContent = ({
   isProcessing,
   processingStep,
   processAudio,
+  prewarmLLM,
   refreshSuggestion,
   setTranscript,
   setSuggestion,
@@ -382,7 +383,8 @@ const VADContent = ({
 
   const onSpeechStart = useCallback(() => {
     setStatus('Listening...');
-  }, [setStatus]);
+    if (prewarmLLM) prewarmLLM();
+  }, [setStatus, prewarmLLM]);
 
   const vad = useMicVAD({
     startOnLoad: false,
