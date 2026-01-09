@@ -685,8 +685,8 @@ header.compact .subtitle {
 
 .coaching-disclaimer {
   padding: 0.5rem 1rem;
-  background: rgba(245, 158, 11, 0.05);
-  border-top: 1px solid rgba(245, 158, 11, 0.1);
+  background: rgba(245, 158, 11, 0.08);
+  border-top: 1px solid rgba(245, 158, 11, 0.2);
   font-size: 0.7rem;
   color: var(--text-muted);
 }
@@ -701,7 +701,7 @@ header.compact .subtitle {
 }
 
 .disclaimer-text strong {
-  color: #d97706;
+  color: #b45309;
 }
 
 /* Hero Suggestion */
@@ -1541,12 +1541,12 @@ input:checked + .slider:before {
   }
 
   .coaching-disclaimer {
-    background: rgba(245, 158, 11, 0.03);
-    border-top-color: rgba(245, 158, 11, 0.1);
+    background: rgba(245, 158, 11, 0.1);
+    border-top-color: rgba(245, 158, 11, 0.25);
   }
 
   .disclaimer-text strong {
-    color: #f59e0b;
+    color: #fbbf24;
   }
 
 }

@@ -48,6 +48,7 @@ const DisplayArea = ({
   const [copingIndices, setCopingIndices] = useState({});
   const [showInfo, setShowInfo] = useState(false);
   const [isStorageLoaded, setIsStorageLoaded] = useState(false);
+  const [isAllCaughtUpDismissed, setIsAllCaughtUpDismissed] = useState(false);
 
   // Determine if feedback should be enabled based on settings
   const isPersonalizationEnabled = settings.enablePersonalization !== false && !settings.privacyMode;
@@ -55,15 +56,17 @@ const DisplayArea = ({
   // Load dismissed insights and personalization data from persistence
   useEffect(() => {
     const loadData = async () => {
-      const [savedDismissed, savedScores, savedCopingIndices] = await Promise.all([
+      const [savedDismissed, savedScores, savedCopingIndices, allCaughtUpDismissed] = await Promise.all([
         secureLocalStorageGet('dismissed_coaching_insights', []),
         getInsightCategoryScores(),
-        secureLocalStorageGet('coaching_coping_indices', {})
+        secureLocalStorageGet('coaching_coping_indices', {}),
+        secureLocalStorageGet('all_caught_up_dismissed', false)
       ]);
       setDismissedInsights(new Set(savedDismissed));
       setCategoryScores(savedScores);
       setCopingIndices(savedCopingIndices);
       setCurrentCopingIndex(savedCopingIndices[persona] || 0);
+      setIsAllCaughtUpDismissed(allCaughtUpDismissed);
       setIsStorageLoaded(true);
     };
     loadData();
@@ -72,13 +75,25 @@ const DisplayArea = ({
   // Update currentCopingIndex when persona changes (restore from persistence)
   useEffect(() => {
     if (isStorageLoaded) {
-      setCurrentCopingIndex(copingIndices[persona] || 0);
+      const savedIndex = copingIndices[persona] || 0;
+      setCurrentCopingIndex(savedIndex);
     }
   }, [persona, isStorageLoaded, copingIndices, setCurrentCopingIndex]);
 
-  // Reset indices when persona or insights change
+  // Reset indices and check bounds when persona or insights change
   useEffect(() => {
     setCurrentInsightIndex(0);
+    setIsAllCaughtUpDismissed(false); // Reset dismissal when new data arrives
+    secureLocalStorageSet('all_caught_up_dismissed', false);
+    
+    // Ensure currentCopingIndex is within bounds for the new data
+    if (coachingInsights) {
+      const config = CoachingConfig[persona] || CoachingConfig.default;
+      const strategies = config.copingPath(coachingInsights) || [];
+      if (currentCopingIndex >= strategies.length && strategies.length > 0) {
+        setCurrentCopingIndex(0);
+      }
+    }
   }, [persona, coachingInsights]);
 
   // Extract all relevant insights based on persona and config
@@ -114,7 +129,7 @@ const DisplayArea = ({
   [allInsights, dismissedInsights, persona]);
 
   const activeInsight = visibleInsights[currentInsightIndex] || null;
-  const allInsightsDismissed = isStorageLoaded && allInsights.length > 0 && visibleInsights.length === 0;
+  const allInsightsDismissed = isStorageLoaded && allInsights.length > 0 && visibleInsights.length === 0 && !isAllCaughtUpDismissed;
 
   const handleDismiss = () => {
     const originalIndex = allInsights.indexOf(activeInsight);
@@ -127,6 +142,11 @@ const DisplayArea = ({
     if (currentInsightIndex >= visibleInsights.length - 1 && currentInsightIndex > 0) {
       setCurrentInsightIndex(prev => prev - 1);
     }
+  };
+
+  const handleDismissAllCaughtUp = () => {
+    setIsAllCaughtUpDismissed(true);
+    secureLocalStorageSet('all_caught_up_dismissed', true);
   };
 
   const handleNextInsight = (e) => {
@@ -216,6 +236,7 @@ const DisplayArea = ({
               currentCopingIndex={currentCopingIndex}
               coachingInsights={coachingInsights}
               isCompactMode={isCompactMode}
+              showSubtleCoaching={settings.showSubtleCoaching}
               showInfo={showInfo}
               onToggleInfo={() => setShowInfo(!showInfo)}
               onPrevInsight={handlePrevInsight}
@@ -234,6 +255,14 @@ const DisplayArea = ({
                   <Check size={14} className="text-emerald-500" />
                   <label>All Caught Up</label>
                 </div>
+                <button 
+                  className="insight-action-btn dismiss-btn" 
+                  onClick={handleDismissAllCaughtUp}
+                  title="Hide message"
+                  aria-label="Hide message"
+                >
+                  <X size={14} />
+                </button>
               </div>
               <p className="insight-text">
                 You've dismissed all current coaching insights. New, personalized tips will appear based on your next conversation. 

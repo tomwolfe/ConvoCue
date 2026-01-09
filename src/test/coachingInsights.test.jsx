@@ -5,7 +5,7 @@ import DisplayArea from '../components/VAD/DisplayArea';
 
 // Mock secure storage
 vi.mock('../utils/encryption', () => ({
-  secureLocalStorageGet: vi.fn(() => Promise.resolve([])),
+  secureLocalStorageGet: vi.fn((key, defaultValue) => Promise.resolve(defaultValue)),
   secureLocalStorageSet: vi.fn(() => Promise.resolve())
 }));
 
@@ -119,6 +119,37 @@ describe('CoachingInsights functionality', () => {
     expect(screen.getByText(/You've dismissed all current coaching insights/)).toBeInTheDocument();
     expect(screen.getByText(/Not a substitute for professional advice/)).toBeInTheDocument();
     expect(screen.queryByText('Single insight')).not.toBeInTheDocument();
+
+    // Test dismissal of the "All Caught Up" card
+    const hideBtn = screen.getByLabelText('Hide message');
+    await act(async () => {
+      fireEvent.click(hideBtn);
+    });
+    expect(screen.queryByText('All Caught Up')).not.toBeInTheDocument();
+  });
+
+  it('hides advanced controls in subtle insights mode', async () => {
+    render(
+      <DisplayArea 
+        persona="anxiety" 
+        coachingInsights={mockCoachingInsights} 
+        settings={{ showSubtleCoaching: true }}
+      />
+    );
+    
+    await waitFor(() => {
+      expect(screen.getByText('Insight 1: You seem anxious.')).toBeInTheDocument();
+    });
+
+    // Advanced controls should be hidden
+    expect(screen.queryByTitle('Why am I seeing this?')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Helpful')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Not helpful')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Next insight')).not.toBeInTheDocument();
+    
+    // Core content should still be there
+    expect(screen.getByText(/Tip: 4-7-8 breathing/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Dismiss insight')).toBeInTheDocument();
   });
 
   it('toggles logic info when info button is clicked', async () => {

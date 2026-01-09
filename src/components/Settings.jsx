@@ -11,6 +11,7 @@ const Settings = ({ isOpen, onClose }) => {
     enableSpeakerDetection: true,
     enableSentimentAnalysis: true,
     showCoachingInsights: true,
+    showSubtleCoaching: false,
     privacyMode: false,
     isSubtleMode: false,
     showAnalytics: true
@@ -108,6 +109,7 @@ const Settings = ({ isOpen, onClose }) => {
         enableSpeakerDetection: true,
         enableSentimentAnalysis: true,
         showCoachingInsights: true,
+        showSubtleCoaching: false,
         privacyMode: false,
         isSubtleMode: false,
         showAnalytics: true
@@ -171,6 +173,23 @@ const Settings = ({ isOpen, onClose }) => {
                 <span className="slider"></span>
               </label>
             </div>
+
+            {settings.showCoachingInsights && (
+              <div className="setting-item sub-setting">
+                <div className="setting-info">
+                  <h3>Subtle Insights</h3>
+                  <p>Hide advanced controls (feedback, logic) for a cleaner experience</p>
+                </div>
+                <label className="toggle-switch">
+                  <input
+                    type="checkbox"
+                    checked={settings.showSubtleCoaching}
+                    onChange={(e) => handleSettingChange('showSubtleCoaching', e.target.checked)}
+                  />
+                  <span className="slider"></span>
+                </label>
+              </div>
+            )}
             
             <div className="setting-item">
               <div className="setting-info">

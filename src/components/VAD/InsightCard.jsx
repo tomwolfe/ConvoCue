@@ -51,6 +51,7 @@ const InsightCard = ({
   currentCopingIndex,
   coachingInsights,
   isCompactMode,
+  showSubtleCoaching,
   showInfo,
   onToggleInfo,
   onPrevInsight,
@@ -74,15 +75,17 @@ const InsightCard = ({
         <div className="flex items-center gap-2">
           {activeInsight.config.icon}
           <label>{activeInsight.config.title}</label>
-          <InsightNavigation 
-            visibleInsights={visibleInsights} 
-            currentInsightIndex={currentInsightIndex} 
-            onPrev={onPrevInsight} 
-            onNext={onNextInsight} 
-          />
+          {!showSubtleCoaching && (
+            <InsightNavigation 
+              visibleInsights={visibleInsights} 
+              currentInsightIndex={currentInsightIndex} 
+              onPrev={onPrevInsight} 
+              onNext={onNextInsight} 
+            />
+          )}
         </div>
         <div className="flex items-center gap-2">
-          <span className="insight-badge">{activeInsight.category || 'Focus'}</span>
+          {!showSubtleCoaching && <span className="insight-badge">{activeInsight.category || 'Focus'}</span>}
           <button 
             className="insight-action-btn dismiss-btn" 
             onClick={onDismiss}
@@ -95,7 +98,7 @@ const InsightCard = ({
       </div>
       
       <p className="insight-text">
-        {showInfo ? `Logic: Based on ${activeInsight.category} pattern with ${activeInsight.priority} priority.` : activeInsight.insight}
+        {(showInfo && !showSubtleCoaching) ? `Logic: Based on ${activeInsight.category} pattern with ${activeInsight.priority} priority.` : activeInsight.insight}
       </p>
       
       <div className="insight-footer">
@@ -107,33 +110,35 @@ const InsightCard = ({
           />
         </div>
         
-        <div className="insight-actions">
-          <button 
-            className={`insight-action-btn ${showInfo ? 'active' : ''}`}
-            onClick={onToggleInfo}
-            title="Why am I seeing this?"
-          >
-            <Info size={14} />
-          </button>
-          {isPersonalizationEnabled && (
-            <>
-              <button 
-                className="insight-action-btn"
-                onClick={() => onFeedback(activeInsight.category, 'like')}
-                title="Helpful"
-              >
-                <ThumbsUp size={14} />
-              </button>
-              <button 
-                className="insight-action-btn"
-                onClick={() => onFeedback(activeInsight.category, 'dislike')}
-                title="Not helpful"
-              >
-                <ThumbsDown size={14} />
-              </button>
-            </>
-          )}
-        </div>
+        {!showSubtleCoaching && (
+          <div className="insight-actions">
+            <button 
+              className={`insight-action-btn ${showInfo ? 'active' : ''}`}
+              onClick={onToggleInfo}
+              title="Why am I seeing this?"
+            >
+              <Info size={14} />
+            </button>
+            {isPersonalizationEnabled && (
+              <>
+                <button 
+                  className="insight-action-btn"
+                  onClick={() => onFeedback(activeInsight.category, 'like')}
+                  title="Helpful"
+                >
+                  <ThumbsUp size={14} />
+                </button>
+                <button 
+                  className="insight-action-btn"
+                  onClick={() => onFeedback(activeInsight.category, 'dislike')}
+                  title="Not helpful"
+                >
+                  <ThumbsDown size={14} />
+                </button>
+              </>
+            )}
+          </div>
+        )}
       </div>
       
       <CoachingDisclaimer compact={isCompactMode} />
