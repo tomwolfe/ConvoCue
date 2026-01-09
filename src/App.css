@@ -7,6 +7,10 @@
   --text-muted: #64748b;
   --accent: #10b981;
   --border: #e2e8f0;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --error: #ef4444;
+  --info: #3b82f6;
   --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
   --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   --shadow-lg: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
@@ -200,10 +204,11 @@ header.compact .subtitle {
 .error-recovery {
   margin-top: 1rem;
   padding: 1rem;
-  background: #FFEBEB;
+  background: rgba(239, 68, 68, 0.1);
   border-radius: 16px;
-  color: #D63031;
+  color: var(--error);
   text-align: center;
+  border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
 .error-recovery p {
@@ -213,8 +218,8 @@ header.compact .subtitle {
 
 .btn-retry {
   background: white;
-  border: 1px solid #D63031;
-  color: #D63031;
+  border: 1px solid var(--error);
+  color: var(--error);
   padding: 0.4rem 0.8rem;
   border-radius: 8px;
   font-size: 0.8rem;
@@ -228,7 +233,7 @@ header.compact .subtitle {
 }
 
 .btn-retry:hover {
-  background: #D63031;
+  background: var(--error);
   color: white;
 }
 

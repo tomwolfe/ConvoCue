@@ -84,31 +84,18 @@ const App = () => {
     }
   }, [isDyslexicFriendly]);
 
+  // Handle mutually exclusive UI modes
   useEffect(() => {
     if (isCompactMode) {
       document.body.classList.add('compact-mode');
-      // Disable subtle mode when compact mode is enabled
-      // This is intentionally setting state in effect to prevent conflicting UI modes
-      if (isSubtleMode) {
-        setIsSubtleMode(false); // eslint-disable-line react-hooks/set-state-in-effect
-      }
-    } else {
+      document.body.classList.remove('subtle-mode');
+    } else if (isSubtleMode) {
+      document.body.classList.add('subtle-mode');
       document.body.classList.remove('compact-mode');
+    } else {
+      document.body.classList.remove('compact-mode', 'subtle-mode');
     }
   }, [isCompactMode, isSubtleMode]);
-
-  useEffect(() => {
-    if (isSubtleMode) {
-      document.body.classList.add('subtle-mode');
-      // Disable compact mode when subtle mode is enabled
-      // This is intentionally setting state in effect to prevent conflicting UI modes
-      if (isCompactMode) {
-        setIsCompactMode(false); // eslint-disable-line react-hooks/set-state-in-effect
-      }
-    } else {
-      document.body.classList.remove('subtle-mode');
-    }
-  }, [isSubtleMode, isCompactMode]);
 
   useEffect(() => {
     const runDiagnostics = async () => {
@@ -197,6 +184,19 @@ const App = () => {
     console.log("Privacy consent given or acknowledged");
   };
 
+  const toggleUIMode = (mode) => {
+    if (mode === 'compact') {
+      const nextValue = !isCompactMode;
+      setIsCompactMode(nextValue);
+      if (nextValue) setIsSubtleMode(false);
+    } else if (mode === 'subtle') {
+      const nextValue = !isSubtleMode;
+      setIsSubtleMode(nextValue);
+      if (nextValue) setIsCompactMode(false);
+    }
+    setShowViewMenu(false);
+  };
+
   return (
     <ErrorBoundary>
       {settings && !settings.privacyMode && settings.showAnalytics && <Analytics />}
@@ -245,25 +245,13 @@ const App = () => {
                 {showViewMenu && (
                   <div className="view-menu">
                     <button
-                      onClick={() => {
-                        setIsCompactMode(!isCompactMode);
-                        if (isCompactMode) {
-                          setIsSubtleMode(false);  // Disable subtle mode when compact is turned off
-                        }
-                        setShowViewMenu(false);
-                      }}
+                      onClick={() => toggleUIMode('compact')}
                       className={isCompactMode ? 'active' : ''}
                     >
                       <Activity size={16} /> Minimal UI
                     </button>
                     <button
-                      onClick={() => {
-                        setIsSubtleMode(!isSubtleMode);
-                        if (isSubtleMode) {
-                          setIsCompactMode(false);  // Disable compact mode when subtle is turned off
-                        }
-                        setShowViewMenu(false);
-                      }}
+                      onClick={() => toggleUIMode('subtle')}
                       className={isSubtleMode ? 'active' : ''}
                     >
                       <EyeOff size={16} /> Subtle Mode

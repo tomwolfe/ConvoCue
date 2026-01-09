@@ -221,6 +221,18 @@ const AudioVisualizer = ({ isActive, analyser, isCompactMode }) => {
     const bufferLength = analyser.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
 
+    // Get the primary color from CSS
+    const style = getComputedStyle(document.documentElement);
+    const primaryColor = style.getPropertyValue('--primary').trim() || '#6366f1';
+    
+    // Convert hex to RGB for the visualizer
+    let r = 99, g = 102, b = 241;
+    if (primaryColor.startsWith('#')) {
+      r = parseInt(primaryColor.slice(1, 3), 16);
+      g = parseInt(primaryColor.slice(3, 5), 16);
+      b = parseInt(primaryColor.slice(5, 7), 16);
+    }
+
     const draw = () => {
       animationRef.current = requestAnimationFrame(draw);
 
@@ -246,11 +258,7 @@ const AudioVisualizer = ({ isActive, analyser, isCompactMode }) => {
         const dataIndex = Math.floor(i * bufferLength / maxBars);
         barHeight = (dataArray[dataIndex] / 255) * canvas.height;
 
-        const blue = 241;
-        const green = 102;
-        const red = 99;
-
-        ctx.fillStyle = `rgba(${red}, ${green}, ${blue}, ${barHeight / canvas.height + 0.3})`;
+        ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${barHeight / canvas.height + 0.3})`;
         ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
 
         x += barWidth + 1;

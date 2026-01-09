@@ -156,12 +156,143 @@ describe('App Component', () => {
 
       
 
-      expect(document.body.classList.contains('dyslexic-mode')).toBe(false);
+            expect(document.body.classList.contains('dyslexic-mode')).toBe(false);
 
-    });
+      
 
-  
-});
+          });
+
+      
+
+      
+
+      
+
+          it('manages mutually exclusive UI modes (Compact vs Subtle)', async () => {
+
+      
+
+            await act(async () => {
+
+      
+
+              render(<App />);
+
+      
+
+            });
+
+      
+
+      
+
+      
+
+            const viewOptionsButton = screen.getByLabelText(/View Options/i);
+
+      
+
+            
+
+      
+
+            // 1. Enable Compact Mode
+
+      
+
+            await act(async () => { viewOptionsButton.click(); });
+
+      
+
+            const compactBtn = screen.getByText(/Minimal UI/i);
+
+      
+
+            await act(async () => { compactBtn.click(); });
+
+      
+
+      
+
+      
+
+            expect(document.body.classList.contains('compact-mode')).toBe(true);
+
+      
+
+            expect(document.body.classList.contains('subtle-mode')).toBe(false);
+
+      
+
+      
+
+      
+
+            // 2. Enable Subtle Mode (should disable Compact Mode)
+
+      
+
+            await act(async () => { viewOptionsButton.click(); });
+
+      
+
+            const subtleBtn = screen.getByText(/Subtle Mode/i);
+
+      
+
+            await act(async () => { subtleBtn.click(); });
+
+      
+
+      
+
+      
+
+            expect(document.body.classList.contains('subtle-mode')).toBe(true);
+
+      
+
+            expect(document.body.classList.contains('compact-mode')).toBe(false);
+
+      
+
+      
+
+      
+
+            // 3. Re-enable Compact Mode (should disable Subtle Mode)
+
+      
+
+            await act(async () => { viewOptionsButton.click(); });
+
+      
+
+            const compactBtnAgain = screen.getByText(/Minimal UI/i);
+
+      
+
+            await act(async () => { compactBtnAgain.click(); });
+
+      
+
+      
+
+      
+
+            expect(document.body.classList.contains('compact-mode')).toBe(true);
+
+      
+
+            expect(document.body.classList.contains('subtle-mode')).toBe(false);
+
+      
+
+          });
+
+      
+
+      });
 
 describe('Conversation Utilities', () => {
   it('summarizes conversation correctly', async () => {
