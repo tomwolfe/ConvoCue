@@ -190,21 +190,21 @@ const InsightCard = ({
               {showSubtleActions ? (
                 <div className="flex gap-1 animate-in fade-in slide-in-from-right-2 duration-200">
                   <button
-                    className="insight-action-btn"
+                    className="feedback-btn"
                     onClick={() => handleFeedback('very_helpful')}
                     title="Very helpful"
                   >
                     <ThumbsUp size={12} />
                   </button>
                   <button
-                    className="insight-action-btn"
+                    className="feedback-btn"
                     onClick={() => handleFeedback('somewhat_helpful')}
                     title="Somewhat helpful"
                   >
-                    <span className="feedback-icon">👍</span>
+                    <span className="feedback-icon" style={{ fontSize: '12px' }}>👍</span>
                   </button>
                   <button
-                    className="insight-action-btn"
+                    className="feedback-btn"
                     onClick={() => handleFeedback('not_helpful')}
                     title="Not helpful"
                   >
@@ -241,29 +241,29 @@ const InsightCard = ({
                 <Info size={14} />
               </button>
               {isPersonalizationEnabled && (
-                <>
+                <div className="flex gap-1">
                   <button
-                    className="insight-action-btn"
+                    className="feedback-btn"
                     onClick={() => handleFeedback('very_helpful')}
                     title="Very helpful"
                   >
-                    <ThumbsUp size={14} />
+                    <ThumbsUp size={12} />
                   </button>
                   <button
-                    className="insight-action-btn"
+                    className="feedback-btn"
                     onClick={() => handleFeedback('somewhat_helpful')}
                     title="Somewhat helpful"
                   >
-                    <span className="feedback-icon">👍</span>
+                    <span className="feedback-icon" style={{ fontSize: '12px' }}>👍</span>
                   </button>
                   <button
-                    className="insight-action-btn"
+                    className="feedback-btn"
                     onClick={() => handleFeedback('not_helpful')}
                     title="Not helpful"
                   >
-                    <ThumbsDown size={14} />
+                    <ThumbsDown size={12} />
                   </button>
-                </>
+                </div>
               )}
             </>
           )}

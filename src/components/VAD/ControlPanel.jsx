@@ -17,24 +17,24 @@ const ControlPanel = ({
         className={`btn-control pulse ${!isVADMode ? 'active' : ''} ${isCompactMode ? 'compact' : ''}`}
         onClick={handleManualTrigger}
         disabled={!isReady || isVADMode || vadLoading || (vadErrored && !vadError)}
-        title="Manual Trigger"
+        title="Manual Mode: Tap to analyze specific moments"
       >
         <div className="icon-circle">
           <Mic size={isCompactMode ? 20 : 28} />
         </div>
-        {!isCompactMode && <span>Pulse</span>}
+        {!isCompactMode && <span>Manual</span>}
       </button>
 
       <button
         className={`btn-control heartbeat-btn ${isVADMode ? 'active' : ''} ${isCompactMode ? 'compact' : ''}`}
         onClick={toggleVAD}
         disabled={(!isReady && !isVADMode) || vadLoading || (vadErrored && !vadError)}
-        title="Continuous Mode"
+        title="Continuous Mode: AI listens and updates in real-time"
       >
         <div className="icon-circle">
           <Heart size={isCompactMode ? 20 : 28} fill={isVADMode ? "white" : "none"} />
         </div>
-        {!isCompactMode && <span>Heartbeat</span>}
+        {!isCompactMode && <span>Continuous</span>}
       </button>
     </div>
   );

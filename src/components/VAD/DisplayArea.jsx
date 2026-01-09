@@ -214,57 +214,6 @@ const DisplayArea = ({
 
   return (
     <div className="display-area" role="region" aria-label="Speech processing results">
-      {settings.showCoachingInsights !== false && !showMinimalUI && (
-        <>
-          {!isStorageLoaded && <div className="insight-skeleton" aria-hidden="true" />}
-          
-          {isStorageLoaded && activeInsight && (
-            <InsightCard
-              activeInsight={activeInsight}
-              visibleInsights={visibleInsights}
-              currentInsightIndex={currentInsightIndex}
-              currentCopingIndex={copingIndices[activeInsight.id] || 0}
-              coachingInsights={coachingInsights}
-              isCompactMode={isCompactMode}
-              showSubtleCoaching={settings.showSubtleCoaching}
-              showInfo={showInfo}
-              onToggleInfo={() => setShowInfo(!showInfo)}
-              onPrevInsight={handlePrevInsight}
-              onNextInsight={handleNextInsight}
-              onDismiss={handleDismiss}
-              onNextCoping={handleNextCoping}
-              onFeedback={handleInsightFeedback}
-              isPersonalizationEnabled={isPersonalizationEnabled}
-              insightId={activeInsight.id}
-            />
-          )}
-
-          {allInsightsDismissed && (
-            <div className="card insight-card default-insight compact-insight" role="status">
-              <div className="card-header">
-                <div className="flex items-center gap-2">
-                  <Check size={14} className="text-emerald-500" />
-                  <label>All Caught Up</label>
-                </div>
-                <button 
-                  className="insight-action-btn dismiss-btn" 
-                  onClick={handleDismissAllCaughtUp}
-                  title="Hide message"
-                  aria-label="Hide message"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-              <p className="insight-text">
-                You've dismissed all current coaching insights. New, personalized tips will appear based on your next conversation. 
-                Try sharing more about your day or a specific challenge to get tailored advice.
-              </p>
-              <CoachingDisclaimer compact={isCompactMode} />
-            </div>
-          )}
-        </>
-      )}
-
       <div className={`card suggestion ${suggestion || processingStep === 'thinking' ? 'visible' : ''} ${processingStep === 'thinking' ? 'thinking' : ''} ${isCompactMode ? 'compact-suggestion' : ''} ${showMinimalUI ? 'minimal-suggestion' : ''}`} role="region" aria-labelledby="suggestion-label">
         <div className="card-header">
           {!showMinimalUI && (
@@ -329,16 +278,16 @@ const DisplayArea = ({
           {!showMinimalUI && suggestion && isPersonalizationEnabled && (
             <div className="suggestion-feedback">
                <button
-                  className="btn-icon feedback-btn"
+                  className="feedback-btn"
                   onClick={() => submitFeedback(suggestion, 'like', persona, culturalContext, transcript, transcript)}
-                  title="Helpful"
+                  title="This cue was helpful"
                 >
                   <ThumbsUp size={16} />
                 </button>
                 <button
-                  className="btn-icon feedback-btn"
+                  className="feedback-btn"
                   onClick={() => submitFeedback(suggestion, 'dislike', persona, culturalContext, transcript, transcript)}
-                  title="Not helpful"
+                  title="This cue was not helpful"
                 >
                   <ThumbsDown size={16} />
                 </button>
@@ -346,6 +295,57 @@ const DisplayArea = ({
           )}
         </div>
       </div>
+
+      {settings.showCoachingInsights !== false && !showMinimalUI && (
+        <>
+          {!isStorageLoaded && <div className="insight-skeleton" aria-hidden="true" />}
+          
+          {isStorageLoaded && activeInsight && (
+            <InsightCard
+              activeInsight={activeInsight}
+              visibleInsights={visibleInsights}
+              currentInsightIndex={currentInsightIndex}
+              currentCopingIndex={copingIndices[activeInsight.id] || 0}
+              coachingInsights={coachingInsights}
+              isCompactMode={isCompactMode}
+              showSubtleCoaching={settings.showSubtleCoaching}
+              showInfo={showInfo}
+              onToggleInfo={() => setShowInfo(!showInfo)}
+              onPrevInsight={handlePrevInsight}
+              onNextInsight={handleNextInsight}
+              onDismiss={handleDismiss}
+              onNextCoping={handleNextCoping}
+              onFeedback={handleInsightFeedback}
+              isPersonalizationEnabled={isPersonalizationEnabled}
+              insightId={activeInsight.id}
+            />
+          )}
+
+          {allInsightsDismissed && (
+            <div className="card insight-card default-insight compact-insight" role="status">
+              <div className="card-header">
+                <div className="flex items-center gap-2">
+                  <Check size={14} className="text-emerald-500" />
+                  <label>All Caught Up</label>
+                </div>
+                <button 
+                  className="insight-action-btn dismiss-btn" 
+                  onClick={handleDismissAllCaughtUp}
+                  title="Hide message"
+                  aria-label="Hide message"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+              <p className="insight-text">
+                You've dismissed all current coaching insights. New, personalized tips will appear based on your next conversation. 
+                Try sharing more about your day or a specific challenge to get tailored advice.
+              </p>
+              <CoachingDisclaimer compact={isCompactMode} />
+            </div>
+          )}
+        </>
+      )}
 
       {!showMinimalUI && !isCompactMode && (
         <div className={`card transcript ${transcript || conversationTurns.length > 0 ? 'visible' : ''}`} role="region" aria-labelledby="transcript-label">

@@ -15,7 +15,6 @@ import { secureLocalStorageGet, secureLocalStorageSet } from './utils/encryption
 import './App.css';
 
 import { getMergedPersonas } from './utils/preferences';
-import { analyzeCulturalContext } from './utils/culturalIntelligence';
 
 const App = () => {
   const [hasInteracted, setHasInteracted] = useState(false);
@@ -54,7 +53,6 @@ const App = () => {
     suggestion,
     detectedIntent,
     emotionData,
-    conversationSentiment,
     coachingInsights,
     isProcessing,
     processingStep,
@@ -65,7 +63,6 @@ const App = () => {
     setSuggestion,
     setStatus,
     resetWorker,
-    history,
     conversationTurns,
     persona,
     setPersona,
@@ -124,7 +121,7 @@ const App = () => {
     // On mobile, we want to be extra careful with memory spikes
     // A small delay allows any pending work to finish
     if (AppConfig.isMobile) {
-      setStatus('Preparing Social Brain...');
+      setStatus('Optimizing Social Brain...');
       setTimeout(() => {
         setHasInteracted(true);
       }, 300);
@@ -225,33 +222,50 @@ const App = () => {
               <h1>ConvoCue</h1>
             </div>
             <div className="header-actions">
+              {hasInteracted && (
+                <div className="quick-toggles" role="group" aria-label="Quick View Toggles">
+                  <button
+                    onClick={() => setIsCompactMode(!isCompactMode)}
+                    className={`btn-toggle-icon ${isCompactMode ? 'active' : ''}`}
+                    title={isCompactMode ? "Switch to Standard View" : "Switch to Minimal UI"}
+                    aria-label="Toggle Minimal UI"
+                    aria-pressed={isCompactMode}
+                  >
+                    <Activity size={18} />
+                  </button>
+                  <button
+                    onClick={() => setIsSubtleMode(!isSubtleMode)}
+                    className={`btn-toggle-icon ${isSubtleMode ? 'active' : ''}`}
+                    title={isSubtleMode ? "Switch to Standard Mode" : "Switch to Subtle Mode"}
+                    aria-label="Toggle Subtle Mode"
+                    aria-pressed={isSubtleMode}
+                  >
+                    <EyeOff size={18} />
+                  </button>
+                  <button
+                    onClick={() => setIsDyslexicFriendly(!isDyslexicFriendly)}
+                    className={`btn-toggle-icon ${isDyslexicFriendly ? 'active' : ''}`}
+                    title="Toggle Dyslexic Friendly Font"
+                    aria-label="Toggle Dyslexic Font"
+                    aria-pressed={isDyslexicFriendly}
+                  >
+                    <Type size={18} />
+                  </button>
+                </div>
+              )}
               <div className="view-menu-container">
                 <button
-                  className={`btn-settings ${isCompactMode || isSubtleMode || isDyslexicFriendly ? 'active' : ''}`}
+                  className={`btn-settings ${showViewMenu ? 'active' : ''}`}
                   onClick={() => setShowViewMenu(!showViewMenu)}
-                  aria-label="View Options"
-                  title="View Options"
+                  aria-label="More View Options"
+                  title="More View Options"
                 >
                   <LayoutIcon size={18} />
-                  <ChevronDown size={14} />
                 </button>
                 {showViewMenu && (
                   <div className="view-menu">
-                    <button onClick={() => { setIsCompactMode(!isCompactMode); setShowViewMenu(false); }} className={isCompactMode ? 'active' : ''}>
-                      <Activity size={16} /> Minimal UI
-                    </button>
-                    <button onClick={() => { setIsSubtleMode(!isSubtleMode); setShowViewMenu(false); }} className={isSubtleMode ? 'active' : ''}>
-                      <EyeOff size={16} /> Subtle Mode
-                    </button>
-                    <button
-                      onClick={() => { setIsDyslexicFriendly(!isDyslexicFriendly); setShowViewMenu(false); }}
-                      className={isDyslexicFriendly ? 'active' : ''}
-                      aria-label="Toggle Dyslexic Friendly Font"
-                    >
-                      <Type size={16} /> Dyslexic Font
-                    </button>
                     <button onClick={() => { showTutorialHandler(); setShowViewMenu(false); }}>
-                      <BookOpen size={16} /> Tutorial
+                      <BookOpen size={16} /> Show Tutorial
                     </button>
                   </div>
                 )}
@@ -298,17 +312,22 @@ const App = () => {
               </div>
 
               <h2 id="setup-card-title">Ready to tune in?</h2>
-              <p>ConvoCue needs your microphone to analyze social cues in real-time. All processing happens locally on your device.</p>
+              <p>ConvoCue analyzes social cues in real-time. All processing happens locally on your device.</p>
+              
+              <div className="persona-preview" aria-label={`Current persona: ${availablePersonas[persona]?.label || persona}`}>
+                <span className="label">Current Persona:</span>
+                <span className="persona-tag">{availablePersonas[persona]?.label || persona}</span>
+              </div>
 
               <button
                 className={`btn-main ${!isReady ? 'disabled' : 'pulse'}`}
                 onClick={handleStart}
                 disabled={!isReady}
-                aria-label="Enable Microphone"
+                aria-label={isReady ? "Start ConvoCue" : "Initializing ConvoCue"}
                 aria-describedby="setup-instruction"
               >
-                <Mic size={24} aria-hidden="true" />
-                <span>Enable Microphone</span>
+                {isReady ? <Mic size={24} aria-hidden="true" /> : <Loader2 className="animate-spin" size={24} aria-hidden="true" />}
+                <span>{isReady ? "Start ConvoCue" : "Warming Up..."}</span>
               </button>
             </div>
 
