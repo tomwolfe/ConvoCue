@@ -148,36 +148,36 @@ export const AppConfig = {
       intentMap: {
         anxiety: {
           intents: ['emotion', 'conflict', 'interruption'],
-          keywords: ['nervous', 'stressed', 'anxious', 'fear', 'scared', 'worried', 'stop', 'wait'],
+          keywords: ['nervous', 'stressed', 'anxious', 'fear', 'scared', 'worried', 'stop', 'wait', 'panic', 'terrified', 'shaking', 'uncomfortable'],
           negativeKeywords: ['negotiate', 'deal', 'contract', 'grammar', 'vocabulary'],
           weight: 1.2
         },
         relationship: {
           intents: ['empathy', 'emotion', 'participation'],
-          keywords: ['feel', 'understand', 'connect', 'share', 'thoughts', 'opinions'],
+          keywords: ['feel', 'understand', 'connect', 'share', 'thoughts', 'opinions', 'partner', 'friend', 'family', 'honest', 'listen', 'vulnerable'],
           negativeKeywords: ['agenda', 'minutes', 'meeting', 'contract'],
           weight: 1.0
         },
         professional: {
           intents: ['strategic', 'negotiation', 'leadership'],
-          keywords: ['negotiate', 'important', 'manager', 'executive', 'contract', 'deal', 'strategy', 'interview', 'salary'],
+          keywords: ['negotiate', 'important', 'manager', 'executive', 'contract', 'deal', 'strategy', 'interview', 'salary', 'promotion', 'feedback', 'career', 'client', 'project'],
           negativeKeywords: ['grammar', 'vocabulary', 'lesson', 'homework'],
           weight: 1.1
         },
         meeting: {
           intents: ['action', 'execution', 'clarity', 'participation'],
-          keywords: ['todo', 'action', 'next steps', 'plan', 'schedule', 'understand', 'clear', 'minutes', 'agenda'],
+          keywords: ['todo', 'action', 'next steps', 'plan', 'schedule', 'understand', 'clear', 'minutes', 'agenda', 'collaborate', 'brief', 'sync', 'touchbase', 'update'],
           negativeKeywords: ['date', 'romance', 'feelings'],
           weight: 1.0
         },
         crosscultural: {
           intents: ['clarity', 'cultural'],
-          keywords: ['culture', 'custom', 'tradition', 'translation', 'language', 'meaning', 'slang', 'idiom'],
+          keywords: ['culture', 'custom', 'tradition', 'translation', 'language', 'meaning', 'slang', 'idiom', 'international', 'foreign', 'travel', 'abroad', 'respectful'],
           weight: 1.1
         },
         languagelearning: {
           intents: ['clarity', 'learning'],
-          keywords: ['grammar', 'vocabulary', 'phrase', 'speak', 'say', 'correct', 'pronounce', 'word'],
+          keywords: ['grammar', 'vocabulary', 'phrase', 'speak', 'say', 'correct', 'pronounce', 'word', 'fluent', 'practice', 'expression', 'translate'],
           negativeKeywords: ['contract', 'deal', 'negotiate', 'strategy'],
           weight: 1.1
         },

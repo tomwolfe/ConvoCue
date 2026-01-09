@@ -1,16 +1,33 @@
-import { detectMultipleIntents } from './intentRecognition';
+import { detectMultipleIntents, calculateSimilarity } from './intentRecognition';
 import { AppConfig } from '../config';
 
 /**
  * Helper to check if a keyword exists in text with word boundaries
+ * Enhanced with plural handling and fuzzy matching for high-value words
  */
-const hasKeyword = (text, keyword) => {
+const hasKeyword = (text, keyword, useFuzzy = false) => {
+  const normalizedText = text.toLowerCase();
+  const normalizedKeyword = keyword.toLowerCase();
+  
+  // 1. Exact match with word boundaries
   try {
-    const regex = new RegExp(`\\b${keyword}\\b`, 'i');
-    return regex.test(text);
+    const regex = new RegExp(`\\b${normalizedKeyword}s?\\b`, 'i');
+    if (regex.test(normalizedText)) return true;
   } catch (e) {
-    return text.toLowerCase().includes(keyword.toLowerCase());
+    if (normalizedText.includes(normalizedKeyword)) return true;
   }
+
+  // 2. Fuzzy matching for longer keywords (to handle minor typos or variations)
+  if (useFuzzy && normalizedKeyword.length > 5) {
+    const tokens = normalizedText.split(/[^a-z0-9']+/);
+    for (const token of tokens) {
+      if (token.length > 4 && calculateSimilarity(token, normalizedKeyword) > 0.85) {
+        return true;
+      }
+    }
+  }
+
+  return false;
 };
 
 /**
@@ -65,7 +82,7 @@ export const orchestratePersona = (input, history = [], currentPersona, options 
   Object.entries(intentMap).forEach(([persona, pConfig]) => {
     // Positive Keywords
     pConfig.keywords?.forEach(keyword => {
-      if (hasKeyword(input, keyword)) {
+      if (hasKeyword(input, keyword, true)) {
         const contribution = config.keywordWeight * (pConfig.weight || 1.0);
         scores[persona] += contribution;
         debug[persona].keywords.push({ keyword, contribution });
@@ -74,7 +91,7 @@ export const orchestratePersona = (input, history = [], currentPersona, options 
 
     // Negative Keywords (Negative Reinforcement)
     pConfig.negativeKeywords?.forEach(keyword => {
-      if (hasKeyword(input, keyword)) {
+      if (hasKeyword(input, keyword, false)) {
         const penalty = config.keywordWeight * 2.0; // Stronger penalty for negative matches
         scores[persona] -= penalty;
         debug[persona].keywords.push({ keyword, penalty: -penalty });
@@ -87,7 +104,7 @@ export const orchestratePersona = (input, history = [], currentPersona, options 
     const recentHistory = history.slice(-3).map(h => h.content).join(' ');
     Object.entries(intentMap).forEach(([persona, pConfig]) => {
       pConfig.keywords?.forEach(keyword => {
-        if (hasKeyword(recentHistory, keyword)) {
+        if (hasKeyword(recentHistory, keyword, false)) {
           const contribution = config.historyWeight * (pConfig.weight || 1.0);
           scores[persona] += contribution;
           debug[persona].history += contribution;

@@ -70,7 +70,8 @@ const App = () => {
     culturalContext,
     setCulturalContext,
     clearHistory,
-    settings
+    settings,
+    lastSwitchReason
   } = useMLWorker();
 
   const [micPermissionError, setMicPermissionError] = useState(null);
@@ -355,6 +356,7 @@ const App = () => {
             isSubtleMode={isSubtleMode}
             settings={settings}
             coachingInsights={coachingInsights}
+            lastSwitchReason={lastSwitchReason}
             onReset={() => {
               setHasInteracted(false);
               setMicPermissionError(null);

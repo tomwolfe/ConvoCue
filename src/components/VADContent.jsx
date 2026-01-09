@@ -266,7 +266,8 @@ const VADContent = ({
   isSubtleMode,
   settings,
   onReset,
-  coachingInsights
+  coachingInsights,
+  lastSwitchReason
 }) => {
   const [availablePersonas, setAvailablePersonas] = useState(AppConfig.models.personas);
 

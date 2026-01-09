@@ -159,7 +159,7 @@ const intentPatterns = {
  * @param {string} str2 - Second string
  * @returns {number} Similarity score between 0 and 1
  */
-const calculateSimilarity = (str1, str2) => {
+export const calculateSimilarity = (str1, str2) => {
   const s1 = str1.toLowerCase().trim();
   const s2 = str2.toLowerCase().trim();
   

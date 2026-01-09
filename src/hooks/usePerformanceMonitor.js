@@ -48,15 +48,19 @@ export const usePerformanceMonitor = (workerRef) => {
         
         battery.addEventListener('levelchange', handleBatteryChange);
         battery.addEventListener('chargingchange', handleBatteryChange);
+        
+        // Store reference for cleanup
+        batteryInstance._handleBatteryChange = handleBatteryChange;
+        
         checkBattery(battery);
       }).catch(err => {
         console.warn('[Performance] Battery API supported but failed:', err);
       });
 
       return () => {
-        if (batteryInstance) {
-          // We can't easily remove anonymous listeners if we don't store them, 
-          // but for this utility it's generally fine as it lives with the app.
+        if (batteryInstance && batteryInstance._handleBatteryChange) {
+          batteryInstance.removeEventListener('levelchange', batteryInstance._handleBatteryChange);
+          batteryInstance.removeEventListener('chargingchange', batteryInstance._handleBatteryChange);
         }
       };
     }
