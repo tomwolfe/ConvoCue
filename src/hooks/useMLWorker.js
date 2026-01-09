@@ -13,6 +13,7 @@ const initialState = {
   transcript: '',
   suggestion: '',
   emotionData: null,
+  coachingInsights: null,
   isProcessing: false,
   processingStep: 'none',
   error: null,
@@ -46,6 +47,7 @@ function workerReducer(state, action) {
         ...state, 
         suggestion: action.text, 
         emotionData: action.emotionData || state.emotionData,
+        coachingInsights: action.coachingInsights || state.coachingInsights,
         isProcessing: false, 
         processingStep: 'none', 
         status: 'Ready' 
@@ -176,7 +178,12 @@ export const useMLWorker = () => {
                 stateRef.current.transcript, 
                 historyRef.current
               );
-              dispatch({ type: 'LLM_RESULT', text: enhanced, emotionData });
+              dispatch({ 
+                type: 'LLM_RESULT', 
+                text: enhanced, 
+                emotionData,
+                coachingInsights: event.data.coachingInsights 
+              });
               
               if (event.data.conversationSentiment) {
                 setSentiment(event.data.conversationSentiment);

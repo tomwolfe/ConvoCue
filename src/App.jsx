@@ -53,6 +53,7 @@ const App = () => {
     suggestion,
     emotionData,
     conversationSentiment,
+    coachingInsights,
     isProcessing,
     processingStep,
     processAudio,
@@ -353,6 +354,7 @@ const App = () => {
             isCompactMode={isCompactMode}
             isSubtleMode={isSubtleMode}
             settings={settings}
+            coachingInsights={coachingInsights}
             onReset={() => {
               setHasInteracted(false);
               setMicPermissionError(null);

@@ -476,6 +476,64 @@ header.compact .subtitle {
   flex: 1;
 }
 
+/* Insight Card */
+.insight-card {
+  border-left: 4px solid #10b981;
+  background: linear-gradient(to bottom right, #f0fdf4, #ffffff);
+  margin-bottom: 0.5rem;
+}
+
+.insight-card.anxiety-insight {
+  border-left-color: #f43f5e;
+  background: linear-gradient(to bottom right, #fff1f2, #ffffff);
+}
+
+.insight-card .card-header {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.insight-badge {
+  font-size: 0.625rem;
+  font-weight: 800;
+  padding: 0.2rem 0.5rem;
+  border-radius: 9999px;
+  background: white;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  border: 1px solid var(--border);
+}
+
+.insight-text {
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  color: var(--text);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.coping-strategy {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem 0.75rem;
+  font-size: 0.75rem;
+  color: #047857;
+  font-weight: 600;
+}
+
+.coping-strategy svg {
+  color: #f59e0b;
+}
+
+.compact-insight {
+  padding: 0 !important;
+}
+
+.compact-insight .insight-text {
+  font-size: 0.8125rem;
+  padding: 0.5rem 0.75rem;
+}
+
 /* Hero Suggestion */
 .suggestion {
   border-left: 4px solid var(--primary);

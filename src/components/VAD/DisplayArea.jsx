@@ -29,10 +29,33 @@ const DisplayArea = ({
   persona,
   culturalContext,
   conversationTurns = [],
-  settings = {}
+  settings = {},
+  coachingInsights = null
 }) => {
   // Determine if feedback should be enabled based on settings
   const isPersonalizationEnabled = settings.enablePersonalization !== false && !settings.privacyMode;
+
+  // Extract active coaching insight if available
+  const activeInsight = useMemo(() => {
+    if (!coachingInsights) return null;
+    if (persona === 'anxiety' && coachingInsights.anxiety?.anxietySpecificInsights?.length > 0) {
+      return {
+        type: 'anxiety',
+        title: 'Anxiety Support',
+        icon: <Heart size={16} className="text-rose-500" />,
+        ...coachingInsights.anxiety.anxietySpecificInsights[0]
+      };
+    }
+    if (persona === 'relationship' && coachingInsights.relationship?.relationshipInsights?.length > 0) {
+      return {
+        type: 'relationship',
+        title: 'Relationship Coaching',
+        icon: <Users size={16} className="text-blue-500" />,
+        ...coachingInsights.relationship.relationshipInsights[0]
+      };
+    }
+    return null;
+  }, [coachingInsights, persona]);
 
   // Parse semantic tags for visual indicators
   const { cleanText, tags } = useMemo(() => parseSemanticTags(suggestion), [suggestion]);
@@ -75,6 +98,25 @@ const DisplayArea = ({
 
   return (
     <div className="display-area" role="region" aria-label="Speech processing results">
+      {activeInsight && !showMinimalUI && (
+        <div className={`card insight-card ${activeInsight.type === 'anxiety' ? 'anxiety-insight' : ''} ${isCompactMode ? 'compact-insight' : ''}`} role="complementary">
+          <div className="card-header">
+            <div className="flex items-center gap-2">
+              {activeInsight.icon}
+              <label>{activeInsight.title}</label>
+            </div>
+            <span className="insight-badge">{activeInsight.category || 'Focus'}</span>
+          </div>
+          <p className="insight-text">{activeInsight.insight}</p>
+          {activeInsight.type === 'anxiety' && coachingInsights.anxiety?.copingStrategies?.length > 0 && (
+            <div className="coping-strategy">
+              <Zap size={14} />
+              <span>Tip: {coachingInsights.anxiety.copingStrategies[0].technique}</span>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className={`card suggestion ${suggestion || processingStep === 'thinking' ? 'visible' : ''} ${processingStep === 'thinking' ? 'thinking' : ''} ${isCompactMode ? 'compact-suggestion' : ''} ${showMinimalUI ? 'minimal-suggestion' : ''}`} role="region" aria-labelledby="suggestion-label">
         <div className="card-header">
           {!showMinimalUI && (

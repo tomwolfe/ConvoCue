@@ -23,7 +23,7 @@ import {
     analyzeAnxietyCoaching,
     generateAnxietyCoachingPrompt
 } from './utils/anxietyCoaching';
-import { estimateConversationSize, logPerformanceMetric } from './utils/performanceMonitoring';
+import { estimateConversationSize, logPerformanceMetric, monitorAndOptimizeHistory } from './utils/performanceMonitoring';
 
 // Configuration for on-device execution
 
@@ -438,10 +438,10 @@ self.onmessage = async (event) => {
             }
 
             // Prepare conversation history with proper roles
-            const conversationHistory = (history || []).map(m => ({
+            const conversationHistory = monitorAndOptimizeHistory((history || []).map(m => ({
                 role: m.role || 'user',
                 content: m.content
-            }));
+            })));
 
             // Performance monitoring for large histories
             const historySize = estimateConversationSize(conversationHistory);
@@ -490,6 +490,10 @@ self.onmessage = async (event) => {
               text: sanitizedResponse,
               emotionData,
               conversationSentiment, // Include conversation sentiment
+              coachingInsights: {
+                relationship: relationshipInsights,
+                anxiety: anxietyInsights
+              },
               metadata: {
                 performance: {
                   llmProcessingTime,

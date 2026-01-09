@@ -265,7 +265,8 @@ const VADContent = ({
   isCompactMode,
   isSubtleMode,
   settings,
-  onReset
+  onReset,
+  coachingInsights
 }) => {
   const [availablePersonas, setAvailablePersonas] = useState(AppConfig.models.personas);
 
@@ -498,6 +499,7 @@ const VADContent = ({
           culturalContext={culturalContext}
           conversationTurns={conversationTurns}
           settings={settings}
+          coachingInsights={coachingInsights}
         />
       </div>
 
