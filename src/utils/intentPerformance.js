@@ -35,14 +35,14 @@ class IntentPerformanceTracker {
     if (!this.metrics[operation]) {
       this.metrics[operation] = [];
     }
-    
+
     this.metrics[operation].push(time);
-    
-    // Keep only the last 100 measurements to prevent memory bloat
-    if (this.metrics[operation].length > 100) {
-      this.metrics[operation] = this.metrics[operation].slice(-100);
+
+    // Keep only the last 50 measurements to prevent memory bloat
+    if (this.metrics[operation].length > 50) {
+      this.metrics[operation] = this.metrics[operation].slice(-50);
     }
-    
+
     // Also record in the main performance monitor
     this.performanceMonitor.recordValue(operation, time);
   }

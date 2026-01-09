@@ -57,19 +57,18 @@ class IntentAnalytics {
       }
     }
     
-    // Store sample for analysis
+    // Store sample for analysis - only store essential data to reduce memory usage
     intentData.samples.push({
-      input,
+      input: input.substring(0, 100), // Limit input length to reduce memory
       detectedIntent,
       confidence,
-      expectedIntent,
       isCorrect,
       timestamp: Date.now()
     });
-    
-    // Keep only the last 1000 samples per intent to prevent memory bloat
-    if (intentData.samples.length > 1000) {
-      intentData.samples = intentData.samples.slice(-1000);
+
+    // Keep only the last 500 samples per intent to prevent memory bloat
+    if (intentData.samples.length > 500) {
+      intentData.samples = intentData.samples.slice(-500);
     }
     
     // Track false positives and negatives
@@ -77,7 +76,7 @@ class IntentAnalytics {
       if (detectedIntent && !expectedIntent) {
         // False positive: detected intent when none was expected
         this.accuracyData.falsePositives.push({
-          input,
+          input: input.substring(0, 100), // Limit input length to reduce memory
           detectedIntent,
           expectedIntent,
           confidence,
@@ -86,13 +85,21 @@ class IntentAnalytics {
       } else if (!detectedIntent && expectedIntent) {
         // False negative: missed expected intent
         this.accuracyData.falseNegatives.push({
-          input,
+          input: input.substring(0, 100), // Limit input length to reduce memory
           detectedIntent,
           expectedIntent,
           confidence,
           timestamp: Date.now()
         });
       }
+    }
+
+    // Keep false positive/negative arrays manageable
+    if (this.accuracyData.falsePositives.length > 500) {
+      this.accuracyData.falsePositives = this.accuracyData.falsePositives.slice(-500);
+    }
+    if (this.accuracyData.falseNegatives.length > 500) {
+      this.accuracyData.falseNegatives = this.accuracyData.falseNegatives.slice(-500);
     }
     
     // Track confidence distribution
@@ -126,18 +133,18 @@ class IntentAnalytics {
    */
   recordUserFeedback(input, detectedIntent, userCorrection, feedbackType = 'correction') {
     this.accuracyData.userFeedback.push({
-      input,
+      input: input.substring(0, 100), // Limit input length to reduce memory
       detectedIntent,
       userCorrection,
       feedbackType,
       timestamp: Date.now()
     });
-    
-    // Keep only the last 500 feedback entries
-    if (this.accuracyData.userFeedback.length > 500) {
-      this.accuracyData.userFeedback = this.accuracyData.userFeedback.slice(-500);
+
+    // Keep only the last 300 feedback entries to manage memory
+    if (this.accuracyData.userFeedback.length > 300) {
+      this.accuracyData.userFeedback = this.accuracyData.userFeedback.slice(-300);
     }
-    
+
     // Save to storage
     this.saveToStorage();
   }

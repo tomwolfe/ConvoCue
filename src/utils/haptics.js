@@ -34,68 +34,90 @@ export const provideVisualFeedback = (intentType) => {
     return;
   }
 
+  // Check if a visual indicator already exists to avoid multiple indicators
+  const existingIndicator = document.querySelector('.cv-visual-feedback');
+  if (existingIndicator) {
+    // Update the existing indicator instead of creating a new one
+    existingIndicator.textContent = getVisualFeedbackText(intentType);
+    existingIndicator.className = `cv-visual-feedback cv-${intentType.toLowerCase()}`;
+    // Reset animation
+    existingIndicator.style.animation = 'none';
+    // Trigger reflow to restart animation
+    void existingIndicator.offsetWidth;
+    existingIndicator.style.animation = 'cvFadeInOut 2.5s ease-in-out forwards';
+    return;
+  }
+
   // Create a temporary visual indicator element
   const indicator = document.createElement('div');
-  indicator.style.position = 'fixed';
-  indicator.style.top = '20px';
-  indicator.style.right = '20px';
-  indicator.style.padding = '8px 12px';
-  indicator.style.borderRadius = '4px';
-  indicator.style.fontSize = '14px';
-  indicator.style.fontWeight = 'bold';
-  indicator.style.zIndex = '10000';
-  indicator.style.opacity = '0';
-  indicator.style.transition = 'opacity 0.3s ease-in-out';
+  indicator.className = `cv-visual-feedback cv-${intentType.toLowerCase()}`;
+  indicator.textContent = getVisualFeedbackText(intentType);
 
-  // Set color based on intent type
-  switch (intentType) {
-    case 'CONFLICT':
-      indicator.style.background = '#fee2e2';
-      indicator.style.color = '#b91c1c';
-      indicator.textContent = '⚠️ Conflict Detected';
-      break;
-    case 'ACTION':
-      indicator.style.background = '#fef3c7';
-      indicator.style.color = '#d97706';
-      indicator.textContent = '⚡ Action Item';
-      break;
-    case 'QUESTION':
-      indicator.style.background = '#ede9fe';
-      indicator.style.color = '#7c3aed';
-      indicator.textContent = '❓ Question';
-      break;
-    case 'EMPATHY':
-      indicator.style.background = '#fce7f3';
-      indicator.style.color = '#db2777';
-      indicator.textContent = '💖 Empathy';
-      break;
-    case 'SUCCESS':
-      indicator.style.background = '#d1fae5';
-      indicator.style.color = '#059669';
-      indicator.textContent = '✅ Success';
-      break;
-    default:
-      indicator.style.background = '#e0e7ff';
-      indicator.style.color = '#4f46e5';
-      indicator.textContent = '🔔 Notification';
+  // Add CSS styles via style tag if not already present
+  if (!document.querySelector('#cv-visual-feedback-styles')) {
+    const style = document.createElement('style');
+    style.id = 'cv-visual-feedback-styles';
+    style.textContent = `
+      @keyframes cvFadeInOut {
+        0% { opacity: 0; transform: translateY(-10px); }
+        10% { opacity: 1; transform: translateY(0); }
+        90% { opacity: 1; transform: translateY(0); }
+        100% { opacity: 0; transform: translateY(-10px); }
+      }
+      .cv-visual-feedback {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-size: 14px;
+        font-weight: bold;
+        z-index: 10000;
+        pointer-events: none;
+        animation: cvFadeInOut 2.5s ease-in-out forwards;
+        min-width: 150px;
+        text-align: center;
+      }
+      .cv-conflict { background: #fee2e2; color: #b91c1c; }
+      .cv-action { background: #fef3c7; color: #d97706; }
+      .cv-question { background: #ede9fe; color: #7c3aed; }
+      .cv-empathy { background: #fce7f3; color: #db2777; }
+      .cv-success { background: #d1fae5; color: #059669; }
+      .cv-default { background: #e0e7ff; color: #4f46e5; }
+    `;
+    document.head.appendChild(style);
   }
 
   document.body.appendChild(indicator);
 
-  // Trigger fade-in
+  // Remove after animation completes
   setTimeout(() => {
-    indicator.style.opacity = '1';
-  }, 10);
+    if (indicator.parentNode) {
+      indicator.parentNode.removeChild(indicator);
+    }
+  }, 2500);
+};
 
-  // Remove after delay
-  setTimeout(() => {
-    indicator.style.opacity = '0';
-    setTimeout(() => {
-      if (indicator.parentNode) {
-        document.body.removeChild(indicator);
-      }
-    }, 300);
-  }, 2000);
+/**
+ * Gets the appropriate text for visual feedback based on intent type
+ * @param {string} intentType - The type of intent
+ * @returns {string} The text to display for visual feedback
+ */
+const getVisualFeedbackText = (intentType) => {
+  switch (intentType) {
+    case 'CONFLICT':
+      return '⚠️ Conflict Detected';
+    case 'ACTION':
+      return '⚡ Action Item';
+    case 'QUESTION':
+      return '❓ Question';
+    case 'EMPATHY':
+      return '💖 Empathy';
+    case 'SUCCESS':
+      return '✅ Success';
+    default:
+      return '🔔 Notification';
+  }
 };
 
 /**
@@ -140,14 +162,27 @@ export const provideHapticFeedback = (suggestion) => {
 
   // Try haptic feedback first
   if (navigator.vibrate) {
-    if (navigator.vibrate(pattern)) {
-      lastVibrationTime = now;
-      // Log successful haptic feedback for analytics
-      logHapticFeedback(intentType, 'success');
-      return; // Successfully provided haptic feedback
-    } else {
-      // Log failed haptic feedback for analytics
-      logHapticFeedback(intentType, 'failed');
+    try {
+      // Check if vibration API is supported and working
+      if (typeof navigator.vibrate === 'function') {
+        // Test with a simple vibration first to check if it works
+        if (navigator.vibrate(pattern)) {
+          lastVibrationTime = now;
+          // Log successful haptic feedback for analytics
+          logHapticFeedback(intentType, 'success');
+          return; // Successfully provided haptic feedback
+        } else {
+          // Log failed haptic feedback for analytics
+          logHapticFeedback(intentType, 'failed');
+        }
+      } else {
+        // Log that haptic feedback isn't supported
+        logHapticFeedback(intentType, 'unsupported');
+      }
+    } catch (error) {
+      // Handle any errors in vibration API
+      console.warn('Haptic feedback error:', error);
+      logHapticFeedback(intentType, 'error');
     }
   } else {
     // Log that haptic feedback isn't supported

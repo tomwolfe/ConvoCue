@@ -418,13 +418,17 @@ export const detectIntentHighPerformance = (input, threshold = 0.5) => {
 
   // Measure tokenization performance
   const tokens = intentPerformanceTracker.measureTokenization(tokenize, input);
-  const inputLower = input.toLowerCase();
 
   // Early termination: if we have few tokens, skip similarity checks
   if (tokens.length === 0) return { intent: null, confidence: 0 };
 
+  const inputLower = input.toLowerCase();
+
   let bestMatch = null;
   let bestScore = 0;
+
+  // Precompute token set for faster lookup
+  const tokenSet = new Set(tokens);
 
   for (const [intent, patterns] of Object.entries(compiledPatterns)) {
     let maxIntentScore = 0;
@@ -435,7 +439,7 @@ export const detectIntentHighPerformance = (input, threshold = 0.5) => {
       // Phase 1: Fast Matches (Exact & RegEx) - Primary focus for performance
       for (const patternItem of pattern.regexes) {
         // Direct token match (exact word) - fastest check
-        if (tokens.includes(patternItem.text)) {
+        if (tokenSet.has(patternItem.text)) {
           patternScore = Math.max(patternScore, pattern.weight);
           // Early exit if we have a strong match
           if (patternScore >= 1.0) break;
@@ -454,7 +458,7 @@ export const detectIntentHighPerformance = (input, threshold = 0.5) => {
       if (patternScore < 0.7) {
         // Phase 2: Similarity Match (Only for weak matches)
         // Further limit tokens for performance
-        const limitedTokens = tokens.slice(0, 5);
+        const limitedTokens = tokens.slice(0, 3); // Reduced from 5 to 3 for better performance
         for (const patternItem of pattern.regexes) {
           if (!patternItem.isMultiWord) {
             for (const token of limitedTokens) {
@@ -497,7 +501,7 @@ export const detectIntentHighPerformance = (input, threshold = 0.5) => {
     confidence: Math.min(1.0, bestScore)
   };
 
-  // Record analytics for this detection
+  // Record analytics for this detection with limited input
   intentAnalytics.recordDetection(input, result.intent, result.confidence);
 
   return result;
@@ -662,8 +666,13 @@ export const detectIntentWithContext = (input, conversationHistory = []) => {
   const endTime = performance.now();
   intentPerformanceTracker.recordIntentDetectionTime('contextDetectionTime', endTime - startTime);
 
+  // Early return if no input or base result
+  if (!input || !baseResult.intent) {
+    return baseResult;
+  }
+
   // Handle intent ambiguity for specific cases like "I'm sorry"
-  if (baseResult.intent && input.toLowerCase().includes('sorry')) {
+  if (input.toLowerCase().includes('sorry')) {
     // Check if the phrase is expressing empathy vs conflict
     const empathyIndicators = ['sorry to hear', 'sorry about', 'so sorry', 'i understand', 'must be hard', 'my condolences', 'sympathies'];
     const conflictIndicators = ['sorry but', 'sorry, but', 'but sorry', 'sorry however', 'sorry though'];
@@ -686,13 +695,25 @@ export const detectIntentWithContext = (input, conversationHistory = []) => {
     }
   }
 
-  // Enhanced disambiguation for "maybe" and similar terms
+  // Check for business context for "maybe" or "perhaps"
   if (input.toLowerCase().includes('maybe') || input.toLowerCase().includes('perhaps')) {
     // Check if it's in a business context (strategic intent)
     const businessIndicators = ['proposal', 'deal', 'contract', 'negotiation', 'meeting', 'project', 'budget', 'strategy'];
-    const isBusinessContext = businessIndicators.some(indicator =>
-      input.toLowerCase().includes(indicator) ||
-      conversationHistory.some(turn => turn.content.toLowerCase().includes(indicator))
+    const inputLower = input.toLowerCase();
+
+    // First check the current input for business indicators
+    const hasBusinessInInput = businessIndicators.some(indicator => inputLower.includes(indicator));
+
+    if (hasBusinessInInput) {
+      return {
+        intent: 'strategic',
+        confidence: Math.min(1.0, baseResult.confidence + 0.1)
+      };
+    }
+
+    // Only check conversation history if business terms not in current input
+    const isBusinessContext = conversationHistory.some(turn =>
+      businessIndicators.some(indicator => turn.content.toLowerCase().includes(indicator))
     );
 
     if (isBusinessContext) {
@@ -811,19 +832,29 @@ export const detectIntentWithContext = (input, conversationHistory = []) => {
     }
   }
 
+  // Context-based adjustments based on conversation history
   if (conversationHistory.length > 0) {
     const lastTurn = conversationHistory[conversationHistory.length - 1];
     const lastContent = lastTurn?.content?.toLowerCase() || '';
 
+    // If the last turn was a question and current result is not question,
+    // consider if this might be a response that should be classified differently
     if (lastContent.includes('?') && baseResult.intent !== 'question') {
-      if (baseResult.confidence < 0.5) {
-        return {
-          intent: 'question',
-          confidence: Math.min(0.7, baseResult.confidence + 0.2)
-        };
+      // Check if this is likely a response to the question
+      const responseIndicators = ['yes', 'no', 'maybe', 'i think', 'i believe', 'probably', 'definitely', 'absolutely', 'sure'];
+      const inputLower = input.toLowerCase();
+      const isResponse = responseIndicators.some(indicator => inputLower.includes(indicator));
+
+      if (isResponse && baseResult.confidence < 0.6) {
+        // Re-evaluate with context that this is likely a response to a question
+        const reevaluatedResult = detectIntentWithConfidence(input);
+        if (reevaluatedResult.confidence > baseResult.confidence) {
+          return reevaluatedResult;
+        }
       }
     }
 
+    // Check for recent conflict in conversation
     const recentConflict = conversationHistory.slice(-3).some(turn =>
       turn.content.toLowerCase().includes('no') &&
       (turn.content.toLowerCase().includes('wrong') || turn.content.toLowerCase().includes('disagree'))
@@ -834,22 +865,6 @@ export const detectIntentWithContext = (input, conversationHistory = []) => {
         intent: 'conflict',
         confidence: Math.min(1.0, baseResult.confidence + 0.15)
       };
-    }
-
-    // Enhanced context analysis: Check if the current input is a response to a question
-    if (lastContent.includes('?') && baseResult.intent === 'social') {
-      // If the last turn was a question and current intent is social,
-      // it might be a response that should be classified differently
-      const responseIndicators = ['yes', 'no', 'maybe', 'i think', 'i believe', 'probably', 'definitely'];
-      const isResponse = responseIndicators.some(indicator => inputLower.includes(indicator));
-
-      if (isResponse) {
-        // Re-evaluate with higher confidence for a more appropriate intent
-        const reevaluatedResult = detectIntentWithConfidence(input);
-        if (reevaluatedResult.confidence > baseResult.confidence) {
-          return reevaluatedResult;
-        }
-      }
     }
   }
 
