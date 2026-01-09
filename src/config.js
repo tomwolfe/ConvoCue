@@ -135,15 +135,15 @@ export const AppConfig = {
 
     // Persona Orchestration settings
     orchestrator: {
-      threshold: 0.7, // Increased from 0.5 to reduce jitter
+      thresholdBase: 1.0, // Base threshold for switching
       keywordWeight: 0.3,
       historyWeight: 0.1,
       currentPersonaBias: 0.2,
       rejectionDampening: 0.3, // How much to increase threshold after a rejection
       sensitivityPresets: {
-        low: 1.3,
-        medium: 0.7,
-        high: 0.5
+        low: 1.5,    // Multiplier for base (higher = harder to switch)
+        medium: 1.0, // Multiplier for base
+        high: 0.5    // Multiplier for base (lower = easier to switch)
       },
       intentMap: {
         anxiety: {

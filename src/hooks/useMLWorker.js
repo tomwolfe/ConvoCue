@@ -1,4 +1,5 @@
 import { useReducer, useEffect, useRef, useCallback } from 'react';
+import { AppConfig } from '../config';
 import { enhanceResponse } from '../utils/responseEnhancement';
 import { useConversation } from './useConversation';
 import { useAppPreferences } from './useAppPreferences';
@@ -103,23 +104,33 @@ export const useMLWorker = () => {
   }, [state, history, lastMessageTime]);
 
   useEffect(() => {
-    // Battery Status API monitoring for proactive performance management
+    // Proactive performance management based on device constraints
+    const updatePerformanceMode = (reason, mode = 'minimal') => {
+      console.warn(`[Performance] ${reason} detected, notifying worker to reduce load`);
+      worker.current?.postMessage({ 
+        type: 'performance_update', 
+        mode,
+        reason 
+      });
+    };
+
+    // Check for low memory on init
+    if (AppConfig.system.lowMemoryMode()) {
+      updatePerformanceMode('low_memory');
+    }
+
+    // Battery Status API monitoring
     if ('getBattery' in navigator) {
       navigator.getBattery().then(battery => {
-        const updateBatteryStatus = () => {
+        const checkBattery = () => {
           if ((battery.level < 0.2 && !battery.charging) || battery.saveMode) {
-            console.warn('[Performance] Low battery detected, notifying worker to reduce load');
-            worker.current?.postMessage({ 
-              type: 'performance_update', 
-              mode: 'minimal',
-              reason: 'low_battery' 
-            });
+            updatePerformanceMode('low_battery');
           }
         };
 
-        battery.addEventListener('levelchange', updateBatteryStatus);
-        battery.addEventListener('chargingchange', updateBatteryStatus);
-        updateBatteryStatus();
+        battery.addEventListener('levelchange', checkBattery);
+        battery.addEventListener('chargingchange', checkBattery);
+        checkBattery();
       });
     }
   }, []);

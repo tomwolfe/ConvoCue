@@ -91,7 +91,9 @@ export const orchestratePersona = (input, history = [], currentPersona, options 
 
   // Determine base threshold from sensitivity or config
   const sensitivity = options.sensitivity || 'medium';
-  let threshold = config.sensitivityPresets?.[sensitivity] || config.threshold;
+  const baseThreshold = config.thresholdBase || 1.0;
+  const sensitivityMultiplier = config.sensitivityPresets?.[sensitivity] || 1.0;
+  let threshold = baseThreshold * sensitivityMultiplier;
 
   // Apply dampening if provided (user rejection logic)
   if (options.rejectionDampening) {

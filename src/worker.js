@@ -369,10 +369,9 @@ self.onmessage = async (event) => {
 
             // Deep Coaching Analysis Decision
             // We prioritize battery life and responsiveness over analysis depth in minimal mode.
-            // Documentation: isSmartMode reflects if Auto-Persona is enabled, indicating a user 
-            // preference for sophisticated AI assistance.
+            // Determines if Auto-Persona is enabled, indicating user preference for sophisticated AI assistance.
             const isPowerSavingMode = performanceStats.mode === 'minimal';
-            const isSmartMode = _settings?.enableAutoPersona !== false;
+            const isAutoPersonaEnabled = _settings?.enableAutoPersona !== false;
             const shouldRunDeepAnalysis = !isPowerSavingMode;
 
             // Perform coaching analysis based on persona - Skip if in power saving mode
