@@ -171,15 +171,15 @@ export const AppConfig = {
           weight: 1.0
         },
         crosscultural: {
-          intents: ['clarity'],
+          intents: ['clarity', 'cultural'],
           keywords: ['culture', 'custom', 'tradition', 'translation', 'language', 'meaning', 'slang', 'idiom'],
-          weight: 0.9
+          weight: 1.1
         },
         languagelearning: {
-          intents: ['clarity'],
+          intents: ['clarity', 'learning'],
           keywords: ['grammar', 'vocabulary', 'phrase', 'speak', 'say', 'correct', 'pronounce', 'word'],
           negativeKeywords: ['contract', 'deal', 'negotiate', 'strategy'],
-          weight: 0.8
+          weight: 1.1
         },
         concise: {
           intents: ['greeting', 'agreement'],

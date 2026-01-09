@@ -76,4 +76,33 @@ describe('personaOrchestrator', () => {
     const result2 = orchestratePersona(input, [], 'meeting', { rejectionDampening: 2.0 });
     expect(result2.suggestedPersona).toBe('meeting');
   });
+
+  it('should suggest crosscultural persona for cultural inquiries', () => {
+    const input = "What is the local custom for greeting elders?";
+    const { suggestedPersona } = orchestratePersona(input, [], 'meeting');
+    expect(suggestedPersona).toBe('crosscultural');
+  });
+
+  it('should suggest languagelearning persona when asking about grammar', () => {
+    const input = "Is this sentence grammatically correct?";
+    const { suggestedPersona } = orchestratePersona(input, [], 'meeting');
+    expect(suggestedPersona).toBe('languagelearning');
+  });
+
+  it('should not switch if confidence is below threshold', () => {
+    const input = "The weather is nice."; // Neutral
+    const { suggestedPersona } = orchestratePersona(input, [], 'professional');
+    expect(suggestedPersona).toBe('professional');
+  });
+
+  it('should handle multiple personas by picking the strongest match', () => {
+    // Mentions both "contract" (professional) and "grammar" (languagelearning)
+    // Professional has 'contract' as keyword, weight 1.1
+    // Languagelearning has 'grammar' as keyword but 'contract' as negative
+    const input = "Can you check the grammar in this contract?";
+    const { suggestedPersona } = orchestratePersona(input, [], 'meeting');
+    
+    // Negative keyword in languagelearning should push it to professional
+    expect(suggestedPersona).toBe('professional');
+  });
 });

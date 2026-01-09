@@ -155,7 +155,7 @@ const Settings = ({ isOpen, onClose }) => {
               <div className="setting-info">
                 <h3>Auto-Persona Selection</h3>
                 <p>Automatically switch personas based on conversation context</p>
-                <p className="setting-help-text">Uses real-time local analysis to tailor coaching to your current situation.</p>
+                <p className="setting-help-text">Uses 100% local pattern analysis. No conversational data ever leaves your device for context detection.</p>
               </div>
               <label className="toggle-switch">
                 <input
