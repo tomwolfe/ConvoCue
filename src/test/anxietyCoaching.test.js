@@ -16,7 +16,7 @@ describe('Anxiety Coaching Utilities', () => {
         anxietyTriggers: [],
         copingStrategies: [],
         reassuranceNeeded: false,
-        anxietySpecificInsights: []
+        insights: []
       });
     });
 
@@ -27,7 +27,7 @@ describe('Anxiety Coaching Utilities', () => {
         anxietyTriggers: [],
         copingStrategies: [],
         reassuranceNeeded: false,
-        anxietySpecificInsights: []
+        insights: []
       });
 
       const result2 = analyzeAnxietyCoaching(123);
@@ -36,7 +36,7 @@ describe('Anxiety Coaching Utilities', () => {
         anxietyTriggers: [],
         copingStrategies: [],
         reassuranceNeeded: false,
-        anxietySpecificInsights: []
+        insights: []
       });
     });
 
@@ -119,7 +119,7 @@ describe('Anxiety Coaching Utilities', () => {
       const text = 'I am feeling anxious and scared.';
       const result = analyzeAnxietyCoaching(text, [], { emotion: 'fear', confidence: 0.6 });
       
-      expect(result.anxietySpecificInsights).toContainEqual(
+      expect(result.insights).toContainEqual(
         expect.objectContaining({ category: 'anxiety_level' })
       );
     });

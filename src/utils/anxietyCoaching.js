@@ -19,7 +19,7 @@ export const analyzeAnxietyCoaching = (text, conversationHistory = [], emotionDa
       anxietyTriggers: [],
       copingStrategies: [],
       reassuranceNeeded: false,
-      anxietySpecificInsights: []
+      insights: []
     };
   }
 
@@ -42,14 +42,14 @@ export const analyzeAnxietyCoaching = (text, conversationHistory = [], emotionDa
   const reassuranceNeeded = checkReassuranceNeeds(text, emotionAnalysis);
 
   // Generate anxiety-specific insights
-  const anxietySpecificInsights = generateAnxietyInsights(text, emotionAnalysis, conversationContext);
+  const insights = generateAnxietyInsights(text, emotionAnalysis, conversationContext);
 
   return {
     anxietyLevel,
     anxietyTriggers,
     copingStrategies,
     reassuranceNeeded,
-    anxietySpecificInsights
+    insights
   };
 };
 

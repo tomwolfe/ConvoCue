@@ -12,7 +12,7 @@ vi.mock('../utils/encryption', () => ({
 describe('CoachingInsights functionality', () => {
   const mockCoachingInsights = {
     anxiety: {
-      anxietySpecificInsights: [
+      insights: [
         { category: 'anxiety_level', insight: 'Insight 1: You seem anxious.', priority: 'high' },
         { category: 'coping', insight: 'Insight 2: Try to breathe.', priority: 'medium' }
       ],
@@ -21,7 +21,7 @@ describe('CoachingInsights functionality', () => {
       ]
     },
     relationship: {
-      relationshipInsights: [
+      insights: [
         { category: 'empathy', insight: 'Insight 1: Show empathy.', priority: 'high' }
       ]
     }
@@ -118,7 +118,7 @@ describe('CoachingInsights functionality', () => {
   it('allows cycling through multiple coping tips', async () => {
     const multiCopingInsights = {
       anxiety: {
-        anxietySpecificInsights: [
+        insights: [
           { category: 'anxiety', insight: 'You seem stressed.', priority: 'high' }
         ],
         copingStrategies: [

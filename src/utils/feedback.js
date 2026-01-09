@@ -244,3 +244,35 @@ export const resetPersonalizationData = async () => {
     console.error('Failed to reset personalization data:', e);
   }
 };
+
+/**
+ * Submit feedback for a specific insight category to drive personalization
+ * @param {string} category - The insight category (e.g., 'negotiation', 'empathy')
+ * @param {string} feedbackType - 'like' or 'dislike'
+ * @returns {Promise<object>} Updated scores
+ */
+export const submitInsightFeedback = async (category, feedbackType) => {
+  try {
+    const scores = await secureLocalStorageGet('convocue_insight_category_scores', {});
+    const currentScore = scores[category] || 0;
+    scores[category] = currentScore + (feedbackType === 'like' ? 1 : -1);
+    await secureLocalStorageSet('convocue_insight_category_scores', scores);
+    return scores;
+  } catch (e) {
+    console.error('Failed to save insight feedback:', e);
+    return {};
+  }
+};
+
+/**
+ * Get all insight category scores
+ * @returns {Promise<object>} Category scores
+ */
+export const getInsightCategoryScores = async () => {
+  try {
+    return await secureLocalStorageGet('convocue_insight_category_scores', {});
+  } catch (e) {
+    console.error('Failed to get insight scores:', e);
+    return {};
+  }
+};

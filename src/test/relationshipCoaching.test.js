@@ -15,7 +15,7 @@ describe('Relationship Coaching Utilities', () => {
         empathyLevel: 'neutral',
         activeListeningOpportunities: [],
         emotionalValidationNeeded: false,
-        relationshipInsights: [],
+        insights: [],
         suggestedResponseTypes: []
       });
     });
@@ -26,7 +26,7 @@ describe('Relationship Coaching Utilities', () => {
         empathyLevel: 'neutral',
         activeListeningOpportunities: [],
         emotionalValidationNeeded: false,
-        relationshipInsights: [],
+        insights: [],
         suggestedResponseTypes: []
       });
 
@@ -35,7 +35,7 @@ describe('Relationship Coaching Utilities', () => {
         empathyLevel: 'neutral',
         activeListeningOpportunities: [],
         emotionalValidationNeeded: false,
-        relationshipInsights: [],
+        insights: [],
         suggestedResponseTypes: []
       });
     });
@@ -113,7 +113,7 @@ describe('Relationship Coaching Utilities', () => {
       const text = 'I am feeling overwhelmed and stressed.';
       const result = analyzeRelationshipCoaching(text, [], { emotion: 'fear', confidence: 0.6 });
       
-      expect(result.relationshipInsights).toContainEqual(
+      expect(result.insights).toContainEqual(
         expect.objectContaining({ category: 'emotional_state' })
       );
     });

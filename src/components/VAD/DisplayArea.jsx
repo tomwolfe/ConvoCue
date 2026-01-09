@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { AppConfig } from '../../config';
 import { CoachingConfig } from '../../config/coaching';
-import { submitFeedback } from '../../utils/feedback';
+import { submitFeedback, submitInsightFeedback, getInsightCategoryScores } from '../../utils/feedback';
 import { overrideSpeakerForTurn } from '../../conversationManager';
 import { parseSemanticTags } from '../../utils/intentRecognition';
 import { secureLocalStorageGet, secureLocalStorageSet } from '../../utils/encryption';
@@ -42,32 +42,42 @@ const DisplayArea = ({
   const [currentInsightIndex, setCurrentInsightIndex] = useState(0);
   const [currentCopingIndex, setCurrentCopingIndex] = useState(0);
   const [dismissedInsights, setDismissedInsights] = useState(new Set());
+  const [categoryScores, setCategoryScores] = useState({});
+  const [copingIndices, setCopingIndices] = useState({});
   const [showInfo, setShowInfo] = useState(false);
   const [isStorageLoaded, setIsStorageLoaded] = useState(false);
 
   // Determine if feedback should be enabled based on settings
   const isPersonalizationEnabled = settings.enablePersonalization !== false && !settings.privacyMode;
 
-  // Load dismissed insights from persistence
+  // Load dismissed insights and personalization data from persistence
   useEffect(() => {
-    const loadDismissed = async () => {
-      const saved = await secureLocalStorageGet('dismissed_coaching_insights', []);
-      setDismissedInsights(new Set(saved));
+    const loadData = async () => {
+      const [savedDismissed, savedScores, savedCopingIndices] = await Promise.all([
+        secureLocalStorageGet('dismissed_coaching_insights', []),
+        getInsightCategoryScores(),
+        secureLocalStorageGet('coaching_coping_indices', {})
+      ]);
+      setDismissedInsights(new Set(savedDismissed));
+      setCategoryScores(savedScores);
+      setCopingIndices(savedCopingIndices);
+      setCurrentCopingIndex(savedCopingIndices[persona] || 0);
       setIsStorageLoaded(true);
     };
-    loadDismissed();
+    loadData();
   }, []);
+
+  // Update currentCopingIndex when persona changes (restore from persistence)
+  useEffect(() => {
+    if (isStorageLoaded) {
+      setCurrentCopingIndex(copingIndices[persona] || 0);
+    }
+  }, [persona, isStorageLoaded, copingIndices]);
 
   // Reset indices when persona or insights change
   useEffect(() => {
     setCurrentInsightIndex(0);
-    // Keep currentCopingIndex stable across insight updates
   }, [persona, coachingInsights]);
-
-  // Reset indices specifically when persona changes
-  useEffect(() => {
-    setCurrentCopingIndex(0);
-  }, [persona]);
 
   // Extract all relevant insights based on persona and config
   const allInsights = useMemo(() => {
@@ -76,11 +86,18 @@ const DisplayArea = ({
     const config = CoachingConfig[persona] || CoachingConfig.default;
     const rawInsights = config.insightPath(coachingInsights) || [];
     
-    return rawInsights.map(insight => ({
-      ...insight,
-      config
-    }));
-  }, [coachingInsights, persona]);
+    // Map with config and sort by category feedback scores
+    return rawInsights
+      .map(insight => ({
+        ...insight,
+        config
+      }))
+      .sort((a, b) => {
+        const scoreA = categoryScores[a.category] || 0;
+        const scoreB = categoryScores[b.category] || 0;
+        return scoreB - scoreA; // Descending order: highest score first
+      });
+  }, [coachingInsights, persona, categoryScores]);
 
   // Filter out dismissed insights and get current one
   const visibleInsights = useMemo(() => 
@@ -114,7 +131,26 @@ const DisplayArea = ({
 
   const handleNextCoping = (e, total) => {
     e.stopPropagation();
-    setCurrentCopingIndex(prev => (prev + 1) % total);
+    const nextIndex = (currentCopingIndex + 1) % total;
+    setCurrentCopingIndex(nextIndex);
+    
+    // Persist coping index progress
+    const nextCopingIndices = { ...copingIndices, [persona]: nextIndex };
+    setCopingIndices(nextCopingIndices);
+    secureLocalStorageSet('coaching_coping_indices', nextCopingIndices);
+  };
+
+  const handleInsightFeedback = async (category, type) => {
+    if (!isPersonalizationEnabled) return;
+    
+    // Submit to persistent storage
+    const updatedScores = await submitInsightFeedback(category, type);
+    
+    // Update local state for immediate re-sorting if insights refresh
+    setCategoryScores(updatedScores);
+    
+    // Also call generic feedback for general analytics
+    submitFeedback(activeInsight.insight, type, `insight-${persona}`, culturalContext);
   };
 
   // Parse semantic tags for visual indicators
@@ -242,14 +278,14 @@ const DisplayArea = ({
                     <>
                       <button 
                         className="insight-action-btn"
-                        onClick={() => submitFeedback(activeInsight.insight, 'like', `insight-${persona}`, culturalContext)}
+                        onClick={() => handleInsightFeedback(activeInsight.category, 'like')}
                         title="Helpful"
                       >
                         <ThumbsUp size={14} />
                       </button>
                       <button 
                         className="insight-action-btn"
-                        onClick={() => submitFeedback(activeInsight.insight, 'dislike', `insight-${persona}`, culturalContext)}
+                        onClick={() => handleInsightFeedback(activeInsight.category, 'dislike')}
                         title="Not helpful"
                       >
                         <ThumbsDown size={14} />

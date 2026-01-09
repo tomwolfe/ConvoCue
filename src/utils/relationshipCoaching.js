@@ -28,7 +28,7 @@ export const analyzeRelationshipCoaching = (text, conversationHistory = [], emot
       empathyLevel: 'neutral',
       activeListeningOpportunities: [],
       emotionalValidationNeeded: false,
-      relationshipInsights: [],
+      insights: [],
       suggestedResponseTypes: []
     };
   }
@@ -57,7 +57,7 @@ export const analyzeRelationshipCoaching = (text, conversationHistory = [], emot
   const emotionalValidationNeeded = checkEmotionalValidationNeeds(text, emotionAnalysis);
 
   // Generate relationship insights
-  const relationshipInsights = generateRelationshipInsights(text, emotionAnalysis, conversationContext);
+  const insights = generateRelationshipInsights(text, emotionAnalysis, conversationContext);
 
   // Suggest response types
   const suggestedResponseTypes = suggestResponseTypes(text, emotionAnalysis, conversationContext);
@@ -66,7 +66,7 @@ export const analyzeRelationshipCoaching = (text, conversationHistory = [], emot
     empathyLevel,
     activeListeningOpportunities,
     emotionalValidationNeeded,
-    relationshipInsights,
+    insights,
     suggestedResponseTypes
   };
 
@@ -363,12 +363,12 @@ const determineConversationStage = (conversationHistory) => {
 
 /**
  * Generate enhanced relationship coaching prompt
- * @param {Object} relationshipInsights - Relationship insights
+ * @param {Object} insightsObj - Relationship insights object
  * @param {string} currentPersona - Current persona being used
  * @returns {string} Enhanced prompt for relationship coaching
  */
-export const generateRelationshipCoachingPrompt = (relationshipInsights, currentPersona = 'relationship') => {
-  const { empathyLevel, activeListeningOpportunities, emotionalValidationNeeded, suggestedResponseTypes } = relationshipInsights;
+export const generateRelationshipCoachingPrompt = (insightsObj, currentPersona = 'relationship') => {
+  const { empathyLevel, activeListeningOpportunities, emotionalValidationNeeded, suggestedResponseTypes } = insightsObj;
 
   let promptAdditions = '';
 

@@ -7,7 +7,7 @@ export default {
   icon: <Users size={16} className="text-blue-500" />,
   className: 'relationship-insight',
   pattern: 'insight-pattern-lines',
-  insightPath: (insights) => getSafeInsights(insights, 'relationship', 'relationshipInsights'),
+  insightPath: (insights) => getSafeInsights(insights, 'relationship'),
   copingPath: (insights) => null,
   ariaLabel: 'Emotional intelligence coaching insight'
 };
