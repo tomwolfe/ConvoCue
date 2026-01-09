@@ -4,7 +4,7 @@ import { AppConfig } from '../../config';
 
 const PersonaSelector = ({ persona, setPersona, culturalContext, setCulturalContext, availablePersonas, settings, lastSwitchReason, undoPersonaSwitch }) => {
   if (!availablePersonas || Object.keys(availablePersonas).length === 0) return null;
-  
+
   return (
     <div className="persona-selector" role="group" aria-label="Select conversation mode">
       {settings?.enableAutoPersona && (
@@ -13,8 +13,8 @@ const PersonaSelector = ({ persona, setPersona, culturalContext, setCulturalCont
             <Sparkles size={14} />
             <span>Smart Switch: {lastSwitchReason || 'Active'}</span>
             {lastSwitchReason && (
-              <button 
-                className="btn-undo-switch" 
+              <button
+                className="btn-undo-switch"
                 onClick={(e) => {
                   e.stopPropagation();
                   undoPersonaSwitch();
@@ -40,6 +40,7 @@ const PersonaSelector = ({ persona, setPersona, culturalContext, setCulturalCont
             className={`persona-btn ${persona === p.id ? 'active' : ''}`}
             onClick={() => setPersona(p.id)}
             aria-pressed={persona === p.id}
+            title={p.description}
           >
             <span className="persona-label">{p.label}</span>
             <span className="persona-desc">{p.description}</span>

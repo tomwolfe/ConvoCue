@@ -328,20 +328,20 @@ const DisplayArea = ({
           </p>
           {!showMinimalUI && suggestion && isPersonalizationEnabled && (
             <div className="suggestion-feedback">
-               <button
-                  className="btn-icon feedback-btn"
-                  onClick={() => submitFeedback(suggestion, 'like', persona, culturalContext, transcript, transcript)}
-                  title="Helpful"
-                >
-                  <ThumbsUp size={16} />
-                </button>
-                <button
-                  className="btn-icon feedback-btn"
-                  onClick={() => submitFeedback(suggestion, 'dislike', persona, culturalContext, transcript, transcript)}
-                  title="Not helpful"
-                >
-                  <ThumbsDown size={16} />
-                </button>
+              <button
+                className="btn-icon feedback-btn"
+                onClick={() => submitFeedback(suggestion, 'like', persona, culturalContext, transcript, transcript)}
+                title="Helpful"
+              >
+                <ThumbsUp size={16} />
+              </button>
+              <button
+                className="btn-icon feedback-btn"
+                onClick={() => submitFeedback(suggestion, 'dislike', persona, culturalContext, transcript, transcript)}
+                title="Not helpful"
+              >
+                <ThumbsDown size={16} />
+              </button>
             </div>
           )}
         </div>

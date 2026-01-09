@@ -206,6 +206,7 @@ const GlanceWidget = ({ suggestion, emotionData, isProcessing, detectedIntent, s
 const AudioVisualizer = ({ isActive, analyser, isCompactMode }) => {
   const canvasRef = useRef(null);
   const animationRef = useRef(null);
+  const frameCountRef = useRef(0);
 
   useEffect(() => {
     if (!isActive || !analyser || !canvasRef.current) {
@@ -222,21 +223,33 @@ const AudioVisualizer = ({ isActive, analyser, isCompactMode }) => {
 
     const draw = () => {
       animationRef.current = requestAnimationFrame(draw);
+
+      // Skip frames to reduce CPU usage (render every 2nd frame)
+      frameCountRef.current++;
+      if (frameCountRef.current % 2 !== 0) {
+        return;
+      }
+
       analyser.getByteFrequencyData(dataArray);
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
+
       const barWidth = (canvas.width / bufferLength) * 2.5;
       let barHeight;
       let x = 0;
 
-      for (let i = 0; i < bufferLength; i++) {
-        barHeight = (dataArray[i] / 255) * canvas.height;
+      // Limit the number of bars drawn for performance
+      const maxBars = isCompactMode ? Math.min(bufferLength, 32) : Math.min(bufferLength, 64);
+
+      for (let i = 0; i < maxBars; i++) {
+        // Sample fewer points for better performance
+        const dataIndex = Math.floor(i * bufferLength / maxBars);
+        barHeight = (dataArray[dataIndex] / 255) * canvas.height;
 
         const blue = 241;
         const green = 102;
         const red = 99;
-        
+
         ctx.fillStyle = `rgba(${red}, ${green}, ${blue}, ${barHeight / canvas.height + 0.3})`;
         ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
 
@@ -250,8 +263,9 @@ const AudioVisualizer = ({ isActive, analyser, isCompactMode }) => {
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }
+      frameCountRef.current = 0;
     };
-  }, [isActive, analyser]);
+  }, [isActive, analyser, isCompactMode]);
 
   return (
     <div className={`audio-visualizer ${isActive ? 'active' : ''} ${isCompactMode ? 'compact' : ''}`}>
@@ -446,7 +460,9 @@ const VADContent = ({
     }
   };
 
-  const showMinimalUI = isSubtleMode && (vad.listening || isProcessing);
+  // Show minimal UI only when in subtle mode AND actively processing/listening
+  // But don't show minimal UI if also in compact mode (to avoid conflicts)
+  const showMinimalUI = isSubtleMode && (vad.listening || isProcessing) && !isCompactMode;
 
   return (
     <main className={`vad-container ${isCompactMode ? 'compact-layout' : ''} ${showMinimalUI ? 'minimal-ui' : ''}`} role="main">

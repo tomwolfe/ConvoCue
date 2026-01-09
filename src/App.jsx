@@ -90,18 +90,26 @@ const App = () => {
   useEffect(() => {
     if (isCompactMode) {
       document.body.classList.add('compact-mode');
+      // Disable subtle mode when compact mode is enabled
+      if (isSubtleMode) {
+        setIsSubtleMode(false);
+      }
     } else {
       document.body.classList.remove('compact-mode');
     }
-  }, [isCompactMode]);
+  }, [isCompactMode, isSubtleMode, setIsSubtleMode]);
 
   useEffect(() => {
     if (isSubtleMode) {
       document.body.classList.add('subtle-mode');
+      // Disable compact mode when subtle mode is enabled
+      if (isCompactMode) {
+        setIsCompactMode(false);
+      }
     } else {
       document.body.classList.remove('subtle-mode');
     }
-  }, [isSubtleMode]);
+  }, [isSubtleMode, isCompactMode, setIsCompactMode]);
 
   useEffect(() => {
     const runDiagnostics = async () => {
@@ -237,18 +245,39 @@ const App = () => {
                 </button>
                 {showViewMenu && (
                   <div className="view-menu">
-                    <button onClick={() => { setIsCompactMode(!isCompactMode); setShowViewMenu(false); }} className={isCompactMode ? 'active' : ''}>
+                    <button
+                      onClick={() => {
+                        setIsCompactMode(!isCompactMode);
+                        if (isCompactMode) {
+                          setIsSubtleMode(false);  // Disable subtle mode when compact is turned off
+                        }
+                        setShowViewMenu(false);
+                      }}
+                      className={isCompactMode ? 'active' : ''}
+                    >
                       <Activity size={16} /> Minimal UI
                     </button>
-                    <button onClick={() => { setIsSubtleMode(!isSubtleMode); setShowViewMenu(false); }} className={isSubtleMode ? 'active' : ''}>
+                    <button
+                      onClick={() => {
+                        setIsSubtleMode(!isSubtleMode);
+                        if (isSubtleMode) {
+                          setIsCompactMode(false);  // Disable compact mode when subtle is turned off
+                        }
+                        setShowViewMenu(false);
+                      }}
+                      className={isSubtleMode ? 'active' : ''}
+                    >
                       <EyeOff size={16} /> Subtle Mode
                     </button>
                     <button
-                      onClick={() => { setIsDyslexicFriendly(!isDyslexicFriendly); setShowViewMenu(false); }}
+                      onClick={() => {
+                        setIsDyslexicFriendly(!isDyslexicFriendly);
+                        setShowViewMenu(false);
+                      }}
                       className={isDyslexicFriendly ? 'active' : ''}
                       aria-label="Toggle Dyslexic Friendly Font"
                     >
-                      <Type size={16} /> Dyslexic Font
+                      <Type size={16} /> Dyslexic-Friendly
                     </button>
                     <button onClick={() => { showTutorialHandler(); setShowViewMenu(false); }}>
                       <BookOpen size={16} /> Tutorial
