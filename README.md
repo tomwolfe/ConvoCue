@@ -12,6 +12,10 @@ ConvoCue is a privacy-first, on-device AI conversation assistant that provides r
 - **Advanced AI Intelligence**:
     - **Context-Aware Suggestions**: Powered by SmolLM2-135M-Instruct for natural, relevant responses.
     - **Intent Recognition**: Detects conversational goals (e.g., conflict resolution, strategic planning) with semantic tagging.
+      - **7 Intent Categories**: social, question, conflict, strategic, action, empathy, language
+      - **Confidence Threshold**: Adjustable sensitivity (default: 0.3 for better initial experience)
+      - **Context-Aware Disambiguation**: Differentiates between similar phrases based on surrounding context
+      - **Sarcasm Detection**: Advanced algorithms to identify potential sarcasm and idiomatic expressions
     - **Emotion Analysis**: Monitors emotional tone to provide more empathetic cues.
     - **Sentiment Analysis**: Tracks conversation sentiment trends over time.
     - **Cultural Intelligence**: Multi-layered support for culturally sensitive communication with context detection.
@@ -32,7 +36,10 @@ ConvoCue is a privacy-first, on-device AI conversation assistant that provides r
     - **Compact Mode**: Minimal UI for focused interaction.
 - **Accessibility Features**:
     - **Dyslexic-Friendly Font**: Specialized typography for improved readability.
-    - **Haptic Feedback**: Tactile responses for subtle mode notifications.
+    - **Haptic Feedback**: Tactile responses for subtle mode notifications (device/browser dependent).
+      - **Visual Fallback**: Automatic visual cues when haptic feedback is unavailable.
+      - **Adjustable Intensity**: Customizable vibration strength to match device capabilities.
+      - **Browser Compatibility**: Works on most mobile browsers; visual feedback on unsupported platforms.
     - **Screen Reader Support**: Full ARIA compliance for visually impaired users.
     - **High Contrast Mode**: Enhanced visibility for users with visual impairments.
 - **Privacy & Security**:

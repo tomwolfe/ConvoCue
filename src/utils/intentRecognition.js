@@ -832,6 +832,40 @@ export const detectIntentWithContext = (input, conversationHistory = []) => {
     }
   }
 
+  // Enhanced detection for sarcasm and idiomatic expressions
+  if (baseResult.confidence < 0.7) {
+    const sarcasmIndicators = [
+      'oh great', 'oh wonderful', 'of course', 'sure thing', 'totally', 'obviously',
+      'right', 'yeah right', 'as if', 'not surprising', 'typical', 'figures',
+      'oh boy', 'great', 'wonderful', 'fantastic', 'amazing', 'incredible'
+    ];
+
+    const inputLower = input.toLowerCase();
+    const hasSarcasmIndicator = sarcasmIndicators.some(indicator =>
+      inputLower.includes(indicator) || inputLower.includes(indicator.toUpperCase())
+    );
+
+    // Check for exaggerated positive words that might indicate sarcasm
+    const exaggeratedPositives = ['amazing', 'incredible', 'fantastic', 'wonderful', 'perfect', 'awesome'];
+    const hasExaggeratedPositive = exaggeratedPositives.some(word =>
+      inputLower.includes(word) && (inputLower.includes('so') || inputLower.includes('really') || inputLower.includes('very'))
+    );
+
+    // Check for contradiction markers that might indicate sarcasm
+    const contradictionMarkers = ['but', 'however', 'though', 'although', 'yet', 'despite', 'though'];
+    const hasContradiction = contradictionMarkers.some(marker => inputLower.includes(marker));
+
+    // If we detect potential sarcasm, reduce confidence and reconsider intent
+    if (hasSarcasmIndicator && hasExaggeratedPositive && hasContradiction) {
+      // For sarcastic expressions, we might want to invert the interpretation
+      // For now, we'll just reduce confidence to allow for human override
+      return {
+        intent: baseResult.intent,
+        confidence: Math.max(0.1, baseResult.confidence - 0.2)
+      };
+    }
+  }
+
   // Context-based adjustments based on conversation history
   if (conversationHistory.length > 0) {
     const lastTurn = conversationHistory[conversationHistory.length - 1];

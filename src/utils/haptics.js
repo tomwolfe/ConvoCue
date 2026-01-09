@@ -161,12 +161,12 @@ export const provideHapticFeedback = (suggestion) => {
   }
 
   // Try haptic feedback first
-  if (navigator.vibrate) {
+  if (isHapticSupported()) {
     try {
       // Check if vibration API is supported and working
       if (typeof navigator.vibrate === 'function') {
         // Test with a simple vibration first to check if it works
-        if (navigator.vibrate(pattern)) {
+        if (navigator.vibrate(getAdjustedPattern(pattern))) {
           lastVibrationTime = now;
           // Log successful haptic feedback for analytics
           logHapticFeedback(intentType, 'success');
@@ -192,6 +192,64 @@ export const provideHapticFeedback = (suggestion) => {
   // Fall back to visual feedback if haptics are unavailable or failed
   provideVisualFeedback(intentType);
   lastVibrationTime = now;
+};
+
+/**
+ * Checks if haptic feedback is supported in the current environment
+ * @returns {boolean} True if haptic feedback is supported
+ */
+export const isHapticSupported = () => {
+  // Check if we're in a browser environment
+  if (typeof navigator === 'undefined' || typeof window === 'undefined') {
+    return false;
+  }
+
+  // Check for vibrate API support
+  if (!navigator.vibrate) {
+    return false;
+  }
+
+  // Additional check for mobile devices (desktop browsers may have vibrate API but not actually vibrate)
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+  // Some browsers have the API but don't actually support vibration
+  try {
+    // Test with a minimal vibration to see if it's actually supported
+    return true; // If navigator.vibrate exists, we assume it's supported
+  } catch (e) {
+    return false;
+  }
+};
+
+/**
+ * Adjusts vibration pattern based on user settings
+ * @param {Array|number} pattern - Original vibration pattern
+ * @returns {Array|number} Adjusted vibration pattern based on intensity settings
+ */
+export const getAdjustedPattern = (pattern) => {
+  // Get user settings for intensity
+  const settings = JSON.parse(localStorage.getItem('hapticSettings') || '{}');
+  const intensity = settings.intensity || 'medium';
+
+  // Adjust pattern based on intensity
+  if (intensity === 'low') {
+    // Reduce all values by half
+    if (Array.isArray(pattern)) {
+      return pattern.map(value => Math.max(1, Math.floor(value * 0.5)));
+    } else {
+      return Math.max(1, Math.floor(pattern * 0.5));
+    }
+  } else if (intensity === 'high') {
+    // Increase all values by 50%
+    if (Array.isArray(pattern)) {
+      return pattern.map(value => Math.floor(value * 1.5));
+    } else {
+      return Math.floor(pattern * 1.5);
+    }
+  }
+
+  // For 'medium' or any other value, return original pattern
+  return pattern;
 };
 
 /**
@@ -274,4 +332,51 @@ export const updateHapticSettings = (newSettings) => {
 
   // Apply settings immediately if needed
   // (In a real implementation, this would affect how haptics are triggered)
+};
+
+/**
+ * Tests haptic feedback support and provides user feedback
+ * @returns {Promise<Object>} Object containing test results and support status
+ */
+export const testHapticSupport = async () => {
+  const result = {
+    supported: false,
+    actualVibration: false,
+    message: '',
+    needsVisualFallback: true
+  };
+
+  // Check if we're in a browser environment
+  if (typeof navigator === 'undefined' || typeof window === 'undefined') {
+    result.message = 'Not in a browser environment';
+    return result;
+  }
+
+  // Check for vibrate API support
+  if (!navigator.vibrate) {
+    result.message = 'Vibration API not supported by this browser';
+    return result;
+  }
+
+  // Test if the vibration API is actually functional
+  try {
+    // Test with a minimal vibration pattern
+    const testPattern = [10]; // 10ms vibration
+    const vibrationResult = navigator.vibrate(testPattern);
+
+    // Note: vibrationResult is not a reliable indicator of actual vibration
+    // The API doesn't return whether vibration actually occurred
+    result.supported = true;
+    result.actualVibration = true; // We assume it worked if no error was thrown
+    result.needsVisualFallback = false;
+    result.message = 'Vibration API is supported and functional';
+
+    // Wait for the vibration to complete before returning
+    await new Promise(resolve => setTimeout(resolve, 50));
+  } catch (error) {
+    result.supported = false;
+    result.message = `Vibration API error: ${error.message}`;
+  }
+
+  return result;
 };

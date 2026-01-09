@@ -7,7 +7,7 @@ export const IntentDetectionConfig = {
   // Default values for intent detection parameters
   defaults: {
     // Confidence threshold for displaying live intent badges (0.1 to 0.9)
-    confidenceThreshold: 0.5,
+    confidenceThreshold: 0.3,
     
     // Debounce window in milliseconds to prevent rapid intent switching (200ms to 2000ms)
     debounceWindowMs: 800,

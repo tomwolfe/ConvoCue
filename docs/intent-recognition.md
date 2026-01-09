@@ -1,97 +1,97 @@
-# Intent Recognition & Auto-Persona Orchestration
+# Intent Recognition System Documentation
 
 ## Overview
 
-ConvoCue uses a sophisticated, weighted NLP-based intent recognition system to provide context-aware suggestions and automatically adapt coaching personas. This system replaces simple keyword matching with a multi-factor analysis that understands the "intent" and "context" behind a user's speech in real-time.
+ConvoCue's intent recognition system is a sophisticated, client-side NLP solution that identifies conversational goals in real-time. The system uses a combination of pattern matching, string similarity algorithms, and context-aware disambiguation to classify user input into meaningful categories.
 
-## Privacy & Security
+## Intent Categories
 
-**100% Client-Side Implementation.**
-The intent recognition system is designed with absolute privacy in mind. All pattern analysis, keyword matching, and scoring algorithms run entirely within the user's browser/device. 
-- No conversational transcripts or intent data are ever sent to a server for analysis.
-- Pattern matching is performed against local, pre-defined rules.
-- Verification: The implementation in `src/utils/intentRecognition.js` uses only local JavaScript logic and avoids all external API calls.
+The system recognizes 7 distinct intent categories:
 
-## Core Logic
+### 1. Social (`social`)
+Detects greetings, affirmations, acknowledgments, and social engagement cues.
+- Examples: "Hello", "Hi", "Good morning", "Yes", "Absolutely", "Everyone", "What do you think?"
 
-Located in `src/utils/intentRecognition.js` and `src/utils/personaOrchestrator.js`.
+### 2. Question (`question`)
+Identifies inquiries, requests for clarification, and follow-up prompts.
+- Examples: "How?", "Why?", "What do you think?", "Can you explain?", "Tell me more"
 
-```mermaid
-graph TD
-    A[Transcript Update] --> B{Throttling Logic}
-    B -->|Short/Noisy| C[Skip Analysis]
-    B -->|Meaningful| D[Intent Detection]
-    D --> E[Keyword Analysis]
-    E --> F[Scoring Engine]
-    
-    subgraph "Scoring Factors"
-    F1[Current Persona Bias]
-    F2[Manual Preference Boost]
-    F3[Positive Intents/Keywords]
-    F4[Negative Keywords]
-    F5[Contextual History]
-    end
-    
-    F1 & F2 & F3 & F4 & F5 --> F
-    
-    F --> G{Threshold Check}
-    G -->|Below Threshold| H[Maintain Current Persona]
-    G -->|Above Threshold| I[Switch Persona]
-    
-    I --> J[Log Event & Reason]
-    J --> K[Update UI Indicator]
-    
-    K --> L{User Rejection?}
-    L -->|Yes within 15s| M[Undo Switch & Apply Dampening]
-```
+### 3. Conflict (`conflict`)
+Detects disagreements, tensions, problems, and negative sentiments.
+- Examples: "Wrong", "Disagree", "Problem", "Issue", "Stop", "Wait", "I don't think so"
 
-1.  **Pattern Matching**: Pre-defined patterns for over 15 intents (e.g., `strategic`, `conflict`, `empathy`).
-2.  **Pre-compiled RegEx**: Patterns are pre-compiled on initialization to ensure sub-millisecond analysis on every conversational turn.
-3.  **Similarity Matching**: Uses character-based similarity (Jaccard index) to handle variations and typos.
-4.  **Weighted Scoring**: Different intents and keywords have configurable weights that contribute to a total confidence score.
+### 4. Strategic (`strategic`)
+Identifies business discussions, planning, negotiations, and long-term thinking.
+- Examples: "Negotiate", "Priority", "Contract", "Strategy", "Investment", "Director", "Urgent"
 
-## Auto-Persona Orchestration ("Smart Switch")
+### 5. Action (`action`)
+Recognizes suggestions, recommendations, tasks, and actionable items.
+- Examples: "We should", "Let's", "Follow up", "Schedule", "Maybe", "Perhaps", "Try", "Consider"
 
-The app intelligently switches between coaching personas based on the detected context.
+### 6. Empathy (`empathy`)
+Detects emotional support, validation, understanding, and compassionate responses.
+- Examples: "I understand", "That sounds difficult", "I feel", "I think", "Sorry to hear", "Support"
 
-### The Scoring Algorithm
-For every transcript update, the system calculates a score for each available persona:
-- **Positive Reinforcement**: Detected intents and keywords matching the persona's profile (e.g., "negotiate" boosts `professional`).
-- **Negative Reinforcement**: Certain keywords act as penalties for specific personas (e.g., "business contract" penalizes `languagelearning`).
-- **Contextual History**: Considers the last 3-5 turns of conversation for holistic understanding.
-- **Current Persona Bias**: A small score advantage is given to the active persona to prevent "jitter" or frequent unnecessary switches.
+### 7. Language (`language`)
+Identifies concerns about phrasing, clarity, grammar, and linguistic precision.
+- Examples: "Unclear", "Explain", "Grammar", "Better way to say", "Phrasing", "Vocabulary"
 
-### Sensitivity & Control
-Users can tune the system's reactivity in the **Settings** panel:
-- **High Sensitivity**: Quick to adapt, switches even on subtle context changes.
-- **Medium Sensitivity**: Balanced approach.
-- **Low Sensitivity**: Stable, requires strong evidence before switching.
+## How It Works
 
-### User Rejection & Preference Boost
-The system respects user agency through two primary mechanisms:
-1.  **Rejection Dampening**: If a user manually reverts an automatic switch within 15 seconds, the system temporarily increases the threshold for that persona.
-2.  **Manual Preference Boost**: When a user manually selects a persona, that persona receives a temporary scoring advantage (10-minute window) to prevent the system from immediately switching back to its autonomous choice.
+### Multi-Phase Detection
+The system uses a three-phase approach for optimal performance:
 
-### Diagnostics & Transparency
-To ensure the "Smart Switch" isn't a black box, the system maintains a **System Diagnostics** log:
-- Every automatic switch is recorded with its confidence score and primary trigger (keyword or intent).
-- Manual rejections and preference boosts are logged.
-- Users can view these logs in the **Settings > System Diagnostics** panel.
+1. **Fast Exact Matching**: Direct token matching for immediate results
+2. **Regex Matching**: Pattern matching at word boundaries
+3. **Similarity Calculation**: Jaccard-like overlap for fuzzy matching (limited to first 10 tokens)
 
-## Performance Optimization
+### Context-Aware Disambiguation
+The system handles ambiguous phrases by considering context:
 
-| Intent | Triggers | Coaching Application |
-| :--- | :--- | :--- |
-| **Strategic** | negotiate, boss, priority, contract | `professional` persona boost |
-| **Conflict** | wrong, disagree, problem, issue | `anxiety` persona boost (De-escalation) |
-| **Action** | next steps, todo, schedule | `meeting` persona boost |
-| **Emotion** | anxious, worried, sorry | `anxiety` / `relationship` boost |
-| **Cultural** | custom, meaning, slang, idiom | `crosscultural` boost |
-| **Learning** | practice, grammar, correct | `languagelearning` boost |
+- **"I'm sorry"** disambiguation:
+  - "I'm sorry to hear about your loss" → `empathy`
+  - "I'm sorry but that won't work" → `conflict`
+  - "I'm sorry for the delay" → `social`
 
-## Performance Optimization
+- **Sarcasm Detection**: Identifies potential sarcasm through contradiction markers and exaggerated language
+- **Temporal Context**: Distinguishes between immediate actions and strategic planning
 
-The orchestration logic is optimized for low-end devices:
-- **Pattern Pre-compilation**: RegEx objects are created once, not on every turn.
-- **Throttled Analysis**: Orchestration only fires on meaningful updates (e.g., sentences > 3 words or questions).
-- **Performance Monitor**: If the device is in low-battery or high-memory state, the system can reduce analysis depth to prioritize responsiveness.
+## Configuration Options
+
+### Confidence Threshold
+- **Default**: 0.3 (optimized for better initial user experience)
+- **Range**: 0.1 to 0.9
+- **Effect**: Lower values increase sensitivity but may produce more false positives
+
+### Debounce Window
+- **Default**: 800ms
+- **Effect**: Prevents rapid intent switching during continuous speech
+
+### Sticky Duration
+- **Default**: 2000ms
+- **Effect**: Maintains intent display for better user experience
+
+## Performance Considerations
+
+- **Client-Side Only**: All processing occurs in the browser for privacy
+- **Token Limit**: Similarity checks limited to first 10 tokens for performance
+- **Memory Efficient**: Optimized algorithms to minimize resource usage
+
+## Extending the System
+
+New intents can be added by:
+1. Defining patterns in `src/utils/intentRecognition.js`
+2. Adding corresponding UI elements
+3. Updating the documentation
+4. Testing thoroughly for edge cases
+
+## Troubleshooting
+
+### Common Issues
+- **Low Detection Rate**: Consider lowering the confidence threshold
+- **False Positives**: Increase the confidence threshold
+- **Performance Issues**: The system is optimized for first 10 tokens; longer inputs are truncated
+
+### Haptic Feedback
+- **Not Working**: Check browser/device compatibility; visual feedback serves as fallback
+- **Too Strong/Weak**: Adjust intensity in settings
