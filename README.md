@@ -5,26 +5,55 @@ ConvoCue is a privacy-first, on-device AI conversation assistant that provides r
 ## Key Features
 
 - **Real-time Speech Analysis**:
-    - **Speech-to-Text**: High-performance transcription using Whisper Tiny.
-    - **Voice Activity Detection (VAD)**: Optimized audio processing to minimize power consumption.
+    - **Speech-to-Text**: High-performance transcription using Whisper Tiny with WASM backend.
+    - **Voice Activity Detection (VAD)**: Optimized audio processing to minimize power consumption using Silero VAD.
     - **Speaker Detection**: Distinguishes between different speakers in a conversation.
+    - **Audio Visualizer**: Real-time visualization of audio input levels.
 - **Advanced AI Intelligence**:
-    - **Context-Aware Suggestions**: Powered by SmolLM2 for natural, relevant responses.
-    - **Intent Recognition**: Detects conversational goals (e.g., conflict resolution, strategic planning).
-    - **Sentiment Analysis**: Monitors emotional tone to provide more empathetic cues.
-    - **Cultural Intelligence**: Multi-layered support for culturally sensitive communication.
+    - **Context-Aware Suggestions**: Powered by SmolLM2-135M-Instruct for natural, relevant responses.
+    - **Intent Recognition**: Detects conversational goals (e.g., conflict resolution, strategic planning) with semantic tagging.
+    - **Emotion Analysis**: Monitors emotional tone to provide more empathetic cues.
+    - **Sentiment Analysis**: Tracks conversation sentiment trends over time.
+    - **Cultural Intelligence**: Multi-layered support for culturally sensitive communication with context detection.
+- **Personalized Coaching Systems**:
+    - **Relationship Coaching**: EQ-focused coaching with active listening and empathy suggestions.
+    - **Anxiety Support**: Confidence-boosting and low-pressure follow-up questions for social anxiety.
+    - **Professional Coaching**: Workplace-appropriate cues that project confidence and authority.
+    - **Meeting Aide**: Strategic interjections and summaries for professional meetings.
+    - **Language Learning**: Natural phrasing and grammar corrections for language learners.
+    - **Cross-Cultural Guide**: Culturally sensitive phrasing suggestions with context awareness.
 - **Customization & Personalization**:
-    - **Persona Engine**: Choose from preset personas (Social Coach, Professional, Warm Friend, etc.) or create your own custom AI behaviors.
+    - **Persona Engine**: Choose from preset personas or create custom AI behaviors.
+    - **Persona Customization**: Create, edit, and save custom personas with tailored prompts.
+    - **Cultural Context Selection**: Adjust communication style based on cultural context.
     - **Social Success Score (SSS)**: A gamified dashboard tracking communication growth through sentiment and engagement metrics.
-    - **Subtle Mode**: Minimalist UI cues for discreet assistance.
+    - **Subtle Mode**: Minimalist UI cues for discreet assistance with haptic feedback.
+    - **Dyslexic-Friendly Mode**: Specialized font and layout for users with dyslexia.
+    - **Compact Mode**: Minimal UI for focused interaction.
+- **Accessibility Features**:
+    - **Dyslexic-Friendly Font**: Specialized typography for improved readability.
+    - **Haptic Feedback**: Tactile responses for subtle mode notifications.
+    - **Screen Reader Support**: Full ARIA compliance for visually impaired users.
+    - **High Contrast Mode**: Enhanced visibility for users with visual impairments.
 - **Privacy & Security**:
     - **100% On-Device**: All processing (audio, ML inference, storage) stays on your device.
     - **Encrypted Storage**: Local personalization data is encrypted before being saved to the browser.
+    - **Privacy Mode**: Option to disable personalization and data collection.
     - **Data Portability**: Full control to export or hard-reset your conversation history and learned data.
+    - **Secure Local Storage**: Client-side encryption for all persistent user data.
 - **User Experience**:
     - **Interactive Onboarding**: Guided tutorial for new users.
-    - **Performance Diagnostics**: Real-time monitoring of system health and inference latency.
-    - **Mobile-Optimized**: Responsive design tailored for field use.
+    - **Performance Diagnostics**: Real-time monitoring of system health, inference latency, and VAD performance.
+    - **Mobile-Optimized**: Responsive design tailored for field use with memory optimization.
+    - **Conversation History**: Track and review past interactions with sentiment analysis.
+    - **Feedback System**: Like/dislike functionality to improve AI suggestions.
+    - **Settings Panel**: Comprehensive configuration options for all features.
+- **Performance Optimization**:
+    - **Memory Management**: Aggressive memory management for mobile devices with automatic model unloading.
+    - **Adaptive Performance**: Dynamic adjustment based on device capabilities and memory usage.
+    - **Web Workers**: Background processing to keep the UI responsive during heavy ML tasks.
+    - **Model Quantization**: Q4 quantized models for efficient on-device inference.
+    - **Thread Optimization**: Dynamic thread allocation based on hardware capabilities.
 
 ## Use Cases
 
@@ -32,16 +61,22 @@ ConvoCue is a privacy-first, on-device AI conversation assistant that provides r
 - **Professional Excellence**: Real-time cues for meetings, negotiations, and sales calls.
 - **Cross-Cultural Communication**: Bridging gaps with culturally appropriate phrasing and context.
 - **Language Learning**: Real-time grammar feedback and natural idiom suggestions.
+- **Public Speaking**: Confidence-building cues for presentations and speeches.
+- **Therapy Support**: Guided responses for mental health conversations.
+- **Interview Preparation**: Real-time feedback during practice interviews.
 
 ## Technical Architecture
 
 ConvoCue leverages a modern, decoupled architecture to ensure high performance and privacy:
 
-- **Frontend**: React (Vite) with an **Event-Driven Core** powered by a central Event Bus (`mitt`).
+- **Frontend**: React 19 with Vite build system and an **Event-Driven Core** powered by a central Event Bus (`mitt`).
 - **ML Inference**: Transformers.js and ONNX WebAssembly for running models directly in the browser.
 - **Background Processing**: Web Workers handle heavy ML tasks to keep the UI responsive.
-- **Audio Stack**: Web Audio API for low-latency capture and VAD integration.
-- **Security**: Client-side encryption for all persistent user data.
+- **Audio Stack**: Web Audio API for low-latency capture and VAD integration with Silero VAD.
+- **Security**: Client-side encryption for all persistent user data using secure localStorage.
+- **UI Framework**: Tailwind CSS with Lucide React icons for consistent design.
+- **Analytics**: Vercel Analytics for performance monitoring (opt-in).
+- **Testing**: Vitest with React Testing Library for comprehensive test coverage.
 
 ## Documentation
 
@@ -65,6 +100,14 @@ For more detailed technical insights, see the `docs/` directory:
 3.  **Build for Production**:
     ```bash
     npm run build
+    ```
+4.  **Run Tests**:
+    ```bash
+    npm run test
+    ```
+5.  **Lint Code**:
+    ```bash
+    npm run lint
     ```
 
 ## Privacy Policy
