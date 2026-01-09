@@ -559,11 +559,20 @@ self.onmessage = async (event) => {
                 const isAutoPersonaEnabled = _settings?.enableAutoPersona !== false;
                 const shouldRunDeepAnalysis = !isPowerSavingMode;
 
+                // Detect cultural context from the input text (moved earlier for use in deep analysis)
+                const detectedCulturalContext = detectCulturalContext(sanitizedText, culturalContext);
+
+                // Use detected cultural context if more specific than current context
+                const effectiveCulturalContext = detectedCulturalContext.primaryCulture !== 'general'
+                    ? detectedCulturalContext.primaryCulture
+                    : culturalContext;
+
                 // Perform coaching analysis based on persona - Skip if in power saving mode
                 let relationshipInsights = null;
                 let anxietyInsights = null;
                 let professionalInsights = null;
                 let meetingInsights = null;
+                let languageLearningInsights = null;
                 let coachingAnalysisTime = 0;
 
                 if (shouldRunDeepAnalysis) {
@@ -586,7 +595,6 @@ self.onmessage = async (event) => {
                         : null;
 
                     // Add language learning insights for language learning persona
-                    let languageLearningInsights = null;
                     if (persona === 'languagelearning') {
                         languageLearningInsights = provideContextualLanguageFeedback(sanitizedText, effectiveCulturalContext || 'general', history);
                     }
@@ -605,14 +613,6 @@ self.onmessage = async (event) => {
                     if (communicationProfile) {
                         contextInstruction += `${communicationProfile} `;
                     }
-
-                    // Detect cultural context from the input text
-                    const detectedCulturalContext = detectCulturalContext(sanitizedText, culturalContext);
-
-                    // Use detected cultural context if more specific than current context
-                    const effectiveCulturalContext = detectedCulturalContext.primaryCulture !== 'general'
-                        ? detectedCulturalContext.primaryCulture
-                        : culturalContext;
 
                     // Add Cultural Context Tips
                     if (effectiveCulturalContext && effectiveCulturalContext !== 'general') {
