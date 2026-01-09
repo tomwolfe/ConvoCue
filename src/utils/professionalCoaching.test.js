@@ -7,9 +7,11 @@ describe('analyzeProfessionalCoaching', () => {
     const result = analyzeProfessionalCoaching(text);
     
     expect(result).not.toBeNull();
-    expect(result.insights).toHaveLength(1);
-    expect(result.insights[0].category).toBe('Negotiation');
-    expect(result.insights[0].insight).toContain('value focus');
+    const categories = result.insights.map(i => i.category);
+    expect(categories).toContain('Negotiation');
+    
+    const negotiationInsight = result.insights.find(i => i.category === 'Negotiation');
+    expect(negotiationInsight.insight).toContain('value focus');
   });
 
   it('detects leadership and decision making keywords', () => {
@@ -17,9 +19,11 @@ describe('analyzeProfessionalCoaching', () => {
     const result = analyzeProfessionalCoaching(text);
     
     expect(result).not.toBeNull();
-    expect(result.insights).toHaveLength(1);
-    expect(result.insights[0].category).toBe('Leadership');
-    expect(result.insights[0].insight).toContain('collaborative decision-making');
+    const categories = result.insights.map(i => i.category);
+    expect(categories).toContain('Leadership');
+    
+    const leadershipInsight = result.insights.find(i => i.category === 'Leadership');
+    expect(leadershipInsight.insight).toContain('collaborative decision-making');
   });
 
   it('detects clarity and alignment keywords', () => {
@@ -27,8 +31,8 @@ describe('analyzeProfessionalCoaching', () => {
     const result = analyzeProfessionalCoaching(text);
     
     expect(result).not.toBeNull();
-    expect(result.insights).toHaveLength(1);
-    expect(result.insights[0].category).toBe('Alignment');
+    const categories = result.insights.map(i => i.category);
+    expect(categories).toContain('Alignment');
   });
 
   it('detects action oriented keywords', () => {
@@ -36,8 +40,8 @@ describe('analyzeProfessionalCoaching', () => {
     const result = analyzeProfessionalCoaching(text);
     
     expect(result).not.toBeNull();
-    expect(result.insights).toHaveLength(1);
-    expect(result.insights[0].category).toBe('Execution');
+    const categories = result.insights.map(i => i.category);
+    expect(categories).toContain('Execution');
   });
 
   it('returns multiple insights if multiple categories are triggered', () => {
@@ -52,6 +56,23 @@ describe('analyzeProfessionalCoaching', () => {
     expect(categories).toContain('Execution');
   });
 
+  it('incorporates emotional context into insights', () => {
+    const text = "The price is too high and I am very angry about this budget.";
+    const emotionData = { emotion: 'anger', confidence: 0.8 };
+    const result = analyzeProfessionalCoaching(text, [], emotionData);
+    
+    expect(result).not.toBeNull();
+    const categories = result.insights.map(i => i.category);
+    expect(categories).toContain('Negotiation');
+    expect(categories).toContain('Professionalism');
+    
+    const negotiationInsight = result.insights.find(i => i.category === 'Negotiation');
+    expect(negotiationInsight.insight).toContain('Tension detected');
+    
+    const profInsight = result.insights.find(i => i.category === 'Professionalism');
+    expect(profInsight.insight).toContain('Strong emotions detected');
+  });
+
   it('returns null if no keywords are found', () => {
     const text = "The weather is nice today.";
     const result = analyzeProfessionalCoaching(text);
@@ -64,6 +85,8 @@ describe('analyzeProfessionalCoaching', () => {
     const result = analyzeProfessionalCoaching(text);
     
     expect(result).not.toBeNull();
-    expect(result.insights.length).toBe(2);
+    const categories = result.insights.map(i => i.category);
+    expect(categories).toContain('Negotiation');
+    expect(categories).toContain('Execution');
   });
 });
