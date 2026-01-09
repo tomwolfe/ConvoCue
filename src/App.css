@@ -2384,3 +2384,37 @@ input:checked + .slider:before {
   color: #721c24;
   text-decoration: underline;
 }
+
+/* Live Indicator Animations */
+.pulse-animation {
+  animation: pulse-border 2s infinite;
+  box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4);
+}
+
+@keyframes pulse-border {
+  0% {
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(99, 102, 241, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0);
+  }
+}
+
+.glance-badge.conflict.pulse-animation {
+  animation: pulse-conflict 2s infinite;
+}
+
+@keyframes pulse-conflict {
+  0% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}

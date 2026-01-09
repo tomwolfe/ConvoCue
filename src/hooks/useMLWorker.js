@@ -5,6 +5,7 @@ import { useConversation } from './useConversation';
 import { useAppPreferences } from './useAppPreferences';
 import { getCommunicationProfileSummary } from '../utils/personalization';
 import { provideHapticFeedback } from '../utils/haptics';
+import { detectIntentWithConfidence } from '../utils/intentRecognition';
 import { getInsightCategoryScores } from '../utils/feedback';
 import { usePerformanceMonitor } from './usePerformanceMonitor';
 import { usePersonaOrchestration } from './usePersonaOrchestration';
@@ -16,6 +17,7 @@ const initialState = {
   isLowMemory: false,
   transcript: '',
   suggestion: '',
+  detectedIntent: null,
   emotionData: null,
   coachingInsights: null,
   isProcessing: false,
@@ -40,7 +42,14 @@ function workerReducer(state, action) {
     case 'START_STT':
       return { ...state, isProcessing: true, processingStep: 'transcribing', status: 'Transcribing...' };
     case 'STT_RESULT':
-      return { ...state, transcript: action.text, status: 'Analyzing social cue...', processingStep: 'thinking', suggestion: '' };
+      return { 
+        ...state, 
+        transcript: action.text, 
+        detectedIntent: action.intent,
+        status: 'Analyzing social cue...', 
+        processingStep: 'thinking', 
+        suggestion: '' 
+      };
     case 'SET_TRANSCRIPT':
       return { ...state, transcript: action.text };
     case 'SET_SUGGESTION':
@@ -51,6 +60,7 @@ function workerReducer(state, action) {
       return { 
         ...state, 
         suggestion: action.text, 
+        detectedIntent: null,
         emotionData: action.emotionData || state.emotionData,
         coachingInsights: action.coachingInsights || state.coachingInsights,
         isProcessing: false, 
@@ -139,6 +149,13 @@ export const useMLWorker = () => {
               }
               const cleanText = text.trim();
 
+              // Immediate Intent Recognition for subtle feedback
+              const { intent, confidence } = detectIntentWithConfidence(cleanText);
+              if (intent && confidence > 0.5) {
+                // Trigger immediate haptics based on intent before LLM finishes
+                provideHapticFeedback(`[${intent}]`);
+              }
+
               // Aggregation Logic: Improved to be more inclusive of meaningful short phrases
               const words = cleanText.split(' ');
               const isShort = words.length < 3;
@@ -146,7 +163,7 @@ export const useMLWorker = () => {
               
               const timeSinceLast = Date.now() - (lastMessageTimeRef.current || 0);
 
-              dispatch({ type: 'STT_RESULT', text: cleanText });
+              dispatch({ type: 'STT_RESULT', text: cleanText, intent });
 
               // Trigger LLM if:
               // 1. Not too short OR

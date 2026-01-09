@@ -12,7 +12,7 @@ import { submitSubtleModeFeedback } from '../utils/feedback';
 import { parseSemanticTags } from '../utils/intentRecognition';
 import performanceMonitor from '../utils/performance';
 
-const GlanceWidget = ({ suggestion, emotionData, isProcessing }) => {
+const GlanceWidget = ({ suggestion, emotionData, isProcessing, detectedIntent }) => {
   const [feedbackGiven, setFeedbackGiven] = useState(false);
   const [showExplanation, setShowExplanation] = useState(false);
   const emotion = emotionData?.emotion || 'neutral';
@@ -140,6 +140,13 @@ const GlanceWidget = ({ suggestion, emotionData, isProcessing }) => {
     >
       <p className="glance-suggestion" title={tooltipText}>{displaySuggestion}</p>
       <div className="glance-indicators">
+        {/* Live Intent Indicator (Subtle Mode) */}
+        {isProcessing && detectedIntent && TAG_METADATA[detectedIntent] && (
+          <div className={`glance-badge ${TAG_METADATA[detectedIntent].variant} pulse-animation`} title={`Immediate detection: ${TAG_METADATA[detectedIntent].description}`}>
+            {detectedIntent === 'conflict' ? <ShieldAlert size={14} aria-hidden="true" /> : <Zap size={14} aria-hidden="true" />}
+            <span>{TAG_METADATA[detectedIntent].label} (Live)</span>
+          </div>
+        )}
         {tags.map(tag => (
           <div key={tag.key} className={`glance-badge ${tag.variant}`} title={tag.description} aria-label={tag.label} role="status">
             {tag.key === 'conflict' ? <ShieldAlert size={14} aria-hidden="true" /> : <Zap size={14} aria-hidden="true" />}
@@ -247,6 +254,7 @@ const VADContent = ({
   error,
   transcript,
   suggestion,
+  detectedIntent,
   emotionData,
   isProcessing,
   processingStep,
@@ -483,6 +491,7 @@ const VADContent = ({
             suggestion={suggestion} 
             emotionData={emotionData} 
             isProcessing={isProcessing} 
+            detectedIntent={detectedIntent}
           />
         )}
         
@@ -490,6 +499,7 @@ const VADContent = ({
           transcript={transcript}
           suggestion={suggestion}
           processingStep={processingStep}
+          detectedIntent={detectedIntent}
           isProcessing={isProcessing}
           handleClear={handleClear}
           handleCopy={handleCopy}

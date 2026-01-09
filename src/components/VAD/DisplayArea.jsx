@@ -8,7 +8,7 @@ import { AppConfig } from '../../config';
 import { CoachingConfig } from '../../config/coaching';
 import { submitFeedback, submitInsightFeedback, getInsightCategoryScores } from '../../utils/feedback';
 import { overrideSpeakerForTurn } from '../../conversationManager';
-import { parseSemanticTags } from '../../utils/intentRecognition';
+import { parseSemanticTags, TAG_METADATA } from '../../utils/intentRecognition';
 import { secureLocalStorageGet, secureLocalStorageSet } from '../../utils/encryption';
 import InsightCard from './InsightCard';
 import CoachingDisclaimer from './CoachingDisclaimer';
@@ -20,7 +20,7 @@ const TagIcon = ({ name, size = 14 }) => {
     case 'Target': return <Target size={size} />;
     case 'MessageCircle': return <MessageCircle size={size} />;
     case 'Heart': return <Heart size={size} />;
-    default: return null;
+    default: return <MessageCircle size={size} />; // Fallback icon
   }
 };
 
@@ -28,6 +28,7 @@ const DisplayArea = ({
   transcript,
   suggestion,
   processingStep,
+  detectedIntent,
   handleClear,
   handleCopy,
   handleRefresh,
@@ -280,6 +281,13 @@ const DisplayArea = ({
             <div className="flex items-center gap-2">
               <label id="suggestion-label">{AppConfig.models.personas[persona]?.label || 'Coaching Cue'}</label>
               <div className="glance-indicators">
+                {/* Live Intent Indicator (Immediate feedback before LLM) */}
+                {processingStep === 'thinking' && detectedIntent && TAG_METADATA[detectedIntent] && (
+                  <span className={`glance-badge ${TAG_METADATA[detectedIntent].variant} pulse-animation`} title={`Immediate detection: ${TAG_METADATA[detectedIntent].description}`}>
+                    <TagIcon name={TAG_METADATA[detectedIntent].icon} size={10} />
+                    {TAG_METADATA[detectedIntent].label} (Live)
+                  </span>
+                )}
                 {tags.map((tag) => (
                   <span key={tag.key} className={`glance-badge ${tag.variant}`} title={tag.description}>
                     <TagIcon name={tag.icon} size={10} />

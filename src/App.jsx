@@ -51,6 +51,7 @@ const App = () => {
     error,
     transcript,
     suggestion,
+    detectedIntent,
     emotionData,
     conversationSentiment,
     coachingInsights,
@@ -338,6 +339,7 @@ const App = () => {
             error={error}
             transcript={transcript}
             suggestion={suggestion}
+            detectedIntent={detectedIntent}
             emotionData={emotionData}
             isProcessing={isProcessing}
             processingStep={processingStep}
