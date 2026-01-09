@@ -15,6 +15,7 @@ import { secureLocalStorageGet, secureLocalStorageSet } from './utils/encryption
 import './App.css';
 
 import { getMergedPersonas } from './utils/preferences';
+import { analyzeCulturalContext } from './utils/culturalIntelligence';
 
 const App = () => {
   const [hasInteracted, setHasInteracted] = useState(false);

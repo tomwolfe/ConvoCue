@@ -49,11 +49,13 @@ const DEFAULT_PERSONAS = {
 
 // Import cultural and language learning configuration
 import CulturalLanguageConfig from './config/culturalLanguageConfig.js';
+import { CulturalIntelligenceConfig } from './config/culturalIntelligenceConfig.js';
 
 // Configuration for ConvoCue application
 export const AppConfig = {
   isMobile,
   culturalLanguageConfig: CulturalLanguageConfig,
+  culturalIntelligenceConfig: CulturalIntelligenceConfig,
 
   // Model configurations
   models: {

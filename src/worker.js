@@ -10,6 +10,11 @@ import {
     getHighStakesTips
 } from './utils/culturalContext';
 import {
+    analyzeCulturalContext,
+    generateCulturallyAppropriateResponses,
+    validateCulturalAppropriateness
+} from './utils/culturalIntelligence';
+import {
     ConversationTurnManager
 } from './utils/speakerDetection';
 import {
@@ -580,11 +585,20 @@ self.onmessage = async (event) => {
                 const isAutoPersonaEnabled = _settings?.enableAutoPersona !== false;
                 const shouldRunDeepAnalysis = !isPowerSavingMode;
 
-                // Detect cultural context from the input text (moved earlier for use in deep analysis)
-                const detectedCulturalContext = detectCulturalContext(sanitizedText, culturalContext);
+                // Detect cultural context from the input text using advanced cultural intelligence
+                // In power saving mode, reduce the frequency of cultural analysis or use simplified analysis
+                let detectedCulturalContext;
+                if (isPowerSavingMode) {
+                    // In power saving mode, only analyze current text without history to reduce computation
+                    detectedCulturalContext = analyzeCulturalContext(sanitizedText, culturalContext, []);
+                } else {
+                    detectedCulturalContext = analyzeCulturalContext(sanitizedText, culturalContext, history || []);
+                }
 
-                // Use detected cultural context if more specific than current context AND if cultural guidance should be applied
-                const effectiveCulturalContext = detectedCulturalContext.shouldApplyCulturalGuidance && detectedCulturalContext.primaryCulture !== 'general'
+                // Use detected cultural context if more specific than current context AND if confidence is high enough
+                // Only override user's cultural context if confidence is > 0.85 (critical threshold to prevent unwanted overrides)
+                const effectiveCulturalContext = detectedCulturalContext.primaryCulture !== 'general' &&
+                                                detectedCulturalContext.confidence > 0.85
                     ? detectedCulturalContext.primaryCulture
                     : culturalContext;
 
@@ -661,6 +675,22 @@ self.onmessage = async (event) => {
                     // Add Cultural Context Tips
                     if (effectiveCulturalContext && effectiveCulturalContext !== 'general') {
                         contextInstruction += getCulturalPromptTips(effectiveCulturalContext);
+
+                        // Check if user has enabled advanced cultural guidance
+                        const isAdvancedCulturalGuidanceEnabled = _settings?.enableAdvancedCulturalGuidance !== false;
+
+                        // Add advanced cultural intelligence guidance only if:
+                        // 1. Not in power saving mode
+                        // 2. User has enabled advanced cultural guidance
+                        if (!isPowerSavingMode && isAdvancedCulturalGuidanceEnabled && detectedCulturalContext.recommendations) {
+                            const culturalRecommendations = detectedCulturalContext.recommendations
+                                .filter(rec => rec.priority === 'high')
+                                .map(rec => rec.suggestion)
+                                .join(' ');
+                            if (culturalRecommendations) {
+                                contextInstruction += `Cultural guidance: ${culturalRecommendations} `;
+                            }
+                        }
                     }
 
                     // Add Social Nuance and High-Stakes Tips
