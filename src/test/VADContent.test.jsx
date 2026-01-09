@@ -170,8 +170,8 @@ describe('VADContent Component', () => {
       render(<VADContent {...defaultProps} isReady={false} />);
     });
 
-    const pulseButton = screen.getByTitle('Manual Trigger');
-    const heartbeatButton = screen.getByTitle('Continuous Mode');
+    const pulseButton = screen.getByTitle('Manual Mode: Tap to analyze specific moments');
+    const heartbeatButton = screen.getByTitle('Continuous Mode: AI listens and updates in real-time');
 
     expect(pulseButton).toBeDisabled();
     expect(heartbeatButton).toBeDisabled();

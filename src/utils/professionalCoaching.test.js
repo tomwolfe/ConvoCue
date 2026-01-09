@@ -41,7 +41,7 @@ describe('analyzeProfessionalCoaching', () => {
     
     expect(result).not.toBeNull();
     const categories = result.insights.map(i => i.category);
-    expect(categories).toContain('Execution');
+    expect(categories).toContain('Action');
   });
 
   it('returns multiple insights if multiple categories are triggered', () => {
@@ -53,7 +53,7 @@ describe('analyzeProfessionalCoaching', () => {
     const categories = result.insights.map(i => i.category);
     expect(categories).toContain('Negotiation');
     expect(categories).toContain('Leadership');
-    expect(categories).toContain('Execution');
+    expect(categories).toContain('Action');
   });
 
   it('incorporates emotional context into insights', () => {

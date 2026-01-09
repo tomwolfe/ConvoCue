@@ -15,6 +15,7 @@ const GRAMMAR_PATTERNS = {
   // Subject-verb agreement
   subjectVerb: [
     { pattern: /\bI is\b/gi, correction: 'I am', explanation: 'Use "am" with "I" instead of "is"' },
+    { pattern: /\bI goes\b/gi, correction: 'I go', explanation: 'Use "go" with "I" instead of "goes"' },
     { pattern: /\bHe are\b/gi, correction: 'He is', explanation: 'Use "is" with third person singular subjects' },
     { pattern: /\bShe are\b/gi, correction: 'She is', explanation: 'Use "is" with third person singular subjects' },
     { pattern: /\bIt are\b/gi, correction: 'It is', explanation: 'Use "is" with "it"' },
@@ -143,7 +144,7 @@ export const detectGrammarErrors = (text) => {
  * @returns {Array} Pronunciation challenges and suggestions
  */
 export const providePronunciationFeedback = (text, nativeLanguage = 'general') => {
-  if (!text || nativeLanguage === 'general') return [];
+  if (!text || !nativeLanguage || nativeLanguage === 'general') return [];
 
   const challenges = [];
   const lowerText = text.toLowerCase();

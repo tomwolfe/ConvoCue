@@ -187,7 +187,7 @@ const GlanceWidget = ({ suggestion, emotionData, isProcessing, detectedIntent, s
             disabled={feedbackGiven}
             title="Helpful cue"
           >
-            <ThumbsUp size={12} />
+            <ThumbsUp size={14} />
           </button>
           <button
             className={`feedback-btn ${feedbackGiven ? 'disabled' : ''}`}
@@ -195,7 +195,7 @@ const GlanceWidget = ({ suggestion, emotionData, isProcessing, detectedIntent, s
             disabled={feedbackGiven}
             title="Not helpful"
           >
-            <ThumbsDown size={12} />
+            <ThumbsDown size={14} />
           </button>
         </div>
       )}

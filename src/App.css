@@ -254,7 +254,7 @@ header.compact .subtitle {
   padding: 0.2rem 0.6rem;
   border-radius: 8px;
   font-weight: 600;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   text-transform: uppercase;
 }
 
@@ -1443,36 +1443,6 @@ input:checked + .slider:before {
   background: #f1f3f5;
 }
 
-/* Feedback Buttons */
-.feedback-buttons {
-  display: flex;
-  gap: 0.2rem;
-}
-
-.feedback-btn {
-  background: none;
-  border: none;
-  padding: 4px;
-  cursor: pointer;
-  color: var(--text-muted);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  transition: all 0.2s;
-  opacity: 0.6;
-}
-
-.feedback-btn:hover {
-  background: rgba(0,0,0,0.05);
-  color: var(--primary);
-  opacity: 1;
-}
-
-.feedback-btn:active {
-  transform: scale(0.95);
-}
-
 /* Minimal UI Mode */
 .minimal-ui .status-badge.minimal {
   opacity: 0.3;
@@ -2250,28 +2220,17 @@ input:checked + .slider:before {
   opacity: 1;
 }
 
-.feedback-btn {
-  background: rgba(255, 255, 255, 0.8);
-  border: 1px solid #e5e7eb;
-  border-radius: 4px;
-  padding: 2px 4px;
-  cursor: pointer;
-  color: #6b7280;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
+.glance-feedback-actions .feedback-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
-.feedback-btn:hover:not(.disabled) {
+.glance-feedback-actions .feedback-btn:hover {
   background: white;
-  color: var(--primary);
-  border-color: var(--primary);
-}
-
-.feedback-btn.disabled {
-  cursor: default;
-  opacity: 0.5;
+  transform: translateY(-1px);
 }
 
 /* Additional utility classes for Social Success Score */

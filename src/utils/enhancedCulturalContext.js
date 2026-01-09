@@ -283,24 +283,25 @@ export const detectEnhancedCulturalContext = (text, currentContext = 'general') 
     return { primaryCulture: currentContext, confidence: 0, detectedCultures: [] };
   }
 
-  const lowerText = text.toLowerCase();
   const detectedCultures = [];
 
   // Check for each cultural pattern
   for (const [cultureKey, cultureData] of Object.entries(CULTURAL_PATTERNS)) {
     let score = 0;
 
-    // Score based on keywords
+    // Score based on keywords - use word boundaries for accurate matching
     for (const keyword of cultureData.keywords) {
-      if (lowerText.includes(keyword)) {
+      const regex = new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+      if (regex.test(text)) {
         score += 2;
       }
     }
 
-    // Score based on phrases
-    for (const [phraseType, phrases] of Object.entries(cultureData.phrases)) {
+    // Score based on phrases - use word boundaries
+    for (const [, phrases] of Object.entries(cultureData.phrases)) {
       for (const phrase of phrases) {
-        if (lowerText.includes(phrase.toLowerCase())) {
+        const regex = new RegExp(`\\b${phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+        if (regex.test(text)) {
           score += 3;
         }
       }
@@ -401,12 +402,12 @@ export const detectMultilingualElements = (text) => {
   }
 
   const detectedLanguages = [];
-  const textLower = text.toLowerCase();
 
   for (const [langCode, greetings] of Object.entries(MULTILINGUAL_GREETINGS)) {
     let greetingCount = 0;
     for (const greeting of greetings) {
-      if (textLower.includes(greeting.toLowerCase())) {
+      const regex = new RegExp(`\\b${greeting.replace(/[.*+?^${}()|[\/]/g, '\\$&')}\\b`, 'i');
+      if (regex.test(text)) {
         greetingCount++;
       }
     }
@@ -425,7 +426,8 @@ export const detectMultilingualElements = (text) => {
   for (const [langCode, politeness] of Object.entries(MULTILINGUAL_POLITENESS)) {
     let politenessCount = 0;
     for (const polite of politeness) {
-      if (textLower.includes(politeeness.toLowerCase())) {
+      const regex = new RegExp(`\\b${polite.replace(/[.*+?^${}()|[\/]/g, '\\$&')}\\b`, 'i');
+      if (regex.test(text)) {
         politenessCount++;
       }
     }

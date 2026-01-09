@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, X, Info, Zap, ThumbsUp, ThumbsDown, RefreshCw, MoreHorizontal } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, Info, Zap, ThumbsUp, ThumbsDown, RefreshCw, MoreHorizontal, Check } from 'lucide-react';
 import CoachingDisclaimer from './CoachingDisclaimer';
 
 const InsightNavigation = ({ visibleInsights, currentInsightIndex, onPrev, onNext }) => {
@@ -194,21 +194,21 @@ const InsightCard = ({
                     onClick={() => handleFeedback('very_helpful')}
                     title="Very helpful"
                   >
-                    <ThumbsUp size={12} />
+                    <ThumbsUp size={14} />
                   </button>
                   <button
                     className="feedback-btn"
                     onClick={() => handleFeedback('somewhat_helpful')}
                     title="Somewhat helpful"
                   >
-                    <span className="feedback-icon" style={{ fontSize: '12px' }}>👍</span>
+                    <Check size={14} />
                   </button>
                   <button
                     className="feedback-btn"
                     onClick={() => handleFeedback('not_helpful')}
                     title="Not helpful"
                   >
-                    <ThumbsDown size={12} />
+                    <ThumbsDown size={14} />
                   </button>
                   <button 
                     className="insight-action-btn"
@@ -247,21 +247,21 @@ const InsightCard = ({
                     onClick={() => handleFeedback('very_helpful')}
                     title="Very helpful"
                   >
-                    <ThumbsUp size={12} />
+                    <ThumbsUp size={14} />
                   </button>
                   <button
                     className="feedback-btn"
                     onClick={() => handleFeedback('somewhat_helpful')}
                     title="Somewhat helpful"
                   >
-                    <span className="feedback-icon" style={{ fontSize: '12px' }}>👍</span>
+                    <Check size={14} />
                   </button>
                   <button
                     className="feedback-btn"
                     onClick={() => handleFeedback('not_helpful')}
                     title="Not helpful"
                   >
-                    <ThumbsDown size={12} />
+                    <ThumbsDown size={14} />
                   </button>
                 </div>
               )}

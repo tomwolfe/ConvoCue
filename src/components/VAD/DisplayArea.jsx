@@ -282,14 +282,14 @@ const DisplayArea = ({
                   onClick={() => submitFeedback(suggestion, 'like', persona, culturalContext, transcript, transcript)}
                   title="This cue was helpful"
                 >
-                  <ThumbsUp size={16} />
+                  <ThumbsUp size={14} />
                 </button>
                 <button
                   className="feedback-btn"
                   onClick={() => submitFeedback(suggestion, 'dislike', persona, culturalContext, transcript, transcript)}
                   title="This cue was not helpful"
                 >
-                  <ThumbsDown size={16} />
+                  <ThumbsDown size={14} />
                 </button>
             </div>
           )}

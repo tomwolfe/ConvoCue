@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { render, screen, act } from '@testing-library/react';
 import App from './App';
 
 // Mock the worker to avoid actual model loading in tests
@@ -75,7 +75,7 @@ describe('App Component', () => {
     expect(screen.getByText('ConvoCue')).toBeInTheDocument();
     expect(screen.getByText('Real-time social validation')).toBeInTheDocument();
     expect(screen.getByText('Ready to tune in?')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Enable Microphone/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Start ConvoCue/i })).toBeInTheDocument();
   });
 
   it('initializes with correct default state', async () => {
@@ -102,19 +102,13 @@ describe('App Component', () => {
 
   
 
-      // Click the View Options button to open the menu
-
-      const viewOptionsButton = screen.getByLabelText(/View Options/i);
-
+      // Click the Start ConvoCue button to interact and show quick toggles
+      const startButton = screen.getByRole('button', { name: /Start ConvoCue/i });
       await act(async () => {
-
-        viewOptionsButton.click();
-
+        startButton.click();
       });
 
-  
-
-      const dyslexicToggle = screen.getByLabelText(/Toggle Dyslexic Friendly Font/i);
+      const dyslexicToggle = screen.getByLabelText(/Toggle Dyslexic Font/i);
 
       expect(dyslexicToggle).toBeInTheDocument();
 
@@ -138,15 +132,7 @@ describe('App Component', () => {
 
       // Toggle back
 
-      await act(async () => {
-
-        viewOptionsButton.click();
-
-      });
-
-      
-
-      const dyslexicToggleAgain = screen.getByLabelText(/Toggle Dyslexic Friendly Font/i);
+      const dyslexicToggleAgain = screen.getByLabelText(/Toggle Dyslexic Font/i);
 
       await act(async () => {
 

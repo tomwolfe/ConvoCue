@@ -236,7 +236,7 @@ const App = () => {
                   <button
                     onClick={() => setIsSubtleMode(!isSubtleMode)}
                     className={`btn-toggle-icon ${isSubtleMode ? 'active' : ''}`}
-                    title={isSubtleMode ? "Switch to Standard Mode" : "Switch to Subtle Mode"}
+                    title={isSubtleMode ? "Switch to Standard Mode" : "Reduce Visual Density"}
                     aria-label="Toggle Subtle Mode"
                     aria-pressed={isSubtleMode}
                   >
