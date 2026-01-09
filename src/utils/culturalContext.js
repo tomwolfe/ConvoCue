@@ -5,6 +5,13 @@
 import fundamentals from './culturalContext/cultural-fundamentals.json';
 import interaction from './culturalContext/cultural-interaction.json';
 import intelligence from './culturalContext/cultural-intelligence.json';
+import {
+  detectEnhancedCulturalContext,
+  generateCulturallyAppropriateResponses,
+  getCulturalCommunicationTips,
+  analyzeCulturalAppropriateness,
+  detectMultilingualElements
+} from './enhancedCulturalContext';
 
 /**
  * Validates the structure of the cultural database
@@ -14,7 +21,7 @@ import intelligence from './culturalContext/cultural-intelligence.json';
 const validateCulturalDatabase = (db) => {
   const requiredKeys = ['communicationStyles', 'greetings', 'naturalPhrasing', 'socialNuance'];
   const missingKeys = requiredKeys.filter(key => !db[key]);
-  
+
   if (missingKeys.length > 0) {
     console.error(`Cultural database validation failed. Missing keys: ${missingKeys.join(', ')}`);
     return false;
@@ -86,6 +93,21 @@ export const getCulturalContext = (situation, targetCulture = null) => {
  * @returns {object} Detected cultural elements
  */
 export const detectCulturalContext = (text, currentCulture = 'general') => {
+  // Use enhanced cultural detection first
+  const enhancedDetection = detectEnhancedCulturalContext(text, currentCulture);
+
+  // If enhanced detection finds a specific culture with high confidence, use it
+  if (enhancedDetection.confidence > 0.5 && enhancedDetection.primaryCulture !== 'general') {
+    return {
+      detectedCultures: [enhancedDetection.primaryCulture],
+      culturalElements: enhancedDetection.detectedCultures,
+      primaryCulture: enhancedDetection.primaryCulture,
+      needsCulturalAwareness: true,
+      confidence: enhancedDetection.confidence,
+      characteristics: enhancedDetection.characteristics
+    };
+  }
+
   const lowerText = text.toLowerCase();
   const detectedCultures = [];
   const culturalElements = [];
@@ -131,7 +153,8 @@ export const detectCulturalContext = (text, currentCulture = 'general') => {
     detectedCultures,
     culturalElements,
     primaryCulture: detectedCultures[0] || currentCulture,
-    needsCulturalAwareness: detectedCultures.length > 0 || culturalElements.length > 0
+    needsCulturalAwareness: detectedCultures.length > 0 || culturalElements.length > 0,
+    confidence: enhancedDetection.confidence
   };
 };
 
@@ -141,6 +164,12 @@ export const detectCulturalContext = (text, currentCulture = 'general') => {
  * @returns {string} A string containing specific behavioral tips
  */
 export const getCulturalPromptTips = (culture) => {
+  // Use enhanced cultural tips if available, otherwise fall back to basic ones
+  const enhancedTips = getCulturalCommunicationTips(culture);
+  if (enhancedTips) {
+    return enhancedTips;
+  }
+
   if (!culture || culture === 'general') return '';
 
   const style = getCommunicationStyleForCulture(culture);
@@ -510,4 +539,33 @@ export const getProfessionalMeetingSupport = (context) => {
   };
 
   return meetingSupport[context] || meetingSupport.business;
+};
+
+/**
+ * Generates culturally appropriate response suggestions based on detected context
+ * @param {string} inputText - Original input text
+ * @param {string} culturalContext - Detected cultural context
+ * @returns {Array} Culturally appropriate response suggestions
+ */
+export const generateCulturalResponseSuggestions = (inputText, culturalContext) => {
+  return generateCulturallyAppropriateResponses(inputText, culturalContext);
+};
+
+/**
+ * Analyzes text for cultural appropriateness
+ * @param {string} text - Text to analyze
+ * @param {string} targetCulture - Target culture for appropriateness
+ * @returns {Object} Appropriateness analysis
+ */
+export const analyzeTextCulturalAppropriateness = (text, targetCulture) => {
+  return analyzeCulturalAppropriateness(text, targetCulture);
+};
+
+/**
+ * Detects multilingual elements in text
+ * @param {string} text - Input text to analyze
+ * @returns {Array} Array of detected languages with confidence
+ */
+export const detectMultilingualElementsInText = (text) => {
+  return detectMultilingualElements(text);
 };

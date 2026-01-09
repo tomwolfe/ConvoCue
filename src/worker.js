@@ -28,14 +28,26 @@ import {
     analyzeMeetingCoaching
 } from './utils/professionalCoaching';
 import { estimateConversationSize, logPerformanceMetric, monitorAndOptimizeHistory } from './utils/performanceMonitoring';
+import {
+    assessDeviceCapabilities,
+    getOptimalModelConfig,
+    checkMemoryAdequacy,
+    createProgressiveLoadingStrategy
+} from './utils/performanceOptimizer';
+import {
+    provideContextualLanguageFeedback,
+    analyzeLanguageLearningText,
+    generateLanguageLearningResponse
+} from './utils/languageLearning';
 
 // Configuration for on-device execution
+const deviceCapabilities = assessDeviceCapabilities();
 
 env.allowLocalModels = false;
 env.useBrowserCache = true;
 
 // Optimize threads based on hardware
-env.backends.onnx.wasm.numThreads = AppConfig.worker.numThreads;
+env.backends.onnx.wasm.numThreads = deviceCapabilities.hardwareConcurrency || AppConfig.worker.numThreads;
 env.backends.onnx.wasm.simd = AppConfig.worker.simd;
 env.backends.onnx.wasm.proxy = false;
 
@@ -59,6 +71,9 @@ class MLPipeline {
 
     async loadSTT(progress_callback) {
         try {
+            // Get optimized STT configuration based on device capabilities
+            const optimizedSTTConfig = getOptimalModelConfig('stt', deviceCapabilities);
+
             // Check memory before loading STT model
             const mem = checkMemoryUsage();
             if (mem && mem.usagePercent > AppConfig.system.memory.modelUnloadThreshold) {
@@ -75,11 +90,14 @@ class MLPipeline {
                 // Dispose any existing LLM to free up memory before loading STT
                 await MLPipeline.disposeLLM();
 
-                MLPipeline.stt = await pipeline('automatic-speech-recognition', AppConfig.models.stt.name, {
+                MLPipeline.stt = await pipeline('automatic-speech-recognition', optimizedSTTConfig.name, {
                     progress_callback,
-                    device: AppConfig.models.stt.device,
-                    dtype: AppConfig.models.stt.dtype,
+                    device: optimizedSTTConfig.device,
+                    dtype: optimizedSTTConfig.dtype,
                 });
+
+                // Store the configuration used for this model
+                MLPipeline.sttConfig = optimizedSTTConfig;
             }
             MLPipeline.lastUsed = Date.now();
             this.resetInactivityTimer();
@@ -95,6 +113,17 @@ class MLPipeline {
 
     async loadLLM(progress_callback) {
         try {
+            // Get optimized LLM configuration based on device capabilities
+            const optimizedLLMConfig = getOptimalModelConfig('llm', deviceCapabilities);
+
+            // Check memory adequacy for both models
+            const memoryCheck = checkMemoryAdequacy(
+                MLPipeline.sttConfig || getOptimalModelConfig('stt', deviceCapabilities),
+                optimizedLLMConfig
+            );
+
+            console.log(`[Worker] Memory check: ${memoryCheck.totalMemoryMB}MB total, ${memoryCheck.availableMemoryMB}MB available, Adequate: ${memoryCheck.isAdequate}`);
+
             // Memory Guard: Don't load if memory is already very high
             const mem = checkMemoryUsage();
             if (mem && mem.usagePercent > AppConfig.system.memory.modelUnloadThreshold) {
@@ -109,8 +138,8 @@ class MLPipeline {
 
             if (!MLPipeline.llm) {
                 // Dispose STT temporarily if needed to free up memory for LLM
-                if (MLPipeline.stt && AppConfig.isMobile) {
-                    console.log("Temporarily disposing STT to make room for LLM on mobile");
+                if (MLPipeline.stt && deviceCapabilities.capabilities.isLowSpec) {
+                    console.log("Temporarily disposing STT to make room for LLM on low-spec device");
                     try {
                         if (MLPipeline.stt.processor && MLPipeline.stt.processor.session) {
                             await MLPipeline.stt.processor.session.release();
@@ -126,11 +155,14 @@ class MLPipeline {
                 // Signal that we are starting to load heavy model
                 self.postMessage({ type: 'status', status: 'Loading Social Brain...' });
 
-                MLPipeline.llm = await pipeline('text-generation', AppConfig.models.llm.name, {
+                MLPipeline.llm = await pipeline('text-generation', optimizedLLMConfig.name, {
                     progress_callback,
-                    device: AppConfig.models.llm.device,
-                    dtype: AppConfig.models.llm.dtype,
+                    device: optimizedLLMConfig.device,
+                    dtype: optimizedLLMConfig.dtype,
                 });
+
+                // Store the configuration used for this model
+                MLPipeline.llmConfig = optimizedLLMConfig;
             }
             MLPipeline.lastUsed = Date.now();
             this.resetInactivityTimer();
@@ -362,9 +394,33 @@ self.onmessage = async (event) => {
 
         if (type === 'load') {
             try {
-                await pipelineManager.loadSTT((p) => throttledProgress(p, 'Speech Engine', taskId));
-                await pipelineManager.loadLLM((p) => throttledProgress(p, 'Social Brain', taskId));
-                self.postMessage({ type: 'ready', taskId });
+                // Create progressive loading strategy based on device capabilities
+                const loadingStrategy = createProgressiveLoadingStrategy(deviceCapabilities);
+
+                console.log(`[Worker] Using ${loadingStrategy.initialLoad.length} initial models for ${deviceCapabilities.performanceTier} performance tier`);
+
+                // Load initial models based on strategy
+                if (loadingStrategy.initialLoad.includes('stt')) {
+                    await pipelineManager.loadSTT((p) => throttledProgress(p, 'Speech Engine', taskId));
+                }
+
+                if (loadingStrategy.initialLoad.includes('llm')) {
+                    await pipelineManager.loadLLM((p) => throttledProgress(p, 'Social Brain', taskId));
+                }
+
+                // For low-spec devices, only load STT initially and defer LLM loading
+                if (loadingStrategy.initialLoad.includes('minimal_stt')) {
+                    await pipelineManager.loadSTT((p) => throttledProgress(p, 'Speech Engine', taskId));
+                    // LLM will be loaded later when needed
+                    self.postMessage({
+                        type: 'ready',
+                        taskId,
+                        status: 'Minimal mode: STT loaded, LLM will load on demand',
+                        isLowSpec: true
+                    });
+                } else {
+                    self.postMessage({ type: 'ready', taskId });
+                }
             } catch (loadError) {
                 console.error("Model loading failed:", loadError);
                 self.postMessage({
@@ -467,7 +523,18 @@ self.onmessage = async (event) => {
         if (type === 'llm') {
             try {
                 const startTime = performance.now();
-                if (!MLPipeline.llm) await pipelineManager.loadLLM((p) => throttledProgress(p, 'Social Brain', taskId));
+
+                // Check if LLM is loaded, and if not, load it (especially important for deferred loading)
+                if (!MLPipeline.llm) {
+                    // For low-spec devices, we may need to temporarily unload STT to make room
+                    if (MLPipeline.stt && deviceCapabilities.capabilities.isLowSpec) {
+                        console.log("Unloading STT temporarily to make room for LLM on low-spec device");
+                        await MLPipeline.disposeSTT();
+                    }
+
+                    await pipelineManager.loadLLM((p) => throttledProgress(p, 'Social Brain', taskId));
+                }
+
                 if (!MLPipeline.llm) throw new Error("Social Brain failed to load or was deferred due to memory.");
 
                 MLPipeline.lastUsed = Date.now();
@@ -477,12 +544,13 @@ self.onmessage = async (event) => {
                 const sanitizedText = _text.trim().substring(0, AppConfig.system.maxTranscriptLength);
                 const emotionData = analyzeEmotion(sanitizedText);
 
-                // Dynamic Resource Allocation based on Performance Mode
+                // Dynamic Resource Allocation based on Performance Mode and Device Capabilities
+                const baseMaxTokens = MLPipeline.llmConfig ? MLPipeline.llmConfig.max_new_tokens : AppConfig.models.llm.max_new_tokens;
                 const maxTokens = performanceStats.mode === 'minimal'
-                    ? Math.min(32, AppConfig.models.llm.max_new_tokens)
+                    ? Math.min(32, baseMaxTokens)
                     : performanceStats.mode === 'balanced'
-                        ? Math.min(64, AppConfig.models.llm.max_new_tokens)
-                        : AppConfig.models.llm.max_new_tokens;
+                        ? Math.min(64, baseMaxTokens)
+                        : baseMaxTokens;
 
                 // Deep Coaching Analysis Decision
                 // We prioritize battery life and responsiveness over analysis depth in minimal mode.
@@ -516,6 +584,12 @@ self.onmessage = async (event) => {
                     meetingInsights = (persona === 'meeting')
                         ? analyzeMeetingCoaching(sanitizedText, history, emotionData, insightCategoryScores)
                         : null;
+
+                    // Add language learning insights for language learning persona
+                    let languageLearningInsights = null;
+                    if (persona === 'languagelearning') {
+                        languageLearningInsights = provideContextualLanguageFeedback(sanitizedText, effectiveCulturalContext || 'general', history);
+                    }
 
                     coachingAnalysisTime = performance.now() - coachingStartTime;
                 }
@@ -560,7 +634,23 @@ self.onmessage = async (event) => {
 
                     // Add Persona-specific Contextual Tips
                     if (persona === 'languagelearning') {
+                        // Perform advanced language learning analysis
+                        const languageAnalysis = analyzeLanguageLearningText(sanitizedText, effectiveCulturalContext || 'general');
+
+                        // Add language learning prompt tips
                         contextInstruction += getLanguageLearningPromptTips(effectiveCulturalContext || 'english');
+
+                        // Include specific grammar corrections if needed
+                        if (languageAnalysis.grammarErrors.length > 0) {
+                            const grammarTips = languageAnalysis.grammarErrors.map(error => error.explanation).join('; ');
+                            contextInstruction += `Grammar correction: ${grammarTips}. `;
+                        }
+
+                        // Include vocabulary suggestions
+                        if (languageAnalysis.vocabularySuggestions.length > 0) {
+                            const vocabTips = languageAnalysis.vocabularySuggestions.map(suggestion => `Instead of "${suggestion.original}", consider "${suggestion.alternatives[0]}".`).join(' ');
+                            contextInstruction += `Vocabulary tip: ${vocabTips} `;
+                        }
                     } else if (persona === 'meeting' || persona === 'professional') {
                         contextInstruction += getProfessionalPromptTips(persona === 'meeting' ? 'business' : 'academic');
                     }
@@ -704,7 +794,8 @@ self.onmessage = async (event) => {
                     relationship: validateCoachingInsights(relationshipInsights),
                     anxiety: validateCoachingInsights(anxietyInsights),
                     professional: validateCoachingInsights(professionalInsights),
-                    meeting: validateCoachingInsights(meetingInsights)
+                    meeting: validateCoachingInsights(meetingInsights),
+                    language: validateCoachingInsights(languageLearningInsights)
                   },
                   metadata: {
                     performance: {

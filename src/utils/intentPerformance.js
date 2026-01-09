@@ -54,12 +54,12 @@ class IntentPerformanceTracker {
    * @returns {Promise} Result of the detection function
    */
   async measureIntentDetection(detectionFn, ...args) {
-    const startTime = performance.now();
+    const startTime = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
     try {
       const result = await detectionFn(...args);
-      const endTime = performance.now();
+      const endTime = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
       const executionTime = endTime - startTime;
-      
+
       // Determine which metric to record based on the function name
       let operation = 'intentDetectionTime';
       if (detectionFn.name.includes('HighPerformance')) {
@@ -69,21 +69,21 @@ class IntentPerformanceTracker {
       } else if (detectionFn.name.includes('Multiple')) {
         operation = 'multipleIntentDetectionTime';
       }
-      
+
       this.recordIntentDetectionTime(operation, executionTime);
-      
+
       // Track detection counts
       this.detectionCounts.total++;
       if (result && result.intent) {
-        this.detectionCounts.byIntent[result.intent] = 
+        this.detectionCounts.byIntent[result.intent] =
           (this.detectionCounts.byIntent[result.intent] || 0) + 1;
       }
-      
+
       return result;
     } catch (error) {
-      const endTime = performance.now();
+      const endTime = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
       const executionTime = endTime - startTime;
-      
+
       // Record error in performance metrics
       this.recordIntentDetectionTime('intentDetectionTime', executionTime);
       throw error;
@@ -97,18 +97,18 @@ class IntentPerformanceTracker {
    * @returns {any} Result of the tokenization function
    */
   measureTokenization(tokenizeFn, ...args) {
-    const startTime = performance.now();
+    const startTime = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
     try {
       const result = tokenizeFn(...args);
-      const endTime = performance.now();
+      const endTime = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
       const executionTime = endTime - startTime;
-      
+
       this.recordIntentDetectionTime('tokenizationTime', executionTime);
       return result;
     } catch (error) {
-      const endTime = performance.now();
+      const endTime = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
       const executionTime = endTime - startTime;
-      
+
       this.recordIntentDetectionTime('tokenizationTime', executionTime);
       throw error;
     }
@@ -121,18 +121,18 @@ class IntentPerformanceTracker {
    * @returns {any} Result of the similarity function
    */
   measureSimilarityCalculation(similarityFn, ...args) {
-    const startTime = performance.now();
+    const startTime = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
     try {
       const result = similarityFn(...args);
-      const endTime = performance.now();
+      const endTime = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
       const executionTime = endTime - startTime;
-      
+
       this.recordIntentDetectionTime('similarityCalculationTime', executionTime);
       return result;
     } catch (error) {
-      const endTime = performance.now();
+      const endTime = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
       const executionTime = endTime - startTime;
-      
+
       this.recordIntentDetectionTime('similarityCalculationTime', executionTime);
       throw error;
     }
@@ -249,7 +249,7 @@ class IntentPerformanceTracker {
     };
 
     for (const input of testInputs) {
-      const startTime = performance.now();
+      const startTime = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
       try {
         const detectionResult = await this.measureIntentDetection(
           async () => {
@@ -258,13 +258,13 @@ class IntentPerformanceTracker {
             return detectIntentHighPerformance(input);
           }
         );
-        
-        const endTime = performance.now();
+
+        const endTime = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
         const executionTime = endTime - startTime;
-        
+
         results.totalTime += executionTime;
         results.successfulDetections++;
-        
+
         results.detailedResults.push({
           input: input,
           result: detectionResult,
@@ -272,12 +272,12 @@ class IntentPerformanceTracker {
           success: true
         });
       } catch (error) {
-        const endTime = performance.now();
+        const endTime = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
         const executionTime = endTime - startTime;
-        
+
         results.totalTime += executionTime;
         results.failedDetections++;
-        
+
         results.detailedResults.push({
           input: input,
           error: error.message,

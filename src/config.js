@@ -90,10 +90,17 @@ export const AppConfig = {
   // ML Worker configurations
   worker: {
     // Dynamically set threads based on hardware, but cap for mobile to prevent memory pressure
-    numThreads: isMobile 
+    numThreads: isMobile
       ? Math.min(2, (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 1)
       : Math.min(4, (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 2),
     simd: true,
+    // Performance optimization settings
+    optimization: {
+      enableDynamicQuantization: true,
+      enableProgressiveLoading: true,
+      enableMemoryMonitoring: true,
+      enableAdaptiveThreading: true
+    }
   },
 
   // System configurations
@@ -179,7 +186,13 @@ export const AppConfig = {
         },
         languagelearning: {
           intents: ['clarity', 'learning'],
-          keywords: ['grammar', 'vocabulary', 'phrase', 'speak', 'say', 'correct', 'pronounce', 'word', 'fluent', 'practice', 'expression', 'translate'],
+          keywords: [
+            'grammar', 'vocabulary', 'phrase', 'speak', 'say', 'correct', 'pronounce', 'word',
+            'fluent', 'practice', 'expression', 'translate', 'sentence', 'verb', 'noun',
+            'adjective', 'pronunciation', 'accent', 'fluency', 'idiom', 'slang', 'colloquial',
+            'syntax', 'morphology', 'phonetics', 'articulation', 'diction', 'inflection',
+            'conjugation', 'declension', 'syntax', 'semantics', 'pragmatics', 'discourse'
+          ],
           negativeKeywords: ['business contract', 'legal agreement', 'strategic partnership', 'quarterly results'],
           weight: 1.1
         },

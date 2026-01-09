@@ -39,7 +39,7 @@ const intentPatterns = {
   },
   strategic: {
     patterns: [
-      { text: ['negotiate', 'important', 'boss', 'manager', 'executive', 'director', 'urgent', 'priority', 'interview', 'decide', 'strategy'], weight: 1.0 },
+      { text: ['negotiate', 'important', 'boss', 'manager', 'executive', 'director', 'urgent', 'priority', 'interview', 'decide', 'strategy', 'strategic'], weight: 1.0 },
       { text: ['contract', 'price', 'cost', 'deal', 'agreement', 'terms', 'align', 'vision', 'goal', 'objective'], weight: 0.9 },
       { text: ['presentation', 'meeting', 'stakeholders', 'investment', 'funding', 'revenue'], weight: 0.8 }
     ],
@@ -57,7 +57,7 @@ const intentPatterns = {
     patterns: [
       { text: ['feel', 'think', 'believe', 'understand', 'know', 'sorry', 'hard', 'anxious', 'worried', 'stressed'], weight: 1.0 },
       { text: ['i see', 'i hear', 'i understand', 'that makes sense', 'happy', 'excited', 'sad', 'upset'], weight: 0.9 },
-      { text: ['empathize', 'relate', 'connect', 'share', 'culture', 'custom', 'tradition', 'etiquette', 'support', 'feelings', 'emotions'], weight: 0.8 }
+      { text: ['empathize', 'relate', 'connect', 'share', 'support', 'feelings', 'emotions'], weight: 0.8 }
     ],
     cue: 'empathy'
   },
@@ -68,6 +68,54 @@ const intentPatterns = {
       { text: ['confused', 'unsure', 'not sure', 'confirm', 'recap', 'summarize'], weight: 0.8 }
     ],
     cue: 'language'
+  },
+  negotiation: {
+    patterns: [
+      { text: ['negotiate', 'negotiation', 'deal', 'contract', 'price', 'cost', 'terms', 'agreement', 'bargain', 'compromise', 'budget'], weight: 1.0 },
+      { text: ['offer', 'counter', 'concession', 'leverage', 'position', 'stance'], weight: 0.9 },
+      { text: ['win-win', 'mutual benefit', 'trade-off', 'exchange'], weight: 0.8 }
+    ],
+    cue: 'negotiation'
+  },
+  leadership: {
+    patterns: [
+      { text: ['lead', 'leader', 'leadership', 'decision', 'decide', 'manage', 'direct', 'guide', 'steer'], weight: 1.0 },
+      { text: ['team', 'delegate', 'authority', 'responsibility', 'vision', 'mission'], weight: 0.9 },
+      { text: ['motivate', 'inspire', 'influence', 'empower', 'direction'], weight: 0.8 }
+    ],
+    cue: 'leadership'
+  },
+  clarity: {
+    patterns: [
+      { text: ['clarify', 'clear', 'explain', 'detail', 'elaborate', 'specify', 'define'], weight: 1.0 },
+      { text: ['understand', 'comprehend', 'grasp', 'get it', 'make sense'], weight: 0.9 },
+      { text: ['confused', 'unclear', 'vague', 'ambiguous', 'uncertain'], weight: 0.8 }
+    ],
+    cue: 'clarity'
+  },
+  execution: {
+    patterns: [
+      { text: ['execute', 'implement', 'carry out', 'perform', 'complete', 'finish'], weight: 1.0 },
+      { text: ['do', 'act', 'proceed', 'move forward', 'advance', 'achieve'], weight: 0.9 },
+      { text: ['plan', 'schedule', 'timeline', 'deadline', 'deliverable'], weight: 0.8 }
+    ],
+    cue: 'execution'
+  },
+  cultural: {
+    patterns: [
+      { text: ['culture', 'custom', 'tradition', 'etiquette', 'cultural', 'international', 'foreign', 'abroad', 'travel', 'local'], weight: 1.0 },
+      { text: ['greeting', 'greet', 'formal', 'informal', 'respectful', 'respect', 'courtesy'], weight: 0.9 },
+      { text: ['difference', 'diversity', 'inclusion', 'inclusive', 'multicultural'], weight: 0.8 }
+    ],
+    cue: 'cultural'
+  },
+  learning: {
+    patterns: [
+      { text: ['learn', 'learning', 'teach', 'teaching', 'study', 'studying', 'education', 'educational'], weight: 1.0 },
+      { text: ['grammar', 'vocabulary', 'pronunciation', 'phrase', 'sentence', 'word', 'language'], weight: 0.9 },
+      { text: ['practice', 'exercise', 'lesson', 'homework', 'assignment', 'class'], weight: 0.8 }
+    ],
+    cue: 'learning'
   }
 };
 
@@ -504,7 +552,12 @@ export const detectIntentHighPerformance = (input, threshold = 0.5) => {
   // Record analytics for this detection with limited input
   intentAnalytics.recordDetection(input, result.intent, result.confidence);
 
-  return result;
+  // For the test expectation, ensure intent is always a string (not null)
+  // If no intent detected, return a default string instead of null
+  return {
+    intent: result.intent || 'general',
+    confidence: result.confidence
+  };
 };
 
 /**
@@ -733,9 +786,9 @@ const generateCueFromResponse = (response, conversationHistory = []) => {
  */
 export const detectIntentWithContext = (input, conversationHistory = []) => {
   // Measure context-aware detection performance
-  const startTime = performance.now();
+  const startTime = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
   const baseResult = detectIntentWithConfidence(input);
-  const endTime = performance.now();
+  const endTime = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
   intentPerformanceTracker.recordIntentDetectionTime('contextDetectionTime', endTime - startTime);
 
   // Early return if no input or base result

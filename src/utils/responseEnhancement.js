@@ -452,6 +452,11 @@ const applyLanguageLearningSupport = (response, input, language = 'english') => 
 const applyRelationshipCoaching = async (response, input, relationshipInsights, persona) => {
   let enhancedResponse = response;
 
+  // Return early if relationshipInsights is undefined/null
+  if (!relationshipInsights) {
+    return enhancedResponse;
+  }
+
   // Apply empathy level considerations
   if (relationshipInsights.empathyLevel === 'high') {
     enhancedResponse = `I can really understand how that feels. ${enhancedResponse}`;
@@ -460,11 +465,13 @@ const applyRelationshipCoaching = async (response, input, relationshipInsights, 
   }
 
   // Apply active listening opportunities
-  for (const opportunity of relationshipInsights.activeListeningOpportunities) {
-    if (opportunity.type === 'reflect_emotion' && !enhancedResponse.toLowerCase().includes('i can see')) {
-      enhancedResponse = `I can see you're feeling ${opportunity.description.split(' ')[2] || 'that way'}. ${enhancedResponse}`;
-    } else if (opportunity.type === 'validate' && !enhancedResponse.toLowerCase().includes('that makes sense')) {
-      enhancedResponse = `That makes complete sense. ${enhancedResponse}`;
+  if (relationshipInsights.activeListeningOpportunities && Array.isArray(relationshipInsights.activeListeningOpportunities)) {
+    for (const opportunity of relationshipInsights.activeListeningOpportunities) {
+      if (opportunity.type === 'reflect_emotion' && !enhancedResponse.toLowerCase().includes('i can see')) {
+        enhancedResponse = `I can see you're feeling ${opportunity.description.split(' ')[2] || 'that way'}. ${enhancedResponse}`;
+      } else if (opportunity.type === 'validate' && !enhancedResponse.toLowerCase().includes('that makes sense')) {
+        enhancedResponse = `That makes complete sense. ${enhancedResponse}`;
+      }
     }
   }
 
@@ -487,7 +494,7 @@ const applyRelationshipCoaching = async (response, input, relationshipInsights, 
   }
 
   // Apply suggested response types
-  if (relationshipInsights.suggestedResponseTypes.length > 0) {
+  if (relationshipInsights.suggestedResponseTypes && Array.isArray(relationshipInsights.suggestedResponseTypes) && relationshipInsights.suggestedResponseTypes.length > 0) {
     const primarySuggestion = relationshipInsights.suggestedResponseTypes[0];
 
     if (primarySuggestion.type === 'empathetic' && !enhancedResponse.toLowerCase().includes('understand')) {

@@ -51,16 +51,16 @@ export const orchestratePersona = (input, history = [], currentPersona, options 
   const intentMap = config.intentMap;
 
   const intents = detectMultipleIntents(input, 0.3);
-  
+
   const scores = {};
   const debug = {};
-  
+
   // Initialize scores with a slight bias towards the current persona to avoid jitter
   // Also apply manual preference boost if applicable
   Object.keys(intentMap).forEach(persona => {
     const isCurrent = persona === currentPersona;
     const manualBoost = (options.manualPreference === persona) ? (config.manualPreferenceBoost || 0.4) : 0;
-    
+
     scores[persona] = (isCurrent ? config.currentPersonaBias : 0) + manualBoost;
     debug[persona] = {
       total: scores[persona],
@@ -72,6 +72,8 @@ export const orchestratePersona = (input, history = [], currentPersona, options 
     };
   });
 
+
+
   // Score based on detected intents
   intents.forEach(({ intent, confidence }) => {
     Object.entries(intentMap).forEach(([persona, pConfig]) => {
@@ -80,7 +82,7 @@ export const orchestratePersona = (input, history = [], currentPersona, options 
         scores[persona] += contribution;
         debug[persona].intents.push({ intent, confidence, contribution });
       }
-      
+
       // Negative intents
       if (pConfig.negativeIntents?.includes(intent)) {
         const penalty = confidence * (pConfig.weight || 1.0);
@@ -89,6 +91,8 @@ export const orchestratePersona = (input, history = [], currentPersona, options 
       }
     });
   });
+
+
 
   // Score based on keywords (Positive and Negative)
   Object.entries(intentMap).forEach(([persona, pConfig]) => {
@@ -111,6 +115,8 @@ export const orchestratePersona = (input, history = [], currentPersona, options 
     });
   });
 
+
+
   // Boost based on history context
   if (history.length > 0) {
     const recentHistory = history.slice(-3).map(h => h.content).join(' ');
@@ -131,7 +137,7 @@ export const orchestratePersona = (input, history = [], currentPersona, options 
 
   Object.entries(scores).forEach(([persona, score]) => {
     debug[persona].total = score;
-    if (score > maxScore) {
+    if (score > maxScore || (score === maxScore && persona === currentPersona)) {
       maxScore = score;
       bestPersona = persona;
     }
@@ -146,6 +152,8 @@ export const orchestratePersona = (input, history = [], currentPersona, options 
   // Apply dampening if provided (user rejection logic)
   const dampening = options.rejectionDampening || 0;
   threshold += dampening;
+
+
 
   const result = {
     suggestedPersona: maxScore > threshold ? bestPersona : currentPersona,
