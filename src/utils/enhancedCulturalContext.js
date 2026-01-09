@@ -7,7 +7,8 @@
  * not definitive characterizations of individuals. Always respect individual preferences over cultural assumptions.
  */
 
-import { mergeCulturalContext, provideCulturalFeedback } from './userCulturalProfile.js';
+import { mergeCulturalContext, provideCulturalFeedback, isCulturalOptOut } from './userCulturalProfile.js';
+import { getCulturalConfidenceThreshold } from '../config/conservativeDefaults.js';
 
 // Cultural communication patterns by region - NOTE: These are generalizations for initial detection only
 // IMPORTANT: These patterns should not be treated as definitive for any individual
@@ -318,6 +319,7 @@ export const detectEnhancedCulturalContext = (text, currentContext = 'general') 
         culture: cultureKey,
         score,
         confidence,
+        confidenceRange: [Math.max(0, confidence - 0.15), Math.min(1, confidence + 0.15)], // Add confidence range
         dimensions: cultureData.dimensions || {},
         characteristics: cultureData.characteristics || {}
       });
@@ -340,6 +342,7 @@ export const detectEnhancedCulturalContext = (text, currentContext = 'general') 
   const baseResult = {
     primaryCulture,
     confidence,
+    confidenceRange: detectedCultures.length > 0 ? detectedCultures[0].confidenceRange : [0, 0],
     detectedCultures,
     secondaryCultures,
     characteristics: CULTURAL_PATTERNS[primaryCulture]?.characteristics || null,
@@ -347,12 +350,16 @@ export const detectEnhancedCulturalContext = (text, currentContext = 'general') 
     isMixedCulturalInfluence: secondaryCultures.length > 0,
     isGeneralGuidance: true, // Flag indicating this is general guidance, not personalized
     isHighAmbiguity: confidence < 0.3, // Flag for low-confidence detections
+    isLowConfidence: confidence < 0.4, // Flag for low confidence suggestions
     biasRiskLevel: confidence > 0.7 ? 'medium' : 'high', // Higher confidence in generalizations poses higher bias risk
-    disclaimer: "This is general cultural guidance based on detected patterns. Individual preferences may vary significantly.",
-    warning: "Cultural patterns are broad generalizations. Always verify with the individual's actual preferences.",
+    disclaimer: "This is general cultural guidance based on detected patterns. Individual preferences may vary significantly. These are probabilistic suggestions, not definitive characterizations.",
+    warning: "Cultural patterns are broad generalizations. Always verify with the individual's actual preferences. Individual identity is complex and may not align with regional stereotypes.",
     biasAlert: confidence > 0.8 ? "High confidence detected. Be cautious of over-relying on cultural generalizations." : null,
     culturalComplexityNote: secondaryCultures.length > 0 ?
-      `Multiple cultural influences detected: ${[primaryCulture, ...secondaryCultures.map(c => c.culture)].join(', ')}. Individual identity may reflect multiple cultural backgrounds.` : null
+      `Multiple cultural influences detected: ${[primaryCulture, ...secondaryCultures.map(c => c.culture)].join(', ')}. Individual identity may reflect multiple cultural backgrounds.` : null,
+    individualVariationNote: "Remember that cultural patterns represent group tendencies, not individual traits. Personal preferences should take precedence over cultural assumptions.",
+    userOverrideRecommendation: "Consider customizing your cultural preferences in settings to receive more personalized guidance.",
+    shouldApplyCulturalGuidance: confidence > getCulturalConfidenceThreshold() && !isCulturalOptOut() // Only apply cultural guidance if confidence is sufficient and user hasn't opted out
   };
 
   // Merge with user profile if available

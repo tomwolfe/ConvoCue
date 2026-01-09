@@ -583,8 +583,8 @@ self.onmessage = async (event) => {
                 // Detect cultural context from the input text (moved earlier for use in deep analysis)
                 const detectedCulturalContext = detectCulturalContext(sanitizedText, culturalContext);
 
-                // Use detected cultural context if more specific than current context
-                const effectiveCulturalContext = detectedCulturalContext.primaryCulture !== 'general'
+                // Use detected cultural context if more specific than current context AND if cultural guidance should be applied
+                const effectiveCulturalContext = detectedCulturalContext.shouldApplyCulturalGuidance && detectedCulturalContext.primaryCulture !== 'general'
                     ? detectedCulturalContext.primaryCulture
                     : culturalContext;
 

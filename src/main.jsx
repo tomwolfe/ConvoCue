@@ -1,6 +1,7 @@
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
+import { initializeEthicalFeatures } from './init/ethicalFeatures.js'
 
 // Optimize ONNX Runtime for memory-constrained devices
 // These settings affect the main thread (where VAD runs)
@@ -21,6 +22,9 @@ ort.env.wasm.wasmPaths = {
 
 // Add error handling for WASM initialization
 ort.env.wasm.throwOnOnnxFileError = true;
+
+// Initialize ethical features
+initializeEthicalFeatures();
 
 const rootElement = document.getElementById('root');
 

@@ -54,31 +54,57 @@ export const logCulturalSuggestion = (suggestionData) => {
 };
 
 // Log when a user overrides a cultural suggestion
-export const logCulturalOverride = (suggestionData, reason = 'user_override') => {
+export const logCulturalOverride = (suggestionData, reason = 'user_override', overrideType = 'preference') => {
   if (typeof window !== 'undefined' && window.localStorage) {
     try {
       const monitoringData = JSON.parse(window.localStorage.getItem(BIAS_MONITORING_KEY) || '{}');
-      
+
       // Update statistics
       monitoringData.overriddenSuggestions = (monitoringData.overriddenSuggestions || 0) + 1;
-      
+
+      // Categorize override type to distinguish between accurate but unwanted vs biased suggestions
+      const overrideCategory = overrideType === 'bias' ? 'biased_suggestion_rejected' :
+                              overrideType === 'accuracy' ? 'accurate_suggestion_rejected' : 'preference_based_rejection';
+
+      // Update categorized counts
+      monitoringData.categorizedOverrides = monitoringData.categorizedOverrides || {
+        preference_based: 0,
+        accurate_rejected: 0,
+        bias_rejected: 0
+      };
+
+      switch(overrideType) {
+        case 'preference':
+          monitoringData.categorizedOverrides.preference_based += 1;
+          break;
+        case 'accuracy':
+          monitoringData.categorizedOverrides.accurate_rejected += 1;
+          break;
+        case 'bias':
+          monitoringData.categorizedOverrides.bias_rejected += 1;
+          break;
+      }
+
       // Log the incident for review
       monitoringData.biasIncidents = monitoringData.biasIncidents || [];
       monitoringData.biasIncidents.push({
         timestamp: Date.now(),
         type: 'cultural_override',
         reason,
+        overrideType,
+        overrideCategory,
         suggestionData,
-        culture: suggestionData.primaryCulture || 'unknown'
+        culture: suggestionData.primaryCulture || 'unknown',
+        confidence: suggestionData.confidence || 0
       });
-      
+
       // Limit incidents to last 1000 entries
       if (monitoringData.biasIncidents.length > 1000) {
         monitoringData.biasIncidents = monitoringData.biasIncidents.slice(-1000);
       }
-      
+
       monitoringData.lastUpdated = Date.now();
-      
+
       window.localStorage.setItem(BIAS_MONITORING_KEY, JSON.stringify(monitoringData));
     } catch (error) {
       console.warn('Could not log cultural override to bias monitoring:', error);
@@ -209,12 +235,19 @@ export const getBiasMonitoringDashboard = () => {
     try {
       const monitoringData = JSON.parse(window.localStorage.getItem(BIAS_MONITORING_KEY) || '{}');
       const alerts = JSON.parse(window.localStorage.getItem(BIAS_ALERTS_KEY) || '[]');
-      
+
       const totalSuggestions = monitoringData.totalCulturalSuggestions || 0;
       const overriddenSuggestions = monitoringData.overriddenSuggestions || 0;
       const overrideRate = totalSuggestions > 0 ? (overriddenSuggestions / totalSuggestions) * 100 : 0;
       const feedbackCount = monitoringData.userFeedbackCount || 0;
-      
+
+      // Get categorized override data
+      const categorizedOverrides = monitoringData.categorizedOverrides || {
+        preference_based: 0,
+        accurate_rejected: 0,
+        bias_rejected: 0
+      };
+
       // Get top cultural patterns
       const topCultures = Object.entries(monitoringData.culturalPatternUsage || {})
         .sort((a, b) => b[1] - a[1])
@@ -224,17 +257,18 @@ export const getBiasMonitoringDashboard = () => {
           count,
           percentage: totalSuggestions > 0 ? ((count / totalSuggestions) * 100).toFixed(1) : 0
         }));
-      
+
       // Get recent incidents
       const recentIncidents = monitoringData.biasIncidents?.slice(-10) || [];
-      
+
       return {
         summary: {
           totalCulturalSuggestions: totalSuggestions,
           overriddenSuggestions,
           overrideRate: parseFloat(overrideRate.toFixed(2)),
           userFeedbackCount: feedbackCount,
-          lastUpdated: monitoringData.lastUpdated
+          lastUpdated: monitoringData.lastUpdated,
+          categorizedOverrides
         },
         topCulturalPatterns: topCultures,
         recentIncidents,
@@ -242,13 +276,21 @@ export const getBiasMonitoringDashboard = () => {
         biasRiskMetrics: {
           highOverrideRate: overrideRate > 30,
           patternOverrepresentation: topCultures.length > 0 && parseFloat(topCultures[0].percentage) > 60,
-          negativeFeedbackTrend: recentIncidents.filter(i => i.type === 'user_feedback' && i.isAccurate === false).length > 5
+          negativeFeedbackTrend: recentIncidents.filter(i => i.type === 'user_feedback' && i.isAccurate === false).length > 5,
+          biasRejectionRate: totalSuggestions > 0 ? (categorizedOverrides.bias_rejected / totalSuggestions) * 100 : 0,
+          accurateRejectionRate: totalSuggestions > 0 ? (categorizedOverrides.accurate_rejected / totalSuggestions) * 100 : 0
         }
       };
     } catch (error) {
       console.warn('Could not retrieve bias monitoring dashboard:', error);
       return {
-        summary: { totalCulturalSuggestions: 0, overriddenSuggestions: 0, overrideRate: 0, userFeedbackCount: 0 },
+        summary: {
+          totalCulturalSuggestions: 0,
+          overriddenSuggestions: 0,
+          overrideRate: 0,
+          userFeedbackCount: 0,
+          categorizedOverrides: { preference_based: 0, accurate_rejected: 0, bias_rejected: 0 }
+        },
         topCulturalPatterns: [],
         recentIncidents: [],
         alerts: [],
@@ -256,9 +298,15 @@ export const getBiasMonitoringDashboard = () => {
       };
     }
   }
-  
+
   return {
-    summary: { totalCulturalSuggestions: 0, overriddenSuggestions: 0, overrideRate: 0, userFeedbackCount: 0 },
+    summary: {
+      totalCulturalSuggestions: 0,
+      overriddenSuggestions: 0,
+      overrideRate: 0,
+      userFeedbackCount: 0,
+      categorizedOverrides: { preference_based: 0, accurate_rejected: 0, bias_rejected: 0 }
+    },
     topCulturalPatterns: [],
     recentIncidents: [],
     alerts: [],
