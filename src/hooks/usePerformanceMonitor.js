@@ -63,6 +63,11 @@ export const usePerformanceMonitor = (workerRef) => {
           batteryInstance.removeEventListener('chargingchange', batteryInstance._handleBatteryChange);
         }
       };
+    } else if (AppConfig.isMobile) {
+      // Fallback for mobile devices without Battery API
+      // Use a more conservative 'balanced' mode by default to save power
+      console.log('[Performance] Battery API not supported on mobile, defaulting to balanced mode');
+      updatePerformanceMode('mobile_no_battery_api', 'balanced');
     }
   }, [workerRef]);
 };

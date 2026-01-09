@@ -141,6 +141,7 @@ export const AppConfig = {
       currentPersonaBias: 0.2,
       manualPreferenceBoost: 0.4, // Boost for user-selected persona
       rejectionDampening: 0.3, // How much to increase threshold after a rejection
+      ignoreKeywords: [], // Keywords allowed to overlap between personas
       sensitivityPresets: {
         low: 1.5,    // Multiplier for base (higher = harder to switch)
         medium: 1.0, // Multiplier for base

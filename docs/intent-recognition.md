@@ -16,6 +16,35 @@ The intent recognition system is designed with absolute privacy in mind. All pat
 
 Located in `src/utils/intentRecognition.js` and `src/utils/personaOrchestrator.js`.
 
+```mermaid
+graph TD
+    A[Transcript Update] --> B{Throttling Logic}
+    B -->|Short/Noisy| C[Skip Analysis]
+    B -->|Meaningful| D[Intent Detection]
+    D --> E[Keyword Analysis]
+    E --> F[Scoring Engine]
+    
+    subgraph "Scoring Factors"
+    F1[Current Persona Bias]
+    F2[Manual Preference Boost]
+    F3[Positive Intents/Keywords]
+    F4[Negative Keywords]
+    F5[Contextual History]
+    end
+    
+    F1 & F2 & F3 & F4 & F5 --> F
+    
+    F --> G{Threshold Check}
+    G -->|Below Threshold| H[Maintain Current Persona]
+    G -->|Above Threshold| I[Switch Persona]
+    
+    I --> J[Log Event & Reason]
+    J --> K[Update UI Indicator]
+    
+    K --> L{User Rejection?}
+    L -->|Yes within 15s| M[Undo Switch & Apply Dampening]
+```
+
 1.  **Pattern Matching**: Pre-defined patterns for over 15 intents (e.g., `strategic`, `conflict`, `empathy`).
 2.  **Pre-compiled RegEx**: Patterns are pre-compiled on initialization to ensure sub-millisecond analysis on every conversational turn.
 3.  **Similarity Matching**: Uses character-based similarity (Jaccard index) to handle variations and typos.

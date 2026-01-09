@@ -18,12 +18,15 @@ export const validateOrchestratorConfig = () => {
 
       // Check for overlapping keywords
       const commonKeywords = conf1.keywords?.filter(k => conf2.keywords?.includes(k)) || [];
-      if (commonKeywords.length > 0) {
+      const ignoreKeywords = AppConfig.system.orchestrator.ignoreKeywords || [];
+      const significantKeywords = commonKeywords.filter(k => !ignoreKeywords.includes(k));
+
+      if (significantKeywords.length > 0) {
         conflicts.push({
           type: 'keyword_overlap',
           personas: [p1, p2],
-          items: commonKeywords,
-          severity: 'high'
+          items: significantKeywords,
+          severity: significantKeywords.length > 3 ? 'high' : 'medium'
         });
       }
 
