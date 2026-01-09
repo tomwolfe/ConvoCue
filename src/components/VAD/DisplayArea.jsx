@@ -272,9 +272,10 @@ const DisplayArea = ({
               <label id="suggestion-label">{AppConfig.models.personas[persona]?.label || 'Coaching Cue'}</label>
               <div className="glance-indicators" aria-live="polite">
                 {/* Live Intent Indicator (Immediate feedback before LLM) */}
-                {processingStep === 'thinking' && detectedIntent && TAG_METADATA[detectedIntent] && (
-                  <span 
-                    className={`glance-badge ${TAG_METADATA[detectedIntent].variant} pulse-animation`} 
+                {processingStep === 'thinking' && detectedIntent && TAG_METADATA[detectedIntent] &&
+                 settings.enabledIntents?.includes(detectedIntent) && (
+                  <span
+                    className={`glance-badge ${TAG_METADATA[detectedIntent].variant} pulse-animation`}
                     title={`Immediate detection: ${TAG_METADATA[detectedIntent].description}`}
                     role="status"
                     aria-label={`Real-time detection: ${TAG_METADATA[detectedIntent].label}`}

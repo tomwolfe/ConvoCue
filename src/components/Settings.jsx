@@ -5,6 +5,8 @@ import { secureLocalStorageGet, secureLocalStorageSet } from '../utils/encryptio
 import { getSocialSuccessWeights, saveSocialSuccessWeights } from '../utils/feedbackAnalytics';
 import { eventBus, EVENTS } from '../utils/eventBus';
 import { getSystemLogs, clearSystemLogs } from '../utils/diagnostics';
+import IntentDetectionSettings from './IntentDetectionSettings';
+import IntentFilterSettings from './IntentFilterSettings';
 
 const Settings = ({ isOpen, onClose }) => {
   const [settings, setSettings] = useState({
@@ -17,7 +19,13 @@ const Settings = ({ isOpen, onClose }) => {
     showSubtleCoaching: false,
     privacyMode: false,
     isSubtleMode: false,
-    showAnalytics: true
+    showAnalytics: true,
+    intentDetection: {
+      confidenceThreshold: 0.5,
+      debounceWindowMs: 800,
+      stickyDurationMs: 2000
+    },
+    enabledIntents: ['social', 'question', 'conflict', 'strategic', 'action', 'empathy', 'language']
   });
 
   const [weights, setWeights] = useState({
@@ -35,9 +43,29 @@ const Settings = ({ isOpen, onClose }) => {
     const loadSettings = async () => {
       const savedSettings = await secureLocalStorageGet('convocue_settings');
       if (savedSettings) {
-        setSettings(savedSettings);
+        // Merge with defaults to ensure new settings exist
+        const mergedSettings = {
+          enablePersonalization: true,
+          enableSpeakerDetection: true,
+          enableSentimentAnalysis: true,
+          enableAutoPersona: true,
+          autoPersonaSensitivity: 'medium',
+          showCoachingInsights: true,
+          showSubtleCoaching: false,
+          privacyMode: false,
+          isSubtleMode: false,
+          showAnalytics: true,
+          intentDetection: {
+            confidenceThreshold: 0.5,
+            debounceWindowMs: 800,
+            stickyDurationMs: 2000
+          },
+          enabledIntents: ['social', 'question', 'conflict', 'strategic', 'action', 'empathy', 'language'],
+          ...savedSettings
+        };
+        setSettings(mergedSettings);
       }
-      
+
       const savedWeights = await getSocialSuccessWeights();
       setWeights(savedWeights);
 
@@ -60,7 +88,7 @@ const Settings = ({ isOpen, onClose }) => {
       [key]: value
     };
     setSettings(newSettings);
-    
+
     // Save to secure storage
     await secureLocalStorageSet('convocue_settings', newSettings);
 
@@ -418,6 +446,38 @@ const Settings = ({ isOpen, onClose }) => {
                 <span className="slider"></span>
               </label>
             </div>
+          </section>
+
+          <section className="settings-section">
+            <h3 className="section-title">Real-time Intent Detection</h3>
+            <IntentDetectionSettings
+              settings={settings}
+              onSave={async (newIntentSettings) => {
+                const newSettings = {
+                  ...settings,
+                  intentDetection: newIntentSettings
+                };
+                setSettings(newSettings);
+                await secureLocalStorageSet('convocue_settings', newSettings);
+                eventBus.emit(EVENTS.SETTINGS_CHANGED, newSettings);
+              }}
+            />
+          </section>
+
+          <section className="settings-section">
+            <h3 className="section-title">Live Intent Visibility</h3>
+            <IntentFilterSettings
+              settings={settings}
+              onSave={async (newFilterSettings) => {
+                const newSettings = {
+                  ...settings,
+                  ...newFilterSettings
+                };
+                setSettings(newSettings);
+                await secureLocalStorageSet('convocue_settings', newSettings);
+                eventBus.emit(EVENTS.SETTINGS_CHANGED, newSettings);
+              }}
+            />
           </section>
 
           <section className="settings-section">

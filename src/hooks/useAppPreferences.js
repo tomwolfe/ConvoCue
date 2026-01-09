@@ -13,7 +13,12 @@ export const useAppPreferences = (initialDispatch) => {
     enableAutoPersona: true,
     privacyMode: false,
     isSubtleMode: false,
-    showAnalytics: true
+    showAnalytics: true,
+    intentDetection: {
+      confidenceThreshold: 0.5,
+      debounceWindowMs: 800,
+      stickyDurationMs: 2000
+    }
   });
   
   const prefsCache = useRef(null);
@@ -24,7 +29,28 @@ export const useAppPreferences = (initialDispatch) => {
     prefsCache.current = { ...manualPrefs, ...inferredPrefs };
 
     const savedSettings = await secureLocalStorageGet('convocue_settings');
-    if (savedSettings) setSettings(savedSettings);
+    if (savedSettings) {
+      // Merge with defaults to ensure intentDetection settings exist
+      const mergedSettings = {
+        ...{
+          enablePersonalization: true,
+          enableSpeakerDetection: true,
+          enableSentimentAnalysis: true,
+          enableAutoPersona: true,
+          privacyMode: false,
+          isSubtleMode: false,
+          showAnalytics: true,
+          intentDetection: {
+            confidenceThreshold: 0.5,
+            debounceWindowMs: 800,
+            stickyDurationMs: 2000
+          },
+          enabledIntents: ['social', 'question', 'conflict', 'strategic', 'action', 'empathy', 'language']
+        },
+        ...savedSettings
+      };
+      setSettings(mergedSettings);
+    }
 
     if (initialDispatch) {
       const savedContext = await secureLocalStorageGet('selectedCulturalContext', 'general');

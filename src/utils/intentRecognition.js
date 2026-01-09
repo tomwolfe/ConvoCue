@@ -1,11 +1,13 @@
 /**
  * NLP-based Intent Recognition System
  * Replaces basic keyword detection with more sophisticated intent analysis.
- * 
- * DESIGN PRINCIPLE: 100% Client-Side. 
+ *
+ * DESIGN PRINCIPLE: 100% Client-Side.
  * This system uses rule-based pattern matching and string similarity (Jaccard-like overlap)
  * to ensure that no conversational data ever leaves the user's device for intent analysis.
  */
+
+import { IntentDetectionConfig } from '../config/intentDetection';
 
 // Intent patterns with weights for similarity matching
 const intentPatterns = {
@@ -208,12 +210,88 @@ export const detectIntentWithConfidence = (input) => {
       bestScore = maxIntentScore;
       bestMatch = intent;
     }
-    
-    if (bestScore >= 1.0) break; 
+
+    if (bestScore >= 1.0) break;
   }
-  
+
+  // Use default threshold (0.4) - the configurable version will be handled in the calling function
+  const threshold = 0.4;
+
   return {
-    intent: bestScore > 0.4 ? bestMatch : null,
+    intent: bestScore > threshold ? bestMatch : null,
+    confidence: Math.min(1.0, bestScore)
+  };
+};
+
+/**
+ * Detect intent from input text using pattern matching and similarity with configurable threshold
+ */
+export const detectIntentWithConfidenceAndThreshold = (input, threshold = 0.4) => {
+  if (!input || typeof input !== 'string') return { intent: null, confidence: 0 };
+
+  const tokens = tokenize(input);
+  const inputLower = input.toLowerCase();
+
+  let bestMatch = null;
+  let bestScore = 0;
+
+  for (const [intent, patterns] of Object.entries(compiledPatterns)) {
+    let maxIntentScore = 0;
+
+    for (const pattern of patterns) {
+      let patternScore = 0;
+
+      // Phase 1: Fast Matches (Exact & RegEx)
+      for (const patternItem of pattern.regexes) {
+        // Direct token match (exact word)
+        if (tokens.includes(patternItem.text)) {
+          patternScore = Math.max(patternScore, pattern.weight);
+        }
+
+        // Substring/RegEx match at word boundaries
+        if (patternScore < pattern.weight && patternItem.regex.test(inputLower)) {
+          const weightMultiplier = patternItem.isMultiWord ? 1.0 : 0.6;
+          patternScore = Math.max(patternScore, pattern.weight * weightMultiplier);
+        }
+
+        if (patternScore >= 1.0) break;
+      }
+
+      // Phase 2: Similarity Match (Slow, only if no strong match yet)
+      if (patternScore < 0.8) {
+        // Optimization: Limit similarity checks to first 10 tokens
+        const limitedTokens = tokens.slice(0, 10);
+        for (const patternItem of pattern.regexes) {
+          if (!patternItem.isMultiWord) {
+            for (const token of limitedTokens) {
+              if (Math.abs(token.length - patternItem.text.length) > 2) continue;
+              if (token.length > 15) continue;
+
+              const similarity = calculateSimilarity(token, patternItem.text);
+              if (similarity > 0.85) {
+                patternScore = Math.max(patternScore, pattern.weight * similarity);
+              }
+              if (patternScore >= 0.85) break;
+            }
+          }
+          if (patternScore >= 0.85) break;
+        }
+      }
+
+      maxIntentScore = Math.max(maxIntentScore, patternScore);
+      if (maxIntentScore >= 1.0) break;
+    }
+
+    if (maxIntentScore > bestScore) {
+      bestScore = maxIntentScore;
+      bestMatch = intent;
+    }
+
+    if (bestScore >= 1.0) break;
+  }
+
+  return {
+    intent: bestScore > threshold ? bestMatch : null,
     confidence: Math.min(1.0, bestScore)
   };
 };

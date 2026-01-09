@@ -156,17 +156,22 @@ export const useMLWorker = () => {
               // Immediate Intent Recognition for subtle feedback
               let intent = null;
               if (!stateRef.current.isLowMemory) {
-                const { intent: rawIntent, confidence } = detectIntentWithConfidence(cleanText);
+                // Use configurable thresholds if available, otherwise default values
+                const confidenceThreshold = settings.intentDetection?.confidenceThreshold ?? 0.5;
+                const { intent: rawIntent, confidence } = detectIntentWithConfidenceAndThreshold(cleanText, confidenceThreshold);
                 intent = rawIntent;
 
-                // Sticky Intent Logic: Keep the badge visible for at least 2 seconds 
+                // Sticky Intent Logic: Keep the badge visible for configurable duration
                 // to prevent flickering, and debounce switches between different intents
                 const now = Date.now();
                 const currentSticky = stickyIntentRef.current.intent;
 
-                if (intent && confidence > 0.5) {
+                const debounceWindow = settings.intentDetection?.debounceWindowMs ?? 800;
+                const stickyDuration = settings.intentDetection?.stickyDurationMs ?? 2000;
+
+                if (intent && confidence > confidenceThreshold) {
                   // Only switch to a DIFFERENT intent if enough time has passed (debounce)
-                  if (!currentSticky || intent === currentSticky || (now - lastIntentSwitchTimeRef.current > 800)) {
+                  if (!currentSticky || intent === currentSticky || (now - lastIntentSwitchTimeRef.current > debounceWindow)) {
                     if (intent !== currentSticky) {
                       lastIntentSwitchTimeRef.current = now;
                     }
@@ -175,15 +180,15 @@ export const useMLWorker = () => {
                     // Keep the old intent for now to avoid rapid switching
                     intent = currentSticky;
                   }
-                } else if (currentSticky && (now - stickyIntentRef.current.timestamp < 2000)) {
+                } else if (currentSticky && (now - stickyIntentRef.current.timestamp < stickyDuration)) {
                   intent = currentSticky;
                 } else {
                   stickyIntentRef.current = { intent: null, timestamp: 0 };
                 }
 
-                if (rawIntent && confidence > 0.5) {
+                if (rawIntent && confidence > confidenceThreshold) {
                   const cooldown = rawIntent === lastHapticIntentRef.current ? 3000 : 1000;
-                  
+
                   if (now - lastHapticTimeRef.current > cooldown) {
                     // Trigger immediate haptics based on intent before LLM finishes
                     provideHapticFeedback(`[${rawIntent}]`);

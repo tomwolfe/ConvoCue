@@ -13,7 +13,7 @@ import { parseSemanticTags, TAG_METADATA } from '../utils/intentRecognition';
 import performanceMonitor from '../utils/performance';
 import TagIcon from './VAD/TagIcon';
 
-const GlanceWidget = ({ suggestion, emotionData, isProcessing, detectedIntent }) => {
+const GlanceWidget = ({ suggestion, emotionData, isProcessing, detectedIntent, settings }) => {
   const [feedbackGiven, setFeedbackGiven] = useState(false);
   const [showExplanation, setShowExplanation] = useState(false);
   const emotion = emotionData?.emotion || 'neutral';
@@ -142,9 +142,10 @@ const GlanceWidget = ({ suggestion, emotionData, isProcessing, detectedIntent })
       <p className="glance-suggestion" title={tooltipText}>{displaySuggestion}</p>
       <div className="glance-indicators" aria-live="polite">
         {/* Live Intent Indicator (Subtle Mode) */}
-        {isProcessing && detectedIntent && TAG_METADATA[detectedIntent] && (
-          <div 
-            className={`glance-badge ${TAG_METADATA[detectedIntent].variant} pulse-animation`} 
+        {isProcessing && detectedIntent && TAG_METADATA[detectedIntent] &&
+         settings.enabledIntents?.includes(detectedIntent) && (
+          <div
+            className={`glance-badge ${TAG_METADATA[detectedIntent].variant} pulse-animation`}
             title={`Immediate detection: ${TAG_METADATA[detectedIntent].description}`}
             role="status"
             aria-label={`Real-time detection: ${TAG_METADATA[detectedIntent].label}`}
@@ -492,12 +493,13 @@ const VADContent = ({
 
       <div className="display-area" role="region" aria-label="Results">
         {isSubtleMode && (
-          <GlanceWidget 
+          <GlanceWidget
             key={suggestion || 'empty'}
-            suggestion={suggestion} 
-            emotionData={emotionData} 
-            isProcessing={isProcessing} 
+            suggestion={suggestion}
+            emotionData={emotionData}
+            isProcessing={isProcessing}
             detectedIntent={detectedIntent}
+            settings={settings}
           />
         )}
         
