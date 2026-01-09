@@ -210,7 +210,11 @@ const initConversationTurnManager = () => {
 let cachedSystemPrompt = { key: null, content: null };
 
 self.onmessage = async (event) => {
-    const { type, audio, taskId, text: _text, persona, history, communicationProfile, culturalContext, metadata, preferences, settings: _settings } = event.data;
+    const { 
+        type, audio, taskId, text: _text, persona, history, 
+        communicationProfile, insightCategoryScores, culturalContext, 
+        metadata, preferences, settings: _settings 
+    } = event.data;
     const pipelineManager = await MLPipeline.getInstance();
 
     // Determine effective settings (prefer passed settings, fallback to minimal if missing)
@@ -314,8 +318,12 @@ self.onmessage = async (event) => {
                 : null;
 
             // Enhanced professional coaching analysis
-            const professionalInsights = (persona === 'professional' || persona === 'meeting')
-                ? analyzeProfessionalCoaching(sanitizedText, history, emotionData)
+            const professionalInsights = (persona === 'professional')
+                ? analyzeProfessionalCoaching(sanitizedText, history, emotionData, insightCategoryScores)
+                : null;
+            
+            const meetingInsights = (persona === 'meeting')
+                ? analyzeMeetingCoaching(sanitizedText, history, emotionData, insightCategoryScores)
                 : null;
 
             // Cached System Prompt Generation
@@ -501,7 +509,8 @@ self.onmessage = async (event) => {
               coachingInsights: {
                 relationship: relationshipInsights,
                 anxiety: anxietyInsights,
-                professional: professionalInsights
+                professional: professionalInsights,
+                meeting: meetingInsights
               },
               metadata: {
                 performance: {

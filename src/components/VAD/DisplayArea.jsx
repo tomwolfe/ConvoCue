@@ -313,7 +313,10 @@ const DisplayArea = ({
                   <label>All Caught Up</label>
                 </div>
               </div>
-              <p className="insight-text">You've dismissed all current coaching insights. New tips will appear as the conversation evolves.</p>
+              <p className="insight-text">
+                You've dismissed all current insights. New, personalized tips will appear based on your next conversation. 
+                Try sharing more about your day or a specific challenge to get tailored advice.
+              </p>
             </div>
           )}
         </>

@@ -4,6 +4,7 @@ import { useConversation } from './useConversation';
 import { useAppPreferences } from './useAppPreferences';
 import { getCommunicationProfileSummary } from '../utils/personalization';
 import { provideHapticFeedback } from '../utils/haptics';
+import { getInsightCategoryScores } from '../utils/feedback';
 
 const initialState = {
   status: 'Initializing Models...',
@@ -143,6 +144,10 @@ export const useMLWorker = () => {
                   const communicationProfile = settings.enablePersonalization !== false && !settings.privacyMode
                       ? await getCommunicationProfileSummary()
                       : "";
+                  
+                  const insightCategoryScores = settings.enablePersonalization !== false && !settings.privacyMode
+                      ? await getInsightCategoryScores()
+                      : {};
 
                   newWorker.postMessage({
                       type: 'llm',
@@ -151,6 +156,7 @@ export const useMLWorker = () => {
                       persona: stateRef.current.persona,
                       culturalContext: stateRef.current.culturalContext,
                       communicationProfile,
+                      insightCategoryScores,
                       metadata,
                       preferences: prefsCache.current,
                       settings: settings,

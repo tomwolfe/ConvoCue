@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { analyzeProfessionalCoaching } from './professionalCoaching';
+import { analyzeProfessionalCoaching, analyzeMeetingCoaching } from './professionalCoaching';
 
 describe('analyzeProfessionalCoaching', () => {
   it('detects negotiation keywords and returns appropriate insights', () => {
@@ -82,11 +82,79 @@ describe('analyzeProfessionalCoaching', () => {
 
   it('is case insensitive', () => {
     const text = "BUDGET and PLAN";
-    const result = analyzeProfessionalCoaching(text);
+        const result = analyzeProfessionalCoaching(text);
+        
+        expect(result).not.toBeNull();
+        const categories = result.insights.map(i => i.category);
+        expect(categories).toContain('Negotiation');
+        expect(categories).toContain('Execution');
+      });
     
-    expect(result).not.toBeNull();
-    const categories = result.insights.map(i => i.category);
-    expect(categories).toContain('Negotiation');
-    expect(categories).toContain('Execution');
-  });
-});
+      it('adjusts priority based on category scores', () => {
+        const text = "We should decide on a plan.";
+        const categoryScores = { 'Leadership': 5 };
+        const result = analyzeProfessionalCoaching(text, [], {}, categoryScores);
+        
+        expect(result).not.toBeNull();
+        const leadershipInsight = result.insights.find(i => i.category === 'Leadership');
+        expect(leadershipInsight.priority).toBe('high');
+      });
+    });
+    
+    describe('analyzeMeetingCoaching', () => {
+      it('detects meeting dynamics and participation cues', () => {
+        const text = "Does anyone have questions about the plan?";
+        const result = analyzeMeetingCoaching(text);
+        
+        expect(result).not.toBeNull();
+        const categories = result.insights.map(i => i.category);
+        expect(categories).toContain('Participation');
+      });
+    
+      it('provides turn-taking advice based on history', () => {
+        const history = [
+          { role: 'user', content: 'Turn 1' },
+          { role: 'user', content: 'Turn 2' },
+          { role: 'user', content: 'Turn 3' },
+          { role: 'user', content: 'Turn 4' },
+          { role: 'assistant', content: 'Bot response' },
+          { role: 'user', content: 'Turn 5' }
+        ];
+        const text = "I am still talking.";
+        const result = analyzeMeetingCoaching(text, history);
+        
+        expect(result).not.toBeNull();
+        const categories = result.insights.map(i => i.category);
+        expect(categories).toContain('Turn-taking');
+      });
+    
+      it('detects agenda and action items', () => {
+        const text = "Let's assign this task to Sarah and set a deadline.";
+        const result = analyzeMeetingCoaching(text);
+        
+        expect(result).not.toBeNull();
+        const categories = result.insights.map(i => i.category);
+        expect(categories).toContain('Agenda');
+      });
+    
+      it('incorporates meeting-specific emotional context', () => {
+        const text = "I am very frustrated with this meeting.";
+        const emotionData = { emotion: 'frustration', confidence: 0.8 };
+        const result = analyzeMeetingCoaching(text, [], emotionData);
+        
+        expect(result).not.toBeNull();
+        const categories = result.insights.map(i => i.category);
+        expect(categories).toContain('Meeting Tone');
+      });
+    
+      it('adjusts priority based on category scores', () => {
+        const text = "Does anyone have questions?";
+        const categoryScores = { 'Participation': 5 };
+        const result = analyzeMeetingCoaching(text, [], {}, categoryScores);
+        
+        expect(result).not.toBeNull();
+        const insight = result.insights.find(i => i.category === 'Participation');
+        expect(insight.priority).toBe('medium'); // low -> medium
+      });
+    });
+    

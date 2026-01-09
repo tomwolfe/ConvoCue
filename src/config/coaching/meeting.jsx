@@ -12,7 +12,7 @@ export default {
   icon: <Presentation size={16} className="text-violet-500" />,
   className: 'meeting-insight',
   pattern: 'insight-pattern-grid',
-  insightPath: (insights) => getSafeInsights(insights, 'professional'),
+  insightPath: (insights) => getSafeInsights(insights, 'meeting'),
   copingPath: (insights) => null,
   ariaLabel: 'Professional meeting coaching insight'
 };
