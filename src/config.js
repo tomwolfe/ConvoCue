@@ -1,6 +1,3 @@
-// Import cultural and language learning configuration
-import CulturalLanguageConfig from './culturalLanguageConfig.js';
-
 // Device detection
 const isMobile = typeof navigator !== 'undefined' && /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 

@@ -3,8 +3,8 @@
  * Sets up conservative defaults and proactive notifications
  */
 
-import { maybeShowCulturalDisclaimer } from './components/CulturalDisclaimer.js';
-import { areCulturalFeaturesEnabled, recordCulturalDisclaimerShown } from './config/conservativeDefaults.js';
+import { maybeShowCulturalDisclaimer } from '../components/CulturalDisclaimer.js';
+import { areCulturalFeaturesEnabled, recordCulturalDisclaimerShown } from '../config/conservativeDefaults.js';
 
 /**
  * Initialize ethical features for ConvoCue
