@@ -210,6 +210,52 @@ const initConversationTurnManager = () => {
 
 let cachedSystemPrompt = { key: null, content: null };
 
+/**
+ * Validates coaching insights to prevent oversized or malformed data
+ * @param {Object} insights - The coaching insights object to validate
+ * @returns {Object|null} Validated insights or null if invalid/malformed
+ */
+const validateCoachingInsights = (insights) => {
+  if (!insights) return null;
+
+  // Check if it's a valid object
+  if (typeof insights !== 'object' || Array.isArray(insights)) {
+    console.warn('[Worker] Invalid coaching insights format, rejecting');
+    return null;
+  }
+
+  // Limit the size of insights to prevent memory issues
+  const serialized = JSON.stringify(insights);
+  if (serialized.length > AppConfig.system.maxCoachingInsightsSize || serialized.length > 100000) { // 100KB limit
+    console.warn('[Worker] Coaching insights too large, rejecting');
+    return null;
+  }
+
+  // Validate structure
+  if (insights.insights && !Array.isArray(insights.insights)) {
+    console.warn('[Worker] Invalid insights array format, rejecting');
+    return null;
+  }
+
+  if (insights.copingStrategies && !Array.isArray(insights.copingStrategies)) {
+    console.warn('[Worker] Invalid coping strategies array format, rejecting');
+    return null;
+  }
+
+  // Limit number of insights and strategies
+  if (insights.insights && insights.insights.length > 20) {
+    console.warn('[Worker] Too many insights, limiting to 20');
+    insights.insights = insights.insights.slice(0, 20);
+  }
+
+  if (insights.copingStrategies && insights.copingStrategies.length > 20) {
+    console.warn('[Worker] Too many coping strategies, limiting to 20');
+    insights.copingStrategies = insights.copingStrategies.slice(0, 20);
+  }
+
+  return insights;
+};
+
 self.onmessage = async (event) => {
     const { 
         type, audio, taskId, text: _text, persona, history, 
@@ -508,10 +554,10 @@ self.onmessage = async (event) => {
               emotionData,
               conversationSentiment, // Include conversation sentiment
               coachingInsights: {
-                relationship: relationshipInsights,
-                anxiety: anxietyInsights,
-                professional: professionalInsights,
-                meeting: meetingInsights
+                relationship: validateCoachingInsights(relationshipInsights),
+                anxiety: validateCoachingInsights(anxietyInsights),
+                professional: validateCoachingInsights(professionalInsights),
+                meeting: validateCoachingInsights(meetingInsights)
               },
               metadata: {
                 performance: {

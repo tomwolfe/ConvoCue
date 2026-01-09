@@ -22,7 +22,7 @@ const InsightNavigation = ({ visibleInsights, currentInsightIndex, onPrev, onNex
   );
 };
 
-const CopingTip = ({ strategies, currentCopingIndex, onNextCoping }) => {
+const CopingTip = ({ strategies, currentCopingIndex, onNextCoping, insightId }) => {
   if (!strategies || strategies.length === 0) return null;
   const strategy = strategies[currentCopingIndex] || strategies[0];
 
@@ -31,9 +31,9 @@ const CopingTip = ({ strategies, currentCopingIndex, onNextCoping }) => {
       <Zap size={14} />
       <span>Tip: {strategy.technique || strategy.insight || 'Try this strategy'}</span>
       {strategies.length > 1 && (
-        <button 
-          className="insight-action-btn" 
-          onClick={(e) => onNextCoping(e, strategies.length)}
+        <button
+          className="insight-action-btn"
+          onClick={(e) => onNextCoping(e, strategies.length, insightId)}
           title="Next tip"
           aria-label="Next tip"
         >
@@ -59,7 +59,8 @@ const InsightCard = ({
   onDismiss,
   onNextCoping,
   onFeedback,
-  isPersonalizationEnabled
+  isPersonalizationEnabled,
+  insightId
 }) => {
   const [showSubtleActions, setShowSubtleActions] = useState(false);
 
@@ -110,28 +111,36 @@ const InsightCard = ({
       
       <div className="insight-footer">
         <div className="coping-wrapper">
-          <CopingTip 
-            strategies={strategies} 
-            currentCopingIndex={currentCopingIndex} 
-            onNextCoping={onNextCoping} 
+          <CopingTip
+            strategies={strategies}
+            currentCopingIndex={currentCopingIndex}
+            onNextCoping={onNextCoping}
+            insightId={insightId}
           />
         </div>
-        
+
         <div className="insight-actions">
           {showSubtleCoaching ? (
             <div className="subtle-actions-container">
               {showSubtleActions ? (
                 <div className="flex gap-1 animate-in fade-in slide-in-from-right-2 duration-200">
-                  <button 
+                  <button
                     className="insight-action-btn"
-                    onClick={() => handleFeedback('like')}
-                    title="Helpful"
+                    onClick={() => handleFeedback('very_helpful')}
+                    title="Very helpful"
                   >
                     <ThumbsUp size={12} />
                   </button>
-                  <button 
+                  <button
                     className="insight-action-btn"
-                    onClick={() => handleFeedback('dislike')}
+                    onClick={() => handleFeedback('somewhat_helpful')}
+                    title="Somewhat helpful"
+                  >
+                    <span className="feedback-icon">👍</span>
+                  </button>
+                  <button
+                    className="insight-action-btn"
+                    onClick={() => handleFeedback('not_helpful')}
                     title="Not helpful"
                   >
                     <ThumbsDown size={12} />
@@ -168,16 +177,23 @@ const InsightCard = ({
               </button>
               {isPersonalizationEnabled && (
                 <>
-                  <button 
+                  <button
                     className="insight-action-btn"
-                    onClick={() => handleFeedback('like')}
-                    title="Helpful"
+                    onClick={() => handleFeedback('very_helpful')}
+                    title="Very helpful"
                   >
                     <ThumbsUp size={14} />
                   </button>
-                  <button 
+                  <button
                     className="insight-action-btn"
-                    onClick={() => handleFeedback('dislike')}
+                    onClick={() => handleFeedback('somewhat_helpful')}
+                    title="Somewhat helpful"
+                  >
+                    <span className="feedback-icon">👍</span>
+                  </button>
+                  <button
+                    className="insight-action-btn"
+                    onClick={() => handleFeedback('not_helpful')}
                     title="Not helpful"
                   >
                     <ThumbsDown size={14} />

@@ -667,6 +667,14 @@ header.compact .subtitle {
   padding: 0.5rem 0.75rem;
 }
 
+.feedback-icon {
+  font-size: 0.875rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 /* Skeleton Loaders */
 .insight-skeleton {
   height: 120px;

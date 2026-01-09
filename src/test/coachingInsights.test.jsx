@@ -172,16 +172,16 @@ describe('CoachingInsights functionality', () => {
     });
 
     // Now feedback buttons should be visible
-    const helpfulBtn = screen.getByTitle('Helpful');
-    expect(helpfulBtn).toBeInTheDocument();
-    
-    // Click helpful
+    const veryHelpfulBtn = screen.getByTitle('Very helpful');
+    expect(veryHelpfulBtn).toBeInTheDocument();
+
+    // Click very helpful
     await act(async () => {
-      fireEvent.click(helpfulBtn);
+      fireEvent.click(veryHelpfulBtn);
     });
 
     // Adjust button should be back (or buttons gone)
-    expect(screen.queryByTitle('Helpful')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Very helpful')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Adjust Coaching')).toBeInTheDocument();
   });
 
@@ -294,19 +294,90 @@ describe('CoachingInsights functionality', () => {
     );
 
     render(
-      <DisplayArea 
-        persona="anxiety" 
-        coachingInsights={mockCoachingInsights} 
+      <DisplayArea
+        persona="anxiety"
+        coachingInsights={mockCoachingInsights}
       />
     );
-    
+
     // Skeleton should be visible initially
     expect(document.querySelector('.insight-skeleton')).toBeInTheDocument();
-    
+
     // Wait for it to disappear and show content
     await waitFor(() => {
       expect(screen.getByText('Insight 1: You seem anxious.')).toBeInTheDocument();
     });
     expect(document.querySelector('.insight-skeleton')).not.toBeInTheDocument();
+  });
+
+  it('maintains separate coping indices for different insights', async () => {
+    const multiInsightWithCoping = {
+      anxiety: {
+        insights: [
+          { category: 'anxiety_level', insight: 'Anxiety insight 1', priority: 'high' },
+          { category: 'coping', insight: 'Anxiety insight 2', priority: 'medium' }
+        ],
+        copingStrategies: [
+          { technique: 'Anxiety Tip 1' },
+          { technique: 'Anxiety Tip 2' }
+        ]
+      },
+      professional: {
+        insights: [
+          { category: 'Negotiation', insight: 'Professional insight 1', priority: 'high' }
+        ],
+        copingStrategies: [
+          { technique: 'Professional Tip 1' },
+          { technique: 'Professional Tip 2' }
+        ]
+      }
+    };
+
+    render(
+      <DisplayArea
+        persona="anxiety"
+        coachingInsights={multiInsightWithCoping}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Anxiety insight 1')).toBeInTheDocument();
+    });
+
+    // Check initial coping tip for anxiety insight
+    expect(screen.getByText('Tip: Anxiety Tip 1')).toBeInTheDocument();
+
+    // Navigate to next coping tip for anxiety insight
+    const nextTipBtn = screen.getByLabelText('Next tip');
+    await act(async () => {
+      fireEvent.click(nextTipBtn);
+    });
+    expect(screen.getByText('Tip: Anxiety Tip 2')).toBeInTheDocument();
+
+    // Navigate to next insight (should still show anxiety insight 2)
+    const nextInsightBtn = screen.getByLabelText('Next insight');
+    await act(async () => {
+      fireEvent.click(nextInsightBtn);
+    });
+
+    // Should now show anxiety insight 2 with its first coping tip
+    expect(screen.getByText('Anxiety insight 2')).toBeInTheDocument();
+    expect(screen.getByText('Tip: Anxiety Tip 1')).toBeInTheDocument(); // Should show first tip for this insight
+
+    // Navigate to next coping tip for anxiety insight 2
+    await act(async () => {
+      fireEvent.click(nextTipBtn);
+    });
+    expect(screen.getByText('Tip: Anxiety Tip 2')).toBeInTheDocument(); // Should show second tip for this insight
+
+    // Go back to first insight
+    const prevInsightBtn = screen.getByLabelText('Previous insight');
+    await act(async () => {
+      fireEvent.click(prevInsightBtn);
+    });
+
+    // Should return to first insight, and it should maintain its previous coping state
+    expect(screen.getByText('Anxiety insight 1')).toBeInTheDocument();
+    expect(screen.getByText('Tip: Anxiety Tip 2')).toBeInTheDocument(); // Should maintain previous state
   });
 });

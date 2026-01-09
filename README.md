@@ -50,6 +50,7 @@ For more detailed technical insights, see the `docs/` directory:
 - [Intent Recognition](./docs/intent-recognition.md)
 - [Performance Optimization](./docs/performance-optimization.md)
 - [Props Handling](./docs/props-handling.md)
+- [Coaching Insights System](./docs/coaching-insights.md)
 
 ## Getting Started
 

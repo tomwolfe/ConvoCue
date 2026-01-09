@@ -248,14 +248,38 @@ export const resetPersonalizationData = async () => {
 /**
  * Submit feedback for a specific insight category to drive personalization
  * @param {string} category - The insight category (e.g., 'negotiation', 'empathy')
- * @param {string} feedbackType - 'like' or 'dislike'
+ * @param {string} feedbackType - 'very_helpful', 'somewhat_helpful', or 'not_helpful'
  * @returns {Promise<object>} Updated scores
  */
 export const submitInsightFeedback = async (category, feedbackType) => {
   try {
     const scores = await secureLocalStorageGet('convocue_insight_category_scores', {});
     const currentScore = scores[category] || 0;
-    scores[category] = currentScore + (feedbackType === 'like' ? 1 : -1);
+
+    // Map feedback types to score changes
+    let scoreChange = 0;
+    switch (feedbackType) {
+      case 'very_helpful':
+        scoreChange = 2;
+        break;
+      case 'somewhat_helpful':
+        scoreChange = 1;
+        break;
+      case 'not_helpful':
+        scoreChange = -1;
+        break;
+      case 'like': // For backward compatibility
+        scoreChange = 1;
+        break;
+      case 'dislike': // For backward compatibility
+        scoreChange = -1;
+        break;
+      default:
+        console.warn(`Unknown feedback type: ${feedbackType}`);
+        return scores;
+    }
+
+    scores[category] = currentScore + scoreChange;
     await secureLocalStorageSet('convocue_insight_category_scores', scores);
     return scores;
   } catch (e) {

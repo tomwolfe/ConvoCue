@@ -42,10 +42,9 @@ const DisplayArea = ({
 }) => {
   // Local state for insight interaction
   const [currentInsightIndex, setCurrentInsightIndex] = useState(0);
-  const [currentCopingIndex, setCurrentCopingIndex] = useState(0);
   const [dismissedInsights, setDismissedInsights] = useState(new Set());
   const [categoryScores, setCategoryScores] = useState({});
-  const [copingIndices, setCopingIndices] = useState({});
+  const [copingIndices, setCopingIndices] = useState({}); // Changed to map { [insightId]: copingIndex }
   const [showInfo, setShowInfo] = useState(false);
   const [isStorageLoaded, setIsStorageLoaded] = useState(false);
   const [isAllCaughtUpDismissed, setIsAllCaughtUpDismissed] = useState(false);
@@ -62,53 +61,52 @@ const DisplayArea = ({
         secureLocalStorageGet('coaching_coping_indices', {}),
         secureLocalStorageGet('all_caught_up_dismissed', false)
       ]);
+
+      // Handle backward compatibility: if savedCopingIndices is in old format (persona-based),
+      // convert it to new format (insightId-based) by creating a mapping
+      let processedCopingIndices = savedCopingIndices;
+      if (savedCopingIndices && typeof savedCopingIndices === 'object') {
+        // Check if it's in old format (has persona keys like 'anxiety', 'professional', etc.)
+        const personaKeys = ['anxiety', 'relationship', 'professional', 'meeting', 'default'];
+        const hasOldFormat = personaKeys.some(key => key in savedCopingIndices);
+
+        if (hasOldFormat) {
+          // We can't perfectly convert old format to new without knowing the insight IDs,
+          // so we'll just use the old values as defaults for new format
+          console.warn('Detected old format coping indices, will be migrated to new format as user interacts with insights');
+        }
+      }
+
       setDismissedInsights(new Set(savedDismissed));
       setCategoryScores(savedScores);
-      setCopingIndices(savedCopingIndices);
-      setCurrentCopingIndex(savedCopingIndices[persona] || 0);
+      setCopingIndices(processedCopingIndices);
       setIsAllCaughtUpDismissed(allCaughtUpDismissed);
       setIsStorageLoaded(true);
     };
     loadData();
   }, []);
 
-  // Update currentCopingIndex when persona changes (restore from persistence)
-  useEffect(() => {
-    if (isStorageLoaded) {
-      const savedIndex = copingIndices[persona] || 0;
-      setCurrentCopingIndex(savedIndex);
-    }
-  }, [persona, isStorageLoaded, copingIndices, setCurrentCopingIndex]);
-
   // Reset indices and check bounds when persona or insights change
   useEffect(() => {
     setCurrentInsightIndex(0);
     setIsAllCaughtUpDismissed(false); // Reset dismissal when new data arrives
     secureLocalStorageSet('all_caught_up_dismissed', false);
-    
-    // Ensure currentCopingIndex is within bounds for the new data
-    if (coachingInsights) {
-      const config = CoachingConfig[persona] || CoachingConfig.default;
-      const strategies = config.copingPath(coachingInsights) || [];
-      if (currentCopingIndex >= strategies.length && strategies.length > 0) {
-        setCurrentCopingIndex(0);
-      }
-    }
   }, [persona, coachingInsights]);
 
   // Extract all relevant insights based on persona and config
   const allInsights = useMemo(() => {
     if (!coachingInsights) return [];
-    
+
     const config = CoachingConfig[persona] || CoachingConfig.default;
     const rawInsights = config.insightPath(coachingInsights) || [];
-    
+
     if (!rawInsights.length) return [];
-    
+
     // Map with config and sort by category feedback scores
-    const mapped = rawInsights.map(insight => ({
+    const mapped = rawInsights.map((insight, index) => ({
       ...insight,
-      config
+      config,
+      id: `${persona}-${index}-${insight.category || 'default'}` // Generate unique ID for each insight
     }));
 
     // Only sort if we have multiple insights to prioritize
@@ -124,17 +122,16 @@ const DisplayArea = ({
   }, [coachingInsights, persona, categoryScores]);
 
   // Filter out dismissed insights and get current one
-  const visibleInsights = useMemo(() => 
-    allInsights.filter((_, idx) => !dismissedInsights.has(`${persona}-${idx}`)),
-  [allInsights, dismissedInsights, persona]);
+  const visibleInsights = useMemo(() =>
+    allInsights.filter(insight => !dismissedInsights.has(insight.id)),
+  [allInsights, dismissedInsights]);
 
   const activeInsight = visibleInsights[currentInsightIndex] || null;
   const allInsightsDismissed = isStorageLoaded && allInsights.length > 0 && visibleInsights.length === 0 && !isAllCaughtUpDismissed;
 
   const handleDismiss = () => {
-    const originalIndex = allInsights.indexOf(activeInsight);
     setDismissedInsights(prev => {
-      const id = `${persona}-${originalIndex}`;
+      const id = activeInsight.id;
       const next = new Set(prev).add(id);
       secureLocalStorageSet('dismissed_coaching_insights', Array.from(next));
       return next;
@@ -159,14 +156,16 @@ const DisplayArea = ({
     setCurrentInsightIndex(prev => (prev - 1 + visibleInsights.length) % visibleInsights.length);
   };
 
-  const handleNextCoping = (e, total) => {
+  const handleNextCoping = (e, total, insightId) => {
     e.stopPropagation();
-    const nextIndex = (currentCopingIndex + 1) % total;
-    setCurrentCopingIndex(nextIndex);
-    
-    // Persist coping index progress
-    const nextCopingIndices = { ...copingIndices, [persona]: nextIndex };
+    const currentInsightCopingIndex = copingIndices[insightId] || 0;
+    const nextIndex = (currentInsightCopingIndex + 1) % total;
+
+    // Update the specific insight's coping index
+    const nextCopingIndices = { ...copingIndices, [insightId]: nextIndex };
     setCopingIndices(nextCopingIndices);
+
+    // Persist coping index progress
     secureLocalStorageSet('coaching_coping_indices', nextCopingIndices);
   };
 
@@ -229,11 +228,11 @@ const DisplayArea = ({
           {!isStorageLoaded && <div className="insight-skeleton" aria-hidden="true" />}
           
           {isStorageLoaded && activeInsight && (
-            <InsightCard 
+            <InsightCard
               activeInsight={activeInsight}
               visibleInsights={visibleInsights}
               currentInsightIndex={currentInsightIndex}
-              currentCopingIndex={currentCopingIndex}
+              currentCopingIndex={copingIndices[activeInsight.id] || 0}
               coachingInsights={coachingInsights}
               isCompactMode={isCompactMode}
               showSubtleCoaching={settings.showSubtleCoaching}
@@ -245,6 +244,7 @@ const DisplayArea = ({
               onNextCoping={handleNextCoping}
               onFeedback={handleInsightFeedback}
               isPersonalizationEnabled={isPersonalizationEnabled}
+              insightId={activeInsight.id}
             />
           )}
 
