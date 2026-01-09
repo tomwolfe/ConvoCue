@@ -11,6 +11,7 @@ const Settings = ({ isOpen, onClose }) => {
     enableSpeakerDetection: true,
     enableSentimentAnalysis: true,
     enableAutoPersona: true,
+    autoPersonaSensitivity: 'medium',
     showCoachingInsights: true,
     showSubtleCoaching: false,
     privacyMode: false,
@@ -110,6 +111,7 @@ const Settings = ({ isOpen, onClose }) => {
         enableSpeakerDetection: true,
         enableSentimentAnalysis: true,
         enableAutoPersona: true,
+        autoPersonaSensitivity: 'medium',
         showCoachingInsights: true,
         showSubtleCoaching: false,
         privacyMode: false,
@@ -153,6 +155,7 @@ const Settings = ({ isOpen, onClose }) => {
               <div className="setting-info">
                 <h3>Auto-Persona Selection</h3>
                 <p>Automatically switch personas based on conversation context</p>
+                <p className="setting-help-text">Uses real-time local analysis to tailor coaching to your current situation.</p>
               </div>
               <label className="toggle-switch">
                 <input
@@ -163,6 +166,24 @@ const Settings = ({ isOpen, onClose }) => {
                 <span className="slider"></span>
               </label>
             </div>
+
+            {settings.enableAutoPersona && (
+              <div className="setting-item sub-setting">
+                <div className="setting-info">
+                  <h3>Switch Sensitivity</h3>
+                  <p>How quickly the app adapts to context changes</p>
+                </div>
+                <select 
+                  className="setting-select"
+                  value={settings.autoPersonaSensitivity}
+                  onChange={(e) => handleSettingChange('autoPersonaSensitivity', e.target.value)}
+                >
+                  <option value="low">Low (Stable)</option>
+                  <option value="medium">Medium (Balanced)</option>
+                  <option value="high">High (Reactive)</option>
+                </select>
+              </div>
+            )}
 
             <div className="setting-item">
               <div className="setting-info">
@@ -385,6 +406,7 @@ const Settings = ({ isOpen, onClose }) => {
               <div className="setting-info">
                 <h3>Privacy Mode</h3>
                 <p>Minimal data collection, focus on absolute privacy</p>
+                <p className="setting-help-text">Disables advanced AI features like Auto-Persona and Sentiment analysis.</p>
               </div>
               <label className="toggle-switch">
                 <input

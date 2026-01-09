@@ -19,7 +19,7 @@ const initialState = {
   isProcessing: false,
   processingStep: 'none',
   error: null,
-  persona: 'anxiety',
+  persona: 'meeting',
   culturalContext: 'general'
 };
 
@@ -174,11 +174,14 @@ export const useMLWorker = () => {
                           cleanText, 
                           historyRef.current, 
                           activePersona,
-                          { rejectionDampening: dampening }
+                          { 
+                            rejectionDampening: dampening,
+                            sensitivity: settings.autoPersonaSensitivity 
+                          }
                       );
                       
-                      if (suggestedPersona !== activePersona && confidence > 0.6) {
-                          console.log(`[Orchestrator] Switching persona: ${activePersona} -> ${suggestedPersona} (Confidence: ${confidence.toFixed(2)}, Dampening: ${dampening.toFixed(2)})`);
+                      if (suggestedPersona !== activePersona) {
+                          console.log(`[Orchestrator] Switching persona: ${activePersona} -> ${suggestedPersona} (Confidence: ${confidence.toFixed(2)}, Sensitivity: ${settings.autoPersonaSensitivity})`);
                           autoSwitchInfoRef.current = { 
                             time: Date.now(), 
                             from: activePersona, 

@@ -2,6 +2,18 @@ import { detectMultipleIntents } from './intentRecognition';
 import { AppConfig } from '../config';
 
 /**
+ * Helper to check if a keyword exists in text with word boundaries
+ */
+const hasKeyword = (text, keyword) => {
+  try {
+    const regex = new RegExp(`\\b${keyword}\\b`, 'i');
+    return regex.test(text);
+  } catch (e) {
+    return text.toLowerCase().includes(keyword.toLowerCase());
+  }
+};
+
+/**
  * Orchestrates persona selection based on conversational context
  * 
  * @param {string} input - Current user transcript
@@ -10,14 +22,11 @@ import { AppConfig } from '../config';
  * @param {Object} options - Additional options including dampening
  * @returns {Object} { suggestedPersona: string, confidence: number }
  */
-export const orchestratePersona = (input, history = [], currentPersona = 'anxiety', options = {}) => {
+export const orchestratePersona = (input, history = [], currentPersona, options = {}) => {
   const config = AppConfig.system.orchestrator;
   const intentMap = config.intentMap;
-  
-  if (!input) return { suggestedPersona: currentPersona, confidence: 1.0 };
 
   const intents = detectMultipleIntents(input, 0.3);
-  const inputLower = input.toLowerCase();
   
   const scores = {};
   
@@ -44,14 +53,14 @@ export const orchestratePersona = (input, history = [], currentPersona = 'anxiet
   Object.entries(intentMap).forEach(([persona, pConfig]) => {
     // Positive Keywords
     pConfig.keywords?.forEach(keyword => {
-      if (inputLower.includes(keyword)) {
+      if (hasKeyword(input, keyword)) {
         scores[persona] += config.keywordWeight * (pConfig.weight || 1.0);
       }
     });
 
     // Negative Keywords (Negative Reinforcement)
     pConfig.negativeKeywords?.forEach(keyword => {
-      if (inputLower.includes(keyword)) {
+      if (hasKeyword(input, keyword)) {
         scores[persona] -= config.keywordWeight * 2.0; // Stronger penalty for negative matches
       }
     });
@@ -59,10 +68,10 @@ export const orchestratePersona = (input, history = [], currentPersona = 'anxiet
 
   // Boost based on history context
   if (history.length > 0) {
-    const recentHistory = history.slice(-3).map(h => h.content.toLowerCase()).join(' ');
+    const recentHistory = history.slice(-3).map(h => h.content).join(' ');
     Object.entries(intentMap).forEach(([persona, pConfig]) => {
       pConfig.keywords?.forEach(keyword => {
-        if (recentHistory.includes(keyword)) {
+        if (hasKeyword(recentHistory, keyword)) {
           scores[persona] += config.historyWeight * (pConfig.weight || 1.0);
         }
       });
@@ -80,8 +89,11 @@ export const orchestratePersona = (input, history = [], currentPersona = 'anxiet
     }
   });
 
+  // Determine base threshold from sensitivity or config
+  const sensitivity = options.sensitivity || 'medium';
+  let threshold = config.sensitivityPresets?.[sensitivity] || config.threshold;
+
   // Apply dampening if provided (user rejection logic)
-  let threshold = config.threshold;
   if (options.rejectionDampening) {
     threshold += options.rejectionDampening;
   }
