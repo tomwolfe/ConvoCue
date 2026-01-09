@@ -2,6 +2,11 @@ import { detectMultipleIntents, calculateSimilarity } from './intentRecognition'
 import { AppConfig } from '../config';
 
 /**
+ * Common English stop words that should never trigger fuzzy matching
+ */
+const STOP_WORDS = new Set(['about', 'there', 'their', 'would', 'could', 'should', 'these', 'those', 'where', 'which', 'while', 'under', 'after', 'again', 'other']);
+
+/**
  * Helper to check if a keyword exists in text with word boundaries
  * Enhanced with plural handling and fuzzy matching for high-value words
  */
@@ -18,10 +23,11 @@ const hasKeyword = (text, keyword, useFuzzy = false) => {
   }
 
   // 2. Fuzzy matching for longer keywords (to handle minor typos or variations)
-  if (useFuzzy && normalizedKeyword.length > 5) {
+  // Stop-word check prevents common words from matching complex keywords
+  if (useFuzzy && normalizedKeyword.length > 5 && !STOP_WORDS.has(normalizedKeyword)) {
     const tokens = normalizedText.split(/[^a-z0-9']+/);
     for (const token of tokens) {
-      if (token.length > 4 && calculateSimilarity(token, normalizedKeyword) > 0.85) {
+      if (token.length > 4 && !STOP_WORDS.has(token) && calculateSimilarity(token, normalizedKeyword) > 0.85) {
         return true;
       }
     }
@@ -30,13 +36,14 @@ const hasKeyword = (text, keyword, useFuzzy = false) => {
   return false;
 };
 
+
 /**
  * Orchestrates persona selection based on conversational context
  * 
  * @param {string} input - Current user transcript
  * @param {Array} history - Conversation history
  * @param {string} currentPersona - The currently active persona
- * @param {Object} options - Additional options including dampening
+ * @param {Object} options - Additional options including dampening and manual preference
  * @returns {Object} { suggestedPersona: string, confidence: number, debug: Object }
  */
 export const orchestratePersona = (input, history = [], currentPersona, options = {}) => {
@@ -49,14 +56,19 @@ export const orchestratePersona = (input, history = [], currentPersona, options 
   const debug = {};
   
   // Initialize scores with a slight bias towards the current persona to avoid jitter
+  // Also apply manual preference boost if applicable
   Object.keys(intentMap).forEach(persona => {
-    scores[persona] = persona === currentPersona ? config.currentPersonaBias : 0;
+    const isCurrent = persona === currentPersona;
+    const manualBoost = (options.manualPreference === persona) ? (config.manualPreferenceBoost || 0.4) : 0;
+    
+    scores[persona] = (isCurrent ? config.currentPersonaBias : 0) + manualBoost;
     debug[persona] = {
       total: scores[persona],
       intents: [],
       keywords: [],
       history: 0,
-      bias: persona === currentPersona ? config.currentPersonaBias : 0
+      bias: isCurrent ? config.currentPersonaBias : 0,
+      manualBoost
     };
   });
 

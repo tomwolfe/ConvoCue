@@ -31,3 +31,32 @@ export const checkAssets = async () => {
     missing
   };
 };
+
+const MAX_LOGS = 50;
+let systemLogs = [];
+
+export const logEvent = (category, message, data = {}) => {
+  const logEntry = {
+    timestamp: new Date().toISOString(),
+    category,
+    message,
+    data
+  };
+  
+  systemLogs.unshift(logEntry);
+  if (systemLogs.length > MAX_LOGS) {
+    systemLogs = systemLogs.slice(0, MAX_LOGS);
+  }
+  
+  // Also log to console for development convenience
+  if (process.env.NODE_ENV !== 'test') {
+    console.log(`[${category}] ${message}`, data);
+  }
+};
+
+export const getSystemLogs = () => [...systemLogs];
+
+export const clearSystemLogs = () => {
+  systemLogs = [];
+};
+

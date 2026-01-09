@@ -139,6 +139,7 @@ export const AppConfig = {
       keywordWeight: 0.3,
       historyWeight: 0.1,
       currentPersonaBias: 0.2,
+      manualPreferenceBoost: 0.4, // Boost for user-selected persona
       rejectionDampening: 0.3, // How much to increase threshold after a rejection
       sensitivityPresets: {
         low: 1.5,    // Multiplier for base (higher = harder to switch)
@@ -166,7 +167,7 @@ export const AppConfig = {
         },
         meeting: {
           intents: ['action', 'execution', 'clarity', 'participation'],
-          keywords: ['todo', 'action', 'next steps', 'plan', 'schedule', 'understand', 'clear', 'minutes', 'agenda', 'collaborate', 'brief', 'sync', 'touchbase', 'update'],
+          keywords: ['todo', 'action', 'next steps', 'plan', 'schedule', 'clear', 'minutes', 'agenda', 'collaborate', 'brief', 'sync', 'touchbase', 'update'],
           negativeKeywords: ['date', 'romance', 'feelings'],
           weight: 1.0
         },

@@ -38,12 +38,18 @@ Users can tune the system's reactivity in the **Settings** panel:
 - **Medium Sensitivity**: Balanced approach.
 - **Low Sensitivity**: Stable, requires strong evidence before switching.
 
-### User Rejection Dampening
-If a user manually reverts an automatic switch (via the **Undo** button or manual selector) within 15 seconds, the system:
-1.  Temporarily increases the threshold for that persona.
-2.  Applies a temporal decay to this "rejection penalty" (5-minute half-life), allowing the system to eventually try again if the context persists.
+### User Rejection & Preference Boost
+The system respects user agency through two primary mechanisms:
+1.  **Rejection Dampening**: If a user manually reverts an automatic switch within 15 seconds, the system temporarily increases the threshold for that persona.
+2.  **Manual Preference Boost**: When a user manually selects a persona, that persona receives a temporary scoring advantage (10-minute window) to prevent the system from immediately switching back to its autonomous choice.
 
-## Supported Intents
+### Diagnostics & Transparency
+To ensure the "Smart Switch" isn't a black box, the system maintains a **System Diagnostics** log:
+- Every automatic switch is recorded with its confidence score and primary trigger (keyword or intent).
+- Manual rejections and preference boosts are logged.
+- Users can view these logs in the **Settings > System Diagnostics** panel.
+
+## Performance Optimization
 
 | Intent | Triggers | Coaching Application |
 | :--- | :--- | :--- |

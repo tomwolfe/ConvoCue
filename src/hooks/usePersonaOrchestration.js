@@ -1,6 +1,7 @@
 import { useRef, useCallback, useState } from 'react';
 import { AppConfig } from '../config';
 import { orchestratePersona } from '../utils/personaOrchestrator';
+import { logEvent } from '../utils/diagnostics';
 
 /**
  * Hook to manage Auto-Persona Orchestration logic.
@@ -9,7 +10,26 @@ import { orchestratePersona } from '../utils/personaOrchestrator';
 export const usePersonaOrchestration = (currentPersona, settings, historyRef, dispatch) => {
   const autoSwitchInfoRef = useRef({ time: 0, from: null, to: null });
   const rejectionDampeningRef = useRef({}); // { persona: { value, timestamp } }
+  const manualPreferenceRef = useRef({ persona: null, timestamp: 0 });
   const [lastSwitchReason, setLastSwitchReason] = useState(null);
+
+  /**
+   * Calculates if manual preference is still active (10 minute window)
+   */
+  const getActiveManualPreference = useCallback(() => {
+    const { persona, timestamp } = manualPreferenceRef.current;
+    if (!persona) return null;
+    
+    const now = Date.now();
+    const activeWindow = 10 * 60 * 1000; // 10 minutes
+    
+    if (now - timestamp > activeWindow) {
+      manualPreferenceRef.current = { persona: null, timestamp: 0 };
+      return null;
+    }
+    
+    return persona;
+  }, []);
 
   /**
    * Calculates the current dampening for a persona, applying temporal decay.
@@ -43,12 +63,15 @@ export const usePersonaOrchestration = (currentPersona, settings, historyRef, di
     }
 
     const dampening = getDecayedDampening(currentPersona);
+    const manualPreference = getActiveManualPreference();
+    
     const { suggestedPersona, confidence, debug } = orchestratePersona(
       cleanText, 
       historyRef.current, 
       currentPersona,
       { 
         rejectionDampening: dampening,
+        manualPreference,
         sensitivity: settings.autoPersonaSensitivity 
       }
     );
@@ -79,6 +102,11 @@ export const usePersonaOrchestration = (currentPersona, settings, historyRef, di
       };
       
       setLastSwitchReason(reason);
+      logEvent('Orchestrator', `Auto-switch: ${currentPersona} -> ${suggestedPersona}`, {
+        reason,
+        confidence: confidence.toFixed(2),
+        debug
+      });
       dispatch({ type: 'SET_PERSONA', persona: suggestedPersona });
       return suggestedPersona;
     }
@@ -93,9 +121,16 @@ export const usePersonaOrchestration = (currentPersona, settings, historyRef, di
     const now = Date.now();
     const lastSwitch = autoSwitchInfoRef.current;
     
+    // Record this as a manual preference to boost this persona in subsequent turns
+    manualPreferenceRef.current = { persona: newPersona, timestamp: now };
+    
     // If user switches away from an auto-switched persona within 15 seconds
     if (lastSwitch.time > 0 && (now - lastSwitch.time < 15000) && newPersona !== lastSwitch.to) {
-      console.warn(`[Orchestrator] User rejected auto-switch to ${lastSwitch.to}. Applying dampening.`);
+      logEvent('Orchestrator', `User rejected auto-switch to ${lastSwitch.to}. Applying dampening.`, {
+        from: lastSwitch.from,
+        to: lastSwitch.to,
+        manualSelection: newPersona
+      });
       const currentEntry = rejectionDampeningRef.current[lastSwitch.to];
       const currentDampening = currentEntry ? currentEntry.value : 0;
       

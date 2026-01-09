@@ -4,6 +4,7 @@ import { resetPersonalizationData, resetCoachingFeedback } from '../utils/feedba
 import { secureLocalStorageGet, secureLocalStorageSet } from '../utils/encryption';
 import { getSocialSuccessWeights, saveSocialSuccessWeights } from '../utils/feedbackAnalytics';
 import { eventBus, EVENTS } from '../utils/eventBus';
+import { getSystemLogs, clearSystemLogs } from '../utils/diagnostics';
 
 const Settings = ({ isOpen, onClose }) => {
   const [settings, setSettings] = useState({
@@ -486,6 +487,53 @@ const Settings = ({ isOpen, onClose }) => {
               >
                 Reset All Personalization
               </button>
+            </div>
+          </section>
+
+          <section className="settings-section">
+            <h3 className="section-title">System Diagnostics</h3>
+            <div className="diagnostics-panel">
+              <div className="diagnostics-controls">
+                <button 
+                  className="btn btn-outline btn-sm"
+                  onClick={() => {
+                    const logs = getSystemLogs();
+                    if (logs.length === 0) {
+                      alert('No logs available yet.');
+                      return;
+                    }
+                    console.table(logs);
+                    alert('Detailed logs have been printed to the browser console for inspection.');
+                  }}
+                >
+                  View Console Logs
+                </button>
+                <button 
+                  className="btn btn-outline btn-sm"
+                  onClick={() => {
+                    if (window.confirm('Clear all diagnostic logs?')) {
+                      clearSystemLogs();
+                      alert('Logs cleared.');
+                    }
+                  }}
+                >
+                  Clear Logs
+                </button>
+              </div>
+              
+              <div className="recent-logs">
+                <p className="setting-help-text mb-2">Recent Persona Switches & AI Logic:</p>
+                {getSystemLogs().length === 0 ? (
+                  <div className="log-entry empty">No recent orchestration events</div>
+                ) : (
+                  getSystemLogs().slice(0, 5).map((log, i) => (
+                    <div key={i} className="log-entry">
+                      <span className="log-time">{new Date(log.timestamp).toLocaleTimeString()}</span>
+                      <span className="log-msg">{log.message}</span>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </section>
         </div>
