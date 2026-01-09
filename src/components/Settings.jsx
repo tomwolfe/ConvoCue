@@ -7,6 +7,7 @@ import { eventBus, EVENTS } from '../utils/eventBus';
 import { getSystemLogs, clearSystemLogs } from '../utils/diagnostics';
 import IntentDetectionSettings from './IntentDetectionSettings';
 import IntentFilterSettings from './IntentFilterSettings';
+import HapticFeedbackSettings from './HapticFeedbackSettings';
 
 const Settings = ({ isOpen, onClose }) => {
   const [settings, setSettings] = useState({
@@ -481,35 +482,18 @@ const Settings = ({ isOpen, onClose }) => {
           </section>
 
           <section className="settings-section">
-            <h3 className="section-title">Haptic Feedback</h3>
-            <div className="haptic-settings">
-              <p className="setting-description">
-                ConvoCue uses different haptic patterns to provide tactile feedback for various intent types:
-              </p>
-              <ul className="haptic-patterns-list">
-                <li><strong>Conflict:</strong> Single long vibration (150ms) - Urgent alert for tension/de-escalation</li>
-                <li><strong>Action/Suggestion:</strong> Triple short vibrations (20ms, 50ms, 20ms) - Notification of actionable items</li>
-                <li><strong>Question:</strong> Short then medium vibration (20ms, 100ms) - Indication of inquiry/follow-up</li>
-                <li><strong>Empathy:</strong> Single long gentle vibration (100ms) - Emotional support/validation</li>
-                <li><strong>Success:</strong> Single short vibration (20ms) - Positive reinforcement</li>
-              </ul>
-              <p className="setting-description">
-                We chose longer vibrations for conflict to convey urgency, and varied patterns to help distinguish between intent types.
-                Would you like to provide feedback on these haptic patterns?
-              </p>
-              <div className="haptic-feedback-options">
-                <button
-                  className="btn btn-secondary"
-                  onClick={() => {
-                    // Log feedback event for analytics
-                    console.log("User engaged with haptic feedback settings");
-                    // In a real implementation, this would send feedback to analytics
-                  }}
-                >
-                  Provide Haptic Feedback
-                </button>
-              </div>
-            </div>
+            <HapticFeedbackSettings
+              settings={settings}
+              onSave={async (newHapticSettings) => {
+                const newSettings = {
+                  ...settings,
+                  haptics: newHapticSettings
+                };
+                setSettings(newSettings);
+                await secureLocalStorageSet('convocue_settings', newSettings);
+                eventBus.emit(EVENTS.SETTINGS_CHANGED, newSettings);
+              }}
+            />
           </section>
 
           <section className="settings-section">

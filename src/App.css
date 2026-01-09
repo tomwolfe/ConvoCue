@@ -2657,11 +2657,28 @@ input:checked + .slider:before {
   transform: scale(0.95);
   transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
   border-radius: 16px; /* Better for accessibility */
+  opacity: 0.85; /* Make live indicators slightly more transparent */
+  box-shadow: 0 0 0 2px rgba(251, 146, 60, 0.5); /* Orange border to distinguish from final */
 }
 
 .glance-badge.live-preview-indicator:hover {
   transform: scale(1);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 0 0 2px rgba(251, 146, 60, 0.7);
+}
+
+/* Enhanced visual indicator for live preview */
+.glance-badge.live-preview-indicator::before {
+  content: "LIVE";
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #fb923c; /* orange-400 */
+  color: white;
+  font-size: 0.6rem;
+  font-weight: bold;
+  padding: 1px 4px;
+  border-radius: 4px;
+  z-index: 1;
 }
 
 /* Accessibility improvements for reduced motion */

@@ -57,7 +57,7 @@ const intentPatterns = {
     patterns: [
       { text: ['feel', 'think', 'believe', 'understand', 'know', 'sorry', 'hard', 'anxious', 'worried', 'stressed'], weight: 1.0 },
       { text: ['i see', 'i hear', 'i understand', 'that makes sense', 'happy', 'excited', 'sad', 'upset'], weight: 0.9 },
-      { text: ['empathize', 'relate', 'connect', 'share', 'culture', 'custom', 'tradition', 'etiquette'], weight: 0.8 }
+      { text: ['empathize', 'relate', 'connect', 'share', 'culture', 'custom', 'tradition', 'etiquette', 'support', 'feelings', 'emotions'], weight: 0.8 }
     ],
     cue: 'empathy'
   },
@@ -85,7 +85,49 @@ Object.entries(intentPatterns).forEach(([intent, config]) => {
 });
 
 /**
- * Calculate similarity between two strings using a simple algorithm
+ * Synonym mapping for enhanced similarity matching
+ */
+const SYNONYM_MAP = {
+  // Social synonyms
+  'hello': ['hi', 'hey', 'greetings', 'howdy', 'hiya', 'good morning', 'good afternoon', 'good evening'],
+  'hi': ['hello', 'hey', 'greetings', 'howdy', 'hiya'],
+  'thanks': ['thank', 'appreciate', 'grateful', 'gratitude'],
+  'thank': ['thanks', 'appreciate', 'grateful', 'gratitude'],
+
+  // Empathy synonyms
+  'understand': ['comprehend', 'grasp', 'appreciate', 'relate', 'empathize', 'sympathize'],
+  'empathize': ['understand', 'relate', 'sympathize', 'connect', 'feel for'],
+  'sympathize': ['empathize', 'understand', 'relate', 'care', 'support'],
+  'support': ['help', 'assist', 'encourage', 'back', 'aid'],
+
+  // Question synonyms
+  'what': ['which', 'what kind', 'what type', 'what sort'],
+  'how': ['in what way', 'by what means', 'to what extent'],
+  'why': ['for what reason', 'on what grounds'],
+
+  // Conflict synonyms
+  'disagree': ['object', 'oppose', 'counter', 'contradict', 'take issue'],
+  'problem': ['issue', 'difficulty', 'trouble', 'challenge', 'obstacle'],
+  'wrong': ['incorrect', 'mistaken', 'erroneous', 'faulty', 'flawed'],
+
+  // Action synonyms
+  'should': ['ought to', 'need to', 'must', 'have to', 'better'],
+  'recommend': ['suggest', 'advise', 'propose', 'urge', 'endorse'],
+  'suggest': ['recommend', 'advise', 'propose', 'hint', 'imply'],
+
+  // Strategic synonyms
+  'strategy': ['plan', 'approach', 'method', 'scheme', 'tactic'],
+  'negotiate': ['bargain', 'discuss terms', 'compromise', 'haggle'],
+  'priority': ['importance', 'urgency', 'significance', 'precedence'],
+
+  // Language synonyms
+  'explain': ['clarify', 'elucidate', 'expound', 'detail', 'describe'],
+  'clarify': ['explain', 'elucidate', 'elaborate', 'detail', 'expand'],
+  'unclear': ['ambiguous', 'vague', 'confusing', 'uncertain', 'obscure']
+};
+
+/**
+ * Calculate similarity between two strings using an enhanced algorithm
  * @param {string} str1 - First string
  * @param {string} str2 - Second string
  * @returns {number} Similarity score between 0 and 1
@@ -93,37 +135,83 @@ Object.entries(intentPatterns).forEach(([intent, config]) => {
 export const calculateSimilarity = (str1, str2) => {
   const s1 = str1.toLowerCase().trim();
   const s2 = str2.toLowerCase().trim();
-  
+
   if (s1 === s2) return 1.0;
   if (s1.length === 0 || s2.length === 0) return 0.0;
-  
+
   // Guard against extremely long strings
   if (s1.length > 50 || s2.length > 50) return 0.0;
-  
+
   // Check if one string contains the other (substring match)
   if (s1.includes(s2) || s2.includes(s1)) {
     const longer = s1.length > s2.length ? s1 : s2;
     const shorter = s1.length > s2.length ? s2 : s1;
-    
+
     // For very short strings, containment must be significant
-    if (shorter.length < 3 && longer.length > 5) return 0.2; 
-    
+    if (shorter.length < 3 && longer.length > 5) return 0.2;
+
     return shorter.length / longer.length;
   }
-  
+
+  // Enhanced synonym checking
+  const s1Words = s1.split(/\s+/);
+  const s2Words = s2.split(/\s+/);
+
+  // Check if any word in s1 has a synonym in s2
+  let synonymMatches = 0;
+  for (const word1 of s1Words) {
+    if (SYNONYM_MAP[word1]) {
+      for (const synonym of SYNONYM_MAP[word1]) {
+        if (s2Words.includes(synonym)) {
+          synonymMatches++;
+        }
+      }
+    }
+  }
+
+  // Check if any word in s2 has a synonym in s1
+  for (const word2 of s2Words) {
+    if (SYNONYM_MAP[word2]) {
+      for (const synonym of SYNONYM_MAP[word2]) {
+        if (s1Words.includes(synonym)) {
+          synonymMatches++;
+        }
+      }
+    }
+  }
+
+  // If we have synonym matches, boost the similarity
+  if (synonymMatches > 0) {
+    // Calculate base similarity using Jaccard index
+    const baseSimilarity = calculateBaseSimilarity(s1, s2);
+    // Boost based on number of synonym matches
+    const synonymBoost = Math.min(0.3, synonymMatches * 0.15); // Max 30% boost
+    return Math.min(1.0, baseSimilarity + synonymBoost);
+  }
+
   // For short words, character overlap is a poor measure of similarity
   if (s1.length < 4 || s2.length < 4) {
     return 0;
   }
 
   // Calculate similarity using Jaccard index (character-based)
+  return calculateBaseSimilarity(s1, s2);
+};
+
+/**
+ * Calculate base similarity using Jaccard index
+ * @param {string} s1 - First string
+ * @param {string} s2 - Second string
+ * @returns {number} Base similarity score
+ */
+const calculateBaseSimilarity = (s1, s2) => {
   const set1 = new Set(s1.split(''));
   const set2 = new Set(s2.split(''));
   const intersection = new Set([...set1].filter(x => set2.has(x)));
   const union = new Set([...set1, ...set2]);
-  
+
   const jaccard = intersection.size / union.size;
-  
+
   // Apply a penalty if lengths are very different
   const lengthRatio = Math.min(s1.length, s2.length) / Math.max(s1.length, s2.length);
   return jaccard * lengthRatio;
@@ -678,19 +766,39 @@ export const detectIntentWithContext = (input, conversationHistory = []) => {
 
   // Enhanced disambiguation for empathy vs social based on emotional context
   if (baseResult.intent === 'empathy' || baseResult.intent === 'social') {
-    const emotionalWords = ['feel', 'emotion', 'sad', 'happy', 'angry', 'frustrated', 'anxious', 'excited', 'scared', 'worried'];
-    const socialWords = ['hello', 'hi', 'hey', 'good morning', 'thanks', 'please', 'you', 'nice'];
+    const emotionalWords = ['feel', 'emotion', 'sad', 'happy', 'angry', 'frustrated', 'anxious', 'excited', 'scared', 'worried', 'depressed', 'lonely', 'overwhelmed', 'stressed', 'upset', 'heartbroken', 'grief', 'pain', 'hurt', 'comfort', 'support', 'care', 'love', 'miss', 'concerned', 'worry'];
+    const socialWords = ['hello', 'hi', 'hey', 'good morning', 'thanks', 'please', 'you', 'nice', 'everyone', 'what do you think', 'what are your thoughts', 'what\'s your opinion', 'anyone', 'anybody', 'greetings', 'how are you', 'how\'s it going', 'what\'s up', 'goodbye', 'bye', 'see you', 'talk to you later', 'have a good day', 'enjoy', 'welcome', 'appreciate', 'grateful', 'thank you', 'thanks', 'much appreciated'];
 
     const inputLower = input.toLowerCase();
     const hasEmotionalWord = emotionalWords.some(word => inputLower.includes(word));
     const hasSocialWord = socialWords.some(word => inputLower.includes(word));
+
+    // More specific empathy indicators
+    const empathyIndicators = ['sorry to hear', 'so sorry', 'my condolences', 'i\'m here for you', 'how can i help', 'i care about', 'i understand how you feel', 'that must be', 'i can imagine', 'sending thoughts', 'thinking of you', 'i feel for you', 'must be difficult', 'must be hard', 'must be tough', 'i sympathize', 'i relate to', 'i\'ve been there', 'that sounds challenging', 'that sounds difficult', 'i appreciate what you\'re going through'];
+
+    // More specific social indicators
+    const socialIndicators = ['hello everyone', 'hi everyone', 'good morning everyone', 'what do you think', 'what are your thoughts', 'what\'s your opinion', 'how are you all', 'how\'s everyone doing', 'thanks everyone', 'thank you all', 'appreciate everyone', 'good to see you', 'nice to meet you', 'pleased to meet you', 'hope you\'re doing well', 'hope everyone is well', 'hope you all had a good weekend'];
+
+    const hasEmpathyIndicator = empathyIndicators.some(indicator => inputLower.includes(indicator));
+    const hasSocialIndicator = socialIndicators.some(indicator => inputLower.includes(indicator));
 
     // Check conversation history for emotional context
     const recentEmotionalContext = conversationHistory.slice(-3).some(turn =>
       emotionalWords.some(word => turn.content.toLowerCase().includes(word))
     );
 
-    if (hasEmotionalWord || recentEmotionalContext) {
+    // Prioritize specific indicators over general word matching
+    if (hasEmpathyIndicator) {
+      return {
+        intent: 'empathy',
+        confidence: Math.min(1.0, baseResult.confidence + 0.25) // Higher boost for specific empathy indicators
+      };
+    } else if (hasSocialIndicator) {
+      return {
+        intent: 'social',
+        confidence: Math.min(1.0, baseResult.confidence + 0.25) // Higher boost for specific social indicators
+      };
+    } else if (hasEmotionalWord || recentEmotionalContext) {
       return {
         intent: 'empathy',
         confidence: Math.min(1.0, baseResult.confidence + 0.15)
