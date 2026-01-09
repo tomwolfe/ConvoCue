@@ -139,10 +139,21 @@ font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, san
 
 ## UI Mode Guidelines
 
+### Subtle Mode Visual Vocabulary
+- **Purpose**: To provide essential social cues without being a distraction in face-to-face interactions.
+- **Backgrounds**: Use `transparent` or low-opacity `rgba(255, 255, 255, 0.1)` with `backdrop-filter: blur(2px)`.
+- **Text**: Reduce font size by 10-20% and use `var(--text-muted)` to lower contrast.
+- **Visibility**: 
+    - Hide non-essential secondary information (timestamps, metadata).
+    - Hide persistent controls (`.controls`, `.persona-selector`) when not actively needed.
+    - Reduce opacity of status indicators (`.status-badge`) to 0.3-0.5.
+- **Animations**: Disable or significantly slow down non-critical animations.
+- **Interactions**: Reveal full controls on hover or through a specific "expand" action if necessary.
+
 ### Conflicting Modes Prevention
-- Compact mode and Subtle mode should not be active simultaneously
-- When one UI mode is activated, incompatible modes should be deactivated
-- Clear visual indicators for active modes
+- Compact mode and Subtle mode should not be active simultaneously.
+- When one UI mode is activated, incompatible modes should be deactivated.
+- Clear visual indicators for active modes in the view menu.
 
 ### Mode Transitions
 - Smooth transitions between modes

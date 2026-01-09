@@ -220,7 +220,46 @@ export const AppConfig = {
       return (memory && memory <= 4) || (hardwareConcurrency && hardwareConcurrency <= 2);
     },
 
-    // Maximum token count for conversation history
-    maxTokenCount: 4000
-  }
-};
+        // Maximum token count for conversation history
+
+        maxTokenCount: 4000
+
+      },
+
+    
+
+      // UI theme configurations
+
+      ui: {
+
+        colors: {
+
+          primary: '#6366f1',
+
+          primaryLight: '#818cf8',
+
+          success: '#10b981',
+
+          warning: '#f59e0b',
+
+          error: '#ef4444',
+
+          info: '#3b82f6',
+
+          text: '#0f172a',
+
+          textMuted: '#64748b',
+
+          bg: '#f8fafc',
+
+          cardBg: '#ffffff',
+
+          border: '#e2e8f0'
+
+        }
+
+      }
+
+    };
+
+    

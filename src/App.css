@@ -274,7 +274,7 @@ header.compact .subtitle {
 .progress-ring { width: 100px; height: 100px; margin: 0 auto; position: relative; }
 .progress-ring svg { transform: rotate(-90deg); }
 .progress-ring circle { fill: none; stroke-width: 8; stroke-linecap: round; }
-.progress-ring .bg { stroke: #F1F2F6; }
+.progress-ring .bg { stroke: var(--border); }
 .progress-ring .fg { stroke: var(--primary); stroke-dasharray: 282.7; transition: stroke-dashoffset 0.3s ease; }
 .progress-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-weight: 800; color: var(--primary); }
 
@@ -1229,15 +1229,36 @@ header.compact .subtitle {
 }
 
 .subtle-mode .transcript {
-  display: none;
+  opacity: 0.2;
+  transition: opacity 0.3s;
+}
+
+.subtle-mode .transcript:hover {
+  opacity: 0.8;
 }
 
 .subtle-mode .persona-selector {
-  display: none;
+  opacity: 0.1;
+  transition: opacity 0.3s;
+}
+
+.subtle-mode .persona-selector:hover {
+  opacity: 1;
 }
 
 .subtle-mode .controls {
-  display: none;
+  opacity: 0.2;
+  transition: opacity 0.3s;
+}
+
+.subtle-mode .controls:hover {
+  opacity: 1;
+}
+
+.subtle-mode .error-recovery {
+  background: transparent;
+  border: 1px solid var(--error);
+  opacity: 0.6;
 }
 
 .subtle-mode .audio-visualizer {
