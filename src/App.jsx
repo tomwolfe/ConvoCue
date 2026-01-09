@@ -15,7 +15,6 @@ import { secureLocalStorageGet, secureLocalStorageSet } from './utils/encryption
 import './App.css';
 
 import { getMergedPersonas } from './utils/preferences';
-import { analyzeCulturalContext } from './utils/culturalIntelligence';
 
 const App = () => {
   const [hasInteracted, setHasInteracted] = useState(false);
@@ -54,7 +53,6 @@ const App = () => {
     suggestion,
     detectedIntent,
     emotionData,
-    conversationSentiment,
     coachingInsights,
     isProcessing,
     processingStep,
@@ -65,7 +63,6 @@ const App = () => {
     setSuggestion,
     setStatus,
     resetWorker,
-    history,
     conversationTurns,
     persona,
     setPersona,
@@ -91,25 +88,27 @@ const App = () => {
     if (isCompactMode) {
       document.body.classList.add('compact-mode');
       // Disable subtle mode when compact mode is enabled
+      // This is intentionally setting state in effect to prevent conflicting UI modes
       if (isSubtleMode) {
-        setIsSubtleMode(false);
+        setIsSubtleMode(false); // eslint-disable-line react-hooks/set-state-in-effect
       }
     } else {
       document.body.classList.remove('compact-mode');
     }
-  }, [isCompactMode, isSubtleMode, setIsSubtleMode]);
+  }, [isCompactMode, isSubtleMode]);
 
   useEffect(() => {
     if (isSubtleMode) {
       document.body.classList.add('subtle-mode');
       // Disable compact mode when subtle mode is enabled
+      // This is intentionally setting state in effect to prevent conflicting UI modes
       if (isCompactMode) {
-        setIsCompactMode(false);
+        setIsCompactMode(false); // eslint-disable-line react-hooks/set-state-in-effect
       }
     } else {
       document.body.classList.remove('subtle-mode');
     }
-  }, [isSubtleMode, isCompactMode, setIsCompactMode]);
+  }, [isSubtleMode, isCompactMode]);
 
   useEffect(() => {
     const runDiagnostics = async () => {

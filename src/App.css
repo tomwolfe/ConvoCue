@@ -461,7 +461,7 @@ header.compact .subtitle {
   padding: 0.75rem;
   background: white;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 20px;
   text-align: left;
   cursor: pointer;
   transition: all 0.2s;
@@ -1335,7 +1335,7 @@ header.compact .subtitle {
 
 /* Standardized Button Styles */
 .btn-standard {
-  padding: 0.5rem 1rem;
+  padding: 0.5rem 0.75rem;
   border-radius: 8px;
   border: 1px solid var(--border);
   background: white;
