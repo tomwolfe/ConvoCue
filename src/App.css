@@ -481,6 +481,15 @@ header.compact .subtitle {
   border-left: 4px solid #10b981;
   background: linear-gradient(to bottom right, #f0fdf4, #ffffff);
   margin-bottom: 0.5rem;
+  position: relative;
+  overflow: hidden;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.insight-card.dismissed {
+  opacity: 0;
+  transform: translateY(-10px);
+  pointer-events: none;
 }
 
 .insight-card.anxiety-insight {
@@ -488,8 +497,45 @@ header.compact .subtitle {
   background: linear-gradient(to bottom right, #fff1f2, #ffffff);
 }
 
+.insight-card.relationship-insight {
+  border-left-color: #3b82f6;
+  background: linear-gradient(to bottom right, #eff6ff, #ffffff);
+}
+
+.insight-card.professional-insight {
+  border-left-color: #64748b;
+  background: linear-gradient(to bottom right, #f8fafc, #ffffff);
+}
+
+/* Accessibility Patterns (Non-color cues) */
+.pattern-dots::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 40px;
+  height: 40px;
+  opacity: 0.1;
+  background-image: radial-gradient(#000 1px, transparent 1px);
+  background-size: 8px 8px;
+}
+
+.pattern-lines::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 40px;
+  height: 40px;
+  opacity: 0.05;
+  background: repeating-linear-gradient(45deg, #000, #000 1px, transparent 1px, transparent 10px);
+}
+
 .insight-card .card-header {
   background: rgba(255, 255, 255, 0.5);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .insight-badge {
@@ -511,11 +557,17 @@ header.compact .subtitle {
   margin: 0;
 }
 
+.insight-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 1rem 0.75rem;
+}
+
 .coping-strategy {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.5rem 1rem 0.75rem;
   font-size: 0.75rem;
   color: #047857;
   font-weight: 600;
@@ -523,6 +575,52 @@ header.compact .subtitle {
 
 .coping-strategy svg {
   color: #f59e0b;
+}
+
+.insight-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.insight-action-btn {
+  background: none;
+  border: none;
+  padding: 0.25rem;
+  cursor: pointer;
+  color: var(--text-muted);
+  border-radius: 4px;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.insight-action-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--text);
+}
+
+.insight-action-btn.dismiss-btn:hover {
+  color: #f43f5e;
+}
+
+.insight-navigation {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: 0.5rem;
+}
+
+.nav-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--border);
+  transition: background 0.2s;
+}
+
+.nav-dot.active {
+  background: var(--primary);
 }
 
 .compact-insight {

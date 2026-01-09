@@ -1,6 +1,11 @@
-import React, { useMemo } from 'react';
-import { Trash2, Copy, Check, RefreshCw, ThumbsUp, ThumbsDown, Flag, User, Users, AlertTriangle, Zap, Target, MessageCircle, Heart } from 'lucide-react';
+import React, { useMemo, useState, useEffect } from 'react';
+import { 
+  Trash2, Copy, Check, RefreshCw, ThumbsUp, ThumbsDown, 
+  Flag, User, Users, AlertTriangle, Zap, Target, 
+  MessageCircle, Heart, X, ChevronLeft, ChevronRight, Info 
+} from 'lucide-react';
 import { AppConfig } from '../../config';
+import { CoachingConfig } from '../../config/coachingConfig';
 import { submitFeedback } from '../../utils/feedback';
 import { overrideSpeakerForTurn } from '../../conversationManager';
 import { parseSemanticTags } from '../../utils/intentRecognition';
@@ -32,30 +37,56 @@ const DisplayArea = ({
   settings = {},
   coachingInsights = null
 }) => {
+  // Local state for insight interaction
+  const [currentInsightIndex, setCurrentInsightIndex] = useState(0);
+  const [dismissedInsights, setDismissedInsights] = useState(new Set());
+  const [showInfo, setShowInfo] = useState(false);
+
   // Determine if feedback should be enabled based on settings
   const isPersonalizationEnabled = settings.enablePersonalization !== false && !settings.privacyMode;
 
-  // Extract active coaching insight if available
-  const activeInsight = useMemo(() => {
-    if (!coachingInsights) return null;
-    if (persona === 'anxiety' && coachingInsights.anxiety?.anxietySpecificInsights?.length > 0) {
-      return {
-        type: 'anxiety',
-        title: 'Anxiety Support',
-        icon: <Heart size={16} className="text-rose-500" />,
-        ...coachingInsights.anxiety.anxietySpecificInsights[0]
-      };
-    }
-    if (persona === 'relationship' && coachingInsights.relationship?.relationshipInsights?.length > 0) {
-      return {
-        type: 'relationship',
-        title: 'Relationship Coaching',
-        icon: <Users size={16} className="text-blue-500" />,
-        ...coachingInsights.relationship.relationshipInsights[0]
-      };
-    }
-    return null;
+  // Reset index when persona or insights change
+  useEffect(() => {
+    setCurrentInsightIndex(0);
+  }, [persona, coachingInsights]);
+
+  // Extract all relevant insights based on persona and config
+  const allInsights = useMemo(() => {
+    if (!coachingInsights) return [];
+    
+    const config = CoachingConfig[persona] || CoachingConfig.default;
+    const rawInsights = config.insightPath(coachingInsights) || [];
+    
+    return rawInsights.map(insight => ({
+      ...insight,
+      config
+    }));
   }, [coachingInsights, persona]);
+
+  // Filter out dismissed insights and get current one
+  const visibleInsights = useMemo(() => 
+    allInsights.filter((_, idx) => !dismissedInsights.has(`${persona}-${idx}`)),
+  [allInsights, dismissedInsights, persona]);
+
+  const activeInsight = visibleInsights[currentInsightIndex] || null;
+
+  const handleDismiss = () => {
+    const originalIndex = allInsights.indexOf(activeInsight);
+    setDismissedInsights(prev => new Set(prev).add(`${persona}-${originalIndex}`));
+    if (currentInsightIndex >= visibleInsights.length - 1 && currentInsightIndex > 0) {
+      setCurrentInsightIndex(prev => prev - 1);
+    }
+  };
+
+  const handleNextInsight = (e) => {
+    e.stopPropagation();
+    setCurrentInsightIndex(prev => (prev + 1) % visibleInsights.length);
+  };
+
+  const handlePrevInsight = (e) => {
+    e.stopPropagation();
+    setCurrentInsightIndex(prev => (prev - 1 + visibleInsights.length) % visibleInsights.length);
+  };
 
   // Parse semantic tags for visual indicators
   const { cleanText, tags } = useMemo(() => parseSemanticTags(suggestion), [suggestion]);
@@ -99,21 +130,86 @@ const DisplayArea = ({
   return (
     <div className="display-area" role="region" aria-label="Speech processing results">
       {activeInsight && !showMinimalUI && (
-        <div className={`card insight-card ${activeInsight.type === 'anxiety' ? 'anxiety-insight' : ''} ${isCompactMode ? 'compact-insight' : ''}`} role="complementary">
+        <div 
+          className={`card insight-card ${activeInsight.config.className} ${activeInsight.config.pattern} ${isCompactMode ? 'compact-insight' : ''}`} 
+          role="complementary"
+          aria-label={activeInsight.config.ariaLabel}
+        >
           <div className="card-header">
             <div className="flex items-center gap-2">
-              {activeInsight.icon}
-              <label>{activeInsight.title}</label>
+              {activeInsight.config.icon}
+              <label>{activeInsight.config.title}</label>
+              {visibleInsights.length > 1 && (
+                <div className="insight-navigation" role="group" aria-label="Insight navigation">
+                  <button className="insight-action-btn" onClick={handlePrevInsight} aria-label="Previous insight">
+                    <ChevronLeft size={12} />
+                  </button>
+                  <div className="flex gap-1">
+                    {visibleInsights.map((_, idx) => (
+                      <div key={idx} className={`nav-dot ${idx === currentInsightIndex ? 'active' : ''}`} />
+                    ))}
+                  </div>
+                  <button className="insight-action-btn" onClick={handleNextInsight} aria-label="Next insight">
+                    <ChevronRight size={12} />
+                  </button>
+                </div>
+              )}
             </div>
-            <span className="insight-badge">{activeInsight.category || 'Focus'}</span>
+            <div className="flex items-center gap-2">
+              <span className="insight-badge">{activeInsight.category || 'Focus'}</span>
+              <button 
+                className="insight-action-btn dismiss-btn" 
+                onClick={handleDismiss}
+                title="Dismiss insight"
+                aria-label="Dismiss insight"
+              >
+                <X size={14} />
+              </button>
+            </div>
           </div>
-          <p className="insight-text">{activeInsight.insight}</p>
-          {activeInsight.type === 'anxiety' && coachingInsights.anxiety?.copingStrategies?.length > 0 && (
-            <div className="coping-strategy">
-              <Zap size={14} />
-              <span>Tip: {coachingInsights.anxiety.copingStrategies[0].technique}</span>
+          
+          <p className="insight-text">
+            {showInfo ? `Logic: Based on ${activeInsight.category} pattern with ${activeInsight.priority} priority.` : activeInsight.insight}
+          </p>
+          
+          <div className="insight-footer">
+            <div className="coping-wrapper">
+              {persona === 'anxiety' && coachingInsights.anxiety?.copingStrategies?.length > 0 && (
+                <div className="coping-strategy">
+                  <Zap size={14} />
+                  <span>Tip: {coachingInsights.anxiety.copingStrategies[0].technique}</span>
+                </div>
+              )}
             </div>
-          )}
+            
+            <div className="insight-actions">
+              <button 
+                className={`insight-action-btn ${showInfo ? 'active' : ''}`}
+                onClick={() => setShowInfo(!showInfo)}
+                title="Why am I seeing this?"
+              >
+                <Info size={14} />
+              </button>
+              {isPersonalizationEnabled && (
+                <>
+                  <button 
+                    className="insight-action-btn"
+                    onClick={() => submitFeedback(activeInsight.insight, 'like', `insight-${persona}`, culturalContext)}
+                    title="Helpful"
+                  >
+                    <ThumbsUp size={14} />
+                  </button>
+                  <button 
+                    className="insight-action-btn"
+                    onClick={() => submitFeedback(activeInsight.insight, 'dislike', `insight-${persona}`, culturalContext)}
+                    title="Not helpful"
+                  >
+                    <ThumbsDown size={14} />
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
