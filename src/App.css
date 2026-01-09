@@ -704,6 +704,38 @@ header.compact .subtitle {
   color: #b45309;
 }
 
+/* Subtle Actions Animation */
+.animate-in {
+  animation: fadeInRight 0.2s ease-out;
+}
+
+@keyframes fadeInRight {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.subtle-actions-container {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 24px;
+}
+
+.subtle-trigger {
+  opacity: 0.5;
+  transition: opacity 0.2s;
+}
+
+.subtle-trigger:hover {
+  opacity: 1;
+}
+
 /* Hero Suggestion */
 .suggestion {
   border-left: 4px solid var(--primary);

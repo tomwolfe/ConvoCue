@@ -276,3 +276,20 @@ export const getInsightCategoryScores = async () => {
     return {};
   }
 };
+
+/**
+ * Reset all coaching-related personalization data
+ */
+export const resetCoachingFeedback = async () => {
+  try {
+    await Promise.all([
+      secureLocalStorageSet('convocue_insight_category_scores', {}),
+      secureLocalStorageSet('coaching_coping_indices', {}),
+      secureLocalStorageSet('dismissed_coaching_insights', [])
+    ]);
+    return true;
+  } catch (e) {
+    console.error('Failed to reset coaching feedback:', e);
+    return false;
+  }
+};

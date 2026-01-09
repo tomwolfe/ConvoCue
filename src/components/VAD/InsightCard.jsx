@@ -1,5 +1,5 @@
-import React from 'react';
-import { ChevronLeft, ChevronRight, X, Info, Zap, ThumbsUp, ThumbsDown, RefreshCw } from 'lucide-react';
+import React, { useState } from 'react';
+import { ChevronLeft, ChevronRight, X, Info, Zap, ThumbsUp, ThumbsDown, RefreshCw, MoreHorizontal } from 'lucide-react';
 import CoachingDisclaimer from './CoachingDisclaimer';
 
 const InsightNavigation = ({ visibleInsights, currentInsightIndex, onPrev, onNext }) => {
@@ -61,9 +61,16 @@ const InsightCard = ({
   onFeedback,
   isPersonalizationEnabled
 }) => {
+  const [showSubtleActions, setShowSubtleActions] = useState(false);
+
   if (!activeInsight) return null;
 
   const strategies = activeInsight.config.copingPath(coachingInsights);
+
+  const handleFeedback = (type) => {
+    onFeedback(activeInsight.category, type);
+    setShowSubtleActions(false);
+  };
 
   return (
     <div 
@@ -110,35 +117,76 @@ const InsightCard = ({
           />
         </div>
         
-        {!showSubtleCoaching && (
-          <div className="insight-actions">
-            <button 
-              className={`insight-action-btn ${showInfo ? 'active' : ''}`}
-              onClick={onToggleInfo}
-              title="Why am I seeing this?"
-            >
-              <Info size={14} />
-            </button>
-            {isPersonalizationEnabled && (
-              <>
-                <button 
-                  className="insight-action-btn"
-                  onClick={() => onFeedback(activeInsight.category, 'like')}
-                  title="Helpful"
-                >
-                  <ThumbsUp size={14} />
-                </button>
-                <button 
-                  className="insight-action-btn"
-                  onClick={() => onFeedback(activeInsight.category, 'dislike')}
-                  title="Not helpful"
-                >
-                  <ThumbsDown size={14} />
-                </button>
-              </>
-            )}
-          </div>
-        )}
+        <div className="insight-actions">
+          {showSubtleCoaching ? (
+            <div className="subtle-actions-container">
+              {showSubtleActions ? (
+                <div className="flex gap-1 animate-in fade-in slide-in-from-right-2 duration-200">
+                  <button 
+                    className="insight-action-btn"
+                    onClick={() => handleFeedback('like')}
+                    title="Helpful"
+                  >
+                    <ThumbsUp size={12} />
+                  </button>
+                  <button 
+                    className="insight-action-btn"
+                    onClick={() => handleFeedback('dislike')}
+                    title="Not helpful"
+                  >
+                    <ThumbsDown size={12} />
+                  </button>
+                  <button 
+                    className="insight-action-btn"
+                    onClick={() => setShowSubtleActions(false)}
+                    title="Cancel"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ) : (
+                isPersonalizationEnabled && (
+                  <button 
+                    className="insight-action-btn subtle-trigger"
+                    onClick={() => setShowSubtleActions(true)}
+                    title="Adjust Coaching"
+                    aria-label="Adjust Coaching"
+                  >
+                    <MoreHorizontal size={14} />
+                  </button>
+                )
+              )}
+            </div>
+          ) : (
+            <>
+              <button 
+                className={`insight-action-btn ${showInfo ? 'active' : ''}`}
+                onClick={onToggleInfo}
+                title="Why am I seeing this?"
+              >
+                <Info size={14} />
+              </button>
+              {isPersonalizationEnabled && (
+                <>
+                  <button 
+                    className="insight-action-btn"
+                    onClick={() => handleFeedback('like')}
+                    title="Helpful"
+                  >
+                    <ThumbsUp size={14} />
+                  </button>
+                  <button 
+                    className="insight-action-btn"
+                    onClick={() => handleFeedback('dislike')}
+                    title="Not helpful"
+                  >
+                    <ThumbsDown size={14} />
+                  </button>
+                </>
+              )}
+            </>
+          )}
+        </div>
       </div>
       
       <CoachingDisclaimer compact={isCompactMode} />

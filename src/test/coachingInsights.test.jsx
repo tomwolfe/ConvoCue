@@ -152,6 +152,39 @@ describe('CoachingInsights functionality', () => {
     expect(screen.getByLabelText('Dismiss insight')).toBeInTheDocument();
   });
 
+  it('allows providing feedback in subtle mode via the adjust trigger', async () => {
+    render(
+      <DisplayArea 
+        persona="anxiety" 
+        coachingInsights={mockCoachingInsights} 
+        settings={{ showSubtleCoaching: true, enablePersonalization: true }}
+      />
+    );
+    
+    await waitFor(() => {
+      expect(screen.getByText('Insight 1: You seem anxious.')).toBeInTheDocument();
+    });
+
+    // Find and click the subtle trigger
+    const adjustBtn = screen.getByLabelText('Adjust Coaching');
+    await act(async () => {
+      fireEvent.click(adjustBtn);
+    });
+
+    // Now feedback buttons should be visible
+    const helpfulBtn = screen.getByTitle('Helpful');
+    expect(helpfulBtn).toBeInTheDocument();
+    
+    // Click helpful
+    await act(async () => {
+      fireEvent.click(helpfulBtn);
+    });
+
+    // Adjust button should be back (or buttons gone)
+    expect(screen.queryByTitle('Helpful')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Adjust Coaching')).toBeInTheDocument();
+  });
+
   it('toggles logic info when info button is clicked', async () => {
     render(
       <DisplayArea 

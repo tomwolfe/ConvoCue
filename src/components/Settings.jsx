@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Info, ChevronDown, ChevronUp } from 'lucide-react';
-import { resetPersonalizationData } from '../utils/feedback';
+import { resetPersonalizationData, resetCoachingFeedback } from '../utils/feedback';
 import { secureLocalStorageGet, secureLocalStorageSet } from '../utils/encryption';
 import { getSocialSuccessWeights, saveSocialSuccessWeights } from '../utils/feedbackAnalytics';
 import { eventBus, EVENTS } from '../utils/eventBus';
@@ -121,6 +121,13 @@ const Settings = ({ isOpen, onClose }) => {
       eventBus.emit(EVENTS.SETTINGS_CHANGED, defaultSettings);
       
       alert('Personalization data has been reset.');
+    }
+  };
+
+  const handleResetCoaching = async () => {
+    if (window.confirm('Reset coaching feedback? This will clear your insight preferences and reset your progress on coaching tips.')) {
+      await resetCoachingFeedback();
+      alert('Coaching feedback has been reset.');
     }
   };
 
@@ -427,6 +434,13 @@ const Settings = ({ isOpen, onClose }) => {
                 Clear Analytics History
               </button>
               
+              <button 
+                className="btn btn-outline btn-sm"
+                onClick={handleResetCoaching}
+              >
+                Reset Coaching Feedback
+              </button>
+
               <button 
                 className="btn btn-outline btn-sm"
                 onClick={handleResetPersonalization}
