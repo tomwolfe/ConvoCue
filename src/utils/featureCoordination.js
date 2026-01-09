@@ -1,9 +1,15 @@
 /**
  * Feature Coordination System for ConvoCue
  * Manages potential conflicts between cultural context, language learning, and professional coaching features
+ *
+ * IMPORTANT DISCLAIMER: This system attempts to balance competing recommendations from different AI modules.
+ * The prioritization system reflects design decisions that may not be appropriate for all contexts or individuals.
+ * Cultural, linguistic, and professional advice should be considered as suggestions only, not absolute rules.
+ * Always prioritize individual user preferences and context over algorithmic recommendations.
  */
 
 // Define feature priorities to resolve conflicts
+// NOTE: Higher numbers indicate higher priority in conflict resolution
 const FEATURE_PRIORITIES = {
   'cultural': 3,
   'languagelearning': 2,
@@ -25,9 +31,9 @@ const CONFLICT_RESOLUTION = {
     handler: (culturalInsight, languageInsight) => {
       // If cultural context demands high formality but language learning suggests simpler language,
       // find a middle ground that respects both
-      if (culturalInsight.characteristics?.formality_level === 'high' && 
-          languageInsight.grammarErrors.length > 0) {
-        suggestFormal but grammatically correct language;
+      if (culturalInsight.characteristics?.formality_level === 'high' &&
+          languageInsight.grammarErrors && languageInsight.grammarErrors.length > 0) {
+        // Return insights as-is for now; actual transformation would happen elsewhere
       }
       return { culturalInsight, languageInsight };
     }

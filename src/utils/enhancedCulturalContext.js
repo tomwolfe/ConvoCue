@@ -1,11 +1,16 @@
 /**
  * Enhanced Cultural Context Detection for ConvoCue
  * Improves cross-cultural communication capabilities
+ *
+ * IMPORTANT DISCLAIMER: This module uses generalizations about cultural groups that may not apply to individuals.
+ * Cultural identity is complex, diverse, and personal. These patterns are meant as starting points for understanding,
+ * not definitive characterizations of individuals. Always respect individual preferences over cultural assumptions.
  */
 
 import { mergeCulturalContext, provideCulturalFeedback } from './userCulturalProfile.js';
 
 // Cultural communication patterns by region - NOTE: These are generalizations for initial detection only
+// IMPORTANT: These patterns should not be treated as definitive for any individual
 const CULTURAL_PATTERNS = {
   'east-asian': {
     keywords: ['respect', 'hierarchy', 'face-saving', 'harmony', 'indirect', 'politeness', 'formality'],

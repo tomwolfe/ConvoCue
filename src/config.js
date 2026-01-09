@@ -1,3 +1,6 @@
+// Import cultural and language learning configuration
+import CulturalLanguageConfig from './culturalLanguageConfig.js';
+
 // Device detection
 const isMobile = typeof navigator !== 'undefined' && /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
@@ -47,9 +50,13 @@ const DEFAULT_PERSONAS = {
   }
 };
 
+// Import cultural and language learning configuration
+import CulturalLanguageConfig from './config/culturalLanguageConfig.js';
+
 // Configuration for ConvoCue application
 export const AppConfig = {
   isMobile,
+  culturalLanguageConfig: CulturalLanguageConfig,
 
   // Model configurations
   models: {

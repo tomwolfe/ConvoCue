@@ -1,6 +1,11 @@
 /**
  * Advanced Language Learning Features for ConvoCue
  * Provides grammar correction, pronunciation feedback, and language learning support
+ *
+ * IMPORTANT DISCLAIMER: This module provides language learning suggestions based on general patterns.
+ * Language learning is highly individual, and these suggestions may not be appropriate for all learners.
+ * Native language backgrounds vary greatly even within cultural groups, and individual learning styles differ.
+ * These are educational suggestions only, not definitive assessments.
  */
 
 import { storeLanguageLearningFeedback } from './languageLearningFeedback.js';
