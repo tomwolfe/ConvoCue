@@ -2,7 +2,7 @@ import React from 'react';
 import { Sparkles, Info } from 'lucide-react';
 import { AppConfig } from '../../config';
 
-const PersonaSelector = ({ persona, setPersona, culturalContext, setCulturalContext, availablePersonas, settings }) => {
+const PersonaSelector = ({ persona, setPersona, culturalContext, setCulturalContext, availablePersonas, settings, lastSwitchReason }) => {
   if (!availablePersonas || Object.keys(availablePersonas).length === 0) return null;
   
   return (
@@ -11,7 +11,7 @@ const PersonaSelector = ({ persona, setPersona, culturalContext, setCulturalCont
         <div className="persona-auto-indicator-container">
           <div className="persona-auto-indicator">
             <Sparkles size={14} />
-            <span>Smart Switch Active</span>
+            <span>Smart Switch: {lastSwitchReason || 'Active'}</span>
           </div>
           <div className="info-tooltip-wrapper">
             <Info size={14} className="info-icon" />

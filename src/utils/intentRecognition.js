@@ -12,7 +12,7 @@ const intentPatterns = {
   greeting: {
     patterns: [
       { text: ['hello', 'hi', 'hey', 'good morning', 'good afternoon', 'good evening'], weight: 1.0 },
-      { text: ['greetings', 'howdy', 'hiya', 'what\'s up'], weight: 0.8 },
+      { text: ['greetings', 'howdy', 'hiya', "what's up"], weight: 0.8 },
       { text: ['morning', 'afternoon', 'evening'], weight: 0.6 }
     ],
     cue: 'greeting'
@@ -28,7 +28,7 @@ const intentPatterns = {
   agreement: {
     patterns: [
       { text: ['yes', 'yeah', 'yep', 'ok', 'okay', 'sure', 'absolutely'], weight: 1.0 },
-      { text: ['right', 'exactly', 'indeed', 'correct', 'that\'s right'], weight: 0.9 },
+      { text: ['right', 'exactly', 'indeed', 'correct', "that's right"], weight: 0.9 },
       { text: ['agreed', 'i agree', 'me too', 'same here'], weight: 0.8 }
     ],
     cue: 'agreement'
@@ -36,8 +36,8 @@ const intentPatterns = {
   disagreement: {
     patterns: [
       { text: ['no', 'nope', 'nah', 'not really'], weight: 1.0 },
-      { text: ['disagree', 'i don\'t think so', 'not sure about that'], weight: 0.9 },
-      { text: ['wrong', 'incorrect', 'that\'s not right'], weight: 0.8 }
+      { text: ['disagree', "i don't think so", 'not sure about that'], weight: 0.9 },
+      { text: ['wrong', 'incorrect', "that's not right"], weight: 0.8 }
     ],
     cue: 'disagreement'
   },
@@ -59,7 +59,7 @@ const intentPatterns = {
   },
   action: {
     patterns: [
-      { text: ['need to', 'should', 'will', 'let\'s', 'assign', 'deadline', 'task', 'follow up'], weight: 1.0 },
+      { text: ['need to', 'should', 'will', "let's", 'assign', 'deadline', 'task', 'follow up'], weight: 1.0 },
       { text: ['todo', 'action', 'next steps', 'plan', 'schedule'], weight: 0.8 },
       { text: ['remember', 'remind', 'organize', 'arrange'], weight: 0.7 }
     ],
@@ -250,7 +250,7 @@ export const detectIntentWithConfidence = (input) => {
         // Only allow if it's a multi-word pattern or at word boundaries
         if (inputLower.includes(patternText)) {
           const isMultiWord = patternText.includes(' ');
-          const isAtWordBoundary = new RegExp(`\\b${patternText.replace(/[.*+?^${}()|[\\]/g, '\\$&')}\\b`, 'i').test(inputLower);
+          const isAtWordBoundary = new RegExp(`\b${patternText.replace(/[.*+?^${}()|[\/]/g, '\$&')}\b`, 'i').test(inputLower);
           
           if (isMultiWord || isAtWordBoundary) {
             const weightMultiplier = isMultiWord ? 1.0 : 0.6;
@@ -308,7 +308,7 @@ export const detectMultipleIntents = (input, threshold = 0.4) => {
         
         if (inputLower.includes(patternText)) {
           const isMultiWord = patternText.includes(' ');
-          const isAtWordBoundary = new RegExp(`\\b${patternText.replace(/[.*+?^${}()|[\\]/g, '\\$&')}\\b`, 'i').test(inputLower);
+          const isAtWordBoundary = new RegExp(`\b${patternText.replace(/[.*+?^${}()|[\/]/g, '\$&')}\b`, 'i').test(inputLower);
           
           if (isMultiWord || isAtWordBoundary) {
             const weightMultiplier = isMultiWord ? 1.0 : 0.6;
@@ -507,7 +507,7 @@ export const parseSemanticTags = (text) => {
         if (!foundTags.some(t => t.key === key)) {
           foundTags.push({ ...meta, key });
         }
-        const escapedTag = tag.replace(/[.*+?^${}()|[\\]/g, '\\$&');
+        const escapedTag = tag.replace(/[.*+?^${}()|[\/]/g, '\$&');
         const regex = new RegExp(escapedTag, 'gi');
         cleanText = cleanText.replace(regex, '').trim();
       }

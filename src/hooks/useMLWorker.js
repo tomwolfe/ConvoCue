@@ -6,7 +6,8 @@ import { useAppPreferences } from './useAppPreferences';
 import { getCommunicationProfileSummary } from '../utils/personalization';
 import { provideHapticFeedback } from '../utils/haptics';
 import { getInsightCategoryScores } from '../utils/feedback';
-import { orchestratePersona } from '../utils/personaOrchestrator';
+import { usePerformanceMonitor } from './usePerformanceMonitor';
+import { usePersonaOrchestration } from './usePersonaOrchestration';
 
 const initialState = {
   status: 'Initializing Models...',
@@ -23,6 +24,7 @@ const initialState = {
   persona: 'meeting',
   culturalContext: 'general'
 };
+// ... rest of the file ...
 
 function workerReducer(state, action) {
   switch (action.type) {
@@ -94,75 +96,21 @@ export const useMLWorker = () => {
   const stateRef = useRef(state);
   const historyRef = useRef(history);
   const lastMessageTimeRef = useRef(lastMessageTime);
-  const autoSwitchInfoRef = useRef({ time: 0, from: null, to: null });
-  const rejectionDampeningRef = useRef({}); // Store dampening per persona: { persona: { value, timestamp } }
+
+  const { performOrchestration, handleManualPersonaChange, lastSwitchReason } = usePersonaOrchestration(
+    state.persona,
+    settings,
+    historyRef,
+    dispatch
+  );
+
+  usePerformanceMonitor(worker);
 
   useEffect(() => {
     stateRef.current = state;
     historyRef.current = history;
     lastMessageTimeRef.current = lastMessageTime;
   }, [state, history, lastMessageTime]);
-
-  /**
-   * Calculates the current dampening for a persona, applying temporal decay.
-   * Uses a 5-minute half-life for the dampening effect.
-   */
-  const getDecayedDampening = useCallback((persona) => {
-    const entry = rejectionDampeningRef.current[persona];
-    if (!entry) return 0;
-    
-    const now = Date.now();
-    const elapsedMinutes = (now - entry.timestamp) / (1000 * 60);
-    const halfLife = 5; // Dampening reduces by half every 5 minutes
-    
-    const decayedValue = entry.value * Math.pow(0.5, elapsedMinutes / halfLife);
-    
-    // If it's negligible, just clear it
-    if (decayedValue < 0.05) {
-      delete rejectionDampeningRef.current[persona];
-      return 0;
-    }
-    
-    return decayedValue;
-  }, []);
-
-  useEffect(() => {
-    // Proactive performance management based on device constraints
-    const updatePerformanceMode = (reason, mode = 'minimal') => {
-      console.warn(`[Performance] ${reason} detected, notifying worker to reduce load`);
-      worker.current?.postMessage({ 
-        type: 'performance_update', 
-        mode,
-        reason 
-      });
-    };
-
-    // Check for low memory on init
-    if (AppConfig.system.lowMemoryMode()) {
-      updatePerformanceMode('low_memory');
-    }
-
-    // Battery Status API monitoring with defensive checks for Safari/non-supporting browsers
-    if (typeof navigator !== 'undefined' && 'getBattery' in navigator) {
-      try {
-        navigator.getBattery().then(battery => {
-          const checkBattery = () => {
-            if ((battery.level < 0.2 && !battery.charging) || battery.saveMode) {
-              updatePerformanceMode('low_battery');
-            }
-          };
-
-          battery.addEventListener('levelchange', checkBattery);
-          battery.addEventListener('chargingchange', checkBattery);
-          checkBattery();
-        }).catch(err => {
-          console.warn('[Performance] Battery API supported but failed:', err);
-        });
-      } catch (err) {
-        console.warn('[Performance] Battery API access error:', err);
-      }
-    }
-  }, []);
 
   const initWorker = useCallback(() => {
     if (worker.current) {
@@ -207,39 +155,7 @@ export const useMLWorker = () => {
               // 4. It's a question
               if (!isShort || hasMeaningfulCue || timeSinceLast > 5000 || cleanText.includes('?')) {
                   // Auto-Persona Orchestration
-                  let activePersona = stateRef.current.persona;
-                  if (settings.enableAutoPersona !== false && !settings.privacyMode) {
-                      const dampening = getDecayedDampening(activePersona);
-                      const { suggestedPersona, confidence, debug } = orchestratePersona(
-                          cleanText, 
-                          historyRef.current, 
-                          activePersona,
-                          { 
-                            rejectionDampening: dampening,
-                            sensitivity: settings.autoPersonaSensitivity 
-                          }
-                      );
-                      
-                      if (suggestedPersona !== activePersona) {
-                          console.log(`[Orchestrator] Switching persona: ${activePersona} -> ${suggestedPersona}`, {
-                            confidence: confidence.toFixed(2),
-                            sensitivity: settings.autoPersonaSensitivity,
-                            debug
-                          });
-                          autoSwitchInfoRef.current = { 
-                            time: Date.now(), 
-                            from: activePersona, 
-                            to: suggestedPersona 
-                          };
-                          activePersona = suggestedPersona;
-                          dispatch({ type: 'SET_PERSONA', persona: suggestedPersona });
-                      } else if (debug.wasSwitch === false && debug.winner !== activePersona) {
-                        // Log why it DIDN'T switch if it was close or interesting
-                        if (debug.scores[debug.winner].total > debug.threshold * 0.8) {
-                          console.debug(`[Orchestrator] Decision: STAY on ${activePersona}. Switch to ${debug.winner} rejected by threshold/dampening.`, debug);
-                        }
-                      }
-                  }
+                  const activePersona = performOrchestration(cleanText);
 
                   const communicationProfile = settings.enablePersonalization !== false && !settings.privacyMode
                       ? await getCommunicationProfileSummary()
@@ -383,19 +299,7 @@ export const useMLWorker = () => {
     setSuggestion: (text) => dispatch({ type: 'SET_SUGGESTION', text }),
     setStatus: (status) => dispatch({ type: 'SET_STATUS', status }),
     setPersona: (persona) => {
-      // Rejection detection: if user switches away from an auto-switched persona within 15 seconds
-      const now = Date.now();
-      const lastSwitch = autoSwitchInfoRef.current;
-      if (lastSwitch.time > 0 && (now - lastSwitch.time < 15000) && persona !== lastSwitch.to) {
-        console.warn(`[Orchestrator] User rejected auto-switch to ${lastSwitch.to}. Applying dampening.`);
-        const currentEntry = rejectionDampeningRef.current[lastSwitch.to];
-        const currentDampening = currentEntry ? currentEntry.value : 0;
-        
-        rejectionDampeningRef.current[lastSwitch.to] = {
-          value: currentDampening + (AppConfig.system.orchestrator?.rejectionDampening || 0.3),
-          timestamp: now
-        };
-      }
+      handleManualPersonaChange(persona);
       updatePersona(persona);
     },
     setCulturalContext: updateCulturalContext,
@@ -404,6 +308,7 @@ export const useMLWorker = () => {
       dispatch({ type: 'CLEAR_INTERACTION' });
     },
     resetWorker: initWorker,
-    settings: settings
+    settings: settings,
+    lastSwitchReason
   };
 };

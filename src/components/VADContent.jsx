@@ -457,16 +457,14 @@ const VADContent = ({
       <AudioVisualizer isActive={vad.listening} analyser={vad.analyser} isCompactMode={isCompactMode} />
 
       {!showMinimalUI && !isCompactMode && (
-      <PersonaSelector 
-        persona={activePersona} 
-        setPersona={(p) => {
-          setActivePersona(p);
-          setPersona(p);
-        }}
+      <PersonaSelector
+        persona={persona}
+        setPersona={setPersona}
         culturalContext={culturalContext}
         setCulturalContext={setCulturalContext}
         availablePersonas={availablePersonas}
         settings={settings}
+        lastSwitchReason={lastSwitchReason}
       />
       )}
 
