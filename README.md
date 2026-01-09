@@ -16,6 +16,7 @@ ConvoCue is a privacy-first, on-device AI conversation assistant that provides r
       - **Confidence Threshold**: Adjustable sensitivity (default: 0.3 for better initial experience)
       - **Context-Aware Disambiguation**: Differentiates between similar phrases based on surrounding context
       - **Sarcasm Detection**: Advanced algorithms to identify potential sarcasm and idiomatic expressions
+      - **Intent-Based Semantic Tags**: Automatically tags responses with semantic markers for better UI feedback
     - **Emotion Analysis**: Monitors emotional tone to provide more empathetic cues.
     - **Sentiment Analysis**: Tracks conversation sentiment trends over time.
     - **Cultural Intelligence**: Multi-layered support for culturally sensitive communication with context detection.

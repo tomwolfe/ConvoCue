@@ -149,13 +149,13 @@ export const AppConfig = {
       },
       intentMap: {
         anxiety: {
-          intents: ['emotion', 'conflict', 'interruption'],
+          intents: ['empathy', 'conflict', 'interruption'],
           keywords: ['nervous', 'stressed', 'anxious', 'fear', 'scared', 'worried', 'stop', 'wait', 'panic', 'terrified', 'shaking', 'uncomfortable'],
           negativeKeywords: ['negotiate', 'deal', 'contract', 'grammar', 'vocabulary'],
           weight: 1.2
         },
         relationship: {
-          intents: ['empathy', 'emotion', 'participation'],
+          intents: ['empathy', 'social', 'participation'],
           keywords: ['feel', 'understand', 'connect', 'share', 'thoughts', 'opinions', 'partner', 'friend', 'family', 'honest', 'listen', 'vulnerable'],
           negativeKeywords: ['agenda', 'minutes', 'meeting', 'contract'],
           weight: 1.0

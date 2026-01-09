@@ -287,7 +287,7 @@ export const detectIntentWithConfidence = (input) => {
               if (token.length > 15) continue;
 
               // Measure similarity calculation performance
-              const similarity = intentPerformanceTracker.measureSimilarityCalculation(calculateSimilarity, token, patternItem.text);
+              const similarity = intentPerformanceTracker.measureSimilarityCalculation(calculateSimilarityOptimized, token, patternItem.text);
               if (similarity > 0.85) {
                 patternScore = Math.max(patternScore, pattern.weight * similarity);
               }
@@ -371,7 +371,7 @@ export const detectIntentWithConfidenceAndThreshold = (input, threshold = 0.4) =
               if (Math.abs(token.length - patternItem.text.length) > 2) continue;
               if (token.length > 15) continue;
 
-              const similarity = calculateSimilarity(token, patternItem.text);
+              const similarity = calculateSimilarityOptimized(token, patternItem.text);
               if (similarity > 0.85) {
                 patternScore = Math.max(patternScore, pattern.weight * similarity);
               }
@@ -508,6 +508,78 @@ export const detectIntentHighPerformance = (input, threshold = 0.5) => {
 };
 
 /**
+ * Optimized similarity calculation with performance safeguards
+ * @param {string} str1 - First string
+ * @param {string} str2 - Second string
+ * @returns {number} Similarity score between 0 and 1
+ */
+export const calculateSimilarityOptimized = (str1, str2) => {
+  const s1 = str1.toLowerCase().trim();
+  const s2 = str2.toLowerCase().trim();
+
+  if (s1 === s2) return 1.0;
+  if (s1.length === 0 || s2.length === 0) return 0.0;
+
+  // Additional guard against extremely long strings for performance
+  if (s1.length > 30 || s2.length > 30) return 0.0;
+
+  // Check if one string contains the other (substring match)
+  if (s1.includes(s2) || s2.includes(s1)) {
+    const longer = s1.length > s2.length ? s1 : s2;
+    const shorter = s1.length > s2.length ? s2 : s1;
+
+    // For very short strings, containment must be significant
+    if (shorter.length < 3 && longer.length > 5) return 0.2;
+
+    return shorter.length / longer.length;
+  }
+
+  // Enhanced synonym checking
+  const s1Words = s1.split(/\s+/);
+  const s2Words = s2.split(/\s+/);
+
+  // Check if any word in s1 has a synonym in s2
+  let synonymMatches = 0;
+  for (const word1 of s1Words) {
+    if (SYNONYM_MAP[word1]) {
+      for (const synonym of SYNONYM_MAP[word1]) {
+        if (s2Words.includes(synonym)) {
+          synonymMatches++;
+        }
+      }
+    }
+  }
+
+  // Check if any word in s2 has a synonym in s1
+  for (const word2 of s2Words) {
+    if (SYNONYM_MAP[word2]) {
+      for (const synonym of SYNONYM_MAP[word2]) {
+        if (s1Words.includes(synonym)) {
+          synonymMatches++;
+        }
+      }
+    }
+  }
+
+  // If we have synonym matches, boost the similarity
+  if (synonymMatches > 0) {
+    // Calculate base similarity using Jaccard index
+    const baseSimilarity = calculateBaseSimilarity(s1, s2);
+    // Boost based on number of synonym matches
+    const synonymBoost = Math.min(0.3, synonymMatches * 0.15); // Max 30% boost
+    return Math.min(1.0, baseSimilarity + synonymBoost);
+  }
+
+  // For short words, character overlap is a poor measure of similarity
+  if (s1.length < 4 || s2.length < 4) {
+    return 0;
+  }
+
+  // Calculate similarity using Jaccard index (character-based)
+  return calculateBaseSimilarity(s1, s2);
+};
+
+/**
  * Detect all intents above a threshold
  * @param {string} input - The input text to analyze for intents
  * @param {number} threshold - The confidence threshold for intent detection (default: 0.4)
@@ -550,7 +622,7 @@ export const detectMultipleIntents = (input, threshold = 0.4) => {
               if (token.length > 15) continue;
 
               // Measure similarity calculation performance
-              const similarity = intentPerformanceTracker.measureSimilarityCalculation(calculateSimilarity, token, patternItem.text);
+              const similarity = intentPerformanceTracker.measureSimilarityCalculation(calculateSimilarityOptimized, token, patternItem.text);
               if (similarity > 0.85) {
                 patternScore = Math.max(patternScore, pattern.weight * similarity);
               }

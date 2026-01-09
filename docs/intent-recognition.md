@@ -36,6 +36,18 @@ Detects emotional support, validation, understanding, and compassionate response
 Identifies concerns about phrasing, clarity, grammar, and linguistic precision.
 - Examples: "Unclear", "Explain", "Grammar", "Better way to say", "Phrasing", "Vocabulary"
 
+## Intent-Based Semantic Tags
+
+The system uses semantic tags to provide visual and haptic feedback for different intent types:
+
+- `[conflict]` - Conflict alerts and de-escalation cues
+- `[action item]` - Actionable suggestions and follow-ups
+- `[strategic]` - Strategic planning and negotiation cues
+- `[social tip]` - Social etiquette and participation tips
+- `[language tip]` - Phrasing and clarity suggestions
+- `[empathy]` - Emotional support and validation cues (note: also recognizes `[emotion]` as a legacy alias)
+- `[question]` - Follow-up questions and clarifications
+
 ## How It Works
 
 ### Multi-Phase Detection

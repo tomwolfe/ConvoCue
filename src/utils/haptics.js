@@ -380,3 +380,100 @@ export const testHapticSupport = async () => {
 
   return result;
 };
+
+/**
+ * Provides a user interface to test haptic feedback
+ * Creates a temporary UI element that allows users to test haptic feedback
+ */
+export const showHapticTestUI = () => {
+  // Check if we're in a browser environment
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    console.log('Haptic test: Not in a browser environment');
+    return;
+  }
+
+  // Check if a test UI already exists to avoid multiple elements
+  const existingTestUI = document.querySelector('.cv-haptic-test-ui');
+  if (existingTestUI) {
+    // Remove the existing UI if it exists
+    existingTestUI.remove();
+  }
+
+  // Create a temporary test UI element
+  const testUI = document.createElement('div');
+  testUI.className = 'cv-haptic-test-ui';
+  testUI.innerHTML = `
+    <div style="
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      padding: 20px;
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 10001;
+      min-width: 300px;
+      text-align: center;
+    ">
+      <h3 style="margin-top: 0;">Test Haptic Feedback</h3>
+      <p>Click the button below to test haptic feedback on your device:</p>
+      <button id="cv-test-haptic-btn" style="
+        padding: 10px 20px;
+        background-color: #4f46e5;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        margin: 10px;
+      ">Test Vibration</button>
+      <button id="cv-close-haptic-test" style="
+        padding: 10px 20px;
+        background-color: #6b7280;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        margin: 10px;
+      ">Close</button>
+      <div id="cv-haptic-test-result" style="margin-top: 15px; min-height: 20px;"></div>
+    </div>
+  `;
+
+  document.body.appendChild(testUI);
+
+  // Add event listener for the test button
+  document.getElementById('cv-test-haptic-btn').addEventListener('click', async () => {
+    const resultDiv = document.getElementById('cv-haptic-test-result');
+    resultDiv.textContent = 'Testing...';
+
+    try {
+      const result = await testHapticSupport();
+      resultDiv.innerHTML = `
+        <p><strong>Status:</strong> ${result.supported ? 'Supported' : 'Unsupported'}</p>
+        <p><strong>Message:</strong> ${result.message}</p>
+        ${result.supported ? '<p style="color: green;">✓ Haptic feedback is available on this device</p>' : '<p style="color: red;">✗ Haptic feedback is not available</p>'}
+      `;
+    } catch (error) {
+      resultDiv.innerHTML = `<p style="color: red;">Error testing haptic feedback: ${error.message}</p>`;
+    }
+  });
+
+  // Add event listener for the close button
+  document.getElementById('cv-close-haptic-test').addEventListener('click', () => {
+    testUI.remove();
+  });
+
+  // Add CSS styles via style tag if not already present
+  if (!document.querySelector('#cv-haptic-test-styles')) {
+    const style = document.createElement('style');
+    style.id = 'cv-haptic-test-styles';
+    style.textContent = `
+      .cv-haptic-test-ui {
+        font-family: Arial, sans-serif;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+};
