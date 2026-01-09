@@ -297,6 +297,99 @@ export const detectIntentWithConfidenceAndThreshold = (input, threshold = 0.4) =
 };
 
 /**
+ * High-performance intent detection for real-time processing
+ * Optimized for speed over accuracy, with early termination
+ */
+export const detectIntentHighPerformance = (input, threshold = 0.5) => {
+  if (!input || typeof input !== 'string') return { intent: null, confidence: 0 };
+
+  // Quick length check to avoid processing very long inputs
+  if (input.length > 200) {
+    // For very long inputs, just take the first 100 characters
+    input = input.substring(0, 100);
+  }
+
+  const tokens = tokenize(input);
+  const inputLower = input.toLowerCase();
+
+  // Early termination: if we have few tokens, skip similarity checks
+  if (tokens.length === 0) return { intent: null, confidence: 0 };
+
+  let bestMatch = null;
+  let bestScore = 0;
+
+  for (const [intent, patterns] of Object.entries(compiledPatterns)) {
+    let maxIntentScore = 0;
+
+    for (const pattern of patterns) {
+      let patternScore = 0;
+
+      // Phase 1: Fast Matches (Exact & RegEx) - Primary focus for performance
+      for (const patternItem of pattern.regexes) {
+        // Direct token match (exact word) - fastest check
+        if (tokens.includes(patternItem.text)) {
+          patternScore = Math.max(patternScore, pattern.weight);
+          // Early exit if we have a strong match
+          if (patternScore >= 1.0) break;
+        }
+
+        // Substring/RegEx match at word boundaries
+        if (patternScore < pattern.weight && patternItem.regex.test(inputLower)) {
+          const weightMultiplier = patternItem.isMultiWord ? 1.0 : 0.6;
+          patternScore = Math.max(patternScore, pattern.weight * weightMultiplier);
+          // Early exit if we have a strong match
+          if (patternScore >= 1.0) break;
+        }
+      }
+
+      // Skip similarity checks if we already have a strong match
+      if (patternScore < 0.7) {
+        // Phase 2: Similarity Match (Only for weak matches)
+        // Further limit tokens for performance
+        const limitedTokens = tokens.slice(0, 5);
+        for (const patternItem of pattern.regexes) {
+          if (!patternItem.isMultiWord) {
+            for (const token of limitedTokens) {
+              if (Math.abs(token.length - patternItem.text.length) > 2) continue;
+              if (token.length > 15) continue;
+
+              const similarity = calculateSimilarity(token, patternItem.text);
+              if (similarity > 0.85) {
+                patternScore = Math.max(patternScore, pattern.weight * similarity);
+                // Early exit if we have a strong match
+                if (patternScore >= 0.9) break;
+              }
+            }
+            if (patternScore >= 0.9) break;
+          }
+        }
+      }
+
+      maxIntentScore = Math.max(maxIntentScore, patternScore);
+      // Early exit if we have a very strong intent
+      if (maxIntentScore >= 1.0) {
+        bestScore = maxIntentScore;
+        bestMatch = intent;
+        break;
+      }
+    }
+
+    if (maxIntentScore > bestScore) {
+      bestScore = maxIntentScore;
+      bestMatch = intent;
+    }
+
+    // Early exit if we have a very strong intent
+    if (bestScore >= 1.0) break;
+  }
+
+  return {
+    intent: bestScore > threshold ? bestMatch : null,
+    confidence: Math.min(1.0, bestScore)
+  };
+};
+
+/**
  * Detect all intents above a threshold
  */
 export const detectMultipleIntents = (input, threshold = 0.4) => {
@@ -430,11 +523,35 @@ const generateCueFromResponse = (response, conversationHistory = []) => {
  */
 export const detectIntentWithContext = (input, conversationHistory = []) => {
   const baseResult = detectIntentWithConfidence(input);
-  
+
+  // Handle intent ambiguity for specific cases like "I'm sorry"
+  if (baseResult.intent && input.toLowerCase().includes('sorry')) {
+    // Check if the phrase is expressing empathy vs conflict
+    const empathyIndicators = ['sorry to hear', 'sorry about', 'so sorry', 'i understand', 'must be hard', 'my condolences', 'sympathies'];
+    const conflictIndicators = ['sorry but', 'sorry, but', 'but sorry', 'sorry however', 'sorry though'];
+
+    const inputLower = input.toLowerCase();
+    const hasEmpathyIndicator = empathyIndicators.some(indicator => inputLower.includes(indicator));
+    const hasConflictIndicator = conflictIndicators.some(indicator => inputLower.includes(indicator));
+
+    // If both indicators exist, favor empathy (more common use case)
+    if (hasEmpathyIndicator && !hasConflictIndicator) {
+      return {
+        intent: 'empathy',
+        confidence: Math.min(1.0, baseResult.confidence + 0.15)
+      };
+    } else if (hasConflictIndicator && !hasEmpathyIndicator) {
+      return {
+        intent: 'conflict',
+        confidence: Math.min(1.0, baseResult.confidence + 0.15)
+      };
+    }
+  }
+
   if (conversationHistory.length > 0) {
     const lastTurn = conversationHistory[conversationHistory.length - 1];
     const lastContent = lastTurn?.content?.toLowerCase() || '';
-    
+
     if (lastContent.includes('?') && baseResult.intent !== 'question') {
       if (baseResult.confidence < 0.5) {
         return {
@@ -443,12 +560,12 @@ export const detectIntentWithContext = (input, conversationHistory = []) => {
         };
       }
     }
-    
-    const recentConflict = conversationHistory.slice(-3).some(turn => 
-      turn.content.toLowerCase().includes('no') && 
+
+    const recentConflict = conversationHistory.slice(-3).some(turn =>
+      turn.content.toLowerCase().includes('no') &&
       (turn.content.toLowerCase().includes('wrong') || turn.content.toLowerCase().includes('disagree'))
     );
-    
+
     if (recentConflict && baseResult.intent === 'conflict') {
       return {
         intent: 'conflict',
@@ -456,7 +573,7 @@ export const detectIntentWithContext = (input, conversationHistory = []) => {
       };
     }
   }
-  
+
   return baseResult;
 };
 

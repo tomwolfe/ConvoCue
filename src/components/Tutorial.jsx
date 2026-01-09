@@ -116,6 +116,11 @@ const Tutorial = ({ onComplete, isCompactMode }) => {
       title: "Real-time Insights",
       content: "Watch for the '(Live)' badge. ConvoCue detects intents like questions, conflicts, or suggestions instantly while it's still thinking about the best response.",
       visual: "live-insights"
+    },
+    {
+      title: "Understanding Intent Labels",
+      content: "ConvoCue uses these intent categories: Social (greetings & affirmations), Question (inquiries & clarifications), Conflict (disagreements & tensions), Strategic (business & planning), Action (suggestions & recommendations), Empathy (emotional support), Language (phrasing & clarity). Each helps tailor the AI's response.",
+      visual: "intent-breakdown"
     }
   ];
 
@@ -163,7 +168,7 @@ const Tutorial = ({ onComplete, isCompactMode }) => {
 
   const handleUseCaseSelect = (useCaseId) => {
     setSelectedUseCase(useCaseId);
-    setCurrentStep(3); // Skip to the use case specific steps (updated index due to new step)
+    setCurrentStep(4); // Skip to the use case specific steps (updated index due to new steps)
   };
 
   if (!isVisible) return null;
@@ -212,6 +217,40 @@ const Tutorial = ({ onComplete, isCompactMode }) => {
                   <Zap size={14} /> Question (Live)
                 </div>
                 <p>Instant detection before AI finishes</p>
+              </div>
+            )}
+
+            {/* Intent breakdown visualization */}
+            {steps[currentStep].visual === 'intent-breakdown' && (
+              <div className="intent-breakdown-grid">
+                <div className="intent-card">
+                  <div className="intent-badge social">Social</div>
+                  <p>Greetings &amp; affirmations</p>
+                </div>
+                <div className="intent-card">
+                  <div className="intent-badge question">Question</div>
+                  <p>Inquiries &amp; clarifications</p>
+                </div>
+                <div className="intent-card">
+                  <div className="intent-badge conflict">Conflict</div>
+                  <p>Disagreements &amp; tensions</p>
+                </div>
+                <div className="intent-card">
+                  <div className="intent-badge strategic">Strategic</div>
+                  <p>Business &amp; planning</p>
+                </div>
+                <div className="intent-card">
+                  <div className="intent-badge action">Action</div>
+                  <p>Suggestions &amp; recommendations</p>
+                </div>
+                <div className="intent-card">
+                  <div className="intent-badge empathy">Empathy</div>
+                  <p>Emotional support</p>
+                </div>
+                <div className="intent-card">
+                  <div className="intent-badge language">Language</div>
+                  <p>Phrasing &amp; clarity</p>
+                </div>
               </div>
             )}
 

@@ -146,12 +146,12 @@ const GlanceWidget = ({ suggestion, emotionData, isProcessing, detectedIntent, s
          settings.enabledIntents?.includes(detectedIntent) && (
           <div
             className={`glance-badge ${TAG_METADATA[detectedIntent].variant} pulse-animation`}
-            title={`Immediate detection: ${TAG_METADATA[detectedIntent].description}`}
+            title={`PREVIEW: ${TAG_METADATA[detectedIntent].description}. This is a real-time analysis - the final response may differ.`}
             role="status"
-            aria-label={`Real-time detection: ${TAG_METADATA[detectedIntent].label}`}
+            aria-label={`Real-time preview: ${TAG_METADATA[detectedIntent].label}. This is preliminary - final response may differ.`}
           >
             <TagIcon name={TAG_METADATA[detectedIntent].icon} size={14} />
-            <span>{TAG_METADATA[detectedIntent].label} (Live)</span>
+            <span>{TAG_METADATA[detectedIntent].label} (Live Preview)</span>
           </div>
         )}
         {tags.map(tag => (

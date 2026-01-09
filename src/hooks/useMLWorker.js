@@ -156,9 +156,9 @@ export const useMLWorker = () => {
               // Immediate Intent Recognition for subtle feedback
               let intent = null;
               if (!stateRef.current.isLowMemory) {
-                // Use configurable thresholds if available, otherwise default values
+                // Use high-performance detection for real-time processing
                 const confidenceThreshold = settings.intentDetection?.confidenceThreshold ?? 0.5;
-                const { intent: rawIntent, confidence } = detectIntentWithConfidenceAndThreshold(cleanText, confidenceThreshold);
+                const { intent: rawIntent, confidence } = detectIntentHighPerformance(cleanText, confidenceThreshold);
                 intent = rawIntent;
 
                 // Sticky Intent Logic: Keep the badge visible for configurable duration
