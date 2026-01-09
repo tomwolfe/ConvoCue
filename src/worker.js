@@ -571,7 +571,7 @@ self.onmessage = async (event) => {
                   totalTime: performance.now() - startTime,
                   historySize
                 }
-              }
+              },
               taskId
             });
         }
