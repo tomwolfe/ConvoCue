@@ -5,7 +5,7 @@ import {
   MessageCircle, Heart, X, ChevronLeft, ChevronRight, Info 
 } from 'lucide-react';
 import { AppConfig } from '../../config';
-import { CoachingConfig } from '../../config/coachingConfig';
+import { CoachingConfig } from '../../config/coaching';
 import { submitFeedback } from '../../utils/feedback';
 import { overrideSpeakerForTurn } from '../../conversationManager';
 import { parseSemanticTags } from '../../utils/intentRecognition';
@@ -61,8 +61,13 @@ const DisplayArea = ({
   // Reset indices when persona or insights change
   useEffect(() => {
     setCurrentInsightIndex(0);
-    setCurrentCopingIndex(0);
+    // Keep currentCopingIndex stable across insight updates
   }, [persona, coachingInsights]);
+
+  // Reset indices specifically when persona changes
+  useEffect(() => {
+    setCurrentCopingIndex(0);
+  }, [persona]);
 
   // Extract all relevant insights based on persona and config
   const allInsights = useMemo(() => {
@@ -95,19 +100,16 @@ const DisplayArea = ({
     if (currentInsightIndex >= visibleInsights.length - 1 && currentInsightIndex > 0) {
       setCurrentInsightIndex(prev => prev - 1);
     }
-    setCurrentCopingIndex(0);
   };
 
   const handleNextInsight = (e) => {
     e.stopPropagation();
     setCurrentInsightIndex(prev => (prev + 1) % visibleInsights.length);
-    setCurrentCopingIndex(0);
   };
 
   const handlePrevInsight = (e) => {
     e.stopPropagation();
     setCurrentInsightIndex(prev => (prev - 1 + visibleInsights.length) % visibleInsights.length);
-    setCurrentCopingIndex(0);
   };
 
   const handleNextCoping = (e, total) => {

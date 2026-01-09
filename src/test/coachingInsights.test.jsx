@@ -184,14 +184,20 @@ describe('CoachingInsights functionality', () => {
     );
     
     // Should not show insight even if data is present
-    expect(screen.queryByText('Anxiety Support')).not.toBeInTheDocument();
+    // Wait for settling to avoid act warnings
+    await waitFor(() => {
+      expect(screen.queryByText('Anxiety Support')).not.toBeInTheDocument();
+    });
     expect(screen.queryByText('Insight 1: You seem anxious.')).not.toBeInTheDocument();
   });
 
   it('shows skeleton while loading storage', async () => {
-    // We can't easily test the transition without complex mocks, but we can verify it renders
-    // if we control the mock return. 
-    // For this test, let's just ensure it doesn't crash and renders the skeleton if we were to mock a delayed promise.
+    // Mock a delayed response for storage
+    const { secureLocalStorageGet } = await import('../utils/encryption');
+    vi.mocked(secureLocalStorageGet).mockReturnValueOnce(
+      new Promise(resolve => setTimeout(() => resolve([]), 50))
+    );
+
     render(
       <DisplayArea 
         persona="anxiety" 
@@ -199,8 +205,13 @@ describe('CoachingInsights functionality', () => {
       />
     );
     
-    // Initially (before waitFor), it should show skeleton or nothing depending on timing
-    // In our mock, it resolves immediately, so we might miss the skeleton in a standard test.
-    // But we can check if it exists in the DOM at all.
+    // Skeleton should be visible initially
+    expect(document.querySelector('.insight-skeleton')).toBeInTheDocument();
+    
+    // Wait for it to disappear and show content
+    await waitFor(() => {
+      expect(screen.getByText('Insight 1: You seem anxious.')).toBeInTheDocument();
+    });
+    expect(document.querySelector('.insight-skeleton')).not.toBeInTheDocument();
   });
 });
