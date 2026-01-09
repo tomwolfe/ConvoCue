@@ -158,6 +158,9 @@ const Settings = ({ isOpen, onClose }) => {
               <div className="setting-info">
                 <h3>Coaching Insights</h3>
                 <p>Show real-time behavioral insights and coaching tips</p>
+                <small className="text-muted" style={{ display: 'block', marginTop: '0.25rem', fontSize: '0.7rem' }}>
+                  Your "Likes/Dislikes" are stored locally to personalize future insights.
+                </small>
               </div>
               <label className="toggle-switch">
                 <input

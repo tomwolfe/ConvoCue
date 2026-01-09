@@ -1,6 +1,6 @@
 import React from 'react';
 import { Briefcase } from 'lucide-react';
-import { getSafeInsights } from './helpers';
+import { getSafeInsights, getSafeCoping } from './helpers';
 
 export default {
   title: 'Professional Insight',
@@ -8,6 +8,6 @@ export default {
   className: 'professional-insight',
   pattern: 'insight-pattern-diagonal',
   insightPath: (insights) => getSafeInsights(insights, 'professional'),
-  copingPath: (insights) => null,
+  copingPath: (insights) => getSafeCoping(insights, 'professional'),
   ariaLabel: 'Professional communication insight'
 };

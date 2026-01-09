@@ -1,6 +1,6 @@
 import React from 'react';
 import { Presentation } from 'lucide-react';
-import { getSafeInsights } from './helpers';
+import { getSafeInsights, getSafeCoping } from './helpers';
 
 /**
  * Meeting Coach configuration.
@@ -13,6 +13,6 @@ export default {
   className: 'meeting-insight',
   pattern: 'insight-pattern-grid',
   insightPath: (insights) => getSafeInsights(insights, 'meeting'),
-  copingPath: (insights) => null,
+  copingPath: (insights) => getSafeCoping(insights, 'meeting'),
   ariaLabel: 'Professional meeting coaching insight'
 };

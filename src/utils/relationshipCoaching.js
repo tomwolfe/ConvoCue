@@ -20,16 +20,17 @@ const generateCacheKey = (text, conversationHistory, emotionData) => {
  * @param {string} text - The text to analyze
  * @param {Array} conversationHistory - Array of conversation messages
  * @param {Object} emotionData - Pre-analyzed emotion data
+ * @param {Object} categoryScores - User feedback scores for categories
  * @returns {Object} Relationship coaching insights
  */
-export const analyzeRelationshipCoaching = (text, conversationHistory = [], emotionData = null) => {
+export const analyzeRelationshipCoaching = (text, conversationHistory = [], emotionData = null, categoryScores = {}) => {
   if (!text || typeof text !== 'string') {
     return {
       empathyLevel: 'neutral',
       activeListeningOpportunities: [],
       emotionalValidationNeeded: false,
       insights: [],
-      suggestedResponseTypes: []
+      copingStrategies: []
     };
   }
 
@@ -57,17 +58,17 @@ export const analyzeRelationshipCoaching = (text, conversationHistory = [], emot
   const emotionalValidationNeeded = checkEmotionalValidationNeeds(text, emotionAnalysis);
 
   // Generate relationship insights
-  const insights = generateRelationshipInsights(text, emotionAnalysis, conversationContext);
+  const insights = generateRelationshipInsights(text, emotionAnalysis, conversationContext, categoryScores);
 
-  // Suggest response types
-  const suggestedResponseTypes = suggestResponseTypes(text, emotionAnalysis, conversationContext);
+  // Suggest coping/response strategies
+  const copingStrategies = suggestCopingStrategies(text, emotionAnalysis, conversationContext);
 
   const result = {
     empathyLevel,
     activeListeningOpportunities,
     emotionalValidationNeeded,
     insights,
-    suggestedResponseTypes
+    copingStrategies
   };
 
   // Cache the result (limit cache size to prevent memory issues)
@@ -200,45 +201,40 @@ const checkEmotionalValidationNeeds = (text, emotionAnalysis) => {
  * @param {string} text - Input text
  * @param {Object} emotionAnalysis - Emotion analysis
  * @param {Object} conversationContext - Conversation context
+ * @param {Object} categoryScores - User feedback scores
  * @returns {Array} Relationship insights
  */
-const generateRelationshipInsights = (text, emotionAnalysis, conversationContext) => {
+const generateRelationshipInsights = (text, emotionAnalysis, conversationContext, categoryScores = {}) => {
   const insights = [];
   const { emotion, confidence } = emotionAnalysis;
 
   // Insight about emotional state
   if (emotion !== 'neutral' && confidence > 0.4) {
+    const score = categoryScores['emotional_state'] || 0;
     insights.push({
       category: 'emotional_state',
       insight: `The other person appears to be feeling ${emotion}. Acknowledging this emotion can strengthen your connection.`,
-      priority: 'high'
+      priority: score > 2 ? 'high' : 'medium'
     });
   }
 
   // Insight about communication style
   if (text.length > 50) {
+    const score = categoryScores['communication_style'] || 0;
     insights.push({
       category: 'communication_style',
       insight: 'They\'re sharing quite a bit of information. Active listening and reflection will be key here.',
-      priority: 'medium'
+      priority: score > 2 ? 'high' : 'medium'
     });
   }
 
   // Insight about relationship dynamics
   if (conversationContext.previousSpeakerWasDifferent) {
+    const score = categoryScores['relationship_dynamics'] || 0;
     insights.push({
       category: 'relationship_dynamics',
       insight: 'This appears to be your turn to respond after the other person spoke. Consider reflecting on what they said before adding your perspective.',
-      priority: 'medium'
-    });
-  }
-
-  // Insight about timing
-  if (conversationContext.longResponseExpected) {
-    insights.push({
-      category: 'timing',
-      insight: 'They seem to be looking for a thoughtful response. Take your time to craft something meaningful.',
-      priority: 'medium'
+      priority: score > 2 ? 'high' : 'medium'
     });
   }
 
@@ -246,22 +242,21 @@ const generateRelationshipInsights = (text, emotionAnalysis, conversationContext
 };
 
 /**
- * Suggest response types based on context
+ * Suggest coping/response strategies based on context
  * @param {string} text - Input text
  * @param {Object} emotionAnalysis - Emotion analysis
  * @param {Object} conversationContext - Conversation context
- * @returns {Array} Suggested response types
+ * @returns {Array} Suggested strategies
  */
-const suggestResponseTypes = (text, emotionAnalysis, conversationContext) => {
+const suggestCopingStrategies = (text, emotionAnalysis, conversationContext) => {
   const { emotion, confidence } = emotionAnalysis;
-  const suggestions = [];
+  const strategies = [];
 
   // Empathetic response for emotional content
   if (['sadness', 'fear', 'anger', 'disgust'].includes(emotion) && confidence > 0.5) {
-    suggestions.push({
-      type: 'empathetic',
-      description: 'Respond with empathy and understanding',
-      examples: ['I can see that\'s really difficult for you', 'That sounds incredibly challenging']
+    strategies.push({
+      type: 'empathy',
+      technique: 'Acknowledge impact: "I can see that\'s really difficult for you. That sounds incredibly challenging."'
     });
   }
 
@@ -277,48 +272,38 @@ const suggestResponseTypes = (text, emotionAnalysis, conversationContext) => {
     /i'm not worthy/i
   ];
 
-  if (confidence > 0.4 && text.toLowerCase().includes('i feel')) {
-    suggestions.push({
+  if ((confidence > 0.4 && text.toLowerCase().includes('i feel')) || vulnerabilityPatterns.some(pattern => pattern.test(text))) {
+    strategies.push({
       type: 'validation',
-      description: 'Validate their feelings and experiences',
-      examples: ['Your feelings are completely understandable', 'It makes sense that you feel that way']
-    });
-  } else if (vulnerabilityPatterns.some(pattern => pattern.test(text))) {
-    suggestions.push({
-      type: 'validation',
-      description: 'Validate their feelings and experiences',
-      examples: ['Your feelings are completely understandable', 'It makes sense that you feel that way']
+      technique: 'Normalize feelings: "Your feelings are completely understandable. It makes sense that you feel that way."'
     });
   }
 
   // Question response for exploration
   if (text && text.match(/(what|how|why|when|where|who)/i)) {
-    suggestions.push({
+    strategies.push({
       type: 'exploration',
-      description: 'Ask exploratory questions to deepen understanding',
-      examples: ['What would be most helpful right now?', 'How do you feel about that?']
+      technique: 'Deepen understanding: "What would be most helpful right now?" or "How do you feel about that?"'
     });
   }
 
   // Supportive response for challenges
   if (text && (text.includes('problem') || text.includes('difficulty') || text.includes('struggle') || text.includes('challenge'))) {
-    suggestions.push({
-      type: 'supportive',
-      description: 'Offer support without immediately trying to solve',
-      examples: ['I\'m here for you', 'What do you need right now?']
+    strategies.push({
+      type: 'support',
+      technique: 'Offer presence: "I\'m here for you. What do you need right now?"'
     });
   }
 
   // Affirmative response for positive sharing
   if (emotion === 'joy' && confidence > 0.5) {
-    suggestions.push({
-      type: 'affirmative',
-      description: 'Celebrate and affirm their positive experience',
-      examples: ['That\'s wonderful!', 'I\'m so happy for you']
+    strategies.push({
+      type: 'affirmation',
+      technique: 'Celebrate: "That\'s wonderful! I\'m so happy for you."'
     });
   }
 
-  return suggestions;
+  return strategies;
 };
 
 /**
@@ -368,7 +353,7 @@ const determineConversationStage = (conversationHistory) => {
  * @returns {string} Enhanced prompt for relationship coaching
  */
 export const generateRelationshipCoachingPrompt = (insightsObj, currentPersona = 'relationship') => {
-  const { empathyLevel, activeListeningOpportunities, emotionalValidationNeeded, suggestedResponseTypes } = insightsObj;
+  const { empathyLevel, activeListeningOpportunities, emotionalValidationNeeded, copingStrategies } = insightsObj;
 
   let promptAdditions = '';
 
@@ -393,10 +378,10 @@ export const generateRelationshipCoachingPrompt = (insightsObj, currentPersona =
   }
 
   // Add response type guidance
-  if (suggestedResponseTypes.length > 0) {
-    const primaryType = suggestedResponseTypes[0];
+  if (copingStrategies && copingStrategies.length > 0) {
+    const primaryType = copingStrategies[0];
     if (primaryType) {
-      promptAdditions += `RESPONSE APPROACH: Use a ${primaryType.type} approach. Example: ${primaryType.examples[0] || 'Be supportive and understanding.'}. `;
+      promptAdditions += `RESPONSE APPROACH: Use a ${primaryType.type} approach. Example: ${primaryType.technique || 'Be supportive and understanding.'}. `;
     }
   }
 

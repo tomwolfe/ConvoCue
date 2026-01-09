@@ -1,6 +1,6 @@
 import React from 'react';
 import { Users } from 'lucide-react';
-import { getSafeInsights } from './helpers';
+import { getSafeInsights, getSafeCoping } from './helpers';
 
 export default {
   title: 'EQ Coach',
@@ -8,6 +8,6 @@ export default {
   className: 'relationship-insight',
   pattern: 'insight-pattern-lines',
   insightPath: (insights) => getSafeInsights(insights, 'relationship'),
-  copingPath: (insights) => null,
+  copingPath: (insights) => getSafeCoping(insights, 'relationship'),
   ariaLabel: 'Emotional intelligence coaching insight'
 };

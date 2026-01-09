@@ -10,6 +10,7 @@ import { submitFeedback, submitInsightFeedback, getInsightCategoryScores } from 
 import { overrideSpeakerForTurn } from '../../conversationManager';
 import { parseSemanticTags } from '../../utils/intentRecognition';
 import { secureLocalStorageGet, secureLocalStorageSet } from '../../utils/encryption';
+import InsightCard from './InsightCard';
 
 const TagIcon = ({ name, size = 14 }) => {
   switch (name) {
@@ -72,7 +73,7 @@ const DisplayArea = ({
     if (isStorageLoaded) {
       setCurrentCopingIndex(copingIndices[persona] || 0);
     }
-  }, [persona, isStorageLoaded, copingIndices]);
+  }, [persona, isStorageLoaded, copingIndices, setCurrentCopingIndex]);
 
   // Reset indices when persona or insights change
   useEffect(() => {
@@ -207,102 +208,22 @@ const DisplayArea = ({
           {!isStorageLoaded && <div className="insight-skeleton" aria-hidden="true" />}
           
           {isStorageLoaded && activeInsight && (
-            <div 
-              className={`card insight-card ${activeInsight.config.className} ${activeInsight.config.pattern} ${isCompactMode ? 'compact-insight' : ''}`} 
-              role="complementary"
-              aria-label={activeInsight.config.ariaLabel}
-            >
-              <div className="card-header">
-                <div className="flex items-center gap-2">
-                  {activeInsight.config.icon}
-                  <label>{activeInsight.config.title}</label>
-                  {visibleInsights.length > 1 && (
-                    <div className="insight-navigation" role="group" aria-label="Insight navigation">
-                      <button className="insight-action-btn" onClick={handlePrevInsight} aria-label="Previous insight">
-                        <ChevronLeft size={12} />
-                      </button>
-                      <div className="flex gap-1">
-                        {visibleInsights.map((_, idx) => (
-                          <div key={idx} className={`nav-dot ${idx === currentInsightIndex ? 'active' : ''}`} />
-                        ))}
-                      </div>
-                      <button className="insight-action-btn" onClick={handleNextInsight} aria-label="Next insight">
-                        <ChevronRight size={12} />
-                      </button>
-                    </div>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="insight-badge">{activeInsight.category || 'Focus'}</span>
-                  <button 
-                    className="insight-action-btn dismiss-btn" 
-                    onClick={handleDismiss}
-                    title="Dismiss insight"
-                    aria-label="Dismiss insight"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-              </div>
-              
-              <p className="insight-text">
-                {showInfo ? `Logic: Based on ${activeInsight.category} pattern with ${activeInsight.priority} priority.` : activeInsight.insight}
-              </p>
-              
-              <div className="insight-footer">
-                <div className="coping-wrapper">
-                  {(() => {
-                    const strategies = activeInsight.config.copingPath(coachingInsights);
-                    if (!strategies || strategies.length === 0) return null;
-                    const strategy = strategies[currentCopingIndex] || strategies[0];
-                    return (
-                      <div className="coping-strategy">
-                        <Zap size={14} />
-                        <span>Tip: {strategy.technique || strategy.insight || 'Try this strategy'}</span>
-                        {strategies.length > 1 && (
-                          <button 
-                            className="insight-action-btn" 
-                            onClick={(e) => handleNextCoping(e, strategies.length)}
-                            title="Next tip"
-                            aria-label="Next tip"
-                          >
-                            <RefreshCw size={12} />
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })()}
-                </div>
-                
-                <div className="insight-actions">
-                  <button 
-                    className={`insight-action-btn ${showInfo ? 'active' : ''}`}
-                    onClick={() => setShowInfo(!showInfo)}
-                    title="Why am I seeing this?"
-                  >
-                    <Info size={14} />
-                  </button>
-                  {isPersonalizationEnabled && (
-                    <>
-                      <button 
-                        className="insight-action-btn"
-                        onClick={() => handleInsightFeedback(activeInsight.category, 'like')}
-                        title="Helpful"
-                      >
-                        <ThumbsUp size={14} />
-                      </button>
-                      <button 
-                        className="insight-action-btn"
-                        onClick={() => handleInsightFeedback(activeInsight.category, 'dislike')}
-                        title="Not helpful"
-                      >
-                        <ThumbsDown size={14} />
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
+            <InsightCard 
+              activeInsight={activeInsight}
+              visibleInsights={visibleInsights}
+              currentInsightIndex={currentInsightIndex}
+              currentCopingIndex={currentCopingIndex}
+              coachingInsights={coachingInsights}
+              isCompactMode={isCompactMode}
+              showInfo={showInfo}
+              onToggleInfo={() => setShowInfo(!showInfo)}
+              onPrevInsight={handlePrevInsight}
+              onNextInsight={handleNextInsight}
+              onDismiss={handleDismiss}
+              onNextCoping={handleNextCoping}
+              onFeedback={handleInsightFeedback}
+              isPersonalizationEnabled={isPersonalizationEnabled}
+            />
           )}
 
           {allInsightsDismissed && (
@@ -314,7 +235,7 @@ const DisplayArea = ({
                 </div>
               </div>
               <p className="insight-text">
-                You've dismissed all current insights. New, personalized tips will appear based on your next conversation. 
+                You've dismissed all current coaching insights. New, personalized tips will appear based on your next conversation. 
                 Try sharing more about your day or a specific challenge to get tailored advice.
               </p>
             </div>

@@ -24,7 +24,8 @@ import {
     generateAnxietyCoachingPrompt
 } from './utils/anxietyCoaching';
 import {
-    analyzeProfessionalCoaching
+    analyzeProfessionalCoaching,
+    analyzeMeetingCoaching
 } from './utils/professionalCoaching';
 import { estimateConversationSize, logPerformanceMetric, monitorAndOptimizeHistory } from './utils/performanceMonitoring';
 
@@ -307,9 +308,9 @@ self.onmessage = async (event) => {
             const sanitizedText = _text.trim().substring(0, AppConfig.system.maxTranscriptLength);
             const emotionData = analyzeEmotion(sanitizedText);
 
-            // Enhanced relationship coaching analysis for relationship persona
-            const relationshipInsights = persona === 'relationship'
-                ? analyzeRelationshipCoaching(sanitizedText, history, emotionData)
+            // Existing relationship coaching analysis
+            const relationshipInsights = (persona === 'relationship')
+                ? analyzeRelationshipCoaching(sanitizedText, history, emotionData, insightCategoryScores)
                 : null;
 
             // Enhanced anxiety coaching analysis for anxiety persona

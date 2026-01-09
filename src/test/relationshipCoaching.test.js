@@ -2,6 +2,7 @@
  * @fileoverview Unit tests for relationship coaching utilities
  */
 
+import { describe, test, expect } from 'vitest';
 import { 
   analyzeRelationshipCoaching, 
   generateRelationshipCoachingPrompt 
@@ -16,7 +17,7 @@ describe('Relationship Coaching Utilities', () => {
         activeListeningOpportunities: [],
         emotionalValidationNeeded: false,
         insights: [],
-        suggestedResponseTypes: []
+        copingStrategies: []
       });
     });
 
@@ -27,7 +28,7 @@ describe('Relationship Coaching Utilities', () => {
         activeListeningOpportunities: [],
         emotionalValidationNeeded: false,
         insights: [],
-        suggestedResponseTypes: []
+        copingStrategies: []
       });
 
       const result2 = analyzeRelationshipCoaching(123);
@@ -36,7 +37,7 @@ describe('Relationship Coaching Utilities', () => {
         activeListeningOpportunities: [],
         emotionalValidationNeeded: false,
         insights: [],
-        suggestedResponseTypes: []
+        copingStrategies: []
       });
     });
 
@@ -122,8 +123,8 @@ describe('Relationship Coaching Utilities', () => {
       const text = 'I am feeling angry about the situation.';
       const result = analyzeRelationshipCoaching(text, [], { emotion: 'anger', confidence: 0.7 });
       
-      expect(result.suggestedResponseTypes).toContainEqual(
-        expect.objectContaining({ type: 'empathetic' })
+      expect(result.copingStrategies).toContainEqual(
+        expect.objectContaining({ type: 'empathy' })
       );
     });
 
@@ -131,7 +132,7 @@ describe('Relationship Coaching Utilities', () => {
       const text = 'I feel like I\'m not good enough.';
       const result = analyzeRelationshipCoaching(text);
       
-      expect(result.suggestedResponseTypes).toContainEqual(
+      expect(result.copingStrategies).toContainEqual(
         expect.objectContaining({ type: 'validation' })
       );
     });
@@ -140,7 +141,7 @@ describe('Relationship Coaching Utilities', () => {
       const text = 'How do I deal with this? What should I do?';
       const result = analyzeRelationshipCoaching(text);
       
-      expect(result.suggestedResponseTypes).toContainEqual(
+      expect(result.copingStrategies).toContainEqual(
         expect.objectContaining({ type: 'exploration' })
       );
     });
@@ -149,8 +150,8 @@ describe('Relationship Coaching Utilities', () => {
       const text = 'I\'m having difficulty with this problem.';
       const result = analyzeRelationshipCoaching(text);
       
-      expect(result.suggestedResponseTypes).toContainEqual(
-        expect.objectContaining({ type: 'supportive' })
+      expect(result.copingStrategies).toContainEqual(
+        expect.objectContaining({ type: 'support' })
       );
     });
 
@@ -158,8 +159,8 @@ describe('Relationship Coaching Utilities', () => {
       const text = 'I am so happy about this achievement!';
       const result = analyzeRelationshipCoaching(text, [], { emotion: 'joy', confidence: 0.8 });
       
-      expect(result.suggestedResponseTypes).toContainEqual(
-        expect.objectContaining({ type: 'affirmative' })
+      expect(result.copingStrategies).toContainEqual(
+        expect.objectContaining({ type: 'affirmation' })
       );
     });
   });
@@ -170,7 +171,7 @@ describe('Relationship Coaching Utilities', () => {
         empathyLevel: 'high',
         activeListeningOpportunities: [],
         emotionalValidationNeeded: false,
-        suggestedResponseTypes: []
+        copingStrategies: []
       };
       
       const prompt = generateRelationshipCoachingPrompt(insights, 'relationship');
@@ -182,7 +183,7 @@ describe('Relationship Coaching Utilities', () => {
         empathyLevel: 'medium',
         activeListeningOpportunities: [],
         emotionalValidationNeeded: false,
-        suggestedResponseTypes: []
+        copingStrategies: []
       };
       
       const prompt = generateRelationshipCoachingPrompt(insights, 'anxiety');
@@ -194,7 +195,7 @@ describe('Relationship Coaching Utilities', () => {
         empathyLevel: 'neutral',
         activeListeningOpportunities: [{ type: 'reflect_emotion', description: 'Acknowledge their happiness', priority: 'high' }],
         emotionalValidationNeeded: false,
-        suggestedResponseTypes: []
+        copingStrategies: []
       };
       
       const prompt = generateRelationshipCoachingPrompt(insights, 'relationship');
@@ -206,7 +207,7 @@ describe('Relationship Coaching Utilities', () => {
         empathyLevel: 'neutral',
         activeListeningOpportunities: [],
         emotionalValidationNeeded: true,
-        suggestedResponseTypes: []
+        copingStrategies: []
       };
       
       const prompt = generateRelationshipCoachingPrompt(insights, 'anxiety');
@@ -218,10 +219,9 @@ describe('Relationship Coaching Utilities', () => {
         empathyLevel: 'neutral',
         activeListeningOpportunities: [],
         emotionalValidationNeeded: false,
-        suggestedResponseTypes: [{
-          type: 'empathetic',
-          description: 'Respond with empathy',
-          examples: ['I can see that\'s really difficult for you']
+        copingStrategies: [{
+          type: 'empathy',
+          technique: 'Acknowledge impact: "I can see that\'s really difficult for you"'
         }]
       };
       
@@ -234,7 +234,7 @@ describe('Relationship Coaching Utilities', () => {
         empathyLevel: 'neutral',
         activeListeningOpportunities: [],
         emotionalValidationNeeded: false,
-        suggestedResponseTypes: []
+        copingStrategies: []
       };
       
       const prompt = generateRelationshipCoachingPrompt(insights, 'relationship');
@@ -246,7 +246,7 @@ describe('Relationship Coaching Utilities', () => {
         empathyLevel: 'neutral',
         activeListeningOpportunities: [],
         emotionalValidationNeeded: false,
-        suggestedResponseTypes: []
+        copingStrategies: []
       };
       
       const prompt = generateRelationshipCoachingPrompt(insights, 'relationship');
@@ -258,7 +258,7 @@ describe('Relationship Coaching Utilities', () => {
         empathyLevel: 'neutral',
         activeListeningOpportunities: [],
         emotionalValidationNeeded: false,
-        suggestedResponseTypes: []
+        copingStrategies: []
       };
       
       const prompt = generateRelationshipCoachingPrompt(insights, 'anxiety');
@@ -270,7 +270,7 @@ describe('Relationship Coaching Utilities', () => {
         empathyLevel: 'neutral',
         activeListeningOpportunities: [],
         emotionalValidationNeeded: false,
-        suggestedResponseTypes: []
+        copingStrategies: []
       };
       
       const prompt = generateRelationshipCoachingPrompt(insights, 'professional');

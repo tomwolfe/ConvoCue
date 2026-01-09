@@ -16,7 +16,7 @@ export const analyzeProfessionalCoaching = (text, history = [], emotionData = {}
   // Map intents to processing logic
   detectedIntents.forEach(({ intent, confidence }) => {
     switch (intent) {
-      case 'negotiation':
+      case 'negotiation': {
         const isHighTensionNeg = (emotion === 'anger' || emotion === 'fear') && emotionConfidence > 0.6;
         const negScore = categoryScores['Negotiation'] || 0;
         insights.push({
@@ -27,8 +27,9 @@ export const analyzeProfessionalCoaching = (text, history = [], emotionData = {}
           priority: (confidence > 0.7 || negScore > 2) ? 'high' : 'medium'
         });
         break;
+      }
 
-      case 'leadership':
+      case 'leadership': {
         const leadScore = categoryScores['Leadership'] || 0;
         insights.push({
           category: 'Leadership',
@@ -36,8 +37,9 @@ export const analyzeProfessionalCoaching = (text, history = [], emotionData = {}
           priority: leadScore > 2 ? 'high' : 'medium'
         });
         break;
+      }
 
-      case 'clarity':
+      case 'clarity': {
         const isConfused = (emotion === 'fear' || emotion === 'surprise') && emotionConfidence > 0.5;
         const alignScore = categoryScores['Alignment'] || 0;
         insights.push({
@@ -48,8 +50,9 @@ export const analyzeProfessionalCoaching = (text, history = [], emotionData = {}
           priority: (isConfused || alignScore > 2) ? 'high' : 'medium'
         });
         break;
+      }
 
-      case 'execution':
+      case 'execution': {
         const execScore = categoryScores['Execution'] || 0;
         insights.push({
           category: 'Execution',
@@ -57,6 +60,7 @@ export const analyzeProfessionalCoaching = (text, history = [], emotionData = {}
           priority: execScore > 2 ? 'high' : 'medium'
         });
         break;
+      }
     }
   });
 
@@ -69,7 +73,7 @@ export const analyzeProfessionalCoaching = (text, history = [], emotionData = {}
     });
   }
 
-  // Deduplicate insights by category (in case multiple intents map to same category)
+  // Deduplicate insights by category
   const uniqueInsights = [];
   const categoriesSeen = new Set();
   
@@ -80,7 +84,42 @@ export const analyzeProfessionalCoaching = (text, history = [], emotionData = {}
     }
   });
 
-  return uniqueInsights.length > 0 ? { insights: uniqueInsights } : null;
+  return uniqueInsights.length > 0 ? { 
+    insights: uniqueInsights,
+    copingStrategies: suggestCopingStrategies(text, emotionData, detectedIntents)
+  } : null;
+};
+
+/**
+ * Suggest professional coping/communication strategies
+ */
+const suggestCopingStrategies = (text, emotionData, intents = []) => {
+  const strategies = [];
+  const emotion = emotionData?.emotion || 'neutral';
+  
+  // High tension communication
+  if (emotion === 'anger' || emotion === 'fear') {
+    strategies.push({
+      type: 'de-escalation',
+      technique: 'Use "I" statements to focus on impact: "I am concerned about the timeline," rather than "You are late."'
+    });
+  }
+
+  // Negotiation tips
+  if (intents.some(i => i.intent === 'negotiation')) {
+    strategies.push({
+      type: 'negotiation',
+      technique: 'Focus on interests, not positions. Ask "Why is that important to you?" to uncover deeper needs.'
+    });
+  }
+
+  // General professional tip
+  strategies.push({
+    type: 'clarity',
+    technique: 'Bottom Line Up Front (BLUF): State your main point in the first sentence for maximum impact.'
+  });
+
+  return strategies;
 };
 
 /**
@@ -97,7 +136,7 @@ export const analyzeMeetingCoaching = (text, history = [], emotionData = {}, cat
   // Meeting-specific behavior detection
   detectedIntents.forEach(({ intent, confidence }) => {
     switch (intent) {
-      case 'clarity':
+      case 'clarity': {
         const facScore = categoryScores['Facilitation'] || 0;
         insights.push({
           category: 'Facilitation',
@@ -105,9 +144,10 @@ export const analyzeMeetingCoaching = (text, history = [], emotionData = {}, cat
           priority: facScore > 2 ? 'high' : 'medium'
         });
         break;
+      }
       
       case 'action':
-      case 'execution':
+      case 'execution': {
         const agendaScore = categoryScores['Agenda'] || 0;
         insights.push({
           category: 'Agenda',
@@ -115,8 +155,9 @@ export const analyzeMeetingCoaching = (text, history = [], emotionData = {}, cat
           priority: (confidence > 0.8 || agendaScore > 2) ? 'high' : 'medium'
         });
         break;
+      }
 
-      case 'leadership':
+      case 'leadership': {
         const dynScore = categoryScores['Dynamics'] || 0;
         insights.push({
           category: 'Dynamics',
@@ -124,9 +165,10 @@ export const analyzeMeetingCoaching = (text, history = [], emotionData = {}, cat
           priority: dynScore > 2 ? 'high' : 'medium'
         });
         break;
+      }
 
       case 'participation':
-      case 'question':
+      case 'question': {
         const partScore = categoryScores['Participation'] || 0;
         insights.push({
           category: 'Participation',
@@ -134,14 +176,16 @@ export const analyzeMeetingCoaching = (text, history = [], emotionData = {}, cat
           priority: partScore > 2 ? 'medium' : 'low'
         });
         break;
+      }
       
-      case 'interruption':
+      case 'interruption': {
         insights.push({
           category: 'Dynamics',
           insight: 'Interruption detected. Try to ensure everyone can finish their thoughts: "Sorry, I think [Name] was still finishing their point."',
           priority: 'high'
         });
         break;
+      }
     }
   });
 
@@ -178,5 +222,39 @@ export const analyzeMeetingCoaching = (text, history = [], emotionData = {}, cat
     }
   });
 
-  return uniqueInsights.length > 0 ? { insights: uniqueInsights } : null;
+  return uniqueInsights.length > 0 ? { 
+    insights: uniqueInsights,
+    copingStrategies: suggestMeetingStrategies(text, history, detectedIntents)
+  } : null;
+};
+
+/**
+ * Suggest meeting facilitation strategies
+ */
+const suggestMeetingStrategies = (text, history, intents = []) => {
+  const strategies = [];
+  
+  // Leadership/Facilitation
+  if (intents.some(i => i.intent === 'leadership')) {
+    strategies.push({
+      type: 'inclusion',
+      technique: 'Invite specific input: "[Name], you have great experience here, what is your perspective?"'
+    });
+  }
+
+  // Action orientation
+  if (intents.some(i => i.intent === 'execution' || i.intent === 'action')) {
+    strategies.push({
+      type: 'accountability',
+      technique: 'Summarize decisions: "So we agreed on X, with Y as the owner for Z by Friday."'
+    });
+  }
+
+  // Default meeting tip
+  strategies.push({
+    type: 'efficiency',
+    technique: 'Parkinson\'s Law: If the discussion is circling, suggest a "parking lot" for the topic to stay on track.'
+  });
+
+  return strategies;
 };
