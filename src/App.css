@@ -1,5 +1,6 @@
 :root {
   --primary: #6366f1;
+  --primary-rgb: 99, 102, 241;
   --primary-light: #818cf8;
   --bg: #f8fafc;
   --card-bg: #ffffff;
@@ -1170,19 +1171,7 @@ header.compact .subtitle {
 
 /* Subtle Mode */
 .subtle-mode .suggestion {
-  background: transparent;
-  padding: 0.5rem;
-  border-radius: 8px;
-  border-left: 2px solid transparent;
-  box-shadow: none;
-  font-size: 0.9rem;
-  font-weight: 400;
-  opacity: 0.7;
-  transform: scale(0.95);
-}
-
-.subtle-mode .suggestion {
-  /* Even more subtle for real social situations */
+  /* Subtle appearance for real social situations */
   font-size: 0.8rem;
   line-height: 1.3;
   padding: 0.25rem 0.5rem;
@@ -1190,6 +1179,11 @@ header.compact .subtitle {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 6px;
   backdrop-filter: blur(2px);
+  border-left: 2px solid transparent;
+  box-shadow: none;
+  font-weight: 400;
+  opacity: 0.7;
+  transform: scale(0.95);
 }
 
 .subtle-mode .suggestion label {
@@ -1231,28 +1225,54 @@ header.compact .subtitle {
 .subtle-mode .transcript {
   opacity: 0.2;
   transition: opacity 0.3s;
+  border: 1px dashed rgba(99, 102, 241, 0.05);
 }
 
 .subtle-mode .transcript:hover {
   opacity: 0.8;
+  border-color: rgba(99, 102, 241, 0.2);
 }
 
 .subtle-mode .persona-selector {
   opacity: 0.1;
   transition: opacity 0.3s;
+  border: 1px dashed rgba(99, 102, 241, 0.05);
 }
 
 .subtle-mode .persona-selector:hover {
   opacity: 1;
+  border-color: rgba(99, 102, 241, 0.2);
 }
 
 .subtle-mode .controls {
   opacity: 0.2;
   transition: opacity 0.3s;
+  border: 1px dashed rgba(99, 102, 241, 0.05);
 }
 
 .subtle-mode .controls:hover {
   opacity: 1;
+  border-color: rgba(99, 102, 241, 0.2);
+}
+
+/* Subtle Mode Active Badge */
+.subtle-active-badge {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  background: rgba(99, 102, 241, 0.1);
+  color: var(--primary);
+  padding: 0.25rem 0.6rem;
+  border-radius: 9999px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  pointer-events: none;
+  z-index: 1000;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.5s ease-out;
 }
 
 .subtle-mode .error-recovery {

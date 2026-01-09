@@ -203,7 +203,7 @@ const GlanceWidget = ({ suggestion, emotionData, isProcessing, detectedIntent, s
   );
 };
 
-const AudioVisualizer = ({ isActive, analyser, isCompactMode, primaryColor = '#6366f1' }) => {
+const AudioVisualizer = ({ isActive, analyser, isCompactMode }) => {
   const canvasRef = useRef(null);
   const animationRef = useRef(null);
   const frameCountRef = useRef(0);
@@ -221,13 +221,10 @@ const AudioVisualizer = ({ isActive, analyser, isCompactMode, primaryColor = '#6
     const bufferLength = analyser.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
     
-    // Convert hex to RGB for the visualizer
-    let r = 99, g = 102, b = 241;
-    if (primaryColor.startsWith('#')) {
-      r = parseInt(primaryColor.slice(1, 3), 16);
-      g = parseInt(primaryColor.slice(3, 5), 16);
-      b = parseInt(primaryColor.slice(5, 7), 16);
-    }
+    // Get color from CSS variables
+    const rootStyle = getComputedStyle(document.documentElement);
+    const primaryRgb = rootStyle.getPropertyValue('--primary-rgb') || '99, 102, 241';
+    const [r, g, b] = primaryRgb.split(',').map(c => parseInt(c.trim(), 10));
 
     const draw = () => {
       animationRef.current = requestAnimationFrame(draw);
@@ -307,8 +304,7 @@ const VADContent = ({
   onReset,
   coachingInsights,
   lastSwitchReason,
-  undoPersonaSwitch,
-  primaryColor
+  undoPersonaSwitch
 }) => {
   const [availablePersonas, setAvailablePersonas] = useState(AppConfig.models.personas);
 
@@ -503,7 +499,6 @@ const VADContent = ({
   isActive={vad.listening} 
   analyser={vad.analyser} 
   isCompactMode={isCompactMode} 
-  primaryColor={primaryColor}
 />
 
       {!showMinimalUI && !isCompactMode && (

@@ -379,13 +379,17 @@ const App = () => {
             coachingInsights={coachingInsights}
             lastSwitchReason={lastSwitchReason}
             undoPersonaSwitch={undoPersonaSwitch}
-            primaryColor={AppConfig.ui.colors.primary}
             onReset={() => {
               setHasInteracted(false);
               setMicPermissionError(null);
               resetWorker();
             }}
           />
+        )}
+        {isSubtleMode && (
+          <div className="subtle-active-badge">
+            Subtle Mode Active
+          </div>
         )}
       </div>
     </ErrorBoundary>
