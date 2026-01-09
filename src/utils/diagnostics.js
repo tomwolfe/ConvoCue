@@ -112,3 +112,42 @@ export const runDiagnostics = async () => {
     deviceMemory: typeof navigator !== 'undefined' ? navigator.deviceMemory : 'N/A'
   };
 };
+
+/**
+ * Logs diagnostic events
+ */
+export const logEvent = (category, message, data = {}) => {
+  const event = {
+    timestamp: new Date().toISOString(),
+    category,
+    message,
+    data,
+    userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'N/A'
+  };
+
+  // Log to console in development
+  if (process.env.NODE_ENV === 'development' || typeof window !== 'undefined') {
+    console.log(`[${category}] ${message}`, data);
+  }
+
+  // In a real app, you might send this to an analytics service
+  // For now, we'll just return the event object
+  return event;
+};
+
+// In-memory log storage
+let systemLogs = [];
+
+/**
+ * Gets system logs
+ */
+export const getSystemLogs = () => {
+  return systemLogs;
+};
+
+/**
+ * Clears system logs
+ */
+export const clearSystemLogs = () => {
+  systemLogs = [];
+};
