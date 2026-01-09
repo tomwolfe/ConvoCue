@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Info } from 'lucide-react';
 import { AppConfig } from '../../config';
 
 const PersonaSelector = ({ persona, setPersona, culturalContext, setCulturalContext, availablePersonas, settings }) => {
@@ -8,9 +8,17 @@ const PersonaSelector = ({ persona, setPersona, culturalContext, setCulturalCont
   return (
     <div className="persona-selector" role="group" aria-label="Select conversation mode">
       {settings?.enableAutoPersona && (
-        <div className="persona-auto-indicator" title="Auto-Persona is active. The app will switch based on context.">
-          <Sparkles size={14} />
-          <span>Smart Switch Active</span>
+        <div className="persona-auto-indicator-container">
+          <div className="persona-auto-indicator">
+            <Sparkles size={14} />
+            <span>Smart Switch Active</span>
+          </div>
+          <div className="info-tooltip-wrapper">
+            <Info size={14} className="info-icon" />
+            <div className="info-tooltip">
+              <strong>Smart Switch</strong> detects the context of your conversation (e.g., emotional, professional, or social) and automatically updates the coaching style.
+            </div>
+          </div>
         </div>
       )}
       <div className="persona-grid">

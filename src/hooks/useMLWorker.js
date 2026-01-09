@@ -93,6 +93,8 @@ export const useMLWorker = () => {
   const stateRef = useRef(state);
   const historyRef = useRef(history);
   const lastMessageTimeRef = useRef(lastMessageTime);
+  const autoSwitchInfoRef = useRef({ time: 0, from: null, to: null });
+  const rejectionDampeningRef = useRef({}); // Store dampening per persona
 
   useEffect(() => {
     stateRef.current = state;
@@ -167,14 +169,21 @@ export const useMLWorker = () => {
                   // Auto-Persona Orchestration
                   let activePersona = stateRef.current.persona;
                   if (settings.enableAutoPersona !== false && !settings.privacyMode) {
+                      const dampening = rejectionDampeningRef.current[activePersona] || 0;
                       const { suggestedPersona, confidence } = orchestratePersona(
                           cleanText, 
                           historyRef.current, 
-                          activePersona
+                          activePersona,
+                          { rejectionDampening: dampening }
                       );
                       
                       if (suggestedPersona !== activePersona && confidence > 0.6) {
-                          console.log(`[Orchestrator] Switching persona: ${activePersona} -> ${suggestedPersona} (Confidence: ${confidence.toFixed(2)})`);
+                          console.log(`[Orchestrator] Switching persona: ${activePersona} -> ${suggestedPersona} (Confidence: ${confidence.toFixed(2)}, Dampening: ${dampening.toFixed(2)})`);
+                          autoSwitchInfoRef.current = { 
+                            time: Date.now(), 
+                            from: activePersona, 
+                            to: suggestedPersona 
+                          };
                           activePersona = suggestedPersona;
                           dispatch({ type: 'SET_PERSONA', persona: suggestedPersona });
                       }
@@ -321,7 +330,17 @@ export const useMLWorker = () => {
     setTranscript: (text) => dispatch({ type: 'SET_TRANSCRIPT', text }),
     setSuggestion: (text) => dispatch({ type: 'SET_SUGGESTION', text }),
     setStatus: (status) => dispatch({ type: 'SET_STATUS', status }),
-    setPersona: updatePersona,
+    setPersona: (persona) => {
+      // Rejection detection: if user switches away from an auto-switched persona within 15 seconds
+      const now = Date.now();
+      const lastSwitch = autoSwitchInfoRef.current;
+      if (lastSwitch.time > 0 && (now - lastSwitch.time < 15000) && persona !== lastSwitch.to) {
+        console.warn(`[Orchestrator] User rejected auto-switch to ${lastSwitch.to}. Applying dampening.`);
+        const currentDampening = rejectionDampeningRef.current[lastSwitch.to] || 0;
+        rejectionDampeningRef.current[lastSwitch.to] = currentDampening + (AppConfig.system.orchestrator?.rejectionDampening || 0.3);
+      }
+      updatePersona(persona);
+    },
     setCulturalContext: updateCulturalContext,
     clearHistory: () => {
       clearHistory();

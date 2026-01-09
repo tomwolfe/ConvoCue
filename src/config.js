@@ -133,6 +133,57 @@ export const AppConfig = {
       tokenToCharRatio: 4 // Approximation: 1 token ≈ 4 characters
     },
 
+    // Persona Orchestration settings
+    orchestrator: {
+      threshold: 0.5,
+      keywordWeight: 0.3,
+      historyWeight: 0.1,
+      currentPersonaBias: 0.2,
+      rejectionDampening: 0.3, // How much to increase threshold after a rejection
+      intentMap: {
+        anxiety: {
+          intents: ['emotion', 'conflict', 'interruption'],
+          keywords: ['nervous', 'stressed', 'anxious', 'fear', 'scared', 'worried', 'stop', 'wait'],
+          negativeKeywords: ['negotiate', 'deal', 'contract', 'grammar', 'vocabulary'],
+          weight: 1.2
+        },
+        relationship: {
+          intents: ['empathy', 'emotion', 'participation'],
+          keywords: ['feel', 'understand', 'connect', 'share', 'thoughts', 'opinions'],
+          negativeKeywords: ['agenda', 'minutes', 'meeting', 'contract'],
+          weight: 1.0
+        },
+        professional: {
+          intents: ['strategic', 'negotiation', 'leadership'],
+          keywords: ['negotiate', 'important', 'manager', 'executive', 'contract', 'deal', 'strategy', 'interview', 'salary'],
+          negativeKeywords: ['grammar', 'vocabulary', 'lesson', 'homework'],
+          weight: 1.1
+        },
+        meeting: {
+          intents: ['action', 'execution', 'clarity', 'participation'],
+          keywords: ['todo', 'action', 'next steps', 'plan', 'schedule', 'understand', 'clear', 'minutes', 'agenda'],
+          negativeKeywords: ['date', 'romance', 'feelings'],
+          weight: 1.0
+        },
+        crosscultural: {
+          intents: ['clarity'],
+          keywords: ['culture', 'custom', 'tradition', 'translation', 'language', 'meaning', 'slang', 'idiom'],
+          weight: 0.9
+        },
+        languagelearning: {
+          intents: ['clarity'],
+          keywords: ['grammar', 'vocabulary', 'phrase', 'speak', 'say', 'correct', 'pronounce', 'word'],
+          negativeKeywords: ['contract', 'deal', 'negotiate', 'strategy'],
+          weight: 0.8
+        },
+        concise: {
+          intents: ['greeting', 'agreement'],
+          keywords: ['hi', 'hello', 'yes', 'ok', 'thanks', 'bye'],
+          weight: 0.7
+        }
+      }
+    },
+
     // Low memory mode detection
     lowMemoryMode: () => {
       // Check for low memory conditions

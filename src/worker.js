@@ -367,14 +367,22 @@ self.onmessage = async (event) => {
                     ? Math.min(64, AppConfig.models.llm.max_new_tokens)
                     : AppConfig.models.llm.max_new_tokens;
 
-            // Perform coaching analysis based on persona - Skip if in minimal mode
+            // Deep Coaching Analysis Decision
+            // We prioritize battery life and responsiveness over analysis depth in minimal mode.
+            // Documentation: isSmartMode reflects if Auto-Persona is enabled, indicating a user 
+            // preference for sophisticated AI assistance.
+            const isPowerSavingMode = performanceStats.mode === 'minimal';
+            const isSmartMode = _settings?.enableAutoPersona !== false;
+            const shouldRunDeepAnalysis = !isPowerSavingMode;
+
+            // Perform coaching analysis based on persona - Skip if in power saving mode
             let relationshipInsights = null;
             let anxietyInsights = null;
             let professionalInsights = null;
             let meetingInsights = null;
             let coachingAnalysisTime = 0;
 
-            if (performanceStats.mode !== 'minimal') {
+            if (shouldRunDeepAnalysis) {
                 const coachingStartTime = performance.now();
                 
                 relationshipInsights = (persona === 'relationship')
