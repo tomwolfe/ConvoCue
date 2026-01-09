@@ -140,10 +140,15 @@ const GlanceWidget = ({ suggestion, emotionData, isProcessing, detectedIntent })
       onBlur={() => setShowExplanation(false)}
     >
       <p className="glance-suggestion" title={tooltipText}>{displaySuggestion}</p>
-      <div className="glance-indicators">
+      <div className="glance-indicators" aria-live="polite">
         {/* Live Intent Indicator (Subtle Mode) */}
         {isProcessing && detectedIntent && TAG_METADATA[detectedIntent] && (
-          <div className={`glance-badge ${TAG_METADATA[detectedIntent].variant} pulse-animation`} title={`Immediate detection: ${TAG_METADATA[detectedIntent].description}`}>
+          <div 
+            className={`glance-badge ${TAG_METADATA[detectedIntent].variant} pulse-animation`} 
+            title={`Immediate detection: ${TAG_METADATA[detectedIntent].description}`}
+            role="status"
+            aria-label={`Real-time detection: ${TAG_METADATA[detectedIntent].label}`}
+          >
             <TagIcon name={TAG_METADATA[detectedIntent].icon} size={14} />
             <span>{TAG_METADATA[detectedIntent].label} (Live)</span>
           </div>

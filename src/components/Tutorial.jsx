@@ -111,6 +111,11 @@ const Tutorial = ({ onComplete, isCompactMode }) => {
       title: "How It Works",
       content: "ConvoCue listens to your conversations and suggests context-aware responses. All processing happens locally on your device for complete privacy.",
       visual: "process-flow"
+    },
+    {
+      title: "Real-time Insights",
+      content: "Watch for the '(Live)' badge. ConvoCue detects intents like questions, conflicts, or suggestions instantly while it's still thinking about the best response.",
+      visual: "live-insights"
     }
   ];
 
@@ -158,7 +163,7 @@ const Tutorial = ({ onComplete, isCompactMode }) => {
 
   const handleUseCaseSelect = (useCaseId) => {
     setSelectedUseCase(useCaseId);
-    setCurrentStep(2); // Skip to the use case specific steps
+    setCurrentStep(3); // Skip to the use case specific steps (updated index due to new step)
   };
 
   if (!isVisible) return null;
@@ -197,6 +202,16 @@ const Tutorial = ({ onComplete, isCompactMode }) => {
                 <div className="step">Suggest</div>
                 <ArrowRight size={16} />
                 <div className="step">Learn</div>
+              </div>
+            )}
+
+            {/* Live insights visualization */}
+            {steps[currentStep].visual === 'live-insights' && (
+              <div className="live-preview">
+                <div className="live-badge pulse-animation">
+                  <Zap size={14} /> Question (Live)
+                </div>
+                <p>Instant detection before AI finishes</p>
               </div>
             )}
 

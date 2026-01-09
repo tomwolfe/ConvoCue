@@ -23,6 +23,11 @@ describe('haptics utility', () => {
     expect(navigator.vibrate).toHaveBeenCalledWith(VIBRATION_PATTERNS.ACTION);
   });
 
+  it('triggers question vibration for [question] tag', () => {
+    provideHapticFeedback('That is a good [question]');
+    expect(navigator.vibrate).toHaveBeenCalledWith(VIBRATION_PATTERNS.QUESTION);
+  });
+
   it('triggers empathy vibration for empathy keywords', () => {
     provideHapticFeedback('I understand how you feel');
     expect(navigator.vibrate).toHaveBeenCalledWith(VIBRATION_PATTERNS.EMPATHY);

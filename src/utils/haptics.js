@@ -18,6 +18,7 @@ export const VIBRATION_PATTERNS = {
   ACTION: [20, 50, 20],            // Double short vibration (Action item detected)
   CONFLICT: [20, 50, 20, 50, 20],  // Triple short vibration (Conflict/Alert)
   SUGGESTION: [50],                // Single medium vibration (General cue/suggestion)
+  QUESTION: [20, 100],             // Short then medium (Inquisitive pattern)
   TRANSITION: [10, 30, 10, 30],    // Rapid pulses (Topic change)
   EMPATHY: [100]                   // Long gentle vibration (Empathy/Support)
 };
@@ -39,8 +40,10 @@ export const provideHapticFeedback = (suggestion) => {
   // Prioritize patterns based on tags
   if (tags.some(t => t.key === 'conflict') || lowerSuggestion.includes('de-escalate') || lowerSuggestion.includes('[conflict]')) {
     pattern = VIBRATION_PATTERNS.CONFLICT;
-  } else if (tags.some(t => t.key === 'action') || lowerSuggestion.includes('follow up') || lowerSuggestion.includes('[action item]')) {
+  } else if (tags.some(t => t.key === 'action') || lowerSuggestion.includes('follow up') || lowerSuggestion.includes('[action item]') || lowerSuggestion.includes('[suggestion]')) {
     pattern = VIBRATION_PATTERNS.ACTION;
+  } else if (tags.some(t => t.key === 'question') || lowerSuggestion.includes('[question]')) {
+    pattern = VIBRATION_PATTERNS.QUESTION;
   } else if (tags.some(t => t.key === 'strategic') || lowerSuggestion.includes('[strategic]') || lowerSuggestion.includes('[negotiation]')) {
     pattern = VIBRATION_PATTERNS.TRANSITION;
   } else if (tags.some(t => t.key === 'social') || lowerSuggestion.includes('[social tip]') || lowerSuggestion.includes('[natural phrasing]')) {
