@@ -827,7 +827,7 @@ self.onmessage = async (event) => {
                 const isHighFrequency = timeSinceLastLLM < 2000;
 
                 // Launch LLM and Sentiment Analysis in parallel
-                // Sentiment analysis is secondary and shouldn't block LLM start
+                // Sentiment analysis is secondary and shouldn't block LLM start, but we want it for the prompt
                 const sentimentPromise = (WorkerState.performanceStats.mode !== 'minimal' &&
                     settings.enableSentimentAnalysis !== false &&
                     !settings.privacyMode &&
@@ -839,6 +839,39 @@ self.onmessage = async (event) => {
                         return result;
                     })
                     : Promise.resolve({ overallSentiment: 'neutral', emotionalTrend: 'stable' });
+
+                // Dynamic Context (Not cached)
+                let dynamicContext = "";
+                if (metadata && !settings.privacyMode) {
+                    const speechRate = sanitizedText.split(/\s+/).length / (metadata.duration || 1);
+                    if (metadata.rms > 0.01 && speechRate > 3) dynamicContext += "User sounds urgent. ";
+
+                    // Add turn information if available
+                    if (metadata?.turnInfo) {
+                        const turnInfo = metadata.turnInfo;
+                        if (turnInfo.isLikelyNewSpeaker) {
+                            dynamicContext += "Another person may be speaking now. ";
+                        }
+                    }
+                }
+
+                // Add emotional context (if not in privacy mode)
+                if (!settings.privacyMode && emotionData.emotion !== 'neutral') {
+                    dynamicContext += `Emotion: ${emotionData.emotion}. `;
+                }
+
+                // Wait for sentiment to complete so we can include it in the current prompt
+                // Given the new caching, this should be extremely fast (< 2ms)
+                const finalSentiment = await sentimentPromise;
+                conversationSentiment = finalSentiment;
+
+                // Add conversation sentiment context (if not in privacy mode)
+                if (!settings.privacyMode && finalSentiment.overallSentiment !== 'neutral') {
+                    dynamicContext += `Overall conversation sentiment: ${finalSentiment.overallSentiment}. `;
+                    if (finalSentiment.emotionalTrend !== 'stable') {
+                        dynamicContext += `Trend: ${finalSentiment.emotionalTrend}. `;
+                    }
+                }
 
                 // Prepare conversation history with proper roles
                 const conversationHistory = monitorAndOptimizeHistory((history || []).map(m => ({
@@ -853,7 +886,6 @@ self.onmessage = async (event) => {
                 }
 
                 // Create messages for the LLM
-                // Note: We use a simplified dynamic context here to avoid waiting for sentiment
                 const messages = [
                     { role: "system", content: `${WorkerState.cachedSystemPrompt.content} ${dynamicContext}` },
                     ...conversationHistory,
@@ -869,16 +901,12 @@ self.onmessage = async (event) => {
                     },
                 });
 
-                const llmPromise = MLPipeline.llm(messages, {
+                const output = await MLPipeline.llm(messages, {
                     max_new_tokens: maxTokens,
                     temperature: AppConfig.models.llm.temperature,
                     do_sample: AppConfig.models.llm.do_sample,
                     streamer,
                 });
-
-                // Wait for both LLM and Sentiment to finish
-                const [output, finalSentiment] = await Promise.all([llmPromise, sentimentPromise]);
-                conversationSentiment = finalSentiment;
 
                 let response = "";
                 if (output[0]?.generated_text) {
