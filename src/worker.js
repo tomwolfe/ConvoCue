@@ -23,6 +23,8 @@ import { WorkerMessenger } from './worker/Messenger';
 const messenger = new WorkerMessenger();
 
 // Utility function to generate unique IDs in the worker context
+// Note: Currently unused but kept for potential future use
+// eslint-disable-next-line no-unused-vars
 const generateUniqueId = (prefix = '') => {
   // Use high-resolution timestamp (microsecond precision if available)
   const now = typeof performance !== 'undefined' && performance.now ?
@@ -670,70 +672,80 @@ self.onmessage = async (event) => {
 
                     const output = await Promise.race([processPromise, timeoutPromise]);
 
-                let response = "";
-                if (output[0]?.generated_text) {
-                    const gen = output[0].generated_text;
-                    response = Array.isArray(gen) ? gen[gen.length - 1].content : gen;
-                }
-
-                const llmProcessingTime = performance.now() - llmStartTime;
-
-                // Log performance metrics for large histories
-                logPerformanceMetric('llm_processing', llmStartTime, history);
-
-                // Apply feature coordination to the final response
-                const coordinatedResponse = coordinateFeaturesInResponse(response, {
-                    relationship: relationshipInsights,
-                    anxiety: anxietyInsights,
-                    professional: professionalInsights,
-                    meeting: meetingInsights,
-                    language: languageLearningInsights
-                }, persona);
-
-                // Sanitize the response before sending it back
-                const sanitizedResponse = sanitizeText(coordinatedResponse.trim());
-                messenger.postMessage({
-                  type: 'llm_result',
-                  text: sanitizedResponse,
-                  emotionData,
-                  conversationSentiment, // Include conversation sentiment
-                  coachingInsights: {
-                    relationship: validateCoachingInsights(relationshipInsights),
-                    anxiety: validateCoachingInsights(anxietyInsights),
-                    professional: validateCoachingInsights(professionalInsights),
-                    meeting: validateCoachingInsights(meetingInsights),
-                    language: validateCoachingInsights(languageLearningInsights),
-                    cultural: detectedCulturalContext
-                  },
-                  metadata: {
-                    performance: {
-                      llmProcessingTime,
-                      coachingAnalysisTime,
-                      sentimentAnalysisTime,
-                      totalTime: performance.now() - startTime,
-                      historySize
+                    let response = "";
+                    if (output[0]?.generated_text) {
+                        const gen = output[0].generated_text;
+                        response = Array.isArray(gen) ? gen[gen.length - 1].content : gen;
                     }
-                  },
-                  taskId
-                });
-            } catch (processingError) {
-                console.error("LLM processing failed:", processingError);
 
-                // Categorize error types for more specific messaging
-                let specificErrorMessage = "AI response generation failed";
-                if (processingError.message.includes('timeout')) {
-                    specificErrorMessage = "AI processing timed out. The response may be too complex or your device too slow.";
-                } else if (processingError.message.includes('memory') || processingError.message.includes('OOM')) {
-                    specificErrorMessage = "Insufficient memory for AI processing. Please close other tabs or restart the browser.";
-                } else if (processingError.message.includes('network') || processingError.message.includes('fetch')) {
-                    specificErrorMessage = "Network error during AI processing. Please check your internet connection.";
-                } else if (processingError.message.includes('abort')) {
-                    specificErrorMessage = "AI processing was interrupted. Please try again.";
+                    const llmProcessingTime = performance.now() - llmStartTime;
+
+                    // Log performance metrics for large histories
+                    logPerformanceMetric('llm_processing', llmStartTime, history);
+
+                    // Apply feature coordination to the final response
+                    const coordinatedResponse = coordinateFeaturesInResponse(response, {
+                        relationship: relationshipInsights,
+                        anxiety: anxietyInsights,
+                        professional: professionalInsights,
+                        meeting: meetingInsights,
+                        language: languageLearningInsights
+                    }, persona);
+
+                    // Sanitize the response before sending it back
+                    const sanitizedResponse = sanitizeText(coordinatedResponse.trim());
+                    messenger.postMessage({
+                      type: 'llm_result',
+                      text: sanitizedResponse,
+                      emotionData,
+                      conversationSentiment, // Include conversation sentiment
+                      coachingInsights: {
+                        relationship: validateCoachingInsights(relationshipInsights),
+                        anxiety: validateCoachingInsights(anxietyInsights),
+                        professional: validateCoachingInsights(professionalInsights),
+                        meeting: validateCoachingInsights(meetingInsights),
+                        language: validateCoachingInsights(languageLearningInsights),
+                        cultural: detectedCulturalContext
+                      },
+                      metadata: {
+                        performance: {
+                          llmProcessingTime,
+                          coachingAnalysisTime,
+                          sentimentAnalysisTime,
+                          totalTime: performance.now() - startTime,
+                          historySize
+                        }
+                      },
+                      taskId
+                    });
+                } catch (processingError) {
+                    console.error("LLM processing failed:", processingError);
+
+                    // Categorize error types for more specific messaging
+                    let specificErrorMessage = "AI response generation failed";
+                    if (processingError.message.includes('timeout')) {
+                        specificErrorMessage = "AI processing timed out. The response may be too complex or your device too slow.";
+                    } else if (processingError.message.includes('memory') || processingError.message.includes('OOM')) {
+                        specificErrorMessage = "Insufficient memory for AI processing. Please close other tabs or restart the browser.";
+                    } else if (processingError.message.includes('network') || processingError.message.includes('fetch')) {
+                        specificErrorMessage = "Network error during AI processing. Please check your internet connection.";
+                    } else if (processingError.message.includes('abort')) {
+                        specificErrorMessage = "AI processing was interrupted. Please try again.";
+                    }
+
+                    messenger.postMessage({
+                        type: 'error',
+                        error: `${specificErrorMessage}: ${processingError.message || 'Unknown error'}`,
+                        mlState: MLPipeline.getCurrentState(),
+                        taskId
+                    });
+                    return;
                 }
-
+            } catch (outerProcessingError) {
+                console.error("General LLM processing failed:", outerProcessingError);
                 messenger.postMessage({
                     type: 'error',
-                    error: `${specificErrorMessage}: ${processingError.message || 'Unknown error'}`,
+                    error: `General LLM processing failed: ${outerProcessingError.message || 'Unknown error'}`,
                     mlState: MLPipeline.getCurrentState(),
                     taskId
                 });
@@ -751,7 +763,7 @@ self.onmessage = async (event) => {
             await MLPipeline.disposeAll();
             self.close(); // Close the worker
         }
-    } catch (error) {
-        messenger.postMessage({ type: 'error', error: error.message, taskId: taskId || 'unknown' });
-    }
-};
+        } catch (error) {
+            messenger.postMessage({ type: 'error', error: error.message, taskId: taskId || 'unknown' });
+        }
+    };
