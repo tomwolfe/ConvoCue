@@ -100,37 +100,22 @@ const Tutorial = ({ onComplete, isCompactMode }) => {
     }
   ];
 
-  // Default steps if no use case is selected
+  // Simplified default steps focusing on core value
   const defaultSteps = [
     {
       title: "Welcome to ConvoCue",
-      content: "Your AI-powered conversation assistant that listens and suggests thoughtful, context-aware responses. Choose your primary use case below to customize your experience.",
+      content: "Your AI-powered conversation assistant that listens and suggests thoughtful, context-aware responses. All processing happens locally on your device for complete privacy.",
       visual: "welcome"
     },
     {
       title: "How It Works",
-      content: "ConvoCue listens to your conversations and suggests context-aware responses. All processing happens locally on your device for complete privacy.",
+      content: "ConvoCue listens to your conversations and suggests context-aware responses. Start with the 'Social Anxiety' persona for gentle, supportive cues.",
       visual: "process-flow"
     },
     {
-      title: "Real-time Insights",
-      content: "Watch for the '(Live)' badge. ConvoCue detects intents like questions, conflicts, or suggestions instantly while it's still thinking about the best response.",
+      title: "Real-time Assistance",
+      content: "ConvoCue provides real-time suggestions to help you navigate conversations with confidence. Just start talking and receive helpful cues.",
       visual: "live-insights"
-    },
-    {
-      title: "Understanding Intent Labels",
-      content: "ConvoCue uses these intent categories: Social (greetings & affirmations), Question (inquiries & clarifications), Conflict (disagreements & tensions), Strategic (business & planning), Action (suggestions & recommendations), Empathy (emotional support), Language (phrasing & clarity), Negotiation (bargaining & deal-making), Leadership (guiding & directing others), Clarity (improving understanding), Execution (focus on implementation), Cultural (cultural context & etiquette), Learning (educational moments). Each helps tailor the AI's response.",
-      visual: "intent-breakdown"
-    },
-    {
-      title: "Customizing Intent Detection",
-      content: "You can customize how ConvoCue detects and displays intents in Settings. Adjust the confidence threshold, debounce window, and sticky duration to match your conversation style and preferences.",
-      visual: "intent-settings"
-    },
-    {
-      title: "Intent Filtering",
-      content: "Choose which intent types appear in the live preview. You can enable/disable specific intents like Conflict, Action, or Empathy based on your current needs and comfort level.",
-      visual: "intent-filtering"
     }
   ];
 
@@ -138,19 +123,15 @@ const Tutorial = ({ onComplete, isCompactMode }) => {
   const getSteps = () => {
     if (selectedUseCase) {
       const useCase = useCases.find(uc => uc.id === selectedUseCase);
-      return [...defaultSteps, ...useCase.steps, {
+      return [...defaultSteps, {
         title: "Get Started",
-        content: `You're ready to use ConvoCue for ${useCase.title}! Click Get Started to begin your journey.`,
+        content: `You've selected ${useCase.title} as your focus. ConvoCue is ready to assist you!`,
         visual: "controls"
       }];
     }
     return [...defaultSteps, {
-      title: "Choose Your Focus",
-      content: "Select your primary use case to customize ConvoCue for your specific needs:",
-      visual: "use-cases"
-    }, {
       title: "Get Started",
-      content: "You're ready to begin! Click Get Started to launch ConvoCue.",
+      content: "ConvoCue is ready to help you with your conversations. Click Get Started to begin!",
       visual: "controls"
     }];
   };

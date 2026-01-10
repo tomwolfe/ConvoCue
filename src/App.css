@@ -241,6 +241,76 @@ header.compact .subtitle {
   margin-bottom: 2rem;
 }
 
+/* Loading Details */
+.loading-details {
+  margin-top: 1rem;
+  width: 100%;
+}
+
+.loading-step {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 0.5rem 0 0;
+  font-weight: 500;
+}
+
+.loading-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  background: #f0f9ff;
+  padding: 0.75rem;
+  border-radius: 8px;
+  border-left: 3px solid #3b82f6;
+  margin-top: 1rem;
+  font-size: 0.8rem;
+  color: #1e40af;
+}
+
+.hint-icon {
+  margin-top: 0.1rem;
+  flex-shrink: 0;
+}
+
+/* Setup Tips */
+.setup-tips {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+  width: 100%;
+}
+
+.setup-tips h3 {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 0.75rem;
+}
+
+.setup-tips ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.setup-tips li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+}
+
+.setup-tips li:last-child {
+  margin-bottom: 0;
+}
+
+.setup-tips svg {
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
 .persona-preview {
   display: flex;
   align-items: center;

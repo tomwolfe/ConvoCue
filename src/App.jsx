@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Mic, Loader2, Volume2, AlertCircle, Activity, ThumbsUp, ThumbsDown, BookOpen, Settings as SettingsIcon, Layout as LayoutIcon, ChevronDown, EyeOff, Type, ShieldAlert } from 'lucide-react';
+import { Mic, Loader2, Volume2, AlertCircle, Activity, ThumbsUp, ThumbsDown, BookOpen, Settings as SettingsIcon, Layout as LayoutIcon, ChevronDown, EyeOff, Type, ShieldAlert, Zap, Info } from 'lucide-react';
 import { Analytics } from '@vercel/analytics/react';
 import { useMLWorker } from './hooks/useMLWorker';
 import VADContent from './components/VADContent';
@@ -319,11 +319,20 @@ const App = () => {
                   </svg>
                   <div className="progress-text" aria-live="polite">{progress}%</div>
                 </div>
+
+                {/* Enhanced loading information */}
+                <div className="loading-details">
+                  <p className="loading-step">{status}</p>
+                  <div className="loading-hint">
+                    <Info size={14} className="hint-icon" />
+                    <p>Tip: ConvoCue runs entirely on your device for privacy. Initial setup may take a moment.</p>
+                  </div>
+                </div>
               </div>
 
               <h2 id="setup-card-title">Ready to tune in?</h2>
               <p>ConvoCue analyzes social cues in real-time. All processing happens locally on your device.</p>
-              
+
               <div className="persona-preview" aria-label={`Current persona: ${availablePersonas[persona]?.label || persona}`}>
                 <span className="label">Current Persona:</span>
                 <span className="persona-tag">{availablePersonas[persona]?.label || persona}</span>
@@ -339,6 +348,16 @@ const App = () => {
                 {isReady ? <Mic size={24} aria-hidden="true" /> : <Loader2 className="animate-spin" size={24} aria-hidden="true" />}
                 <span>{isReady ? "Start ConvoCue" : "Warming Up..."}</span>
               </button>
+
+              {/* Added quick tips section */}
+              <div className="setup-tips">
+                <h3>What to expect:</h3>
+                <ul>
+                  <li><Zap size={16} /> Real-time conversation suggestions</li>
+                  <li><ShieldAlert size={16} /> 100% on-device privacy</li>
+                  <li><Activity size={16} /> Adaptive to your communication style</li>
+                </ul>
+              </div>
             </div>
 
             {isLowMemory && (
