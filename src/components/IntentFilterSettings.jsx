@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { TAG_METADATA } from '../utils/intentRecognition';
-import { ALL_INTENTS } from '../constants/intents';
 
 const IntentFilterSettings = ({ settings, onSave }) => {
   const [enabledIntents, setEnabledIntents] = useState(
-    settings.enabledIntents || ALL_INTENTS
+    settings.enabledIntents || []
   );
 
   useEffect(() => {
-    setEnabledIntents(settings.enabledIntents || ALL_INTENTS);
+    setEnabledIntents(settings.enabledIntents || []);
   }, [settings]);
 
   const toggleIntent = (intent) => {
@@ -24,7 +23,8 @@ const IntentFilterSettings = ({ settings, onSave }) => {
   };
 
   const handleEnableAll = () => {
-    setEnabledIntents(ALL_INTENTS);
+    // Enable all intents that are available in TAG_METADATA
+    setEnabledIntents(Object.keys(TAG_METADATA));
   };
 
   const handleDisableAll = () => {
@@ -50,11 +50,13 @@ const IntentFilterSettings = ({ settings, onSave }) => {
       <div className="intent-grid">
         {Object.entries(TAG_METADATA).map(([intent, metadata]) => (
           <div key={intent} className="intent-toggle">
-            <label className="toggle-switch">
+            <label className="toggle-switch" htmlFor={`intent-toggle-${intent}`}>
               <input
+                id={`intent-toggle-${intent}`}
                 type="checkbox"
                 checked={enabledIntents.includes(intent)}
                 onChange={() => toggleIntent(intent)}
+                aria-label={`Enable ${metadata.label} intent`}
               />
               <span className="slider"></span>
             </label>
