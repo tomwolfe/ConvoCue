@@ -338,7 +338,7 @@ export const useMLWorker = () => {
             }
             case 'error':
               // Check if this is a fallback failure that we can handle gracefully
-              if (event.data.isFallbackFailed) {
+              if (isFallbackFailed) {
                 // For fallback failures, we can still continue with reduced functionality
                 console.warn("Model fallback failed, continuing with reduced functionality:", event.data.error);
                 dispatch({ type: 'SET_STATUS', status: 'Running in reduced functionality mode' });

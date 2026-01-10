@@ -1,6 +1,6 @@
 import { pipeline, env } from '@huggingface/transformers';
 import { AppConfig } from '../config';
-import { assessDeviceCapabilities, getOptimalModelConfig, checkMemoryAdequacy, deviceCaps } from '../utils/performanceOptimizer';
+import { getOptimalModelConfig, checkMemoryAdequacy, deviceCaps } from '../utils/performanceOptimizer';
 import { WorkerMessenger } from './Messenger';
 
 env.allowLocalModels = false;

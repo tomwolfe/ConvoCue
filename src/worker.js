@@ -13,7 +13,7 @@ import { provideContextualLanguageFeedback } from './utils/languageLearning';
 import { coordinateFeaturesInResponse, resolveFeatureConflicts } from './utils/featureCoordination';
 
 // Modular Worker Components
-import { MLPipeline, checkMemoryUsage } from './worker/MLPipeline';
+import { MLPipeline, checkMemoryAdequacy } from './worker/MLPipeline';
 import { WorkerState, updatePerformanceMode, initConversationTurnManager, HIGH_STAKES_THRESHOLD_TURNS } from './worker/state';
 import { sanitizeText, throttledProgress, validateCoachingInsights } from './worker/utils';
 import { generateSystemPrompt } from './worker/promptGenerator';
