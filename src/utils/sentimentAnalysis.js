@@ -4,6 +4,9 @@
 
 import { analyzeEmotion } from './emotion';
 
+// Cache for message-level sentiment analysis to avoid redundant computations
+const messageAnalysisCache = new Map();
+
 /**
  * Analyzes sentiment across an entire conversation
  * @param {Array} conversationHistory - Array of conversation messages [{role, content, timestamp}]
@@ -20,15 +23,29 @@ export const analyzeConversationSentiment = (conversationHistory) => {
     };
   }
 
-  // Analyze sentiment for each message
+  // Analyze sentiment for each message, using cache when possible
   const messageAnalyses = conversationHistory.map((msg, index) => {
+    // Generate a unique key for the message based on content and role
+    const cacheKey = `${msg.role}:${msg.content}`;
+    
+    if (messageAnalysisCache.has(cacheKey)) {
+      return messageAnalysisCache.get(cacheKey);
+    }
+
     const emotionAnalysis = analyzeEmotion(msg.content);
-    return {
+    const analysis = {
       ...msg,
       emotion: emotionAnalysis.emotion,
       emotionConfidence: emotionAnalysis.confidence,
       sentimentScore: getSentimentScoreFromEmotion(emotionAnalysis.emotion, emotionAnalysis.confidence, msg.content)
     };
+
+    // Cache the analysis result
+    if (messageAnalysisCache.size < 500) { // Limit cache size
+      messageAnalysisCache.set(cacheKey, analysis);
+    }
+
+    return analysis;
   });
 
   // Calculate overall sentiment

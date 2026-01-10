@@ -250,7 +250,7 @@ const DisplayArea = ({
           {!showMinimalUI && suggestion && (
             <div className="card-actions">
               <button
-                className="btn-icon"
+                className="btn-action-sm"
                 onClick={() => {
                   handleCopy();
                   if (isPersonalizationEnabled) {
@@ -262,7 +262,7 @@ const DisplayArea = ({
                 {copied ? <Check size={14} color="var(--accent)" /> : <Copy size={14} />}
               </button>
               <button
-                className="btn-icon"
+                className="btn-action-sm"
                 onClick={handleRefresh}
                 title="New suggestion"
               >
@@ -351,7 +351,7 @@ const DisplayArea = ({
         <div className={`card transcript ${transcript || conversationTurns.length > 0 ? 'visible' : ''}`} role="region" aria-labelledby="transcript-label">
           <div className="card-header">
             <label id="transcript-label">Recent Context</label>
-            <button className="btn-icon" onClick={handleClear} title="Clear Context">
+            <button className="btn-action-sm" onClick={handleClear} title="Clear Context">
               <Trash2 size={14} />
             </button>
           </div>
