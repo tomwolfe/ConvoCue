@@ -136,6 +136,13 @@ const processMessage = async (event) => {
                         // Load LLM in background without blocking the ready state
                         try {
                             await pipelineManager.loadLLM((p) => throttledProgress(p, 'Social Brain', taskId));
+                            // Explicitly notify that background loading is complete
+                            // and state has transitioned to READY
+                            messenger.postMessage({
+                                type: 'status',
+                                status: 'Social Brain ready',
+                                taskId
+                            });
                         } catch (llmLoadError) {
                             console.warn("Background LLM loading failed:", llmLoadError);
                             // Still consider worker ready since STT is loaded

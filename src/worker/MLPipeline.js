@@ -60,7 +60,7 @@ export class MLPipeline {
                 }
 
                 // Transition to loading state
-                MLPipeline.stateMachine.transition(ML_TRANSITIONS.START_LOADING_STT);
+                MLPipeline.transitionState(ML_TRANSITIONS.START_LOADING_STT);
 
             const optimizedSTTConfig = getOptimalModelConfig('stt', deviceCaps);
             const optimizedLLMConfig = getOptimalModelConfig('llm', deviceCaps);
@@ -75,7 +75,7 @@ export class MLPipeline {
                 });
 
                 // Transition to low memory state
-                MLPipeline.stateMachine.transition(ML_TRANSITIONS.MEMORY_PRESSURE);
+                MLPipeline.transitionState(ML_TRANSITIONS.MEMORY_PRESSURE);
 
                 // Proactively free resources when entering low memory state
                 await MLPipeline.disposeAll();
@@ -97,7 +97,7 @@ export class MLPipeline {
                     });
 
                     // Transition to STT loaded state
-                    MLPipeline.stateMachine.transition(ML_TRANSITIONS.STT_LOADED);
+                    MLPipeline.transitionState(ML_TRANSITIONS.STT_LOADED);
                 } catch (initialLoadError) {
                     console.warn("Initial STT load failed, attempting fallback with smaller model:", initialLoadError);
 
@@ -117,7 +117,7 @@ export class MLPipeline {
                         console.log("Loaded fallback STT model successfully");
 
                         // Transition to STT loaded state
-                        MLPipeline.stateMachine.transition(ML_TRANSITIONS.STT_LOADED);
+                        MLPipeline.transitionState(ML_TRANSITIONS.STT_LOADED);
                     } catch (fallbackError) {
                         console.error("Fallback STT load also failed:", fallbackError);
 
@@ -137,13 +137,13 @@ export class MLPipeline {
                             console.log("Loaded minimal fallback STT model successfully");
 
                             // Transition to STT loaded state
-                            MLPipeline.stateMachine.transition(ML_TRANSITIONS.STT_LOADED);
+                            MLPipeline.transitionState(ML_TRANSITIONS.STT_LOADED);
                         } catch (minimalError) {
                                                         // Transition to error state
-                                                        MLPipeline.stateMachine.transition(ML_TRANSITIONS.LOAD_ERROR, { error: minimalError.message });
+                                                        MLPipeline.transitionState(ML_TRANSITIONS.LOAD_ERROR, { error: minimalError.message });
                             
                                                         // Transition to TEXT_ONLY_MODE since we allow graceful degradation
-                                                        MLPipeline.stateMachine.transition(ML_TRANSITIONS.FALLBACK_SUCCESS);
+                                                        MLPipeline.transitionState(ML_TRANSITIONS.FALLBACK_SUCCESS);
                             
                                                         // Explicitly set to null to ensure consistent state
                             MLPipeline.stt = null;
@@ -166,7 +166,7 @@ export class MLPipeline {
             });
 
             // Transition to error state
-            MLPipeline.stateMachine.transition(ML_TRANSITIONS.LOAD_ERROR, { error: err.message });
+            MLPipeline.transitionState(ML_TRANSITIONS.LOAD_ERROR, { error: err.message });
 
             // Ensure consistent state by setting to null on error
             MLPipeline.stt = null;
@@ -189,7 +189,7 @@ export class MLPipeline {
                 }
 
                 // Transition to loading state
-                MLPipeline.stateMachine.transition(ML_TRANSITIONS.START_LOADING_LLM);
+                MLPipeline.transitionState(ML_TRANSITIONS.START_LOADING_LLM);
 
             const optimizedLLMConfig = getOptimalModelConfig('llm', deviceCaps);
             const memoryCheck = checkMemoryAdequacy(
@@ -207,7 +207,7 @@ export class MLPipeline {
                 });
 
                 // Transition to low memory state
-                MLPipeline.stateMachine.transition(ML_TRANSITIONS.MEMORY_PRESSURE);
+                MLPipeline.transitionState(ML_TRANSITIONS.MEMORY_PRESSURE);
 
                 // Proactively free resources when entering low memory state
                 await MLPipeline.disposeAll();
@@ -232,7 +232,7 @@ export class MLPipeline {
                     });
 
                     // Transition to LLM loaded state
-                    MLPipeline.stateMachine.transition(ML_TRANSITIONS.LLM_LOADED);
+                    MLPipeline.transitionState(ML_TRANSITIONS.LLM_LOADED);
                 } catch (initialLoadError) {
                     console.warn("Initial LLM load failed, attempting fallback with smaller model:", initialLoadError);
 
@@ -252,7 +252,7 @@ export class MLPipeline {
                         console.log("Loaded fallback LLM model successfully");
 
                         // Transition to LLM loaded state
-                        MLPipeline.stateMachine.transition(ML_TRANSITIONS.LLM_LOADED);
+                        MLPipeline.transitionState(ML_TRANSITIONS.LLM_LOADED);
                     } catch (fallbackError) {
                         console.error("Fallback LLM load also failed:", fallbackError);
 
@@ -272,7 +272,7 @@ export class MLPipeline {
                             console.log("Loaded minimal fallback LLM model successfully");
 
                             // Transition to LLM loaded state
-                            MLPipeline.stateMachine.transition(ML_TRANSITIONS.LLM_LOADED);
+                            MLPipeline.transitionState(ML_TRANSITIONS.LLM_LOADED);
                         } catch (minimalError) {
                             console.error("All LLM loading attempts failed:", minimalError);
 
@@ -284,10 +284,10 @@ export class MLPipeline {
                             });
 
                             // Transition to error state
-                            MLPipeline.stateMachine.transition(ML_TRANSITIONS.LOAD_ERROR, { error: minimalError.message });
+                            MLPipeline.transitionState(ML_TRANSITIONS.LOAD_ERROR, { error: minimalError.message });
 
                             // Transition to TEXT_ONLY_MODE since we allow graceful degradation
-                            MLPipeline.stateMachine.transition(ML_TRANSITIONS.FALLBACK_SUCCESS);
+                            MLPipeline.transitionState(ML_TRANSITIONS.FALLBACK_SUCCESS);
 
                             // Explicitly set to null to ensure consistent state
                             MLPipeline.llm = null;
@@ -310,7 +310,7 @@ export class MLPipeline {
             });
 
             // Transition to error state
-            MLPipeline.stateMachine.transition(ML_TRANSITIONS.LOAD_ERROR, { error: err.message });
+            MLPipeline.transitionState(ML_TRANSITIONS.LOAD_ERROR, { error: err.message });
 
             // Ensure consistent state by setting to null on error
             MLPipeline.llm = null;
@@ -422,7 +422,16 @@ export class MLPipeline {
         return MLPipeline.stateMachine.isVoiceInputFunctional();
       }
     
-      static transitionState(transition, context = {}) {        return MLPipeline.stateMachine.transition(transition, context);
+      static transitionState(transition, context = {}) {
+        const newState = MLPipeline.stateMachine.transition(transition, context);
+        // Sync state with main thread on every transition to ensure UI is always up to date
+        // even during background loading or rapid state changes
+        messenger.postMessage({
+            type: 'ml_state_sync',
+            mlState: newState,
+            mlStateData: MLPipeline.getMLStateData()
+        });
+        return newState;
     }
 
     static resetStateMachine() {
@@ -434,7 +443,7 @@ export class MLPipeline {
         console.log("Handling memory pressure proactively...");
 
         // Transition the state machine to LOW_MEMORY
-        MLPipeline.stateMachine.transition(ML_TRANSITIONS.MEMORY_PRESSURE);
+        MLPipeline.transitionState(ML_TRANSITIONS.MEMORY_PRESSURE);
 
         // Dispose of all models to free memory
         await MLPipeline.disposeAll();
