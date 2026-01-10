@@ -97,14 +97,14 @@ describe('App Component - New UI Components', () => {
   describe('Loading Hint Component', () => {
     it('renders the loading hint with correct content and accessibility attributes', () => {
       render(<App />);
-      
+
       // Check that the loading hint exists with the correct role and aria-label
       const loadingHint = screen.getByRole('note', { name: /loading tip/i });
       expect(loadingHint).toBeInTheDocument();
-      
+
       // Check that the hint contains the correct text
       expect(loadingHint).toHaveTextContent(/Tip: ConvoCue runs entirely on your device for privacy. Initial setup may take a moment./i);
-      
+
       // Check that the info icon is present
       const infoIcon = loadingHint.querySelector('.hint-icon');
       expect(infoIcon).toBeInTheDocument();
@@ -116,6 +116,14 @@ describe('App Component - New UI Components', () => {
 
       // Check that the status is displayed in the loading-step paragraph
       expect(screen.getByText(/Initializing\.\.\./i, { selector: '.loading-step' })).toBeInTheDocument();
+    });
+
+    it('correctly passes the status prop from useMLWorker to the loading-step element', () => {
+      // The mock at the top sets status to 'Initializing...', so we verify it's passed through
+      render(<App />);
+
+      // Check that the status from the hook is displayed in the loading-step paragraph
+      expect(screen.getByText('Initializing...', { selector: '.loading-step' })).toBeInTheDocument();
     });
   });
 
@@ -149,7 +157,7 @@ describe('App Component - New UI Components', () => {
       // Check for the third tip: Adaptive to your communication style
       const adaptiveTip = screen.getByLabelText(/adaptive to your communication style/i);
       expect(adaptiveTip).toBeInTheDocument();
-      expect(adaptiveTip).toHaveTextContent(/Adaptive to your communication style/i);
+      expect(adaptiveTip).toHaveTextContent(/Learns your preferred response length over time/i);
     });
 
     it('includes the correct icons in the setup tips', () => {

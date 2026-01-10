@@ -355,7 +355,7 @@ const App = () => {
                 <ul aria-label="ConvoCue features and capabilities">
                   <li aria-label="Real-time conversation suggestions"><Zap size={16} aria-hidden="true" /> Real-time conversation suggestions</li>
                   <li aria-label="100% on-device privacy"><ShieldAlert size={16} aria-hidden="true" /> 100% on-device privacy</li>
-                  <li aria-label="Adaptive to your communication style"><Activity size={16} aria-hidden="true" /> Adaptive to your communication style</li>
+                  <li aria-label="Adaptive to your communication style"><Activity size={16} aria-hidden="true" /> Learns your preferred response length over time</li>
                 </ul>
               </div>
             </div>

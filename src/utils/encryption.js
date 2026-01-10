@@ -1,5 +1,6 @@
 /**
  * @fileoverview Encryption utilities for secure data storage using Web Crypto API
+ * Implements privacy-first approach with client-side encryption for all persistent user data
  */
 
 // Key for encryption - in a real app, this should be derived from a user secret
@@ -7,7 +8,15 @@
 const ENCRYPTION_KEY_ID = 'convocue_storage_key';
 
 /**
+ * Privacy & Security Enhancement:
+ * Enforces Web Crypto API availability to prevent insecure fallbacks.
+ * This ensures that all data remains encrypted with industry-standard algorithms
+ * and prevents a false sense of security in unsupported environments.
+ */
+
+/**
  * Checks if Web Crypto API is available
+ * This function is essential for maintaining security guarantees by preventing insecure fallbacks
  * @returns {boolean}
  */
 function isCryptoAvailable() {
