@@ -428,7 +428,7 @@ export const enhanceResponse = async (response, persona, emotionData = null, inp
   }
 
   // 7. Final Ethics & Safety Guardrail
-  const finalizedResponse = validateSocialSuggestion(enhancedResponse);
+  const finalizedResponse = validateSocialSuggestion(enhancedResponse, input || '');
   if (finalizedResponse !== enhancedResponse) {
     transformations.push('safety_guardrail_triggered');
   }

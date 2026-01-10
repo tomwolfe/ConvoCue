@@ -18,11 +18,14 @@ export const secureWipe = (data) => {
     return data.map(() => null);
   }
   if (typeof data === 'object' && data !== null) {
+    // Return a new object with nullified properties instead of mutating in place
+    const wipedObject = {};
     Object.keys(data).forEach(key => {
-      data[key] = null;
+      wipedObject[key] = null;
     });
+    return wipedObject;
   }
-  return null;
+  return data; // Return the original data if it's not a string, array, or object
 };
 
 /**

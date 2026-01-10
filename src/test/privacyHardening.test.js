@@ -20,11 +20,15 @@ describe('Privacy Hardening Utilities', () => {
       expect(result).toEqual([null, null]);
     });
 
-    it('should nullify object properties', () => {
+    it('should nullify object properties and return a new object', () => {
       const data = { transcript: 'hello', user: 'tom' };
-      secureWipe(data);
-      expect(data.transcript).toBe(null);
-      expect(data.user).toBe(null);
+      const result = secureWipe(data);
+      // Original object should remain unchanged
+      expect(data.transcript).toBe('hello');
+      expect(data.user).toBe('tom');
+      // Result should be a new object with null values
+      expect(result.transcript).toBe(null);
+      expect(result.user).toBe(null);
     });
   });
 
