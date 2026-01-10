@@ -1,3 +1,5 @@
+import { AppConfig } from '../config';
+
 /**
  * Feature Coordination System for ConvoCue
  * Manages potential conflicts between cultural context, language learning, and professional coaching features
@@ -54,17 +56,6 @@ const CONFLICT_RESOLUTION = {
 };
 
 /**
- * Maps personas to their primary feature categories for priority boosting
- */
-const PERSONA_TO_FEATURE_MAP = {
-  'meeting': 'meeting',
-  'professional': 'professional',
-  'relationship': 'relationship',
-  'anxiety': 'anxiety',
-  'languagelearning': 'language'
-};
-
-/**
  * Resolves conflicts between different coaching features based on priorities and context.
  * @param {Object} insights - The collection of insights from various features
  * @param {string} persona - The currently active persona
@@ -74,9 +65,10 @@ export const resolveFeatureConflicts = (insights, persona) => {
   // Create a copy of insights to modify
   const resolvedInsights = { ...insights };
 
-  // Cycle 2: Coaching Calibration
-  // Boost priority of the active persona to ensure it takes precedence in conflict resolution.
-  const activePersonaFeature = PERSONA_TO_FEATURE_MAP[persona] || null;
+  // Cycle 2: Coaching Calibration (Scalable Refinement)
+  // Use the priority matrix from configuration to determine feature weights.
+  const priorityMatrix = AppConfig.system.orchestrator?.priorityMatrix || {};
+  const personaPriorities = priorityMatrix[persona] || {};
 
   /**
    * Calculates the priority of a feature, applying a boost if it matches the active persona.
@@ -84,12 +76,18 @@ export const resolveFeatureConflicts = (insights, persona) => {
    * @returns {number} The numeric priority value
    */
   const getPriority = (feature) => {
-    // Ensure priority is always a number to prevent NaN in multiplication
-    let priority = Number(FEATURE_PRIORITIES[feature]) || 0;
-    if (activePersonaFeature === feature) {
-      priority *= 2; // 2x weight boost for active persona to ensure cohesive coaching
+    // Base priority from the static map
+    const basePriority = Number(FEATURE_PRIORITIES[feature]) || 0;
+    
+    // Multiplier from the persona-specific priority matrix
+    const multiplier = Number(personaPriorities[feature]) || 1.0;
+    
+    // Cycle 2 Legacy compatibility: If no multiplier in matrix but matches persona name, boost it
+    if (!personaPriorities[feature] && persona === feature) {
+      return basePriority * 2.0;
     }
-    return priority;
+
+    return basePriority * multiplier;
   };
 
   // Check for high bias risk in cultural insights and adjust accordingly
@@ -107,12 +105,12 @@ export const resolveFeatureConflicts = (insights, persona) => {
   }
 
   // Check for known conflicts and resolve them
-  if (resolvedInsights.cultural && resolvedInsights.language) {
+  if (resolvedInsights.cultural && resolvedInsights.languagelearning) {
     const conflict = CONFLICT_RESOLUTION['cultural_languagelearning_conflict'];
     if (conflict) {
-      const result = conflict.handler(resolvedInsights.cultural, resolvedInsights.language);
+      const result = conflict.handler(resolvedInsights.cultural, resolvedInsights.languagelearning);
       resolvedInsights.cultural = result.culturalInsight;
-      resolvedInsights.language = result.languageInsight;
+      resolvedInsights.languagelearning = result.languageInsight;
     }
   }
 

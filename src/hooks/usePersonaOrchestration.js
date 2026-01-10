@@ -64,14 +64,6 @@ export const usePersonaOrchestration = (currentPersona, settings, historyRef, di
     }
 
     const now = Date.now();
-    
-    // Cycle 2: Sticky Persona Logic
-    // Prevent switching again too quickly if we just switched automatically
-    const stickyCooldown = AppConfig.system.orchestrator?.stickyCooldownMs || 30000;
-    if (now - lastAutoSwitchTimestampRef.current < stickyCooldown) {
-      return currentPersona;
-    }
-
     const dampening = getDecayedDampening(currentPersona);
     const manualPreference = getActiveManualPreference();
     
@@ -87,6 +79,22 @@ export const usePersonaOrchestration = (currentPersona, settings, historyRef, di
     );
     
     if (suggestedPersona !== currentPersona) {
+      // Cycle 2: Dynamic Sticky Persona Logic
+      // Prevent switching again too quickly if we just switched automatically.
+      // Use a shorter cooldown for similar personas to improve responsiveness.
+      const getDynamicCooldown = (from, to) => {
+        const baseCooldown = AppConfig.system.orchestrator?.stickyCooldownMs || 30000;
+        const similarityMap = AppConfig.system.orchestrator?.similarityMatrix || {};
+        
+        const isRelated = similarityMap[from]?.includes(to) || similarityMap[to]?.includes(from);
+        return isRelated ? baseCooldown / 3 : baseCooldown; // 10s for related, 30s for unrelated
+      };
+
+      const stickyCooldown = getDynamicCooldown(currentPersona, suggestedPersona);
+      if (now - lastAutoSwitchTimestampRef.current < stickyCooldown) {
+        return currentPersona;
+      }
+
       // Find the primary reason for the switch
       const winnerDebug = debug.scores[suggestedPersona];
       let reason = 'Context change';

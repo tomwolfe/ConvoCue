@@ -165,6 +165,29 @@ export const AppConfig = {
     // Persona Orchestration settings
     orchestrator: {
       stickyCooldownMs: 30000,
+      
+      // Cycle 2 Post-Sprint: Dynamic Similarity Matrix for Cooldowns
+      // High similarity = shorter cooldown (10s), Low similarity = standard cooldown (30s)
+      similarityMatrix: {
+        'meeting': ['professional', 'concise'],
+        'professional': ['meeting', 'crosscultural'],
+        'anxiety': ['relationship'],
+        'relationship': ['anxiety'],
+        'languagelearning': ['crosscultural'],
+        'crosscultural': ['languagelearning', 'professional']
+      },
+
+      // Cycle 2 Post-Sprint: Scalable Feature Priority Matrix
+      // Key: Persona -> { Feature: PriorityMultiplier }
+      priorityMatrix: {
+        'meeting': { 'meeting': 2.0, 'professional': 1.5 },
+        'professional': { 'professional': 2.0, 'meeting': 1.5 },
+        'relationship': { 'relationship': 2.0, 'anxiety': 1.5 },
+        'anxiety': { 'anxiety': 2.0, 'relationship': 1.5 },
+        'languagelearning': { 'languagelearning': 2.0, 'cultural': 1.5 },
+        'crosscultural': { 'cultural': 2.0, 'languagelearning': 1.5 }
+      },
+
       thresholdBase: 0.7, // Base threshold for switching
       keywordWeight: 0.3,
       historyWeight: 0.1,

@@ -313,6 +313,12 @@ const performanceStats = {
 
 // Conversation turn management in worker
 let conversationTurnManager = null;
+let highStakesCounter = 0; // Cycle 2: Multi-turn counter for cultural override safety
+const HIGH_STAKES_THRESHOLD_TURNS = 2; // Required turns before lowering override threshold
+
+/**
+ * Initializes the conversation turn manager
+ */
 
 const updatePerformanceMode = (time, type) => {
     const list = type === 'audio' ? performanceStats.audioProcessingTimes : performanceStats.llmProcessingTimes;
@@ -659,15 +665,29 @@ self.onmessage = async (event) => {
                                                  AppConfig.culturalIntelligenceConfig?.confidence?.overrideThreshold || 
                                                  0.85;
 
-                // Cycle 2: Cultural Intelligence Tuning
-                // Dynamically adjust threshold based on intent intensity/importance
+                // Cycle 2: Cultural Intelligence Tuning (Robust Refinement)
+                // Dynamically adjust threshold based on persistent intent intensity.
+                // We require multiple consecutive turns of high-stakes intent before lowering 
+                // the threshold to ensure it's not a misclassification.
                 const hasHighStakesIntent = intents?.some(i => ['strategic', 'negotiation', 'leadership'].includes(i.intent));
                 const hasSocialIntent = intents?.some(i => i.intent === 'social');
 
                 if (hasHighStakesIntent) {
-                    culturalOverrideThreshold = 0.7; // Be more aggressive in high-stakes context
+                    highStakesCounter++;
+                } else {
+                    highStakesCounter = Math.max(0, highStakesCounter - 1);
+                }
+
+                if (hasHighStakesIntent && highStakesCounter >= HIGH_STAKES_THRESHOLD_TURNS) {
+                    culturalOverrideThreshold = 0.7; // Be more aggressive in persistent high-stakes context
                 } else if (hasSocialIntent) {
                     culturalOverrideThreshold = 0.9; // Be more conservative in social context to avoid jitter
+                    highStakesCounter = 0; // Reset counter in social context
+                } else {
+                    // Standard threshold
+                    culturalOverrideThreshold = _settings?.culturalOverrideThreshold || 
+                                               AppConfig.culturalIntelligenceConfig?.confidence?.overrideThreshold || 
+                                               0.85;
                 }
 
                 const effectiveCulturalContext = detectedCulturalContext.primaryCulture !== 'general' &&
