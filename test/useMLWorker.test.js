@@ -11,12 +11,17 @@ beforeEach(() => {
   mockWorkerPostMessage = vi.fn();
   mockWorkerTerminate = vi.fn();
 
-  global.Worker = vi.fn().mockImplementation(() => ({
-    postMessage: mockWorkerPostMessage,
-    terminate: mockWorkerTerminate,
-    onmessage: null,
-    onerror: null,
-  }));
+  global.Worker = vi.fn().mockImplementation(function() {
+    this.postMessage = (data, transfer) => {
+      mockWorkerPostMessage(data, transfer);
+    };
+    this.terminate = mockWorkerTerminate;
+    
+    // Allow the test to access the instance's onmessage
+    setTimeout(() => {
+        global.lastWorkerInstance = this;
+    }, 0);
+  });
 });
 
 describe('useMLWorker', () => {
@@ -24,6 +29,7 @@ describe('useMLWorker', () => {
     vi.restoreAllMocks();
     // Clean up the global Worker mock
     delete global.Worker;
+    delete global.lastWorkerInstance;
   });
 
   it('should include retrySTTLoad function in the returned object', () => {
@@ -73,8 +79,11 @@ describe('useMLWorker', () => {
     }).not.toThrow();
   });
 
-  it('should send retry_stt_load message when retrySTTLoad is called', () => {
+  it('should send retry_stt_load message when retrySTTLoad is called', async () => {
     const { result } = renderHook(() => useMLWorker());
+
+    // Wait for worker initialization
+    await vi.waitFor(() => expect(global.lastWorkerInstance).toBeDefined());
 
     act(() => {
       result.current.retrySTTLoad();
@@ -84,22 +93,16 @@ describe('useMLWorker', () => {
       expect.objectContaining({
         type: 'retry_stt_load',
         taskId: expect.stringMatching(/^retry-\d+$/)
-      })
+      }),
+      undefined
     );
   });
 
-  it('should properly handle worker status response during retry', () => {
-    // Create a mock worker with onmessage handler
-    const mockWorker = {
-      postMessage: mockWorkerPostMessage,
-      terminate: mockWorkerTerminate,
-      onmessage: null,
-      onerror: null,
-    };
-
-    global.Worker = vi.fn().mockImplementation(() => mockWorker);
-
+  it('should properly handle worker status response during retry', async () => {
     const { result } = renderHook(() => useMLWorker());
+
+    // Wait for worker initialization
+    await vi.waitFor(() => expect(global.lastWorkerInstance).toBeDefined());
 
     // Trigger the retrySTTLoad function
     act(() => {
@@ -109,40 +112,34 @@ describe('useMLWorker', () => {
     // Verify that the retry message was sent
     expect(mockWorkerPostMessage).toHaveBeenCalledWith(
       expect.objectContaining({
-        type: 'retry_stt_load',
-        taskId: expect.stringMatching(/^retry-\d+$/)
-      })
+        type: 'retry_stt_load'
+      }),
+      undefined
     );
 
-    // Simulate the worker sending a status message back
-    const messageEvent = {
-      data: {
-        type: 'status',
-        status: 'Speech Engine loaded successfully',
-        taskId: 'retry-12345'
-      }
-    };
-
-    // Call the onmessage handler if it exists
-    if (mockWorker.onmessage) {
-      act(() => {
-        mockWorker.onmessage(messageEvent);
+    // Simulate the worker sending a status message back with updated ML state data
+    act(() => {
+      global.lastWorkerInstance.onmessage({
+        data: {
+          type: 'status',
+          status: 'Speech Engine loaded successfully',
+          mlStateData: {
+            state: 'ready',
+            context: { retryCount: 0, maxRetries: 3 }
+          },
+          taskId: 'retry-12345'
+        }
       });
-    }
+    });
+
+    expect(result.current.isRetrying).toBe(false);
   });
 
-  it('should properly handle worker error response during retry', () => {
-    // Create a mock worker with onmessage handler
-    const mockWorker = {
-      postMessage: mockWorkerPostMessage,
-      terminate: mockWorkerTerminate,
-      onmessage: null,
-      onerror: null,
-    };
-
-    global.Worker = vi.fn().mockImplementation(() => mockWorker);
-
+  it('should properly handle worker error response during retry', async () => {
     const { result } = renderHook(() => useMLWorker());
+
+    // Wait for worker initialization
+    await vi.waitFor(() => expect(global.lastWorkerInstance).toBeDefined());
 
     // Trigger the retrySTTLoad function
     act(() => {
@@ -150,20 +147,21 @@ describe('useMLWorker', () => {
     });
 
     // Simulate the worker sending an error message back
-    const messageEvent = {
-      data: {
-        type: 'error',
-        error: 'Speech recognition model failed to load: Network error',
-        taskId: 'retry-12345'
-      }
-    };
-
-    // Call the onmessage handler if it exists
-    if (mockWorker.onmessage) {
-      act(() => {
-        mockWorker.onmessage(messageEvent);
+    act(() => {
+      global.lastWorkerInstance.onmessage({
+        data: {
+          type: 'error',
+          error: 'Speech recognition model failed to load: Network error',
+          mlStateData: {
+            state: 'error',
+            context: { retryCount: 1, maxRetries: 3 }
+          },
+          taskId: 'retry-12345'
+        }
       });
-    }
+    });
+
+    expect(result.current.isRetrying).toBe(false);
   });
 
   it('should maintain existing functionality after adding retrySTTLoad', () => {
@@ -186,19 +184,39 @@ describe('useMLWorker', () => {
     });
   });
 
-  it('should track retry attempts and limit retries', () => {
+  it('should track retry attempts and limit retries', async () => {
     const { result } = renderHook(() => useMLWorker());
 
-    // Simulate multiple retry attempts
+    // Wait for worker initialization
+    await vi.waitFor(() => expect(global.lastWorkerInstance).toBeDefined());
+
+    // Simulate 3 failed retry attempts
+    for (let i = 1; i <= 3; i++) {
+      act(() => {
+        result.current.retrySTTLoad();
+      });
+
+      act(() => {
+        global.lastWorkerInstance.onmessage({
+          data: {
+            type: 'error',
+            error: 'Loading failed',
+            mlStateData: {
+              state: 'error',
+              context: { retryCount: i, maxRetries: 3 }
+            }
+          }
+        });
+      });
+    }
+
+    // Now attempt 4th retry
     act(() => {
       result.current.retrySTTLoad();
-      result.current.retrySTTLoad();
-      result.current.retrySTTLoad();
-      result.current.retrySTTLoad(); // This should exceed the limit
     });
 
     // Verify that the status reflects the retry limit being reached
-    expect(result.current.status).toContain('Maximum retry attempts');
+    expect(result.current.status).toContain('unavailable after 3 attempts');
   });
 
   it('should include retryLLMLoad function in the returned object', () => {
@@ -236,8 +254,11 @@ describe('useMLWorker', () => {
     global.Worker = originalWorker;
   });
 
-  it('should send retry_llm_load message when retryLLMLoad is called', () => {
+  it('should send retry_llm_load message when retryLLMLoad is called', async () => {
     const { result } = renderHook(() => useMLWorker());
+
+    // Wait for worker initialization
+    await vi.waitFor(() => expect(global.lastWorkerInstance).toBeDefined());
 
     act(() => {
       result.current.retryLLMLoad();
@@ -247,7 +268,8 @@ describe('useMLWorker', () => {
       expect.objectContaining({
         type: 'retry_llm_load',
         taskId: expect.stringMatching(/^retry-llm-\d+$/)
-      })
+      }),
+      undefined
     );
   });
 

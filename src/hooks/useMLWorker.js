@@ -19,6 +19,8 @@ const initialState = {
   isReady: false,
   isLowMemory: false,
   mlState: ML_STATES.UNINITIALIZED, // Track the ML state machine state
+  retryCount: 0,
+  maxRetries: 3,
   transcript: '',
   suggestion: '',
   detectedIntent: null,
@@ -78,9 +80,20 @@ function workerReducer(state, action) {
     case 'RESET_PROCESSING':
       return { ...state, isProcessing: false, processingStep: 'none', status: 'Ready' };
     case 'SET_ERROR':
-      return { ...state, error: action.error, status: `Model Error: ${action.error}`, isProcessing: false, isReady: false };
+      return { 
+        ...state, 
+        error: action.error, 
+        status: action.error ? `Model Error: ${action.error}` : state.status, 
+        isProcessing: false, 
+        isReady: action.error ? false : state.isReady 
+      };
     case 'SET_ML_STATE':
-      return { ...state, mlState: action.mlState };
+      return { 
+        ...state, 
+        mlState: action.mlState,
+        retryCount: action.retryCount ?? state.retryCount,
+        maxRetries: action.maxRetries ?? state.maxRetries
+      };
     case 'CLEAR_INTERACTION':
       return { ...state, transcript: '', suggestion: '' };
     default:
@@ -179,20 +192,29 @@ export const useMLWorker = () => {
 
       newWorker.onmessage = async (event) => {
         try {
-          const { type, text, status, progress, metadata, emotionData, isLowMemory, isFallbackFailed, mlState } = event.data;
+          const { type, text, status, progress, metadata, emotionData, isLowMemory, isFallbackFailed, mlState, mlStateData } = event.data;
 
-          // Update ML state if provided
-          if (mlState) {
+          // Update ML state if provided (prefer mlStateData if available)
+          if (mlStateData) {
+            dispatch({ 
+              type: 'SET_ML_STATE', 
+              mlState: mlStateData.state,
+              retryCount: mlStateData.context.retryCount,
+              maxRetries: mlStateData.context.maxRetries
+            });
+          } else if (mlState) {
             dispatch({ type: 'SET_ML_STATE', mlState });
           }
 
           switch (type) {
             case 'status':
               dispatch({ type: 'SET_STATUS', status, progress, isLowMemory });
-              // Reset retry counter when we get a success status related to STT
+              // Reset retry state when we get a success status
               if (status && (status.includes('Speech Engine loaded successfully') || status.includes('Ready'))) {
-                retryCountRef.current = 0; // Reset retry counter on success
-                setIsRetryingState(prev => false); // Reset retrying state
+                setIsRetryingState(false);
+              }
+              if (status && status.includes('Social Brain loaded successfully')) {
+                setIsRetryingLLMState(false);
               }
               break;
             case 'ready':
@@ -201,9 +223,8 @@ export const useMLWorker = () => {
               if (status) {
                 dispatch({ type: 'SET_STATUS', status });
               }
-              // Reset retry counter when worker is ready
-              retryCountRef.current = 0;
-              setIsRetryingState(prev => false); // Reset retrying state
+              setIsRetryingState(false);
+              setIsRetryingLLMState(false);
               break;
             case 'stt_result': {
               if (!text?.trim()) {
@@ -362,16 +383,17 @@ export const useMLWorker = () => {
                 // For fallback failures, we can still continue with reduced functionality
                 console.warn("Model fallback failed, continuing with reduced functionality:", event.data.error);
                 dispatch({ type: 'SET_STATUS', status: 'Running in reduced functionality mode' });
-                retryCountRef.current = 0; // Reset retry counter on fallback success
-                setIsRetryingState(prev => false); // Reset retrying state
+                setIsRetryingState(false);
+                setIsRetryingLLMState(false);
               } else if (event.data.error && event.data.error.includes('Speech recognition')) {
                 // Handle STT-specific errors gracefully
                 console.warn("STT error, continuing with reduced functionality:", event.data.error);
                 dispatch({ type: 'SET_STATUS', status: 'Speech recognition unavailable - running in text-only mode' });
-                setIsRetryingState(prev => false); // Reset retrying state on STT error
+                setIsRetryingState(false);
               } else {
                 dispatch({ type: 'SET_ERROR', error: event.data.error });
-                setIsRetryingState(prev => false); // Reset retrying state on general error
+                setIsRetryingState(false);
+                setIsRetryingLLMState(false);
               }
               break;
             case 'cleanup_complete':
@@ -470,36 +492,31 @@ export const useMLWorker = () => {
     });
   }, [state.transcript, state.isProcessing, history, state.persona, state.culturalContext, prefsCache]); // Optimized: No 'settings' dependency
 
-  // Track retry attempts to prevent infinite retries
-  const retryCountRef = useRef(0);
-  const maxRetryAttempts = 3; // Maximum number of retry attempts
+  // Track retry UI states
   const [isRetrying, setIsRetryingState] = useState(false);
   const [isRetryingLLM, setIsRetryingLLMState] = useState(false);
 
   const retrySTTLoad = useCallback(() => {
     if (!worker.current) return;
 
-    // Check if we've exceeded the maximum retry attempts
-    if (retryCountRef.current >= maxRetryAttempts) {
+    // Check if we've exceeded the maximum retry attempts from state
+    if (stateRef.current.retryCount >= stateRef.current.maxRetries) {
       dispatch({
         type: 'SET_STATUS',
-        status: `Maximum retry attempts (${maxRetryAttempts}) reached. Speech recognition unavailable.`
+        status: `Maximum retry attempts (${stateRef.current.maxRetries}) reached. Speech recognition unavailable.`
       });
       dispatch({
         type: 'SET_ERROR',
-        error: `Speech recognition unavailable after ${maxRetryAttempts} attempts. Please refresh the page or check your connection.`
+        error: `Speech recognition unavailable after ${stateRef.current.maxRetries} attempts. Please refresh the page or check your connection.`
       });
       return;
     }
 
-    // Increment retry count
-    retryCountRef.current += 1;
-
-    // Set retrying state using functional update to avoid dependency
-    setIsRetryingState(prev => true);
+    // Set retrying state
+    setIsRetryingState(true);
 
     // Reset error state before attempting to reload
-    dispatch({ type: 'SET_STATUS', status: `Retrying to load Speech Engine... (${retryCountRef.current}/${maxRetryAttempts})` });
+    dispatch({ type: 'SET_STATUS', status: `Retrying to load Speech Engine... (${stateRef.current.retryCount + 1}/${stateRef.current.maxRetries})` });
     dispatch({ type: 'SET_ERROR', error: null });
 
     // Send a message to the worker to attempt reloading STT
@@ -507,32 +524,29 @@ export const useMLWorker = () => {
       type: 'retry_stt_load',
       taskId: generateUniqueId('retry')
     });
-  }, [dispatch, maxRetryAttempts]); // Removed setIsRetryingState from dependencies
+  }, [dispatch]);
 
   const retryLLMLoad = useCallback(() => {
     if (!worker.current) return;
 
-    // Check if we've exceeded the maximum retry attempts
-    if (retryCountRef.current >= maxRetryAttempts) {
+    // Check if we've exceeded the maximum retry attempts from state
+    if (stateRef.current.retryCount >= stateRef.current.maxRetries) {
       dispatch({
         type: 'SET_STATUS',
-        status: `Maximum retry attempts (${maxRetryAttempts}) reached. AI model unavailable.`
+        status: `Maximum retry attempts (${stateRef.current.maxRetries}) reached. AI model unavailable.`
       });
       dispatch({
         type: 'SET_ERROR',
-        error: `AI model unavailable after ${maxRetryAttempts} attempts. Please refresh the page or check your connection.`
+        error: `AI model unavailable after ${stateRef.current.maxRetries} attempts. Please refresh the page or check your connection.`
       });
       return;
     }
 
-    // Increment retry count
-    retryCountRef.current += 1;
-
-    // Set retrying state using functional update to avoid dependency
-    setIsRetryingLLMState(prev => true);
+    // Set retrying state
+    setIsRetryingLLMState(true);
 
     // Reset error state before attempting to reload
-    dispatch({ type: 'SET_STATUS', status: `Retrying to load Social Brain... (${retryCountRef.current}/${maxRetryAttempts})` });
+    dispatch({ type: 'SET_STATUS', status: `Retrying to load Social Brain... (${stateRef.current.retryCount + 1}/${stateRef.current.maxRetries})` });
     dispatch({ type: 'SET_ERROR', error: null });
 
     // Send a message to the worker to attempt reloading LLM
@@ -540,7 +554,7 @@ export const useMLWorker = () => {
       type: 'retry_llm_load',
       taskId: generateUniqueId('retry-llm')
     });
-  }, [dispatch, maxRetryAttempts]); // Removed setIsRetryingLLMState from dependencies
+  }, [dispatch]);
 
   return {
     ...state,

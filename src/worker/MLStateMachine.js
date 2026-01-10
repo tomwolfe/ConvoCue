@@ -5,15 +5,6 @@
  * the lifecycle of ML models in the ConvoCue application. It provides explicit paths
  * for failure recovery and graceful degradation, transforming the user experience
  * from "crash or work" to "adapt and recover".
- *
- * This implementation serves as a temporary but necessary solution to handle the
- * inherent unreliability of client-side ML model loading. In the long term, we may
- * want to explore more robust solutions such as server-side processing or more
- * sophisticated client-side resource management.
- *
- * FUTURE OPTIMIZATION: As the number of states and transitions grows, consider
- * refactoring the transition method to use a transition table approach for better
- * maintainability (e.g., a Map or object mapping (prevState, transition) => newState).
  */
 
 // Define possible states
@@ -43,12 +34,68 @@ export const ML_TRANSITIONS = {
   FALLBACK_SUCCESS: 'fallback_success'
 };
 
+/**
+ * Transition Table defining valid state movements
+ * (prevState, transition) => newState
+ */
+const TRANSITION_TABLE = {
+  [ML_STATES.UNINITIALIZED]: {
+    [ML_TRANSITIONS.START_LOADING_STT]: ML_STATES.LOADING_STT,
+    [ML_TRANSITIONS.START_LOADING_LLM]: ML_STATES.LOADING_LLM,
+  },
+  [ML_STATES.LOADING_STT]: {
+    [ML_TRANSITIONS.STT_LOADED]: ML_STATES.READY,
+    [ML_TRANSITIONS.LOAD_ERROR]: ML_STATES.ERROR,
+    [ML_TRANSITIONS.RETRY_STT]: ML_STATES.RETRYING_STT,
+  },
+  [ML_STATES.LOADING_LLM]: {
+    [ML_TRANSITIONS.LLM_LOADED]: ML_STATES.READY,
+    [ML_TRANSITIONS.LOAD_ERROR]: ML_STATES.ERROR,
+    [ML_TRANSITIONS.RETRY_LLM]: ML_STATES.RETRYING_LLM,
+  },
+  [ML_STATES.READY]: {
+    [ML_TRANSITIONS.START_LOADING_STT]: ML_STATES.LOADING_STT,
+    [ML_TRANSITIONS.START_LOADING_LLM]: ML_STATES.LOADING_LLM,
+    [ML_TRANSITIONS.MEMORY_PRESSURE]: ML_STATES.LOW_MEMORY,
+    [ML_TRANSITIONS.RETRY_STT]: ML_STATES.RETRYING_STT,
+    [ML_TRANSITIONS.RETRY_LLM]: ML_STATES.RETRYING_LLM,
+  },
+  [ML_STATES.ERROR]: {
+    [ML_TRANSITIONS.RESET]: ML_STATES.UNINITIALIZED,
+    [ML_TRANSITIONS.RETRY_STT]: ML_STATES.RETRYING_STT,
+    [ML_TRANSITIONS.RETRY_LLM]: ML_STATES.RETRYING_LLM,
+    [ML_TRANSITIONS.FALLBACK_SUCCESS]: ML_STATES.TEXT_ONLY_MODE,
+  },
+  [ML_STATES.RETRYING_STT]: {
+    [ML_TRANSITIONS.STT_LOADED]: ML_STATES.READY,
+    [ML_TRANSITIONS.LOAD_ERROR]: ML_STATES.ERROR,
+  },
+  [ML_STATES.RETRYING_LLM]: {
+    [ML_TRANSITIONS.LLM_LOADED]: ML_STATES.READY,
+    [ML_TRANSITIONS.LOAD_ERROR]: ML_STATES.ERROR,
+  },
+  [ML_STATES.LOW_MEMORY]: {
+    [ML_TRANSITIONS.START_LOADING_STT]: ML_STATES.LOADING_STT,
+    [ML_TRANSITIONS.START_LOADING_LLM]: ML_STATES.LOADING_LLM,
+    [ML_TRANSITIONS.RESET]: ML_STATES.UNINITIALIZED,
+  },
+  [ML_STATES.TEXT_ONLY_MODE]: {
+    [ML_TRANSITIONS.START_LOADING_STT]: ML_STATES.LOADING_STT,
+    [ML_TRANSITIONS.START_LOADING_LLM]: ML_STATES.LOADING_LLM,
+    [ML_TRANSITIONS.RESET]: ML_STATES.UNINITIALIZED,
+  }
+};
+
 // State machine class
 export class MLStateMachine {
-  constructor() {
+  constructor(maxRetries = 3) {
     this.state = ML_STATES.UNINITIALIZED;
     this.transitions = [];
-    this.context = {};
+    this.context = {
+      retryCount: 0,
+      maxRetries: maxRetries,
+      errors: []
+    };
   }
 
   // Get current state
@@ -62,137 +109,45 @@ export class MLStateMachine {
   }
 
   // Transition to a new state based on transition type
-  transition(transition, context = {}) {
+  transition(transition, contextUpdate = {}) {
     const prevState = this.state;
-    this.context = { ...this.context, ...context };
-    
-    switch (prevState) {
-      case ML_STATES.UNINITIALIZED:
-        switch (transition) {
-          case ML_TRANSITIONS.START_LOADING_STT:
-            this.state = ML_STATES.LOADING_STT;
-            break;
-          case ML_TRANSITIONS.START_LOADING_LLM:
-            this.state = ML_STATES.LOADING_LLM;
-            break;
-        }
-        break;
+    const nextState = TRANSITION_TABLE[prevState]?.[transition];
 
-      case ML_STATES.LOADING_STT:
-        switch (transition) {
-          case ML_TRANSITIONS.STT_LOADED:
-            this.state = ML_STATES.READY;
-            break;
-          case ML_TRANSITIONS.LOAD_ERROR:
-            this.state = ML_STATES.ERROR;
-            break;
-          case ML_TRANSITIONS.RETRY_STT:
-            this.state = ML_STATES.RETRYING_STT;
-            break;
-        }
-        break;
-
-      case ML_STATES.LOADING_LLM:
-        switch (transition) {
-          case ML_TRANSITIONS.LLM_LOADED:
-            this.state = ML_STATES.READY;
-            break;
-          case ML_TRANSITIONS.LOAD_ERROR:
-            this.state = ML_STATES.ERROR;
-            break;
-          case ML_TRANSITIONS.RETRY_LLM:
-            this.state = ML_STATES.RETRYING_LLM;
-            break;
-        }
-        break;
-
-      case ML_STATES.READY:
-        switch (transition) {
-          case ML_TRANSITIONS.START_LOADING_STT:
-            this.state = ML_STATES.LOADING_STT;
-            break;
-          case ML_TRANSITIONS.START_LOADING_LLM:
-            this.state = ML_STATES.LOADING_LLM;
-            break;
-          case ML_TRANSITIONS.MEMORY_PRESSURE:
-            this.state = ML_STATES.LOW_MEMORY;
-            break;
-          case ML_TRANSITIONS.RETRY_STT:
-            this.state = ML_STATES.RETRYING_STT;
-            break;
-          case ML_TRANSITIONS.RETRY_LLM:
-            this.state = ML_STATES.RETRYING_LLM;
-            break;
-        }
-        break;
-
-      case ML_STATES.ERROR:
-        switch (transition) {
-          case ML_TRANSITIONS.RESET:
-            this.state = ML_STATES.UNINITIALIZED;
-            break;
-          case ML_TRANSITIONS.RETRY_STT:
-            this.state = ML_STATES.RETRYING_STT;
-            break;
-          case ML_TRANSITIONS.RETRY_LLM:
-            this.state = ML_STATES.RETRYING_LLM;
-            break;
-          case ML_TRANSITIONS.FALLBACK_SUCCESS:
-            this.state = ML_STATES.TEXT_ONLY_MODE;
-            break;
-        }
-        break;
-
-      case ML_STATES.RETRYING_STT:
-        switch (transition) {
-          case ML_TRANSITIONS.STT_LOADED:
-            this.state = ML_STATES.READY;
-            break;
-          case ML_TRANSITIONS.LOAD_ERROR:
-            this.state = ML_STATES.ERROR;
-            break;
-        }
-        break;
-
-      case ML_STATES.RETRYING_LLM:
-        switch (transition) {
-          case ML_TRANSITIONS.LLM_LOADED:
-            this.state = ML_STATES.READY;
-            break;
-          case ML_TRANSITIONS.LOAD_ERROR:
-            this.state = ML_STATES.ERROR;
-            break;
-        }
-        break;
-
-      case ML_STATES.LOW_MEMORY:
-        switch (transition) {
-          case ML_TRANSITIONS.START_LOADING_STT:
-            this.state = ML_STATES.LOADING_STT;
-            break;
-          case ML_TRANSITIONS.START_LOADING_LLM:
-            this.state = ML_STATES.LOADING_LLM;
-            break;
-          case ML_TRANSITIONS.RESET:
-            this.state = ML_STATES.UNINITIALIZED;
-            break;
-        }
-        break;
-
-      case ML_STATES.TEXT_ONLY_MODE:
-        switch (transition) {
-          case ML_TRANSITIONS.START_LOADING_STT:
-            this.state = ML_STATES.LOADING_STT;
-            break;
-          case ML_TRANSITIONS.START_LOADING_LLM:
-            this.state = ML_STATES.LOADING_LLM;
-            break;
-          case ML_TRANSITIONS.RESET:
-            this.state = ML_STATES.UNINITIALIZED;
-            break;
-        }
-        break;
+    if (!nextState) {
+      console.warn(`Invalid transition: ${transition} from state: ${prevState}`);
+      return this.state;
     }
+
+    // Handle context updates and side effects
+    this.context = { ...this.context, ...contextUpdate };
+
+    // Reset retry count on successful load
+    if (transition === ML_TRANSITIONS.STT_LOADED || transition === ML_TRANSITIONS.LLM_LOADED) {
+      this.context.retryCount = 0;
+    }
+
+    // Increment retry count on retry transitions
+    if (transition === ML_TRANSITIONS.RETRY_STT || transition === ML_TRANSITIONS.RETRY_LLM) {
+      this.context.retryCount++;
+      
+      // If we've exceeded max retries, we might want to force an error state
+      // but for now we follow the table which transitions to RETRYING_*
+      if (this.context.retryCount > this.context.maxRetries) {
+         console.warn(`Max retries exceeded (${this.context.retryCount}/${this.context.maxRetries})`);
+         // We could transition to ERROR here if we wanted to enforce it in the FSM
+      }
+    }
+
+    // Capture error in context if provided
+    if (transition === ML_TRANSITIONS.LOAD_ERROR && contextUpdate.error) {
+      this.context.errors.push({
+        state: prevState,
+        error: contextUpdate.error,
+        timestamp: Date.now()
+      });
+    }
+
+    this.state = nextState;
 
     // Log transition for debugging
     this.transitions.push({
@@ -200,7 +155,7 @@ export class MLStateMachine {
       to: this.state,
       transition,
       timestamp: Date.now(),
-      context
+      context: { ...this.context }
     });
 
     return this.state;
@@ -214,7 +169,11 @@ export class MLStateMachine {
   // Reset the state machine
   reset() {
     this.state = ML_STATES.UNINITIALIZED;
-    this.context = {};
+    this.context = {
+      retryCount: 0,
+      maxRetries: this.context.maxRetries,
+      errors: []
+    };
     this.transitions = [];
   }
 
@@ -230,17 +189,9 @@ export class MLStateMachine {
 
   /**
    * Check if a specific model is loaded
-   * NOTE: This method reflects the actual model loading state rather than functionality.
-   * In TEXT_ONLY_MODE, neither STT nor LLM models are considered loaded since this state
-   * represents a fallback mode where the STT model has failed to load/function properly.
-   * Only in READY state are models considered fully loaded and functional.
+   * NOTE: Only in READY state are models considered fully loaded and functional.
    */
   isModelLoaded(modelType) {
-    if (modelType === 'stt') {
-      return [ML_STATES.READY].includes(this.state);
-    } else if (modelType === 'llm') {
-      return [ML_STATES.READY].includes(this.state);
-    }
-    return false;
+    return this.state === ML_STATES.READY;
   }
 }

@@ -380,6 +380,13 @@ export class MLPipeline {
         return MLPipeline.stateMachine.getState();
     }
 
+    static getMLStateData() {
+        return {
+            state: MLPipeline.stateMachine.getState(),
+            context: MLPipeline.stateMachine.getContext()
+        };
+    }
+
     static isInState(state) {
         return MLPipeline.stateMachine.isInState(state);
     }
