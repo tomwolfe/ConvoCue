@@ -24,7 +24,7 @@ vi.mock('../hooks/useMLWorker', () => ({
     setStatus: vi.fn(),
     resetWorker: vi.fn(),
     conversationTurns: [],
-    persona: 'social_anxiety',
+    persona: 'anxiety',
     setPersona: vi.fn(),
     culturalContext: {},
     setCulturalContext: vi.fn(),
@@ -63,8 +63,8 @@ vi.mock('../components/Settings', () => ({
 
 vi.mock('../utils/preferences', () => ({
   getMergedPersonas: vi.fn().mockResolvedValue({
-    social_anxiety: {
-      id: 'social_anxiety',
+    anxiety: {
+      id: 'anxiety',
       label: 'Social Anxiety',
       description: 'Gentle, supportive cues'
     }

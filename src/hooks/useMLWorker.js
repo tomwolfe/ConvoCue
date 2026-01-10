@@ -24,7 +24,7 @@ const initialState = {
   isProcessing: false,
   processingStep: 'none',
   error: null,
-  persona: 'meeting',
+  persona: 'anxiety', // Default to 'anxiety' (Social Anxiety) as mentioned in tutorial
   culturalContext: 'general'
 };
 // ... rest of the file ...

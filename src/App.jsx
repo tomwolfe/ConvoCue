@@ -352,7 +352,7 @@ const App = () => {
               {/* Added quick tips section */}
               <div className="setup-tips" role="complementary" aria-labelledby="setup-tips-title">
                 <h3 id="setup-tips-title">What to expect:</h3>
-                <ul aria-label="ConvoCue features and capabilities">
+                <ul aria-label="ConvoCue features and capabilities" aria-labelledby="setup-tips-title">
                   <li aria-label="Real-time conversation suggestions"><Zap size={16} aria-hidden="true" /> Real-time conversation suggestions</li>
                   <li aria-label="100% on-device privacy"><ShieldAlert size={16} aria-hidden="true" /> 100% on-device privacy</li>
                   <li aria-label="Adaptive to your communication style"><Activity size={16} aria-hidden="true" /> Learns your preferred response length over time</li>
