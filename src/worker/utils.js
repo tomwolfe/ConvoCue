@@ -1,5 +1,10 @@
 import { AppConfig } from '../config';
 
+/**
+ * Sanitizes input text by removing potentially malicious script tags and shortening to max length.
+ * @param {string} text - The text to sanitize
+ * @returns {string} The sanitized text
+ */
 export const sanitizeText = (text) => {
     if (!text || typeof text !== 'string') {
         return '';
@@ -14,6 +19,12 @@ export const sanitizeText = (text) => {
         .substring(0, AppConfig.system.maxTranscriptLength);
 };
 
+/**
+ * Handles progress updates from transformers.js and posts them to the main thread.
+ * @param {Object} p - Progress event object from transformers.js
+ * @param {string} statusPrefix - Prefix for the status message (e.g., "Loading Model")
+ * @param {string} [taskId] - Optional task ID to track concurrent tasks
+ */
 export const throttledProgress = (p, statusPrefix, taskId) => {
     if (p.status === 'progress') {
         self.postMessage({ type: 'status', status: `${statusPrefix}: ${Math.round(p.progress ?? 0)}%`, progress: p.progress, taskId });
@@ -24,6 +35,11 @@ export const throttledProgress = (p, statusPrefix, taskId) => {
     }
 };
 
+/**
+ * Validates coaching insights object to ensure it meets size and format constraints.
+ * @param {Object} insights - The coaching insights object to validate
+ * @returns {Object|null} Validated insights or null if invalid
+ */
 export const validateCoachingInsights = (insights) => {
   if (!insights) return null;
 

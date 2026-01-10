@@ -4,6 +4,14 @@ import { analyzeLanguageLearningText } from '../utils/languageLearning';
 import { generateRelationshipCoachingPrompt } from '../utils/relationshipCoaching';
 import { generateAnxietyCoachingPrompt } from '../utils/anxietyCoaching';
 
+/**
+ * Generates cultural-specific prompt tips.
+ * @param {string} effectiveCulturalContext - The cultural context to use
+ * @param {Object} detectedCulturalContext - Detected cultural insights and recommendations
+ * @param {Object} settings - User settings
+ * @param {boolean} isPowerSavingMode - Whether power saving mode is active
+ * @returns {string} The cultural prompt segment
+ */
 export const generateCulturalPrompt = (effectiveCulturalContext, detectedCulturalContext, settings, isPowerSavingMode) => {
     if (!effectiveCulturalContext || effectiveCulturalContext === 'general') return '';
 
@@ -22,6 +30,13 @@ export const generateCulturalPrompt = (effectiveCulturalContext, detectedCultura
     return prompt;
 };
 
+/**
+ * Generates language learning specific prompt tips and corrections.
+ * @param {string} effectiveCulturalContext - The cultural context
+ * @param {string} sanitizedText - The text to analyze
+ * @param {Object} settings - User settings
+ * @returns {string} The language learning prompt segment
+ */
 export const generateLanguageLearningPrompt = (effectiveCulturalContext, sanitizedText, settings) => {
     const nativeLanguage = settings?.nativeLanguage ||
         (AppConfig.culturalLanguageConfig?.languageLearningSettings?.nativeLanguage) ||
@@ -42,6 +57,13 @@ export const generateLanguageLearningPrompt = (effectiveCulturalContext, sanitiz
     return prompt;
 };
 
+/**
+ * Generates coaching specific prompt segments for relationship or anxiety personas.
+ * @param {string} persona - Current active persona
+ * @param {Object} relationshipInsights - Relationship-specific insights
+ * @param {Object} anxietyInsights - Anxiety-specific insights
+ * @returns {string} The coaching prompt segment
+ */
 export const generateCoachingPrompt = (persona, relationshipInsights, anxietyInsights) => {
     let prompt = '';
     if (relationshipInsights && persona === 'relationship') {
@@ -56,6 +78,27 @@ export const generateCoachingPrompt = (persona, relationshipInsights, anxietyIns
     return prompt;
 };
 
+/**
+ * @typedef {Object} SystemPromptConfig
+ * @property {string} persona - Active persona key
+ * @property {Object} personaConfig - Configuration for the active persona
+ * @property {string} effectiveCulturalContext - The cultural context to apply
+ * @property {string} [communicationProfile] - User's communication style profile
+ * @property {Object} [detectedCulturalContext] - Automatically detected cultural context
+ * @property {string} sanitizedText - The current transcript text
+ * @property {boolean} isPowerSavingMode - Power saving state
+ * @property {boolean} isSubtleMode - Subtle mode state
+ * @property {Object} [preferences] - User preferences (e.g. preferredLength)
+ * @property {Object} [relationshipInsights] - Relationship coaching data
+ * @property {Object} [anxietyInsights] - Anxiety coaching data
+ * @property {Object} [settings] - General application settings
+ */
+
+/**
+ * Combines various context segments into a final system prompt for the LLM.
+ * @param {SystemPromptConfig} config - Configuration for prompt generation
+ * @returns {string} The complete system prompt
+ */
 export const generateSystemPrompt = (config) => {
     const {
         persona,

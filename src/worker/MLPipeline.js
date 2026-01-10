@@ -1,15 +1,12 @@
 import { pipeline, env } from '@huggingface/transformers';
 import { AppConfig } from '../config';
-import { assessDeviceCapabilities, getOptimalModelConfig, checkMemoryAdequacy } from '../utils/performanceOptimizer';
-
-// Configuration for on-device execution
-const deviceCapabilities = assessDeviceCapabilities();
+import { assessDeviceCapabilities, getOptimalModelConfig, checkMemoryAdequacy, deviceCaps } from '../utils/performanceOptimizer';
 
 env.allowLocalModels = false;
 env.useBrowserCache = true;
 
 // Optimize threads based on hardware
-env.backends.onnx.wasm.numThreads = deviceCapabilities.hardwareConcurrency || AppConfig.worker.numThreads;
+env.backends.onnx.wasm.numThreads = deviceCaps.hardwareConcurrency || AppConfig.worker.numThreads;
 env.backends.onnx.wasm.simd = AppConfig.worker.simd;
 env.backends.onnx.wasm.proxy = false;
 
@@ -46,8 +43,8 @@ export class MLPipeline {
 
     async loadSTT(progress_callback) {
         try {
-            const optimizedSTTConfig = getOptimalModelConfig('stt', deviceCapabilities);
-            const optimizedLLMConfig = getOptimalModelConfig('llm', deviceCapabilities);
+            const optimizedSTTConfig = getOptimalModelConfig('stt', deviceCaps);
+            const optimizedLLMConfig = getOptimalModelConfig('llm', deviceCaps);
 
             const mem = checkMemoryUsage();
             if (mem && mem.usagePercent > AppConfig.system.memory.modelUnloadThreshold) {
@@ -62,7 +59,7 @@ export class MLPipeline {
 
             if (!MLPipeline.stt) {
                 const memoryCheck = checkMemoryAdequacy(optimizedSTTConfig, MLPipeline.llmConfig || optimizedLLMConfig);
-                if (!memoryCheck.isAdequate || deviceCapabilities.capabilities.isLowSpec) {
+                if (!memoryCheck.isAdequate || deviceCaps.capabilities.isLowSpec) {
                     await MLPipeline.disposeLLM();
                 }
 
@@ -88,9 +85,9 @@ export class MLPipeline {
 
     async loadLLM(progress_callback) {
         try {
-            const optimizedLLMConfig = getOptimalModelConfig('llm', deviceCapabilities);
+            const optimizedLLMConfig = getOptimalModelConfig('llm', deviceCaps);
             const memoryCheck = checkMemoryAdequacy(
-                MLPipeline.sttConfig || getOptimalModelConfig('stt', deviceCapabilities),
+                MLPipeline.sttConfig || getOptimalModelConfig('stt', deviceCaps),
                 optimizedLLMConfig
             );
 
@@ -106,7 +103,7 @@ export class MLPipeline {
             }
 
             if (!MLPipeline.llm) {
-                if (MLPipeline.stt && (!memoryCheck.isAdequate || deviceCapabilities.capabilities.isLowSpec)) {
+                if (MLPipeline.stt && (!memoryCheck.isAdequate || deviceCaps.capabilities.isLowSpec)) {
                     console.log("Disposing STT to make room for LLM due to memory constraints");
                     await MLPipeline.disposeSTT();
                 }
@@ -210,4 +207,4 @@ export class MLPipeline {
     }
 }
 
-export const deviceCaps = deviceCapabilities;
+

@@ -239,13 +239,19 @@ export const createProgressiveLoadingStrategy = (deviceCaps) => {
       };
     
     case 'high':
-    default:
-      return {
-        initialLoad: ['stt', 'llm'], // Load all models upfront
-        delayedLoad: [],
-        memoryThreshold: 0.85, // Start memory management at 85%
-        unloadAggressively: false,
-        maxConcurrentModels: 2
-      };
-  }
-};
+        default:
+          return {
+            initialLoad: ['stt', 'llm'], // Load all models upfront
+            delayedLoad: [],
+            memoryThreshold: 0.85, // Start memory management at 85%
+            unloadAggressively: false,
+            maxConcurrentModels: 2
+          };
+      }
+    };
+    
+    /**
+     * Singleton instance of device capabilities
+     */
+    export const deviceCaps = assessDeviceCapabilities();
+    
