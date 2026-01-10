@@ -28,6 +28,15 @@ export const refreshHapticSettingsCache = () => {
   getCachedSettings();
 };
 
+// Listen for storage changes to keep the cache consistent across components/tabs
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (event) => {
+    if (event.key === 'hapticSettings') {
+      refreshHapticSettingsCache();
+    }
+  });
+}
+
 /**
  * Fast-path for haptic feedback when the intent is already known.
  * Bypasses string parsing and uses cached settings.

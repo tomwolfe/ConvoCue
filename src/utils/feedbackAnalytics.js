@@ -30,8 +30,17 @@ export const analyzeFeedbackTrends = async (feedbackHistory = null) => {
   }
 
   // Calculate overall satisfaction
-  const likes = feedbackHistory.filter(f => f.feedbackType === 'like').length;
-  const dislikes = feedbackHistory.filter(f => f.feedbackType === 'dislike').length;
+  const likes = feedbackHistory.filter(f => 
+    f.feedbackType === 'like' || 
+    f.feedbackType === 'very_helpful' || 
+    f.feedbackType === 'somewhat_helpful'
+  ).length;
+  
+  const dislikes = feedbackHistory.filter(f => 
+    f.feedbackType === 'dislike' || 
+    f.feedbackType === 'not_helpful'
+  ).length;
+  
   const reports = feedbackHistory.filter(f => f.feedbackType === 'report').length;
   
   const overallSatisfaction = likes / Math.max(1, likes + dislikes + reports);
@@ -66,8 +75,9 @@ export const analyzeFeedbackTrends = async (feedbackHistory = null) => {
  * @returns {Object} Trending preferences
  */
 const findTrendingPreferences = (recentFeedback, olderFeedback) => {
-  const recentLikes = recentFeedback.filter(f => f.feedbackType === 'like');
-  const olderLikes = olderFeedback.filter(f => f.feedbackType === 'like');
+  const isPositive = f => f.feedbackType === 'like' || f.feedbackType === 'very_helpful' || f.feedbackType === 'somewhat_helpful';
+  const recentLikes = recentFeedback.filter(isPositive);
+  const olderLikes = olderFeedback.filter(isPositive);
   
   // Calculate preference scores for recent and older periods
   const recentScores = calculatePreferenceScores(recentLikes);
@@ -143,7 +153,7 @@ const calculatePreferenceScores = (feedback) => {
  * @returns {Array} Improvement areas
  */
 const findImprovementAreas = (feedbackHistory) => {
-  const dislikes = feedbackHistory.filter(f => f.feedbackType === 'dislike');
+  const dislikes = feedbackHistory.filter(f => f.feedbackType === 'dislike' || f.feedbackType === 'not_helpful');
   if (dislikes.length === 0) return [];
 
   // Analyze common issues in disliked suggestions with more depth
@@ -330,9 +340,9 @@ const calculatePersonaPreferences = (feedbackHistory) => {
     }
     
     personaStats[persona].total++;
-    if (item.feedbackType === 'like') {
+    if (item.feedbackType === 'like' || item.feedbackType === 'very_helpful' || item.feedbackType === 'somewhat_helpful') {
       personaStats[persona].likes++;
-    } else if (item.feedbackType === 'dislike') {
+    } else if (item.feedbackType === 'dislike' || item.feedbackType === 'not_helpful') {
       personaStats[persona].dislikes++;
     }
   });
@@ -394,9 +404,11 @@ const calculateEngagementScore = (feedbackHistory, weights) => {
 
     // Calculate quality weight based on feedback type and content
     let qualityWeight = 1.0; // Base weight
-    if (feedback.feedbackType === 'like') {
+    if (feedback.feedbackType === 'like' || feedback.feedbackType === 'very_helpful') {
       qualityWeight = 1.2; // Positive feedback gets slightly higher weight
-    } else if (feedback.feedbackType === 'dislike') {
+    } else if (feedback.feedbackType === 'somewhat_helpful') {
+      qualityWeight = 1.1;
+    } else if (feedback.feedbackType === 'dislike' || feedback.feedbackType === 'not_helpful') {
       qualityWeight = 0.5; // Negative feedback gets lower weight
     } else if (feedback.feedbackType === 'report') {
       qualityWeight = 0.2; // Reports get very low weight

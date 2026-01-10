@@ -54,10 +54,21 @@ const CONFLICT_RESOLUTION = {
 };
 
 /**
- * Resolves conflicts between different feature insights
- * @param {Object} insights - All generated insights from different features
- * @param {string} persona - Current persona being used
- * @returns {Object} Resolved insights with conflicts handled
+ * Maps personas to their primary feature categories for priority boosting
+ */
+const PERSONA_TO_FEATURE_MAP = {
+  'meeting': 'meeting',
+  'professional': 'professional',
+  'relationship': 'relationship',
+  'anxiety': 'anxiety',
+  'languagelearning': 'language'
+};
+
+/**
+ * Resolves conflicts between different coaching features based on priorities and context.
+ * @param {Object} insights - The collection of insights from various features
+ * @param {string} persona - The currently active persona
+ * @returns {Object} Prioritized and filtered insights
  */
 export const resolveFeatureConflicts = (insights, persona) => {
   // Create a copy of insights to modify
@@ -65,11 +76,7 @@ export const resolveFeatureConflicts = (insights, persona) => {
 
   // Cycle 2: Coaching Calibration
   // Boost priority of the active persona to ensure it takes precedence in conflict resolution.
-  const activePersonaFeature = persona === 'meeting' ? 'meeting' : 
-                               persona === 'professional' ? 'professional' :
-                               persona === 'relationship' ? 'relationship' :
-                               persona === 'anxiety' ? 'anxiety' :
-                               persona === 'languagelearning' ? 'language' : null;
+  const activePersonaFeature = PERSONA_TO_FEATURE_MAP[persona] || null;
 
   const getPriority = (feature) => {
     let priority = FEATURE_PRIORITIES[feature] || 0;

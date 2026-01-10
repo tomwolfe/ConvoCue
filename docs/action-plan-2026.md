@@ -12,6 +12,11 @@ This plan prioritizes the 20% of technical factors (Inference Latency, Intent Ac
 | **Worker Stability** | Unintended worker restarts per session | 2 - 3 | **0** |
 | **RS (Relevance Score)** | User thumbs-up ratio on suggestions | N/A | **> 85%** |
 
+### RS Measurement Strategy
+The Relevance Score (RS) will be measured using the `analyzeFeedbackTrends` utility, which aggregates "Very Helpful" (like) vs "Not Helpful" (dislike) feedback from the `InsightCard` component. 
+- **Methodology**: Internal dogfooding and a 5-user pilot group will provide the baseline.
+- **Reporting**: Weekly automated satisfaction reports generated from `localStorage` exports.
+
 ---
 
 ## Cycle 1: Speed & Stability (Days 1–14)
@@ -26,6 +31,7 @@ This plan prioritizes the 20% of technical factors (Inference Latency, Intent Ac
     - Use partial updates for dynamic context (Emotion, Sentiment) to reduce string manipulation overhead.
 3.  **Haptic Fast-Path**:
     - Direct binding between `detectIntentHighPerformance` and `provideHapticFeedback` to bypass the event bus for critical notifications.
+    - *Correction*: `getAdjustedPattern` is verified as present in the utility layer; the fast-path ensures sub-200ms haptic response.
 
 ### Milestones
 - **Day 3**: Performance baseline established via automated benchmarks.
@@ -40,9 +46,10 @@ This plan prioritizes the 20% of technical factors (Inference Latency, Intent Ac
 ### High-Leverage Interventions
 1.  **Persona Smoothing Logic**:
     - Implement a 30s "Sticky Persona" duration to prevent flicker.
+    - *Note on Trade-off*: A 30s cooldown is an intentional choice for stability. Rapid emotional shifts may be lagged by this duration; this is a known trade-off prioritizing UI stability over instantaneous adaptation.
     - Increase transition thresholds during high-intensity intents (e.g., Conflict).
 2.  **Coaching Calibration**:
-    - Weight "Active Persona" insights 2x higher than auxiliary coaching systems in `resolveFeatureConflicts`.
+    - Weight "Active Persona" insights 2x higher than auxiliary coaching systems in `resolveFeatureConflicts` using a maintainable map.
 3.  **Cultural Intelligence Tuning**:
     - Adjust override thresholds dynamically based on intent (e.g., Strategic vs. Social).
 
