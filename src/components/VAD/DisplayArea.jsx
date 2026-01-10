@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { 
   Trash2, Copy, Check, RefreshCw, ThumbsUp, ThumbsDown, 
   Flag, User, Users, AlertTriangle, Zap, Target, 
