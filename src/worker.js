@@ -23,6 +23,20 @@ import { WorkerMessenger } from './worker/Messenger';
 // Create a messenger instance for communication
 const messenger = WorkerMessenger.getInstance();
 
+// Polyfill for scheduler.yield to prevent blocking the event loop
+const yieldToMain = async () => {
+    if (self.scheduler && self.scheduler.yield) {
+        await self.scheduler.yield();
+    } else {
+        // Fallback to setTimeout for older browsers or Safari
+        await new Promise(resolve => setTimeout(resolve, 0));
+    }
+};
+
+// Queue for sequential processing of worker messages
+const messageQueue = [];
+let isProcessingQueue = false;
+
 // Enhance messenger to automatically include ML state data in every message
 const originalPostMessage = messenger.postMessage.bind(messenger);
 messenger.postMessage = (message) => {
@@ -33,12 +47,13 @@ messenger.postMessage = (message) => {
 };
 
 // Listen for memory pressure events if the API is available
+let memoryInterval = null;
 if (self.scheduler && self.scheduler.yield) {
     // For browsers that support the scheduler API
     // This is a more advanced approach to handle memory pressure
 } else if ('memory' in self.performance) {
     // Set up periodic memory monitoring
-    setInterval(() => {
+    memoryInterval = setInterval(() => {
         const mem = self.performance.memory;
         if (mem && mem.usagePercent > AppConfig.system.memory.modelUnloadThreshold) {
             // Handle memory pressure proactively
@@ -48,6 +63,25 @@ if (self.scheduler && self.scheduler.yield) {
 }
 
 self.onmessage = async (event) => {
+    // Add message to queue
+    messageQueue.push(event);
+    
+    // If already processing, return and let the current loop handle it
+    if (isProcessingQueue) return;
+    
+    isProcessingQueue = true;
+    
+    while (messageQueue.length > 0) {
+        const currentEvent = messageQueue.shift();
+        await processMessage(currentEvent);
+        // Yield to let any high-priority tasks or I/O happen
+        await yieldToMain();
+    }
+    
+    isProcessingQueue = false;
+};
+
+const processMessage = async (event) => {
     const {
         type, audio, taskId, text: _text, persona, history,
         communicationProfile, insightCategoryScores, culturalContext,
@@ -761,10 +795,11 @@ self.onmessage = async (event) => {
 
         // Handle worker termination request
         if (type === 'terminate') {
+            if (memoryInterval) clearInterval(memoryInterval);
             await MLPipeline.disposeAll();
             self.close(); // Close the worker
         }
-        } catch (error) {
-            messenger.postMessage({ type: 'error', error: error.message, taskId: taskId || 'unknown' });
-        }
-    };
+    } catch (error) {
+        messenger.postMessage({ type: 'error', error: error.message, taskId: taskId || 'unknown' });
+    }
+};

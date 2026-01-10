@@ -39,6 +39,8 @@ export class MLPipeline {
     static sttConfig = null;
     static llmConfig = null;
     static stateMachine = new MLStateMachine();
+    static sttLoadingPromise = null;
+    static llmLoadingPromise = null;
 
     static async getInstance() {
         if (!this.instance) {
@@ -48,9 +50,17 @@ export class MLPipeline {
     }
 
     async loadSTT(progress_callback) {
-        try {
-            // Transition to loading state
-            MLPipeline.stateMachine.transition(ML_TRANSITIONS.START_LOADING_STT);
+        if (MLPipeline.sttLoadingPromise) return MLPipeline.sttLoadingPromise;
+        
+        MLPipeline.sttLoadingPromise = (async () => {
+            try {
+                // Check if already loaded
+                if (MLPipeline.stt && MLPipeline.stateMachine.isVoiceInputFunctional()) {
+                    return;
+                }
+
+                // Transition to loading state
+                MLPipeline.stateMachine.transition(ML_TRANSITIONS.START_LOADING_STT);
 
             const optimizedSTTConfig = getOptimalModelConfig('stt', deviceCaps);
             const optimizedLLMConfig = getOptimalModelConfig('llm', deviceCaps);
@@ -161,13 +171,25 @@ export class MLPipeline {
             // Ensure consistent state by setting to null on error
             MLPipeline.stt = null;
             throw err;
+        } finally {
+            MLPipeline.sttLoadingPromise = null;
         }
+    })();
+    return MLPipeline.sttLoadingPromise;
     }
 
     async loadLLM(progress_callback) {
-        try {
-            // Transition to loading state
-            MLPipeline.stateMachine.transition(ML_TRANSITIONS.START_LOADING_LLM);
+        if (MLPipeline.llmLoadingPromise) return MLPipeline.llmLoadingPromise;
+
+        MLPipeline.llmLoadingPromise = (async () => {
+            try {
+                // Check if already loaded
+                if (MLPipeline.llm && MLPipeline.stateMachine.isReadyForProcessing()) {
+                    return;
+                }
+
+                // Transition to loading state
+                MLPipeline.stateMachine.transition(ML_TRANSITIONS.START_LOADING_LLM);
 
             const optimizedLLMConfig = getOptimalModelConfig('llm', deviceCaps);
             const memoryCheck = checkMemoryAdequacy(
@@ -293,7 +315,11 @@ export class MLPipeline {
             // Ensure consistent state by setting to null on error
             MLPipeline.llm = null;
             throw err;
+        } finally {
+            MLPipeline.llmLoadingPromise = null;
         }
+    })();
+    return MLPipeline.llmLoadingPromise;
     }
 
     resetInactivityTimer() {

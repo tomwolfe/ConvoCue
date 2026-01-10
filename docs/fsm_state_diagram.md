@@ -119,6 +119,15 @@ ERROR ←------------------ TEXT_ONLY_MODE
      └──────────────────────┘
 ```
 
+## Race Condition Protection and Hardening
+
+To ensure the state machine remains robust in the asynchronous environment of a Web Worker, several hardening measures have been implemented:
+
+1.  **Sequential Message Processing**: The worker implements a message queue that processes incoming messages one by one, ensuring that transitions are atomic and not interrupted by concurrent events.
+2.  **Loading Promise Guards**: `MLPipeline` uses static promise guards (`sttLoadingPromise`, `llmLoadingPromise`) to prevent redundant or concurrent model loading operations.
+3.  **No-op Transition Support**: The state machine gracefully handles redundant transition requests (e.g., requesting to start loading when already in a loading state) without issuing warnings or performing unnecessary work.
+4.  **Main-Thread Yielding**: The system utilizes `scheduler.yield` (with a `setTimeout(0)` fallback) to ensure that long-running ML operations do not block the worker's message loop, allowing for responsive state updates.
+
 ## Usage in Application
 
 The state machine is integrated into the MLPipeline class and is used to:

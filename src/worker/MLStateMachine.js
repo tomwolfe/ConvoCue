@@ -102,6 +102,21 @@ export class MLStateMachine {
     };
   }
 
+  // Check if the current transition is redundant because we're already in the target state
+  _isAlreadyInTargetState(state, transition) {
+    const targetStates = {
+      [ML_TRANSITIONS.START_LOADING_STT]: [ML_STATES.LOADING_STT, ML_STATES.RETRYING_STT],
+      [ML_TRANSITIONS.START_LOADING_LLM]: [ML_STATES.LOADING_LLM, ML_STATES.RETRYING_LLM],
+      [ML_TRANSITIONS.STT_LOADED]: [ML_STATES.READY],
+      [ML_TRANSITIONS.LLM_LOADED]: [ML_STATES.READY],
+      [ML_TRANSITIONS.MEMORY_PRESSURE]: [ML_STATES.LOW_MEMORY],
+      [ML_TRANSITIONS.FALLBACK_SUCCESS]: [ML_STATES.TEXT_ONLY_MODE],
+      [ML_TRANSITIONS.RESET]: [ML_STATES.UNINITIALIZED]
+    };
+
+    return targetStates[transition]?.includes(state) || false;
+  }
+
   // Get current state
   getState() {
     return this.state;
@@ -116,6 +131,11 @@ export class MLStateMachine {
   transition(transition, contextUpdate = {}) {
     const prevState = this.state;
     let nextState = TRANSITION_TABLE[prevState]?.[transition];
+
+    // No-op: if we are already in the target state for this transition, just return
+    if (!nextState && this._isAlreadyInTargetState(prevState, transition)) {
+      return this.state;
+    }
 
     if (!nextState) {
       console.warn(`Invalid transition: ${transition} from state: ${prevState}`);
