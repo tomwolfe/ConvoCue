@@ -342,6 +342,10 @@ export const useMLWorker = () => {
                 // For fallback failures, we can still continue with reduced functionality
                 console.warn("Model fallback failed, continuing with reduced functionality:", event.data.error);
                 dispatch({ type: 'SET_STATUS', status: 'Running in reduced functionality mode' });
+              } else if (event.data.error && event.data.error.includes('Speech recognition')) {
+                // Handle STT-specific errors gracefully
+                console.warn("STT error, continuing with reduced functionality:", event.data.error);
+                dispatch({ type: 'SET_STATUS', status: 'Speech recognition unavailable - running in text-only mode' });
               } else {
                 dispatch({ type: 'SET_ERROR', error: event.data.error });
               }
@@ -380,14 +384,20 @@ export const useMLWorker = () => {
   }, [initWorker]);
 
   const processAudio = useCallback((audioBuffer) => {
-    if (!state.isReady || state.isProcessing || !worker.current) return;
+    if (!state.isReady || state.isProcessing || !worker.current) {
+      // If STT is not available due to previous error, show appropriate status
+      if (!state.isReady && state.error && state.error.includes('Speech recognition')) {
+        dispatch({ type: 'SET_STATUS', status: 'Speech recognition unavailable - running in text-only mode' });
+      }
+      return;
+    }
     dispatch({ type: 'START_STT' });
-    worker.current.postMessage({ 
-      type: 'stt', 
+    worker.current.postMessage({
+      type: 'stt',
       audio: audioBuffer,
-      settings: settingsRef.current 
+      settings: settingsRef.current
     }, [audioBuffer.buffer]);
-  }, [state.isReady, state.isProcessing]);
+  }, [state.isReady, state.isProcessing, state.error]);
 
   const refreshSuggestion = useCallback(async () => {
     if (!state.transcript || state.isProcessing || !worker.current) return;

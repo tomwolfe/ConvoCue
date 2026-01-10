@@ -128,33 +128,88 @@ self.onmessage = async (event) => {
         }
 
         if (type === 'stt') {
-            if (!MLPipeline.stt) await pipelineManager.loadSTT();
+            // Ensure STT is loaded with proper error handling
+            if (!MLPipeline.stt) {
+                try {
+                    // Add timeout for STT loading on resource-constrained devices
+                    const timeoutPromise = new Promise((_, reject) => {
+                        setTimeout(() => reject(new Error('STT model loading timed out')), AppConfig.system.processingTimeout);
+                    });
+
+                    const loadPromise = pipelineManager.loadSTT();
+
+                    // Race between loading and timeout
+                    await Promise.race([loadPromise, timeoutPromise]);
+
+                    // Double-check that STT was actually loaded after the call
+                    if (!MLPipeline.stt) {
+                        throw new Error("STT model failed to load after initialization attempt");
+                    }
+                } catch (loadError) {
+                    console.error("Failed to load STT model:", loadError);
+                    messenger.postMessage({
+                        type: 'error',
+                        error: `Speech recognition model failed to load: ${loadError.message || 'Unknown error'}`,
+                        taskId
+                    });
+                    return;
+                }
+            }
+
             MLPipeline.lastUsed = Date.now();
             pipelineManager.resetInactivityTimer();
 
             const audioStartTime = performance.now();
             const audioData = audio instanceof Float32Array ? audio : new Float32Array(Object.values(audio));
 
-            const output = await MLPipeline.stt(audioData, {
-                chunk_length_s: AppConfig.models.stt.chunk_length_s,
-                stride_length_s: AppConfig.models.stt.stride_length_s,
-                return_timestamps: false,
-            });
+            // Final check before using the STT model to prevent "mt.stt is not a function" error
+            if (!MLPipeline.stt) {
+                console.error("STT model is unexpectedly null during processing");
+                messenger.postMessage({
+                    type: 'error',
+                    error: 'Speech recognition model is not available',
+                    taskId
+                });
+                return;
+            }
 
-            const audioProcessingTime = performance.now() - audioStartTime;
-            const sanitizedText = sanitizeText(output.text);
-            const turnManager = initConversationTurnManager();
-            const turnInfo = (WorkerState.performanceStats.mode !== 'minimal' && settings.enableSpeakerDetection !== false && !settings.privacyMode)
-                ? turnManager.processAudio(audioData, sanitizedText)
-                : { turn: { speaker: 'user' }, isLikelyNewSpeaker: false };
+            // Add timeout for STT processing as well
+            try {
+                const timeoutPromise = new Promise((_, reject) => {
+                    setTimeout(() => reject(new Error('STT processing timed out')), AppConfig.system.processingTimeout);
+                });
 
-            updatePerformanceMode(audioProcessingTime, 'audio');
-            messenger.postMessage({
-                type: 'stt_result',
-                text: sanitizedText,
-                metadata: { turnInfo, performance: { audioProcessingTime, mode: WorkerState.performanceStats.mode } },
-                taskId
-            });
+                const processPromise = MLPipeline.stt(audioData, {
+                    chunk_length_s: AppConfig.models.stt.chunk_length_s,
+                    stride_length_s: AppConfig.models.stt.stride_length_s,
+                    return_timestamps: false,
+                });
+
+                const output = await Promise.race([processPromise, timeoutPromise]);
+
+                const audioProcessingTime = performance.now() - audioStartTime;
+                const sanitizedText = sanitizeText(output.text);
+                const turnManager = initConversationTurnManager();
+                const turnInfo = (WorkerState.performanceStats.mode !== 'minimal' && settings.enableSpeakerDetection !== false && !settings.privacyMode)
+                    ? turnManager.processAudio(audioData, sanitizedText)
+                    : { turn: { speaker: 'user' }, isLikelyNewSpeaker: false };
+
+                updatePerformanceMode(audioProcessingTime, 'audio');
+                messenger.postMessage({
+                    type: 'stt_result',
+                    text: sanitizedText,
+                    metadata: { turnInfo, performance: { audioProcessingTime, mode: WorkerState.performanceStats.mode } },
+                    taskId
+                });
+            } catch (processingError) {
+                console.error("STT processing failed:", processingError);
+                messenger.postMessage({
+                    type: 'error',
+                    error: `Speech recognition processing failed: ${processingError.message || 'Unknown error'}`,
+                    taskId
+                });
+                return;
+            }
         }
 
         if (type === 'llm') {
@@ -181,6 +236,11 @@ self.onmessage = async (event) => {
                     }
 
                     await pipelineManager.loadLLM((p) => throttledProgress(p, 'Social Brain', taskId));
+
+                    // Double-check that LLM was actually loaded after the call
+                    if (!MLPipeline.llm) {
+                        throw new Error("LLM model failed to load after initialization attempt");
+                    }
                 }
 
                 if (!MLPipeline.llm) throw new Error("Social Brain failed to load or was deferred due to memory.");
@@ -423,12 +483,20 @@ self.onmessage = async (event) => {
                     },
                 });
 
-                const output = await MLPipeline.llm(messages, {
-                    max_new_tokens: maxTokens,
-                    temperature: AppConfig.models.llm.temperature,
-                    do_sample: AppConfig.models.llm.do_sample,
-                    streamer,
-                });
+                try {
+                    // Add timeout for LLM processing as well
+                    const timeoutPromise = new Promise((_, reject) => {
+                        setTimeout(() => reject(new Error('LLM processing timed out')), AppConfig.system.processingTimeout);
+                    });
+
+                    const processPromise = MLPipeline.llm(messages, {
+                        max_new_tokens: maxTokens,
+                        temperature: AppConfig.models.llm.temperature,
+                        do_sample: AppConfig.models.llm.do_sample,
+                        streamer,
+                    });
+
+                    const output = await Promise.race([processPromise, timeoutPromise]);
 
                 let response = "";
                 if (output[0]?.generated_text) {
@@ -476,11 +544,11 @@ self.onmessage = async (event) => {
                   },
                   taskId
                 });
-            } catch (llmError) {
-                console.error("LLM processing failed:", llmError);
+            } catch (processingError) {
+                console.error("LLM processing failed:", processingError);
                 messenger.postMessage({
                     type: 'error',
-                    error: `AI response generation failed: ${llmError.message || 'Unknown error'}`,
+                    error: `AI response generation failed: ${processingError.message || 'Unknown error'}`,
                     taskId
                 });
                 return;
@@ -490,6 +558,12 @@ self.onmessage = async (event) => {
         if (type === 'cleanup') {
             await MLPipeline.disposeAll();
             messenger.postMessage({ type: 'cleanup_complete', taskId });
+        }
+
+        // Additional safety check to prevent memory leaks
+        if (type === 'terminate') {
+            await MLPipeline.disposeAll();
+            self.close(); // Close the worker
         }
     } catch (error) {
         messenger.postMessage({ type: 'error', error: error.message, taskId: taskId || 'unknown' });

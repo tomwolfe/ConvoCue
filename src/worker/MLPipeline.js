@@ -118,6 +118,9 @@ export class MLPipeline {
                                 isFallbackFailed: true
                             });
 
+                            // Explicitly set to null to ensure consistent state
+                            MLPipeline.stt = null;
+
                             // Return early to prevent further processing
                             return;
                         }
@@ -134,6 +137,8 @@ export class MLPipeline {
                 type: 'error',
                 error: `Speech recognition model failed to load: ${err.message || 'Unknown error'}`
             });
+            // Ensure consistent state by setting to null on error
+            MLPipeline.stt = null;
             throw err;
         }
     }
@@ -217,6 +222,9 @@ export class MLPipeline {
                                 isFallbackFailed: true
                             });
 
+                            // Explicitly set to null to ensure consistent state
+                            MLPipeline.llm = null;
+
                             // Return early to prevent further processing
                             return;
                         }
@@ -233,6 +241,8 @@ export class MLPipeline {
                 type: 'error',
                 error: `AI model failed to load: ${err.message || 'Unknown error'}`
             });
+            // Ensure consistent state by setting to null on error
+            MLPipeline.llm = null;
             throw err;
         }
     }
