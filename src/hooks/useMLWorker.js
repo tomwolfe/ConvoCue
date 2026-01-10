@@ -57,12 +57,12 @@ function workerReducer(state, action) {
         isReady: true, 
         status: 'Ready', 
         progress: 100,
-        // Ensure mlState is at least 'ready' or 'text_only_mode' when isReady is set
-        mlState: (state.mlState === ML_STATES.READY || state.mlState === ML_STATES.TEXT_ONLY_MODE) 
+        // Sync with existing mlState if it's already a 'ready' state
+        mlState: (state.mlState === ML_STATES.READY || 
+                 state.mlState === ML_STATES.TEXT_ONLY_MODE || 
+                 state.mlState === ML_STATES.STT_READY) 
           ? state.mlState 
-          : ML_STATES.READY,
-        sttFunctional: state.sttFunctional || state.mlState === ML_STATES.READY,
-        llmFunctional: true
+          : ML_STATES.READY
       };
     case 'START_STT':
       return { ...state, isProcessing: true, processingStep: 'transcribing', status: 'Transcribing...' };
@@ -90,11 +90,7 @@ function workerReducer(state, action) {
         coachingInsights: action.coachingInsights || state.coachingInsights,
         isProcessing: false, 
         processingStep: 'none', 
-        status: 'Ready',
-        mlState: (state.mlState === ML_STATES.READY || state.mlState === ML_STATES.TEXT_ONLY_MODE) 
-          ? state.mlState 
-          : ML_STATES.READY,
-        llmFunctional: true
+        status: 'Ready'
       };
     case 'SET_PERSONA':
       return { ...state, persona: action.persona };
@@ -105,10 +101,7 @@ function workerReducer(state, action) {
         ...state, 
         isProcessing: false, 
         processingStep: 'none', 
-        status: 'Ready',
-        mlState: (state.mlState === ML_STATES.READY || state.mlState === ML_STATES.TEXT_ONLY_MODE) 
-          ? state.mlState 
-          : ML_STATES.READY
+        status: 'Ready'
       };
     case 'SET_ERROR':
       return { 

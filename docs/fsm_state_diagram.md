@@ -21,13 +21,18 @@ The ML State Machine manages the lifecycle of machine learning models (STT and L
 - **Exit Conditions**: LLM loads successfully, fails, or transitions to retry
 
 ### READY
-- **Description**: Both models are loaded and ready for processing
-- **Entry Conditions**: Both STT and LLM loaded successfully
+- **Description**: Both models are loaded and ready for full processing
+- **Entry Conditions**: Transition to READY when both STT and LLM are functional
 - **Exit Conditions**: Model unloading, memory pressure, or error occurs
 
+### STT_READY
+- **Description**: Only the STT model is loaded and functional
+- **Entry Conditions**: STT loads successfully while LLM is not yet loaded
+- **Exit Conditions**: LLM loading starts, or error occurs
+
 ### ERROR
-- **Description**: An error occurred during model loading or processing
-- **Entry Conditions**: Model loading or processing failure
+- **Description**: An error occurred during model loading or processing, or semantic consistency failed
+- **Entry Conditions**: Model loading failure, or entering a "ready" state without required models
 - **Exit Conditions**: Reset, retry attempt, or fallback success
 
 ### RETRYING_STT
@@ -46,8 +51,8 @@ The ML State Machine manages the lifecycle of machine learning models (STT and L
 - **Exit Conditions**: Memory is freed or reset occurs
 
 ### TEXT_ONLY_MODE
-- **Description**: State when only partial functionality is available (e.g., text-only mode)
-- **Entry Conditions**: Fallback success after model failure
+- **Description**: Only the LLM is loaded and functional (Speech Engine failed)
+- **Entry Conditions**: Fallback success after STT failure, provided LLM is functional
 - **Exit Conditions**: Reset or model reload
 
 ## Transitions
@@ -64,12 +69,12 @@ The ML State Machine manages the lifecycle of machine learning models (STT and L
 
 ### STT_LOADED
 - **From**: LOADING_STT
-- **To**: READY
+- **To**: READY (if LLM loaded) or STT_READY (if LLM not loaded)
 - **Description**: STT model loaded successfully
 
 ### LLM_LOADED
 - **From**: LOADING_LLM
-- **To**: READY
+- **To**: READY (if STT loaded) or TEXT_ONLY_MODE (if STT not loaded)
 - **Description**: LLM loaded successfully
 
 ### LOAD_ERROR
@@ -78,28 +83,28 @@ The ML State Machine manages the lifecycle of machine learning models (STT and L
 - **Description**: Model loading failed
 
 ### RETRY_STT
-- **From**: ERROR, READY
+- **From**: ERROR, READY, STT_READY
 - **To**: RETRYING_STT
 - **Description**: Attempt to reload STT model
 
 ### RETRY_LLM
-- **From**: ERROR, READY
+- **From**: ERROR, READY, STT_READY
 - **To**: RETRYING_LLM
 - **Description**: Attempt to reload LLM
 
 ### RESET
-- **From**: ERROR, LOW_MEMORY, TEXT_ONLY_MODE
+- **From**: ERROR, LOW_MEMORY, TEXT_ONLY_MODE, STT_READY
 - **To**: UNINITIALIZED
 - **Description**: Reset the state machine to initial state
 
 ### MEMORY_PRESSURE
-- **From**: READY
+- **From**: READY, STT_READY
 - **To**: LOW_MEMORY
 - **Description**: System experiencing memory pressure
 
 ### FALLBACK_SUCCESS
 - **From**: ERROR
-- **To**: TEXT_ONLY_MODE
+- **To**: TEXT_ONLY_MODE (if LLM functional) or ERROR (if LLM failed)
 - **Description**: Fallback mode activated after failure
 
 ## State Transition Diagram
@@ -108,15 +113,19 @@ The ML State Machine manages the lifecycle of machine learning models (STT and L
 UNINITIALIZED
      ↓ (START_LOADING_STT)
 LOADING_STT ←→ RETRYING_STT
-     ↓ (STT_LOADED)      ↓ (STT_LOADED)
-   READY ←→ LOADING_LLM ←→ RETRYING_LLM
-     ↑ (LOAD_ERROR)         ↑ (LOAD_ERROR)
-     ↓ (MEMORY_PRESSURE)    ↓ (LLM_LOADED)
-LOW_MEMORY ←------------ READY
+     ↓ (STT_LOADED)
+STT_READY ←-------------------┐
+     ↓ (START_LOADING_LLM)    ↓ (STT_LOADED)
+LOADING_LLM ←→ RETRYING_LLM ←─┘
+     ↓ (LLM_LOADED)           ↑ (START_LOADING_LLM)
+   READY ←--------------------┘
+     ↑ (LOAD_ERROR)
+     ↓ (MEMORY_PRESSURE)
+LOW_MEMORY ←------------ READY / STT_READY
      ↑                       ↓ (RETRY_STT/RETRY_LLM)
 ERROR ←------------------ TEXT_ONLY_MODE
-     ↑ (RESET)              ↑ (RESET)
-     └──────────────────────┘
+     ↑ (FALLBACK_SUCCESS)    ↑ (LLM_LOADED)
+     └───────────────────────┘
 ```
 
 ## Race Condition Protection and Hardening

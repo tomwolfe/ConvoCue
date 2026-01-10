@@ -97,7 +97,7 @@ const App = () => {
   const [micPermissionError, setMicPermissionError] = useState(null);
 
   // Derived readiness state from ML FSM
-  const isReadyForUse = mlState === ML_STATES.READY || mlState === ML_STATES.TEXT_ONLY_MODE;
+  const isReadyForUse = mlState === ML_STATES.READY || mlState === ML_STATES.TEXT_ONLY_MODE || mlState === ML_STATES.STT_READY;
 
   useEffect(() => {
     if (isDyslexicFriendly) {
@@ -329,6 +329,9 @@ const App = () => {
               <span>{status}</span>
               {mlState === ML_STATES.TEXT_ONLY_MODE && (
                 <span className="mode-tag">Text-only</span>
+              )}
+              {mlState === ML_STATES.STT_READY && (
+                <span className="mode-tag">Transcription-only</span>
               )}
             </div>
 

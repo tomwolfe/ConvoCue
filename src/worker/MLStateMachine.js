@@ -13,6 +13,7 @@ export const ML_STATES = {
   LOADING_STT: 'loading_stt',
   LOADING_LLM: 'loading_llm',
   READY: 'ready',
+  STT_READY: 'stt_ready',
   ERROR: 'error',
   RETRYING_STT: 'retrying_stt',
   RETRYING_LLM: 'retrying_llm',
@@ -59,6 +60,11 @@ const TRANSITION_TABLE = {
     [ML_TRANSITIONS.MEMORY_PRESSURE]: ML_STATES.LOW_MEMORY,
     [ML_TRANSITIONS.RETRY_STT]: ML_STATES.RETRYING_STT,
     [ML_TRANSITIONS.RETRY_LLM]: ML_STATES.RETRYING_LLM,
+  },
+  [ML_STATES.STT_READY]: {
+    [ML_TRANSITIONS.START_LOADING_LLM]: ML_STATES.LOADING_LLM,
+    [ML_TRANSITIONS.MEMORY_PRESSURE]: ML_STATES.LOW_MEMORY,
+    [ML_TRANSITIONS.RESET]: ML_STATES.UNINITIALIZED,
   },
   [ML_STATES.ERROR]: {
     [ML_TRANSITIONS.START_LOADING_STT]: ML_STATES.LOADING_STT,
@@ -169,14 +175,44 @@ export class MLStateMachine {
         if (lastError.state === ML_STATES.LOADING_STT || lastError.state === ML_STATES.RETRYING_STT) {
           this.context.sttFunctional = false;
         }
+        if (lastError.state === ML_STATES.LOADING_LLM || lastError.state === ML_STATES.RETRYING_LLM) {
+          this.context.llmFunctional = false;
+        }
       }
     }
 
     // Refine nextState based on functional status
-    // If we transition to READY but STT is not functional, it should be TEXT_ONLY_MODE
-    if (nextState === ML_STATES.READY && !this.context.sttFunctional) {
-      nextState = ML_STATES.TEXT_ONLY_MODE;
+    // 1. If we are headed to READY but LLM is missing, it's either STT_READY or ERROR
+    if (nextState === ML_STATES.READY && !this.context.llmFunctional) {
+      if (this.context.sttFunctional) {
+        nextState = ML_STATES.STT_READY;
+      } else {
+        nextState = ML_STATES.ERROR;
+      }
     }
+    
+    // 2. If we are headed to READY/STT_READY but STT is missing, downgrade to TEXT_ONLY_MODE or ERROR
+    if ((nextState === ML_STATES.READY || nextState === ML_STATES.STT_READY) && !this.context.sttFunctional) {
+      if (this.context.llmFunctional) {
+        nextState = ML_STATES.TEXT_ONLY_MODE;
+      } else {
+        nextState = ML_STATES.ERROR;
+      }
+    }
+
+    // 3. If we are headed to TEXT_ONLY_MODE but LLM is missing, it's an ERROR
+    if (nextState === ML_STATES.TEXT_ONLY_MODE && !this.context.llmFunctional) {
+      nextState = ML_STATES.ERROR;
+    }
+
+    // 4. Final check: if we are in READY, BOTH must be functional
+    if (nextState === ML_STATES.READY && (!this.context.sttFunctional || !this.context.llmFunctional)) {
+       // This shouldn't happen with the logic above, but as a safeguard:
+       if (this.context.llmFunctional) nextState = ML_STATES.TEXT_ONLY_MODE;
+       else if (this.context.sttFunctional) nextState = ML_STATES.STT_READY;
+       else nextState = ML_STATES.ERROR;
+    }
+
 
     // Increment retry count on retry transitions
     if (transition === ML_TRANSITIONS.RETRY_STT || transition === ML_TRANSITIONS.RETRY_LLM) {
@@ -236,14 +272,23 @@ export class MLStateMachine {
 
   // Check if the pipeline is ready for processing
   isReadyForProcessing() {
-    return this.state === ML_STATES.READY || this.state === ML_STATES.TEXT_ONLY_MODE;
+    if (this.state === ML_STATES.READY) {
+      return this.context.sttFunctional && this.context.llmFunctional;
+    }
+    if (this.state === ML_STATES.TEXT_ONLY_MODE) {
+      return this.context.llmFunctional;
+    }
+    if (this.state === ML_STATES.STT_READY) {
+      return this.context.sttFunctional; // Can at least transcribe
+    }
+    return false;
   }
 
   /**
    * Check if voice input is functional and ready for processing
-   * NOTE: Only in READY state is voice input considered fully functional.
+   * NOTE: READY and STT_READY states consider voice input functional.
    */
   isVoiceInputFunctional() {
-    return this.state === ML_STATES.READY;
+    return (this.state === ML_STATES.READY || this.state === ML_STATES.STT_READY) && this.context.sttFunctional;
   }
 }

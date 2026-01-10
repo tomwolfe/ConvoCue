@@ -9,14 +9,23 @@ describe('MLStateMachine', () => {
   });
 
   describe('isVoiceInputFunctional', () => {
-    it('should return true when in READY state', () => {
+    it('should return true when in READY state with sttFunctional', () => {
       stateMachine.state = ML_STATES.READY;
+      stateMachine.context.sttFunctional = true;
+      
+      expect(stateMachine.isVoiceInputFunctional()).toBe(true);
+    });
+
+    it('should return true when in STT_READY state', () => {
+      stateMachine.state = ML_STATES.STT_READY;
+      stateMachine.context.sttFunctional = true;
       
       expect(stateMachine.isVoiceInputFunctional()).toBe(true);
     });
 
     it('should return false when in TEXT_ONLY_MODE state', () => {
       stateMachine.state = ML_STATES.TEXT_ONLY_MODE;
+      stateMachine.context.sttFunctional = false;
       
       expect(stateMachine.isVoiceInputFunctional()).toBe(false);
     });
@@ -36,9 +45,17 @@ describe('MLStateMachine', () => {
       expect(stateMachine.getState()).toBe(ML_STATES.LOADING_STT);
     });
 
-    it('should transition to READY when loading succeeds', () => {
+    it('should transition to STT_READY when STT loading succeeds and LLM not loaded', () => {
       stateMachine.transition(ML_TRANSITIONS.START_LOADING_STT);
       stateMachine.transition(ML_TRANSITIONS.STT_LOADED);
+      expect(stateMachine.getState()).toBe(ML_STATES.STT_READY);
+    });
+
+    it('should transition to READY when both loading succeed', () => {
+      stateMachine.transition(ML_TRANSITIONS.START_LOADING_STT);
+      stateMachine.transition(ML_TRANSITIONS.STT_LOADED);
+      stateMachine.transition(ML_TRANSITIONS.START_LOADING_LLM);
+      stateMachine.transition(ML_TRANSITIONS.LLM_LOADED);
       expect(stateMachine.getState()).toBe(ML_STATES.READY);
     });
 
@@ -47,8 +64,9 @@ describe('MLStateMachine', () => {
       expect(stateMachine.getState()).toBe(ML_STATES.UNINITIALIZED);
     });
 
-    it('should transition from ERROR to TEXT_ONLY_MODE via FALLBACK_SUCCESS', () => {
+    it('should transition from ERROR to TEXT_ONLY_MODE via FALLBACK_SUCCESS if LLM functional', () => {
       stateMachine.state = ML_STATES.ERROR;
+      stateMachine.context.llmFunctional = true;
       stateMachine.transition(ML_TRANSITIONS.FALLBACK_SUCCESS);
       expect(stateMachine.getState()).toBe(ML_STATES.TEXT_ONLY_MODE);
     });
@@ -89,11 +107,18 @@ describe('MLStateMachine', () => {
   });
 
   describe('isReadyForProcessing', () => {
-    it('should return true in READY or TEXT_ONLY_MODE', () => {
+    it('should return true in READY, TEXT_ONLY_MODE or STT_READY with appropriate flags', () => {
       stateMachine.state = ML_STATES.READY;
+      stateMachine.context.sttFunctional = true;
+      stateMachine.context.llmFunctional = true;
       expect(stateMachine.isReadyForProcessing()).toBe(true);
       
       stateMachine.state = ML_STATES.TEXT_ONLY_MODE;
+      stateMachine.context.llmFunctional = true;
+      expect(stateMachine.isReadyForProcessing()).toBe(true);
+
+      stateMachine.state = ML_STATES.STT_READY;
+      stateMachine.context.sttFunctional = true;
       expect(stateMachine.isReadyForProcessing()).toBe(true);
       
       stateMachine.state = ML_STATES.LOADING_STT;
