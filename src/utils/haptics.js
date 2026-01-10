@@ -94,7 +94,7 @@ export const provideIntentHaptics = (intent) => {
         HapticService.lastVibrationTime = now;
         return;
       }
-    } catch (error) {
+    } catch (_error) {
       // Silently fail in fast-path to avoid blocking main thread
     }
   }
@@ -309,16 +309,8 @@ export const isHapticSupported = () => {
     return false;
   }
 
-  // Additional check for mobile devices (desktop browsers may have vibrate API but not actually vibrate)
-  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-
-  // Some browsers have the API but don't actually support vibration
-  try {
-    // Test with a minimal vibration to see if it's actually supported
-    return true; // If navigator.vibrate exists, we assume it's supported
-  } catch (e) {
-    return false;
-  }
+  // If navigator.vibrate exists, we assume it's supported
+  return true;
 };
 
 /**
@@ -462,7 +454,7 @@ export const testHapticSupport = async () => {
   try {
     // Test with a minimal vibration pattern
     const testPattern = [10]; // 10ms vibration
-    const vibrationResult = navigator.vibrate(testPattern);
+    navigator.vibrate(testPattern);
 
     // Note: vibrationResult is not a reliable indicator of actual vibration
     // The API doesn't return whether vibration actually occurred

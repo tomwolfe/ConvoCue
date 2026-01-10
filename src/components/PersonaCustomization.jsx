@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { X, Plus, Save, Trash2 } from 'lucide-react';
 import './PersonaCustomization.css';
 
@@ -20,24 +20,22 @@ const PersonaCustomization = ({
   const [isEditing, setIsEditing] = useState(false);
   const [editingPersona, setEditingPersona] = useState(null);
 
-  useEffect(() => {
+  const [prevEditingPersona, setPrevEditingPersona] = useState(null);
+  if (editingPersona !== prevEditingPersona) {
+    setPrevEditingPersona(editingPersona);
     if (editingPersona) {
-      if (newPersona.id !== editingPersona.id) {
-        setNewPersona(editingPersona);
-        setIsEditing(true);
-      }
+      setNewPersona(editingPersona);
+      setIsEditing(true);
     } else {
-      if (newPersona.id !== '') {
-        setNewPersona({
-          id: '',
-          label: '',
-          description: '',
-          prompt: ''
-        });
-        setIsEditing(false);
-      }
+      setNewPersona({
+        id: '',
+        label: '',
+        description: '',
+        prompt: ''
+      });
+      setIsEditing(false);
     }
-  }, [editingPersona, newPersona.id]);
+  }
 
   const handleSave = () => {
     if (!newPersona.id || !newPersona.label || !newPersona.prompt) {

@@ -126,7 +126,7 @@ Object.entries(intentPatterns).forEach(([intent, config]) => {
     ...pattern,
     regexes: pattern.text.map(t => ({
       text: t,
-      regex: new RegExp(`\\b${t.replace(/[.*+?^${}()|[\/]/g, '\\$&')}\\b`, 'i'),
+      regex: new RegExp(`\\b${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i'),
       isMultiWord: t.includes(' ')
     }))
   }));
@@ -1159,7 +1159,7 @@ export const parseSemanticTags = (text) => {
         if (!foundTags.some(t => t.key === key)) {
           foundTags.push({ ...meta, key });
         }
-        const escapedTag = tag.replace(/[.*+?^${}()|[\/]/g, '\\$&'); // Corrected escaping for regex
+        const escapedTag = tag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // Corrected escaping for regex
         const regex = new RegExp(escapedTag, 'gi');
         cleanText = cleanText.replace(regex, '').trim();
       }

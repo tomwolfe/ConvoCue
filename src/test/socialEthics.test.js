@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { validateSocialSuggestion, promoteEmpathy } from '../utils/socialEthics';
 
 describe('Social Ethics Guardrail', () => {

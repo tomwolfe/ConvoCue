@@ -6,9 +6,9 @@ import {
   culturalContextDatabase,
   getCommunicationStyleForCulture
 } from './culturalContext';
-import { generateIntentBasedCue, detectIntentWithContext } from './intentRecognition';
-import { analyzeRelationshipCoaching, generateRelationshipCoachingPrompt } from './relationshipCoaching';
-import { analyzeAnxietyCoaching, generateAnxietyCoachingPrompt } from './anxietyCoaching';
+import { generateIntentBasedCue } from './intentRecognition';
+import { analyzeRelationshipCoaching } from './relationshipCoaching';
+import { analyzeAnxietyCoaching } from './anxietyCoaching';
 import { validateSocialSuggestion, promoteEmpathy } from './socialEthics';
 
 /**
@@ -583,23 +583,6 @@ const applyAnxietyCoaching = async (response, input, anxietyInsights, persona) =
 };
 
 /**
- * Applies social nuance enhancements for relationship coaching
- */
-const applySocialNuance = (response, input) => {
-  const lowerInput = input.toLowerCase();
-  const nuances = culturalContextDatabase.socialNuance;
-
-  for (const category in nuances) {
-    for (const item of nuances[category]) {
-      if (lowerInput.includes(item.trigger)) {
-        return `[Social Tip] ${item.suggestion} ${response}`;
-      }
-    }
-  }
-  return response;
-};
-
-/**
  * Adjusts directness and tone based on cultural communication style
  */
 const applyCulturalRefinement = (response, culture) => {
@@ -871,7 +854,6 @@ const generateQuickCue = (response, input, conversationHistory = []) => {
   
   // 1. Check for High-Stakes Expert Cues first
   if (lowerInput.includes('negotiate') || lowerInput.includes('price') || lowerInput.includes('contract')) {
-    const highStakes = culturalContextDatabase.highStakes.negotiation;
     // Map full strategies to short cues
     if (lowerInput.includes('no')) return 'Avoid "No"';
     if (lowerInput.includes('how')) return 'Calibrated Q';

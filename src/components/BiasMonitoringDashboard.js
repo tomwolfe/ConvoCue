@@ -4,7 +4,7 @@
  */
 
 import { getBiasMonitoringDashboard, clearBiasMonitoringData } from '../utils/biasMonitoring.js';
-import { isCulturalProfileCustomized, getUserCulturalProfile } from '../utils/userCulturalProfile.js';
+import { isCulturalProfileCustomized } from '../utils/userCulturalProfile.js';
 
 // Display the bias monitoring dashboard
 export const showBiasMonitoringDashboard = () => {

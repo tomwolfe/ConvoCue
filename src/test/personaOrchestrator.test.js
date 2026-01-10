@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { orchestratePersona } from '../utils/personaOrchestrator';
 import { AppConfig } from '../config';
 
@@ -42,8 +42,6 @@ describe('personaOrchestrator', () => {
   });
 
   it('should respect sensitivity parameter', () => {
-    const input = "I need to talk"; // Very low confidence for any switch
-    
     // High sensitivity should be more likely to switch
     const result1 = orchestratePersona("I need to discuss strategy", [], 'meeting', { sensitivity: 'high' });
     expect(result1.suggestedPersona).toBe('professional');

@@ -40,7 +40,7 @@ const getPriority = (confidence, category, categoryScores, threshold = 2) => {
  * @param {Object} [categoryScores={}] - Historical user feedback for coaching categories.
  * @returns {Object|null} An object containing insights and coping strategies, or null if nothing relevant is found.
  */
-export const analyzeProfessionalCoaching = (text, history = [], emotionData = {}, categoryScores = {}) => {
+export const analyzeProfessionalCoaching = (text, _history = [], emotionData = {}, categoryScores = {}) => {
   if (!text) return null;
 
   const insights = [];

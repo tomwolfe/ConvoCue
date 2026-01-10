@@ -74,7 +74,7 @@ export const IntentDetectionConfig = {
     try {
       // Validate all settings before saving
       Object.keys(settings).forEach(key => {
-        if (IntentDetectionConfig.defaults.hasOwnProperty(key)) {
+        if (Object.prototype.hasOwnProperty.call(IntentDetectionConfig.defaults, key)) {
           IntentDetectionConfig.validateValue(key, settings[key]);
         }
       });

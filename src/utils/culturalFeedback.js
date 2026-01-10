@@ -176,7 +176,7 @@ export const getUserCulturalBiasAdjustments = () => {
   try {
     const stored = localStorage.getItem(feedbackKey);
     allFeedback = stored ? JSON.parse(stored) : [];
-  } catch (error) {
+  } catch (_error) {
     return {};
   }
 

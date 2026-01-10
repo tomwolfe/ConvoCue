@@ -185,9 +185,9 @@ export const monitorAndOptimizeHistory = (conversationHistory) => {
 /**
  * Performance monitoring hook for React components
  * @param {Function} callback - Function to monitor
- * @param {Array} deps - Dependencies for the effect
+ * @param {Array} _deps - Dependencies for the effect
  */
-export const usePerformanceMonitor = (callback, deps) => {
+export const usePerformanceMonitor = (callback, _deps) => {
   return (...args) => {
     const startTime = Date.now();
     const result = callback(...args);

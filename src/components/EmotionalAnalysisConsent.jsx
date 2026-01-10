@@ -3,7 +3,6 @@ import { secureLocalStorageGet, secureLocalStorageSet } from '../utils/encryptio
 
 const EmotionalAnalysisConsent = ({ onConsentGiven, persona }) => {
   const [isVisible, setIsVisible] = useState(false);
-  const [showDisclaimer, setShowDisclaimer] = useState(false);
 
   useEffect(() => {
     const checkConsent = async () => {

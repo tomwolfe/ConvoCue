@@ -3,7 +3,7 @@
  * Displays important disclaimers about cultural generalizations and prompts users to customize preferences
  */
 
-import { isCulturalProfileCustomized, getUserCulturalProfile, resetCulturalProfile } from '../utils/userCulturalProfile.js';
+import { isCulturalProfileCustomized, resetCulturalProfile } from '../utils/userCulturalProfile.js';
 import { getBiasMonitoringDashboard } from '../utils/biasMonitoring.js';
 
 // Display the cultural disclaimer with options for user customization

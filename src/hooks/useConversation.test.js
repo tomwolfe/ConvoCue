@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useConversation } from './useConversation';
 import { eventBus, EVENTS } from '../utils/eventBus';
-import { getConversationHistory } from '../conversationManager';
 
 vi.mock('../conversationManager', () => ({
   getConversationHistory: vi.fn(() => [])

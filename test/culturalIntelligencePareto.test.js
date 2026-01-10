@@ -1,7 +1,7 @@
 /**
  * Pareto-optimal fixes verification tests for Cultural Intelligence
  */
-import { describe, test, expect, beforeEach } from 'vitest';
+import { describe, test, expect } from 'vitest';
 import { 
   analyzeCulturalContext 
 } from '../src/utils/culturalIntelligence.js';

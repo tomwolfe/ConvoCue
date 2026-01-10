@@ -24,7 +24,7 @@ export const analyzeConversationSentiment = (conversationHistory) => {
   }
 
   // Analyze sentiment for each message, using cache when possible
-  const messageAnalyses = conversationHistory.map((msg, index) => {
+  const messageAnalyses = conversationHistory.map((msg, _index) => {
     // Generate a unique key for the message based on content and role
     const cacheKey = `${msg.role}:${msg.content}`;
     

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { TAG_METADATA } from '../utils/intentRecognition';
 
 const IntentFilterSettings = ({ settings, onSave }) => {
@@ -6,9 +6,11 @@ const IntentFilterSettings = ({ settings, onSave }) => {
     settings.enabledIntents || []
   );
 
-  useEffect(() => {
+  const [prevSettings, setPrevSettings] = useState(settings);
+  if (settings !== prevSettings) {
+    setPrevSettings(settings);
     setEnabledIntents(settings.enabledIntents || []);
-  }, [settings]);
+  }
 
   const toggleIntent = (intent) => {
     if (enabledIntents.includes(intent)) {

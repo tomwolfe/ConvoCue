@@ -586,7 +586,7 @@ const getSituationalContext = (text, intents) => {
  * @param {string} text - Original text
  * @returns {Object} Cultural guidance
  */
-const generateCulturalGuidance = (culturalAnalysis, text) => {
+const generateCulturalGuidance = (culturalAnalysis, _text) => {
   const { primaryCulture, communicationStyle } = culturalAnalysis;
   const recommendations = [];
   const sensitivityPhrases = [];
@@ -684,7 +684,7 @@ const generateCulturalGuidance = (culturalAnalysis, text) => {
     // Add sensitivity phrases based on culture
     if (CULTURAL_SENSITIVITY_PHRASES[primaryCulture]) {
       const culturePhrases = CULTURAL_SENSITIVITY_PHRASES[primaryCulture];
-      Object.entries(culturePhrases).forEach(([category, phrases]) => {
+      Object.entries(culturePhrases).forEach(([_category, phrases]) => {
         sensitivityPhrases.push(...phrases.slice(0, 3)); // Take first 3 phrases from each category
       });
     }
@@ -703,7 +703,7 @@ const generateCulturalGuidance = (culturalAnalysis, text) => {
  * @returns {Array} Culturally adapted response options
  */
 export const generateCulturallyAppropriateResponses = (originalText, culturalAnalysis) => {
-  const { primaryCulture, communicationStyle, situationalContext } = culturalAnalysis;
+  const { primaryCulture, communicationStyle, _situationalContext } = culturalAnalysis;
   const responses = [];
   
   if (primaryCulture === 'general') {
@@ -746,7 +746,7 @@ export const generateCulturallyAppropriateResponses = (originalText, culturalAna
  * @returns {Object} Validation result
  */
 export const validateCulturalAppropriateness = (response, culturalAnalysis) => {
-  const { communicationStyle, situationalContext } = culturalAnalysis;
+  const { communicationStyle, _situationalContext } = culturalAnalysis;
   const issues = [];
   
   // Check for cultural mismatches

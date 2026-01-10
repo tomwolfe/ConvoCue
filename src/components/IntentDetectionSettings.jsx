@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { IntentDetectionConfig } from '../config/intentDetection';
 
 const IntentDetectionSettings = ({ settings, onSave }) => {
@@ -8,15 +8,17 @@ const IntentDetectionSettings = ({ settings, onSave }) => {
     stickyDurationMs: settings.intentDetection?.stickyDurationMs || 2000
   });
   
-  const [errors, setErrors] = useState({});
-  
-  useEffect(() => {
+  const [prevSettings, setPrevSettings] = useState(settings);
+  if (settings !== prevSettings) {
+    setPrevSettings(settings);
     setLocalSettings({
       confidenceThreshold: settings.intentDetection?.confidenceThreshold || 0.5,
       debounceWindowMs: settings.intentDetection?.debounceWindowMs || 800,
       stickyDurationMs: settings.intentDetection?.stickyDurationMs || 2000
     });
-  }, [settings]);
+  }
+  
+  const [errors, setErrors] = useState({});
 
   const validate = () => {
     const newErrors = {};

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { orchestratePersona } from '../utils/personaOrchestrator';
 import { resolveFeatureConflicts } from '../utils/featureCoordination';
 import { AppConfig } from '../config';
@@ -64,7 +64,6 @@ describe('Cycle 2 Refinements', () => {
 
   describe('Dynamic Sticky Cooldown', () => {
     it('should document that related personas have 1/3 cooldown', () => {
-       const base = AppConfig.orchestratorConfig.stickyCooldownMs;
        const related = AppConfig.orchestratorConfig.similarityMatrix.meeting;
        expect(related).toContain('professional');
     });

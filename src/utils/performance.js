@@ -35,9 +35,9 @@ class PerformanceMonitor {
 
   /**
    * Start timing a specific operation
-   * @param {string} operation - Name of the operation to time
+   * @param {string} _operation - Name of the operation to time
    */
-  startTiming(operation) {
+  startTiming(_operation) {
     this.startTime = performance.now();
   }
 

@@ -88,12 +88,15 @@ const DisplayArea = ({
     loadData();
   }, []);
 
-  // Reset indices and check bounds when persona or insights change
-  useEffect(() => {
+  const [prevPersona, setPrevPersona] = useState(persona);
+  const [prevCoachingInsights, setPrevCoachingInsights] = useState(coachingInsights);
+  if (persona !== prevPersona || coachingInsights !== prevCoachingInsights) {
+    setPrevPersona(persona);
+    setPrevCoachingInsights(coachingInsights);
     setCurrentInsightIndex(0);
-    setIsAllCaughtUpDismissed(false); // Reset dismissal when new data arrives
+    setIsAllCaughtUpDismissed(false);
     secureLocalStorageSet('all_caught_up_dismissed', false);
-  }, [persona, coachingInsights]);
+  }
 
   // Extract all relevant insights based on persona and config
   const allInsights = useMemo(() => {

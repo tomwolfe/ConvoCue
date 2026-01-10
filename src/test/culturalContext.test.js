@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import { 
-  getCulturalContext, 
   getCommunicationStyleForCulture, 
   getGreetingForCulture, 
   checkCulturalInappropriateness,
@@ -24,7 +23,7 @@ describe('Cultural Context Utilities', () => {
   });
 
   it('should detect inappropriate phrases', () => {
-    const result = checkCulturalInappropriateness('You did that wrong', 'Japan');
+    checkCulturalInappropriateness('You did that wrong', 'Japan');
     // The pattern might not match exactly, so we'll test with a more specific case
     const result2 = checkCulturalInappropriateness('stupid idea', 'any');
     expect(result2).not.toBeNull();

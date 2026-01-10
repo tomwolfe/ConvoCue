@@ -60,7 +60,7 @@ export const analyzeAnxietyCoaching = (text, conversationHistory = [], emotionDa
  * @param {Object} conversationContext - Conversation context.
  * @returns {'high'|'medium'|'low'|'none'} Calculated anxiety level.
  */
-const assessAnxietyLevel = (text, emotionAnalysis, conversationContext) => {
+const assessAnxietyLevel = (text, emotionAnalysis, _conversationContext) => {
   const { emotion, confidence } = emotionAnalysis;
 
   // Check for anxiety-specific indicators that suggest high anxiety
@@ -119,7 +119,7 @@ const assessAnxietyLevel = (text, emotionAnalysis, conversationContext) => {
  * @param {Object} conversationContext - Conversation context.
  * @returns {Array<Object>} List of identified triggers (type, description, priority).
  */
-const identifyAnxietyTriggers = (text, conversationContext) => {
+const identifyAnxietyTriggers = (text, _conversationContext) => {
   const triggers = [];
 
   // Future-oriented worry triggers
@@ -171,7 +171,7 @@ const identifyAnxietyTriggers = (text, conversationContext) => {
  * @param {Object} conversationContext - Conversation context.
  * @returns {Array<Object>} Suggested coping strategies.
  */
-const suggestCopingStrategies = (text, emotionAnalysis, conversationContext) => {
+const suggestCopingStrategies = (text, emotionAnalysis, _conversationContext) => {
   const strategies = [];
   const { emotion, confidence } = emotionAnalysis;
 

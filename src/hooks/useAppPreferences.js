@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { getManualPreferences, saveUserPreferences } from '../utils/preferences';
 import { getInferredPreferences } from '../utils/responseEnhancement';
 import { secureLocalStorageGet, secureLocalStorageSet } from '../utils/encryption';
-import { eventBus, EVENTS } from '../utils/eventBus';
+import { EVENTS } from '../utils/eventBus';
 import { useEvent } from './useEvent';
 import { ALL_INTENTS } from '../constants/intents';
 import { mergeNewIntents } from '../utils/intentUtils';
@@ -72,11 +72,18 @@ export const useAppPreferences = (initialDispatch) => {
   }, [initialDispatch]);
 
   useEffect(() => {
-    fetchPrefs();
+    let isMounted = true;
+    const init = async () => {
+      if (isMounted) {
+        await fetchPrefs();
+      }
+    };
+    init();
+    return () => { isMounted = false; };
   }, [fetchPrefs]);
 
-  const handlePrefsChange = useCallback((manualPrefs) => {
-    const inferredPrefs = getInferredPreferences();
+  const handlePrefsChange = useCallback(async (manualPrefs) => {
+    const inferredPrefs = await getInferredPreferences();
     prefsCache.current = { ...manualPrefs, ...inferredPrefs };
     if (manualPrefs && manualPrefs.preferredPersona && initialDispatch) {
       initialDispatch({ type: 'SET_PERSONA', persona: manualPrefs.preferredPersona });

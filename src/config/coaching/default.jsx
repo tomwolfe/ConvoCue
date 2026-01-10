@@ -6,7 +6,7 @@ export default {
   icon: <Zap size={16} className="text-amber-500" />,
   className: 'default-insight',
   pattern: '',
-  insightPath: (insights) => null,
-  copingPath: (insights) => null,
+  insightPath: (_insights) => null,
+  copingPath: (_insights) => null,
   ariaLabel: 'Coaching insight'
 };

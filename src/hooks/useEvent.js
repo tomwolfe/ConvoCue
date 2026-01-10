@@ -17,5 +17,6 @@ export const useEvent = (eventName, handler, deps = []) => {
     return () => {
       eventBus.off(eventName, handler);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventName, handler, ...deps]);
 };

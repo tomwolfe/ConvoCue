@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { VIBRATION_PATTERNS, getHapticFeedbackAnalytics, clearHapticFeedbackAnalytics } from '../utils/haptics';
+import React, { useState } from 'react';
+import { VIBRATION_PATTERNS, getHapticFeedbackAnalytics, clearHapticFeedbackAnalytics, provideVisualFeedback } from '../utils/haptics';
 
 const HapticFeedbackSettings = ({ settings, onSave }) => {
   const [localSettings, setLocalSettings] = useState({
@@ -8,22 +8,18 @@ const HapticFeedbackSettings = ({ settings, onSave }) => {
     patterns: settings.haptics?.patterns || { ...VIBRATION_PATTERNS }
   });
 
-  const [analytics, setAnalytics] = useState(null);
-  const [showTestPattern, setShowTestPattern] = useState(false);
+  const [analytics, setAnalytics] = useState(() => getHapticFeedbackAnalytics());
   const [selectedPattern, setSelectedPattern] = useState('SUGGESTION');
 
-  useEffect(() => {
+  const [prevSettings, setPrevSettings] = useState(settings);
+  if (settings !== prevSettings) {
+    setPrevSettings(settings);
     setLocalSettings({
       enabled: settings.haptics?.enabled ?? true,
       intensity: settings.haptics?.intensity || 'medium',
       patterns: settings.haptics?.patterns || { ...VIBRATION_PATTERNS }
     });
-  }, [settings]);
-
-  useEffect(() => {
-    const feedbackAnalytics = getHapticFeedbackAnalytics();
-    setAnalytics(feedbackAnalytics);
-  }, []);
+  }
 
   const handleChange = (field, value) => {
     setLocalSettings(prev => ({
@@ -51,7 +47,6 @@ const HapticFeedbackSettings = ({ settings, onSave }) => {
       navigator.vibrate(VIBRATION_PATTERNS[selectedPattern]);
     } else {
       // Fallback to visual feedback
-      const { provideVisualFeedback } = require('../utils/haptics');
       provideVisualFeedback(selectedPattern);
     }
   };

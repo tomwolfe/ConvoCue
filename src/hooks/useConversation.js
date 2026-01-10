@@ -2,7 +2,7 @@ import { useReducer, useEffect, useCallback } from 'react';
 import { AppConfig } from '../config';
 import { manageConversationHistory, optimizeConversationHistory, isMemoryLimitApproaching, aggressiveMemoryManagement } from '../utils/conversation';
 import { getConversationHistory as getGlobalHistory } from '../conversationManager';
-import { eventBus, EVENTS } from '../utils/eventBus';
+import { EVENTS } from '../utils/eventBus';
 import { useEvent } from './useEvent';
 
 const initialState = {

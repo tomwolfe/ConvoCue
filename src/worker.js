@@ -6,14 +6,11 @@ import {
     getCulturalPromptTips,
     getLanguageLearningPromptTips,
     getProfessionalPromptTips,
-    detectCulturalContext,
     getSocialNuanceTips,
     getHighStakesTips
 } from './utils/culturalContext';
 import {
-    analyzeCulturalContext,
-    generateCulturallyAppropriateResponses,
-    validateCulturalAppropriateness
+    analyzeCulturalContext
 } from './utils/culturalIntelligence';
 import {
     ConversationTurnManager
@@ -42,13 +39,11 @@ import {
 } from './utils/performanceOptimizer';
 import {
     provideContextualLanguageFeedback,
-    analyzeLanguageLearningText,
-    generateLanguageLearningResponse
+    analyzeLanguageLearningText
 } from './utils/languageLearning';
 import {
     coordinateFeaturesInResponse,
-    resolveFeatureConflicts,
-    validateInsightsConsistency
+    resolveFeatureConflicts
 } from './utils/featureCoordination';
 
 // Configuration for on-device execution
@@ -692,11 +687,6 @@ self.onmessage = async (event) => {
 
                     if (!memoryCheck.isAdequate && deviceCapabilities.performanceTier === 'low') {
                         console.warn(`[Worker] Insufficient memory for full LLM on low-spec device. Available: ${memoryCheck.availableMemoryMB}MB, Required: ${memoryCheck.totalMemoryMB}MB`);
-                        // Use a lighter configuration for low-spec devices
-                        const lightLLMConfig = {
-                            ...getOptimalModelConfig('llm', deviceCapabilities),
-                            name: 'Xenova/distilbert-base-uncased' // Use a smaller model if available
-                        };
                         // For now, we'll proceed with the standard load but with awareness of constraints
                     }
 
@@ -725,7 +715,6 @@ self.onmessage = async (event) => {
                 // We prioritize battery life and responsiveness over analysis depth in minimal mode.
                 // Determines if Auto-Persona is enabled, indicating user preference for sophisticated AI assistance.
                 const isPowerSavingMode = WorkerState.performanceStats.mode === 'minimal';
-                const isAutoPersonaEnabled = _settings?.enableAutoPersona !== false;
                 const shouldRunDeepAnalysis = !isPowerSavingMode;
 
                 // Detect cultural context from the input text using advanced cultural intelligence

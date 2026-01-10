@@ -211,7 +211,7 @@ export const suggestVocabularyEnhancements = (text, level = 'basic') => {
  * @param {string} targetLanguage - Target language (default: 'english')
  * @returns {Object} Comprehensive language learning feedback
  */
-export const analyzeLanguageLearningText = (text, nativeLanguage = 'general', targetLanguage = 'english') => {
+export const analyzeLanguageLearningText = (text, nativeLanguage = 'general', _targetLanguage = 'english') => {
   if (!text) {
     return {
       grammarErrors: [],
@@ -274,21 +274,21 @@ export const generateLanguageLearningResponse = (originalText, analysis) => {
   
   if (analysis.grammarErrors.length > 0) {
     response += 'Grammar tip: ';
-    analysis.grammarErrors.forEach((error, index) => {
+    analysis.grammarErrors.forEach((error, _index) => {
       response += `${error.explanation}. `;
     });
   }
   
   if (analysis.pronunciationChallenges.length > 0) {
     response += 'Pronunciation tip: ';
-    analysis.pronunciationChallenges.forEach((challenge, index) => {
+    analysis.pronunciationChallenges.forEach((challenge, _index) => {
       response += `${challenge.challenge} `;
     });
   }
   
   if (analysis.vocabularySuggestions.length > 0) {
     response += 'Vocabulary tip: ';
-    analysis.vocabularySuggestions.forEach((suggestion, index) => {
+    analysis.vocabularySuggestions.forEach((suggestion, _index) => {
       response += `Consider using "${suggestion.alternatives[0]}" instead of "${suggestion.original}". `;
     });
   }

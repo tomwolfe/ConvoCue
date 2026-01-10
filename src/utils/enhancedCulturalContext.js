@@ -7,7 +7,7 @@
  * not definitive characterizations of individuals. Always respect individual preferences over cultural assumptions.
  */
 
-import { mergeCulturalContext, provideCulturalFeedback, isCulturalOptOut } from './userCulturalProfile.js';
+import { mergeCulturalContext, isCulturalOptOut } from './userCulturalProfile.js';
 import { getCulturalConfidenceThreshold } from '../config/conservativeDefaults.js';
 
 // Cultural communication patterns by region - NOTE: These are generalizations for initial detection only
@@ -406,7 +406,7 @@ export const detectMultilingualElements = (text) => {
   for (const [langCode, greetings] of Object.entries(MULTILINGUAL_GREETINGS)) {
     let greetingCount = 0;
     for (const greeting of greetings) {
-      const regex = new RegExp(`\\b${greeting.replace(/[.*+?^${}()|[\/]/g, '\\$&')}\\b`, 'i');
+      const regex = new RegExp(`\\b${greeting.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
       if (regex.test(text)) {
         greetingCount++;
       }
@@ -426,7 +426,7 @@ export const detectMultilingualElements = (text) => {
   for (const [langCode, politeness] of Object.entries(MULTILINGUAL_POLITENESS)) {
     let politenessCount = 0;
     for (const polite of politeness) {
-      const regex = new RegExp(`\\b${polite.replace(/[.*+?^${}()|[\/]/g, '\\$&')}\\b`, 'i');
+      const regex = new RegExp(`\\b${polite.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
       if (regex.test(text)) {
         politenessCount++;
       }

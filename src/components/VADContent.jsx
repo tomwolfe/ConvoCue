@@ -19,27 +19,23 @@ const GlanceWidget = ({ suggestion, emotionData, isProcessing, detectedIntent, s
   const [showExplanation, setShowExplanation] = useState(false);
   const emotion = emotionData?.emotion || 'neutral';
 
-  const lastTrackedSuggestion = useRef(null);
+  const [lastTrackedSuggestion, setLastTrackedSuggestion] = useState(null);
+
+  if (suggestion && suggestion !== lastTrackedSuggestion && !isProcessing) {
+    setLastTrackedSuggestion(suggestion);
+    setFeedbackGiven(false);
+  }
 
   useEffect(() => {
-    if (suggestion && suggestion !== lastTrackedSuggestion.current && !isProcessing) {
+    if (suggestion && suggestion === lastTrackedSuggestion) {
       trackCueDisplayed('subtle', persona);
-      lastTrackedSuggestion.current = suggestion;
-      setFeedbackGiven(false);
     }
-  }, [suggestion, isProcessing, persona]);
+  }, [suggestion, lastTrackedSuggestion, persona]);
 
   const { cleanText: displaySuggestion, tags } = React.useMemo(() => {
     if (!suggestion) return { cleanText: isProcessing ? 'Thinking...' : 'Listening...', tags: [] };
     return parseSemanticTags(suggestion);
   }, [suggestion, isProcessing]);
-
-  const hasActionItem = tags.some(t => t.key === 'action');
-  const hasConflict = tags.some(t => t.key === 'conflict');
-  const isStrategic = tags.some(t => t.key === 'strategic');
-  const isLanguageTip = tags.some(t => t.key === 'language');
-  const isSocialTip = tags.some(t => t.key === 'social');
-  const hasEmpathy = tags.some(t => t.key === 'empathy');
 
   const handleFeedback = async (type) => {
     if (feedbackGiven || !displaySuggestion || isProcessing) return;
@@ -312,7 +308,6 @@ const VADContent = ({
     loadPersonas();
   }, []);
 
-  const [activePersona, setActivePersona] = useState(persona);
   const [isVADMode, setIsVADMode] = useState(false);
   const [vadError, setVadError] = useState(initialError);
   const [copied, setCopied] = useState(false);

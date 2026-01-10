@@ -1,7 +1,7 @@
 /**
  * Final verification tests for Cultural Intelligence improvements
  */
-import { describe, test, expect, beforeEach } from 'vitest';
+import { describe, test, expect } from 'vitest';
 import { 
   analyzeCulturalContext 
 } from '../src/utils/culturalIntelligence.js';
@@ -48,7 +48,6 @@ describe('Cultural Intelligence Final Verification', () => {
   });
 
   test('should detect Saudi Arabia specifically', () => {
-    const text = "As-salamu alaykum"; // Actually we should check if our patterns include this
     // Our patterns currently use 'salam' for egypt
     const result = analyzeCulturalContext("salam", 'general', []);
     expect(result.primaryCulture).toBe('egypt');

@@ -209,7 +209,7 @@ export const getDislikedPhrases = async () => {
 
     // Return phrases that appear frequently in disliked suggestions
     return Object.entries(phraseCounts)
-      .filter(([phrase, count]) => count >= 2) // At least 2 dislikes
+      .filter(([_phrase, count]) => count >= 2) // At least 2 dislikes
       .map(([phrase]) => phrase);
   } catch (e) {
     console.error('Failed to get disliked phrases:', e);

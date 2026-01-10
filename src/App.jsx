@@ -11,7 +11,7 @@ import ErrorBoundary from './ErrorBoundary';
 import { AppConfig } from './config';
 import { checkAssets } from './utils/diagnostics';
 import { secureLocalStorageGet, secureLocalStorageSet } from './utils/encryption';
-import { clearAllSessionData, handleSessionEnd } from './utils/privacyHardening';
+import { handleSessionEnd } from './utils/privacyHardening';
 
 import './App.css';
 

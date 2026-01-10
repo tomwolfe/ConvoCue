@@ -158,7 +158,6 @@ const findImprovementAreas = (feedbackHistory) => {
 
   // Analyze common issues in disliked suggestions with more depth
   const issuePatterns = {};
-  const contextAnalysis = {};
 
   dislikes.forEach(item => {
     const suggestion = item.suggestion.toLowerCase();
@@ -224,7 +223,6 @@ const findImprovementAreas = (feedbackHistory) => {
 const isResponseRelevant = (input, response) => {
   // Simple keyword matching - in a real implementation, use semantic similarity
   const inputWords = input.split(/\s+/).filter(word => word.length > 3);
-  const responseWords = response.split(/\s+/).filter(word => word.length > 3);
 
   // Check if at least some keywords from input appear in response
   const commonWords = inputWords.filter(word => response.includes(word));

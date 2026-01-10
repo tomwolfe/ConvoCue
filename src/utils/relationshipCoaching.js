@@ -88,7 +88,7 @@ export const analyzeRelationshipCoaching = (text, conversationHistory = [], emot
  * @param {Object} conversationContext - Conversation context data.
  * @returns {'high'|'medium'|'neutral'} Calculated empathy level.
  */
-const assessEmpathyLevel = (text, emotionAnalysis, conversationContext) => {
+const assessEmpathyLevel = (text, emotionAnalysis, _conversationContext) => {
   const { emotion, confidence } = emotionAnalysis;
   
   // High empathy needed for strong negative emotions
@@ -120,7 +120,7 @@ const assessEmpathyLevel = (text, emotionAnalysis, conversationContext) => {
  * @param {Object} conversationContext - Conversation context data.
  * @returns {Array<Object>} List of identified opportunities (type, description, priority).
  */
-const identifyActiveListeningOpportunities = (text, conversationContext) => {
+const identifyActiveListeningOpportunities = (text, _conversationContext) => {
   const opportunities = [];
 
   // Paraphrasing opportunity
@@ -248,7 +248,7 @@ const generateRelationshipInsights = (text, emotionAnalysis, conversationContext
  * @param {Object} conversationContext - Conversation context
  * @returns {Array} Suggested strategies
  */
-const suggestCopingStrategies = (text, emotionAnalysis, conversationContext) => {
+const suggestCopingStrategies = (text, emotionAnalysis, _conversationContext) => {
   const { emotion, confidence } = emotionAnalysis;
   const strategies = [];
 

@@ -132,7 +132,7 @@ export const usePersonaOrchestration = (currentPersona, settings, historyRef, di
     }
 
     return currentPersona;
-  }, [currentPersona, settings, getDecayedDampening, historyRef, dispatch]);
+  }, [currentPersona, settings, getDecayedDampening, getActiveManualPreference, historyRef, dispatch]);
 
   /**
    * Detects if a manual persona change is a rejection of a recent auto-switch.

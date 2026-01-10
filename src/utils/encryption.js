@@ -23,7 +23,7 @@ async function getEncryptionKey() {
         true,
         ['encrypt', 'decrypt']
       );
-    } catch (e) {
+    } catch (_e) {
       console.error('Failed to import encryption key, generating new one');
     }
   }

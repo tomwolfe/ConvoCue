@@ -18,7 +18,7 @@ const hasKeyword = (text, keyword, useFuzzy = false) => {
   try {
     const regex = new RegExp(`\\b${normalizedKeyword}s?\\b`, 'i');
     if (regex.test(normalizedText)) return true;
-  } catch (e) {
+  } catch (_e) {
     if (normalizedText.includes(normalizedKeyword)) return true;
   }
 

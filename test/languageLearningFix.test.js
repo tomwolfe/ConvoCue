@@ -48,7 +48,6 @@ describe('Language Learning and Cultural Context Separation Tests', () => {
 
   test('should handle general cultural context with specific native language', () => {
     const text = "I am happy today.";
-    const culturalContext = "general"; // No specific cultural context
     const nativeLanguage = "zh"; // Chinese as native language
     
     // Even with general cultural context, native language should affect pronunciation feedback

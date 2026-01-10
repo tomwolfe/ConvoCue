@@ -11,7 +11,6 @@ import IntentDetectionSettings from './IntentDetectionSettings';
 import IntentFilterSettings from './IntentFilterSettings';
 import HapticFeedbackSettings from './HapticFeedbackSettings';
 import { ALL_INTENTS } from '../constants/intents';
-import { mergeNewIntents } from '../utils/intentUtils';
 
 const Settings = ({ isOpen, onClose }) => {
   const [settings, setSettings] = useState({

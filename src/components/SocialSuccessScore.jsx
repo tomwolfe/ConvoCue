@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { TrendingUp, Users, Heart, Award, ChevronDown, ChevronUp, Info, HelpCircle } from 'lucide-react';
+import { TrendingUp, Users, Heart, Award, ChevronDown, ChevronUp, HelpCircle } from 'lucide-react';
 import { calculateSocialSuccessScore, getHistoricalScores } from '../utils/feedbackAnalytics';
-import { secureLocalStorageGet } from '../utils/encryption';
-import { eventBus, EVENTS } from '../utils/eventBus';
+import { EVENTS } from '../utils/eventBus';
 import { useEvent } from '../hooks/useEvent';
 
 const SocialSuccessScore = ({ conversationTurns, settings }) => {
@@ -21,8 +20,20 @@ const SocialSuccessScore = ({ conversationTurns, settings }) => {
   }, [conversationTurns]);
 
   useEffect(() => {
-    updateMetrics();
-  }, [updateMetrics]);
+    let isMounted = true;
+    if (conversationTurns && conversationTurns.length > 0) {
+      const runUpdate = async () => {
+        const scoreData = await calculateSocialSuccessScore(conversationTurns);
+        if (isMounted) {
+          setMetrics(scoreData);
+          const history = await getHistoricalScores();
+          if (isMounted) setHistoricalData(history);
+        }
+      };
+      runUpdate();
+    }
+    return () => { isMounted = false; };
+  }, [conversationTurns]);
 
   useEvent(EVENTS.FEEDBACK_SUBMITTED, updateMetrics, [updateMetrics]);
 

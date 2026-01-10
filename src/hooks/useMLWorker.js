@@ -4,8 +4,8 @@ import { enhanceResponse } from '../utils/responseEnhancement';
 import { useConversation } from './useConversation';
 import { useAppPreferences } from './useAppPreferences';
 import { getCommunicationProfileSummary } from '../utils/personalization';
-import { provideHapticFeedback, provideIntentHaptics, refreshHapticSettingsCache } from '../utils/haptics';
-import { detectIntentWithConfidence, detectIntentHighPerformance } from '../utils/intentRecognition';
+import { provideHapticFeedback, provideIntentHaptics } from '../utils/haptics';
+import { detectIntentHighPerformance } from '../utils/intentRecognition';
 import { getInsightCategoryScores } from '../utils/feedback';
 import performanceMonitor from '../utils/performance';
 import { usePerformanceMonitor } from './usePerformanceMonitor';
@@ -137,6 +137,11 @@ export const useMLWorker = () => {
     dispatch
   );
 
+  const performOrchestrationRef = useRef(performOrchestration);
+  useEffect(() => {
+    performOrchestrationRef.current = performOrchestration;
+  }, [performOrchestration]);
+
   usePerformanceMonitor(worker);
 
   // Performance Optimization: Decoupling Settings from Worker Lifecycle
@@ -258,7 +263,7 @@ export const useMLWorker = () => {
               // 4. It's a question
               if (!isShort || hasMeaningfulCue || timeSinceLast > 5000 || cleanText.includes('?')) {
                   // Auto-Persona Orchestration
-                  const activePersona = performOrchestration(cleanText);
+                  const activePersona = performOrchestrationRef.current(cleanText);
 
                   const communicationProfile = settingsRef.current.enablePersonalization !== false && !settingsRef.current.privacyMode
                       ? await getCommunicationProfileSummary()

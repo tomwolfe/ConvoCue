@@ -72,7 +72,7 @@ export const CulturalLanguageConfig = {
   
   // Helper methods
   updateSetting(category, setting, value) {
-    if (this[category] && this[category].hasOwnProperty(setting)) {
+    if (this[category] && Object.prototype.hasOwnProperty.call(this[category], setting)) {
       this[category][setting] = value;
       // Optionally save to localStorage
       if (this.privacySettings.rememberPreferences) {
@@ -95,7 +95,7 @@ export const CulturalLanguageConfig = {
         const settings = JSON.parse(settingsStr);
         for (const [key, value] of Object.entries(settings)) {
           const [category, setting] = key.split('.');
-          if (this[category] && this[category].hasOwnProperty(setting)) {
+          if (this[category] && Object.prototype.hasOwnProperty.call(this[category], setting)) {
             this[category][setting] = value;
           }
         }
