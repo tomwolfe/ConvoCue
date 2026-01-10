@@ -329,7 +329,7 @@ const DisplayArea = ({
                   <label>All Caught Up</label>
                 </div>
                 <button 
-                  className="insight-action-btn dismiss-btn" 
+                  className="btn-close-sm" 
                   onClick={handleDismissAllCaughtUp}
                   title="Hide message"
                   aria-label="Hide message"

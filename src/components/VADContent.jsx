@@ -182,7 +182,7 @@ const GlanceWidget = ({ suggestion, emotionData, isProcessing, detectedIntent, s
       {!isProcessing && displaySuggestion !== 'Listening...' && (
         <div className="glance-feedback-actions">
           <button
-            className={`feedback-btn ${feedbackGiven ? 'disabled' : ''}`}
+            className={`feedback-btn feedback-btn--sm ${feedbackGiven ? 'disabled' : ''}`}
             onClick={() => handleFeedback('like')}
             disabled={feedbackGiven}
             title="Helpful cue"
@@ -190,7 +190,7 @@ const GlanceWidget = ({ suggestion, emotionData, isProcessing, detectedIntent, s
             <ThumbsUp size={14} />
           </button>
           <button
-            className={`feedback-btn ${feedbackGiven ? 'disabled' : ''}`}
+            className={`feedback-btn feedback-btn--sm ${feedbackGiven ? 'disabled' : ''}`}
             onClick={() => handleFeedback('dislike')}
             disabled={feedbackGiven}
             title="Not helpful"

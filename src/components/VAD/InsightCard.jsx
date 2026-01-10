@@ -7,7 +7,7 @@ const InsightNavigation = ({ visibleInsights, currentInsightIndex, onPrev, onNex
 
   return (
     <div className="insight-navigation" role="group" aria-label="Insight navigation">
-      <button className="insight-action-btn" onClick={onPrev} aria-label="Previous insight">
+      <button className="btn-action-sm" onClick={onPrev} aria-label="Previous insight">
         <ChevronLeft size={12} />
       </button>
       <div className="flex gap-1">
@@ -15,7 +15,7 @@ const InsightNavigation = ({ visibleInsights, currentInsightIndex, onPrev, onNex
           <div key={idx} className={`nav-dot ${idx === currentInsightIndex ? 'active' : ''}`} />
         ))}
       </div>
-      <button className="insight-action-btn" onClick={onNext} aria-label="Next insight">
+      <button className="btn-action-sm" onClick={onNext} aria-label="Next insight">
         <ChevronRight size={12} />
       </button>
     </div>
@@ -36,7 +36,7 @@ const CopingTip = ({ strategies, currentCopingIndex, onNextCoping, insightId }) 
         <div className="flex gap-1">
           {strategy.details && (
             <button
-              className={`insight-action-btn ${showDetails ? 'active' : ''}`}
+              className={`btn-action-sm ${showDetails ? 'active' : ''}`}
               onClick={(e) => {
                 e.stopPropagation();
                 setShowDetails(!showDetails);
@@ -49,7 +49,7 @@ const CopingTip = ({ strategies, currentCopingIndex, onNextCoping, insightId }) 
           )}
           {strategies.length > 1 && (
             <button
-              className="insight-action-btn"
+              className="btn-action-sm"
               onClick={(e) => {
                 e.stopPropagation();
                 onNextCoping(e, strategies.length, insightId);
@@ -137,7 +137,7 @@ const InsightCard = ({
         <div className="flex items-center gap-2">
           {!showSubtleCoaching && <span className="insight-badge">{activeInsight.category || 'Focus'}</span>}
           <button 
-            className="insight-action-btn dismiss-btn" 
+            className="btn-close-sm" 
             onClick={onDismiss}
             title="Dismiss insight"
             aria-label="Dismiss insight"
@@ -190,28 +190,28 @@ const InsightCard = ({
               {showSubtleActions ? (
                 <div className="flex gap-1 animate-in fade-in slide-in-from-right-2 duration-200">
                   <button
-                    className="feedback-btn"
+                    className="feedback-btn feedback-btn--sm"
                     onClick={() => handleFeedback('very_helpful')}
                     title="Very helpful"
                   >
                     <ThumbsUp size={14} />
                   </button>
                   <button
-                    className="feedback-btn"
+                    className="feedback-btn feedback-btn--sm"
                     onClick={() => handleFeedback('somewhat_helpful')}
                     title="Somewhat helpful"
                   >
                     <Check size={14} />
                   </button>
                   <button
-                    className="feedback-btn"
+                    className="feedback-btn feedback-btn--sm"
                     onClick={() => handleFeedback('not_helpful')}
                     title="Not helpful"
                   >
                     <ThumbsDown size={14} />
                   </button>
                   <button 
-                    className="insight-action-btn"
+                    className="btn-action-sm"
                     onClick={() => setShowSubtleActions(false)}
                     title="Cancel"
                   >
@@ -221,7 +221,7 @@ const InsightCard = ({
               ) : (
                 isPersonalizationEnabled && (
                   <button 
-                    className="insight-action-btn subtle-trigger"
+                    className="btn-action-sm subtle-trigger"
                     onClick={() => setShowSubtleActions(true)}
                     title="Adjust Coaching"
                     aria-label="Adjust Coaching"
@@ -234,7 +234,7 @@ const InsightCard = ({
           ) : (
             <>
               <button 
-                className={`insight-action-btn ${showInfo ? 'active' : ''}`}
+                className={`btn-action-sm ${showInfo ? 'active' : ''}`}
                 onClick={onToggleInfo}
                 title="Why am I seeing this?"
               >
@@ -243,21 +243,21 @@ const InsightCard = ({
               {isPersonalizationEnabled && (
                 <div className="flex gap-1">
                   <button
-                    className="feedback-btn"
+                    className="feedback-btn feedback-btn--sm"
                     onClick={() => handleFeedback('very_helpful')}
                     title="Very helpful"
                   >
                     <ThumbsUp size={14} />
                   </button>
                   <button
-                    className="feedback-btn"
+                    className="feedback-btn feedback-btn--sm"
                     onClick={() => handleFeedback('somewhat_helpful')}
                     title="Somewhat helpful"
                   >
                     <Check size={14} />
                   </button>
                   <button
-                    className="feedback-btn"
+                    className="feedback-btn feedback-btn--sm"
                     onClick={() => handleFeedback('not_helpful')}
                     title="Not helpful"
                   >
