@@ -10,6 +10,10 @@
  * inherent unreliability of client-side ML model loading. In the long term, we may
  * want to explore more robust solutions such as server-side processing or more
  * sophisticated client-side resource management.
+ *
+ * FUTURE OPTIMIZATION: As the number of states and transitions grows, consider
+ * refactoring the transition method to use a transition table approach for better
+ * maintainability (e.g., a Map or object mapping (prevState, transition) => newState).
  */
 
 // Define possible states
@@ -224,7 +228,13 @@ export class MLStateMachine {
     return this.state === ML_STATES.READY || this.state === ML_STATES.TEXT_ONLY_MODE;
   }
 
-  // Check if a specific model is loaded
+  /**
+   * Check if a specific model is loaded
+   * NOTE: This method reflects the actual model loading state rather than functionality.
+   * In TEXT_ONLY_MODE, the STT model is considered loaded (for potential use) but the LLM is not.
+   * This is intentional as TEXT_ONLY_MODE represents a degraded functionality where
+   * core application features remain available without full ML capabilities.
+   */
   isModelLoaded(modelType) {
     if (modelType === 'stt') {
       return [ML_STATES.READY, ML_STATES.TEXT_ONLY_MODE].includes(this.state);

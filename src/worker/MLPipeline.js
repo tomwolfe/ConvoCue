@@ -66,6 +66,9 @@ export class MLPipeline {
 
                 // Transition to low memory state
                 MLPipeline.stateMachine.transition(ML_TRANSITIONS.MEMORY_PRESSURE);
+
+                // Proactively free resources when entering low memory state
+                await MLPipeline.disposeAll();
                 return;
             }
 
@@ -189,6 +192,9 @@ export class MLPipeline {
 
                 // Transition to low memory state
                 MLPipeline.stateMachine.transition(ML_TRANSITIONS.MEMORY_PRESSURE);
+
+                // Proactively free resources when entering low memory state
+                await MLPipeline.disposeAll();
                 return;
             }
 
@@ -392,6 +398,26 @@ export class MLPipeline {
 
     static resetStateMachine() {
         MLPipeline.stateMachine.reset();
+    }
+
+    // Proactive memory management function
+    static async handleMemoryPressure() {
+        console.log("Handling memory pressure proactively...");
+
+        // Dispose of all models to free memory
+        await MLPipeline.disposeAll();
+
+        // Force garbage collection if available (in supporting environments)
+        if (self.gc) {
+            self.gc();
+        }
+
+        // Post a message to notify the main thread about memory pressure handling
+        messenger.postMessage({
+            type: 'status',
+            status: 'Memory pressure handled - models disposed',
+            isLowMemory: true
+        });
     }
 }
 

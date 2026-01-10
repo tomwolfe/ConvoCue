@@ -138,4 +138,4 @@ The state machine is integrated into the MLPipeline class and is used to:
 
 ## Memory Pressure Recovery
 
-The LOW_MEMORY state can transition back to LOADING_STT/LOADING_LLM when attempting to reload models. The implementation assumes that the browser's garbage collection or user action (such as closing other tabs) will free sufficient memory to allow model loading. This is a reasonable implicit assumption for most scenarios, but developers should be aware that memory pressure conditions may persist if the user's system remains constrained.
+The LOW_MEMORY state can transition back to LOADING_STT/LOADING_LLM when attempting to reload models. The implementation now proactively disposes of loaded models when entering the LOW_MEMORY state to free resources immediately. Additionally, the system relies on browser garbage collection and may prompt users to close other tabs or applications to free memory. Developers should be aware that memory pressure conditions may persist if the user's system remains constrained despite these measures.

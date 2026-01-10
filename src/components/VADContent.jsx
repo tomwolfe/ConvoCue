@@ -561,6 +561,12 @@ const VADContent = ({
       {(vad.errored || vadError || error) && (
         <div className="error-recovery" role="alert" aria-live="assertive">
           <p>{error || vadError || "Microphone access error"}</p>
+
+          {/* Memory pressure specific message */}
+          {status && status.includes('deferred (Low Memory)') && (
+            <p className="memory-pressure-note">Try closing other browser tabs or applications to free up memory.</p>
+          )}
+
           {status === 'Speech recognition unavailable - running in text-only mode' && retrySTTLoad && (
             <>
               <button className="btn-retry" onClick={retrySTTLoad} aria-label="Retry Speech Recognition" disabled={isRetrying}>

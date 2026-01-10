@@ -22,6 +22,20 @@ import { WorkerMessenger } from './worker/Messenger';
 // Create a messenger instance for communication
 const messenger = new WorkerMessenger();
 
+// Listen for memory pressure events if the API is available
+if (self.scheduler && self.scheduler.yield) {
+    // For browsers that support the scheduler API
+    // This is a more advanced approach to handle memory pressure
+} else if ('memory' in self.performance) {
+    // Set up periodic memory monitoring
+    setInterval(() => {
+        const mem = self.performance.memory;
+        if (mem && mem.usagePercent > AppConfig.system.memory.modelUnloadThreshold) {
+            // Handle memory pressure proactively
+            MLPipeline.handleMemoryPressure();
+        }
+    }, 5000); // Check every 5 seconds
+}
 
 self.onmessage = async (event) => {
     const {

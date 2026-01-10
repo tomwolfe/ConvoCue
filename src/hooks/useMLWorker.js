@@ -424,11 +424,10 @@ export const useMLWorker = () => {
   }, [initWorker]);
 
   const processAudio = useCallback((audioBuffer) => {
+    // Check if we're in a state where audio processing is possible
     if (!state.isReady || state.isProcessing || !worker.current) {
-      // If STT is not available due to previous error, show appropriate status
-      if (!state.isReady && state.error && state.error.includes('Speech recognition')) {
-        dispatch({ type: 'SET_STATUS', status: 'Speech recognition unavailable - running in text-only mode' });
-      }
+      // Instead of setting status independently, rely on the state machine state
+      // The UI should reflect the state machine state directly
       return;
     }
     dispatch({ type: 'START_STT' });
@@ -437,7 +436,7 @@ export const useMLWorker = () => {
       audio: audioBuffer,
       settings: settingsRef.current
     }, [audioBuffer.buffer]);
-  }, [state.isReady, state.isProcessing, state.error]);
+  }, [state.isReady, state.isProcessing]);
 
   const refreshSuggestion = useCallback(async () => {
     if (!state.transcript || state.isProcessing || !worker.current) return;
