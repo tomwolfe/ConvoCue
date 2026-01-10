@@ -162,9 +162,24 @@ self.onmessage = async (event) => {
                 }
             } catch (loadError) {
                 console.error("Retry STT load failed:", loadError);
+
+                // Categorize error types for more specific messaging
+                let specificErrorMessage = "Speech recognition model failed to load";
+                if (loadError.message.includes('timeout')) {
+                    specificErrorMessage = "Network timeout occurred while loading speech engine. Please check your connection.";
+                } else if (loadError.message.includes('memory') || loadError.message.includes('OOM')) {
+                    specificErrorMessage = "Insufficient memory to load speech engine. Please close other tabs or restart the browser.";
+                } else if (loadError.message.includes('network') || loadError.message.includes('fetch')) {
+                    specificErrorMessage = "Network error occurred while loading speech engine. Please check your internet connection.";
+                } else if (loadError.message.includes('corrupt') || loadError.message.includes('invalid')) {
+                    specificErrorMessage = "Speech engine model appears corrupted. Please refresh the page to reload.";
+                } else if (loadError.message.includes('abort')) {
+                    specificErrorMessage = "Speech engine loading was interrupted. Please try again.";
+                }
+
                 messenger.postMessage({
                     type: 'error',
-                    error: `Speech recognition model failed to load: ${loadError.message || 'Unknown error'}`,
+                    error: `${specificErrorMessage}: ${loadError.message || 'Unknown error'}`,
                     taskId
                 });
             }
@@ -190,9 +205,24 @@ self.onmessage = async (event) => {
                     }
                 } catch (loadError) {
                     console.error("Failed to load STT model:", loadError);
+
+                    // Categorize error types for more specific messaging
+                    let specificErrorMessage = "Speech recognition model failed to load";
+                    if (loadError.message.includes('timeout')) {
+                        specificErrorMessage = "Network timeout occurred while loading speech engine. Please check your connection.";
+                    } else if (loadError.message.includes('memory') || loadError.message.includes('OOM')) {
+                        specificErrorMessage = "Insufficient memory to load speech engine. Please close other tabs or restart the browser.";
+                    } else if (loadError.message.includes('network') || loadError.message.includes('fetch')) {
+                        specificErrorMessage = "Network error occurred while loading speech engine. Please check your internet connection.";
+                    } else if (loadError.message.includes('corrupt') || loadError.message.includes('invalid')) {
+                        specificErrorMessage = "Speech engine model appears corrupted. Please refresh the page to reload.";
+                    } else if (loadError.message.includes('abort')) {
+                        specificErrorMessage = "Speech engine loading was interrupted. Please try again.";
+                    }
+
                     messenger.postMessage({
                         type: 'error',
-                        error: `Speech recognition model failed to load: ${loadError.message || 'Unknown error'}`,
+                        error: `${specificErrorMessage}: ${loadError.message || 'Unknown error'}`,
                         taskId
                     });
                     return;
@@ -245,9 +275,22 @@ self.onmessage = async (event) => {
                 });
             } catch (processingError) {
                 console.error("STT processing failed:", processingError);
+
+                // Categorize error types for more specific messaging
+                let specificErrorMessage = "Speech recognition processing failed";
+                if (processingError.message.includes('timeout')) {
+                    specificErrorMessage = "Processing timed out. The audio may be too long or your device too slow.";
+                } else if (processingError.message.includes('memory') || processingError.message.includes('OOM')) {
+                    specificErrorMessage = "Insufficient memory for speech processing. Please close other tabs or restart the browser.";
+                } else if (processingError.message.includes('network') || processingError.message.includes('fetch')) {
+                    specificErrorMessage = "Network error during processing. Please check your internet connection.";
+                } else if (processingError.message.includes('abort')) {
+                    specificErrorMessage = "Processing was interrupted. Please try again.";
+                }
+
                 messenger.postMessage({
                     type: 'error',
-                    error: `Speech recognition processing failed: ${processingError.message || 'Unknown error'}`,
+                    error: `${specificErrorMessage}: ${processingError.message || 'Unknown error'}`,
                     taskId
                 });
                 return;
@@ -588,9 +631,22 @@ self.onmessage = async (event) => {
                 });
             } catch (processingError) {
                 console.error("LLM processing failed:", processingError);
+
+                // Categorize error types for more specific messaging
+                let specificErrorMessage = "AI response generation failed";
+                if (processingError.message.includes('timeout')) {
+                    specificErrorMessage = "AI processing timed out. The response may be too complex or your device too slow.";
+                } else if (processingError.message.includes('memory') || processingError.message.includes('OOM')) {
+                    specificErrorMessage = "Insufficient memory for AI processing. Please close other tabs or restart the browser.";
+                } else if (processingError.message.includes('network') || processingError.message.includes('fetch')) {
+                    specificErrorMessage = "Network error during AI processing. Please check your internet connection.";
+                } else if (processingError.message.includes('abort')) {
+                    specificErrorMessage = "AI processing was interrupted. Please try again.";
+                }
+
                 messenger.postMessage({
                     type: 'error',
-                    error: `AI response generation failed: ${processingError.message || 'Unknown error'}`,
+                    error: `${specificErrorMessage}: ${processingError.message || 'Unknown error'}`,
                     taskId
                 });
                 return;

@@ -297,7 +297,8 @@ const VADContent = ({
   coachingInsights,
   lastSwitchReason,
   undoPersonaSwitch,
-  retrySTTLoad
+  retrySTTLoad,
+  isRetrying
 }) => {
   const [availablePersonas, setAvailablePersonas] = useState(AppConfig.models.personas);
 
@@ -555,10 +556,19 @@ const VADContent = ({
         <div className="error-recovery" role="alert" aria-live="assertive">
           <p>{error || vadError || "Microphone access error"}</p>
           {status === 'Speech recognition unavailable - running in text-only mode' && retrySTTLoad && (
-            <button className="btn-retry" onClick={retrySTTLoad} aria-label="Retry Speech Recognition">
-              <RefreshCw size={18} aria-hidden="true" />
-              Retry Speech Recognition
-            </button>
+            <>
+              <button className="btn-retry" onClick={retrySTTLoad} aria-label="Retry Speech Recognition" disabled={isRetrying}>
+                {isRetrying ? <Loader2 className="animate-spin" size={18} aria-hidden="true" /> : <RefreshCw size={18} aria-hidden="true" />}
+                {isRetrying ? 'Retrying...' : 'Retry Speech Recognition'}
+              </button>
+              {/* Give up button appears when retry count reaches max attempts */}
+              {error && error.includes('maximum retry attempts') && (
+                <button className="btn-give-up" onClick={onReset} aria-label="Give up and reset">
+                  <ShieldAlert size={18} aria-hidden="true" />
+                  Give Up & Reset
+                </button>
+              )}
+            </>
           )}
           <button className="btn-retry" onClick={onReset} aria-label="Try again">
             <RefreshCw size={18} aria-hidden="true" />

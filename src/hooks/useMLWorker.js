@@ -177,6 +177,11 @@ export const useMLWorker = () => {
           switch (type) {
             case 'status':
               dispatch({ type: 'SET_STATUS', status, progress, isLowMemory });
+              // Reset retry counter when we get a success status related to STT
+              if (status && (status.includes('Speech Engine loaded successfully') || status.includes('Ready'))) {
+                retryCountRef.current = 0; // Reset retry counter on success
+                setIsRetryingState(false); // Reset retrying state
+              }
               break;
             case 'ready':
               dispatch({ type: 'SET_READY' });
@@ -184,6 +189,9 @@ export const useMLWorker = () => {
               if (status) {
                 dispatch({ type: 'SET_STATUS', status });
               }
+              // Reset retry counter when worker is ready
+              retryCountRef.current = 0;
+              setIsRetryingState(false); // Reset retrying state
               break;
             case 'stt_result': {
               if (!text?.trim()) {
@@ -342,12 +350,16 @@ export const useMLWorker = () => {
                 // For fallback failures, we can still continue with reduced functionality
                 console.warn("Model fallback failed, continuing with reduced functionality:", event.data.error);
                 dispatch({ type: 'SET_STATUS', status: 'Running in reduced functionality mode' });
+                retryCountRef.current = 0; // Reset retry counter on fallback success
+                setIsRetryingState(false); // Reset retrying state
               } else if (event.data.error && event.data.error.includes('Speech recognition')) {
                 // Handle STT-specific errors gracefully
                 console.warn("STT error, continuing with reduced functionality:", event.data.error);
                 dispatch({ type: 'SET_STATUS', status: 'Speech recognition unavailable - running in text-only mode' });
+                setIsRetryingState(false); // Reset retrying state on STT error
               } else {
                 dispatch({ type: 'SET_ERROR', error: event.data.error });
+                setIsRetryingState(false); // Reset retrying state on general error
               }
               break;
           }
@@ -431,11 +443,35 @@ export const useMLWorker = () => {
     });
   }, [state.transcript, state.isProcessing, history, state.persona, state.culturalContext, prefsCache]); // Optimized: No 'settings' dependency
 
+  // Track retry attempts to prevent infinite retries
+  const retryCountRef = useRef(0);
+  const maxRetryAttempts = 3; // Maximum number of retry attempts
+  const [isRetrying, setIsRetryingState] = useState(false);
+
   const retrySTTLoad = useCallback(() => {
     if (!worker.current) return;
 
+    // Check if we've exceeded the maximum retry attempts
+    if (retryCountRef.current >= maxRetryAttempts) {
+      dispatch({
+        type: 'SET_STATUS',
+        status: `Maximum retry attempts (${maxRetryAttempts}) reached. Speech recognition unavailable.`
+      });
+      dispatch({
+        type: 'SET_ERROR',
+        error: `Speech recognition unavailable after ${maxRetryAttempts} attempts. Please refresh the page or check your connection.`
+      });
+      return;
+    }
+
+    // Increment retry count
+    retryCountRef.current += 1;
+
+    // Set retrying state
+    setIsRetryingState(true);
+
     // Reset error state before attempting to reload
-    dispatch({ type: 'SET_STATUS', status: 'Retrying to load Speech Engine...' });
+    dispatch({ type: 'SET_STATUS', status: `Retrying to load Speech Engine... (${retryCountRef.current}/${maxRetryAttempts})` });
     dispatch({ type: 'SET_ERROR', error: null });
 
     // Send a message to the worker to attempt reloading STT
@@ -443,7 +479,7 @@ export const useMLWorker = () => {
       type: 'retry_stt_load',
       taskId: `retry-${Date.now()}`
     });
-  }, [dispatch]);
+  }, [dispatch, maxRetryAttempts, setIsRetryingState]);
 
   return {
     ...state,
@@ -453,6 +489,7 @@ export const useMLWorker = () => {
     processAudio,
     refreshSuggestion,
     retrySTTLoad, // Add the retry function to the returned object
+    isRetrying, // Add the retrying state to the returned object
     prewarmLLM: () => {
       if (!worker.current) return;
       worker.current.postMessage({ type: 'prewarm_llm' });

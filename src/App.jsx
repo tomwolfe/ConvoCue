@@ -438,6 +438,7 @@ const App = () => {
             lastSwitchReason={lastSwitchReason}
             undoPersonaSwitch={undoPersonaSwitch}
             retrySTTLoad={retrySTTLoad}
+            isRetrying={isRetrying}
             onReset={() => {
               setHasInteracted(false);
               setMicPermissionError(null);

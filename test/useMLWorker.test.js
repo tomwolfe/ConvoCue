@@ -168,21 +168,36 @@ describe('useMLWorker', () => {
 
   it('should maintain existing functionality after adding retrySTTLoad', () => {
     const { result } = renderHook(() => useMLWorker());
-    
+
     // Check that all expected properties are still present
     const expectedProperties = [
       'status', 'progress', 'isReady', 'isLowMemory', 'transcript', 'suggestion',
       'detectedIntent', 'emotionData', 'coachingInsights', 'isProcessing',
       'processingStep', 'error', 'persona', 'culturalContext', 'history',
       'conversationTurns', 'conversationSentiment', 'processAudio',
-      'refreshSuggestion', 'retrySTTLoad', 'prewarmLLM', 'setTranscript',
+      'refreshSuggestion', 'retrySTTLoad', 'isRetrying', 'prewarmLLM', 'setTranscript',
       'setSuggestion', 'setStatus', 'setPersona', 'setCulturalContext',
       'clearHistory', 'resetWorker', 'settings', 'lastSwitchReason',
       'undoPersonaSwitch'
     ];
-    
+
     expectedProperties.forEach(prop => {
       expect(result.current).toHaveProperty(prop);
     });
+  });
+
+  it('should track retry attempts and limit retries', () => {
+    const { result } = renderHook(() => useMLWorker());
+
+    // Simulate multiple retry attempts
+    act(() => {
+      result.current.retrySTTLoad();
+      result.current.retrySTTLoad();
+      result.current.retrySTTLoad();
+      result.current.retrySTTLoad(); // This should exceed the limit
+    });
+
+    // Verify that the status reflects the retry limit being reached
+    expect(result.current.status).toContain('Maximum retry attempts');
   });
 });
