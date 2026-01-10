@@ -23,6 +23,15 @@ import { WorkerMessenger } from './worker/Messenger';
 // Create a messenger instance for communication
 const messenger = new WorkerMessenger();
 
+// Enhance messenger to automatically include ML state data in every message
+const originalPostMessage = messenger.postMessage.bind(messenger);
+messenger.postMessage = (message) => {
+    originalPostMessage({
+        ...message,
+        mlStateData: MLPipeline.getMLStateData()
+    });
+};
+
 // Listen for memory pressure events if the API is available
 if (self.scheduler && self.scheduler.yield) {
     // For browsers that support the scheduler API
@@ -78,8 +87,7 @@ self.onmessage = async (event) => {
                         type: 'ready',
                         taskId,
                         status: 'Minimal mode: STT loaded, LLM will load on demand',
-                        isLowSpec: true,
-                        mlStateData: MLPipeline.getMLStateData()
+                        isLowSpec: true
                     });
                 } else {
                     // For other devices, initiate background LLM loading if specified in delayedLoad
@@ -88,8 +96,7 @@ self.onmessage = async (event) => {
                         messenger.postMessage({
                             type: 'ready',
                             taskId,
-                            status: 'STT loaded, Social Brain loading in background...',
-                            mlStateData: MLPipeline.getMLStateData()
+                            status: 'STT loaded, Social Brain loading in background...'
                         });
 
                         // Load LLM in background without blocking the ready state
@@ -103,8 +110,7 @@ self.onmessage = async (event) => {
                         // Both models loaded upfront
                         messenger.postMessage({
                             type: 'ready',
-                            taskId,
-                            mlStateData: MLPipeline.getMLStateData()
+                            taskId
                         });
                     }
                 }
@@ -113,7 +119,6 @@ self.onmessage = async (event) => {
                 messenger.postMessage({
                     type: 'error',
                     error: `Model loading failed: ${loadError.message || 'Unknown error'}`,
-                    mlStateData: MLPipeline.getMLStateData(),
                     taskId
                 });
                 return;
@@ -168,7 +173,7 @@ self.onmessage = async (event) => {
                     await Promise.race([loadPromise, timeoutPromise]);
 
                     // Double-check that STT was actually loaded after the call
-                    if (!MLPipeline.stt || !MLPipeline.isModelFunctional('stt')) {
+                    if (!MLPipeline.stt || !MLPipeline.isVoiceInputFunctional()) {
                         throw new Error("STT model failed to load after initialization attempt");
                     }
 
@@ -176,7 +181,6 @@ self.onmessage = async (event) => {
                     messenger.postMessage({
                         type: 'status',
                         status: 'Speech Engine loaded successfully',
-                        mlStateData: MLPipeline.getMLStateData(),
                         taskId
                     });
                 } else {
@@ -184,8 +188,7 @@ self.onmessage = async (event) => {
                     messenger.postMessage({
                         type: 'ready',
                         taskId,
-                        status: 'Speech Engine already loaded',
-                        mlStateData: MLPipeline.getMLStateData()
+                        status: 'Speech Engine already loaded'
                     });
                 }
             } catch (loadError) {
@@ -208,7 +211,6 @@ self.onmessage = async (event) => {
                 messenger.postMessage({
                     type: 'error',
                     error: `${specificErrorMessage}: ${loadError.message || 'Unknown error'}`,
-                    mlStateData: MLPipeline.getMLStateData(),
                     taskId
                 });
             }
@@ -232,7 +234,7 @@ self.onmessage = async (event) => {
                     await Promise.race([loadPromise, timeoutPromise]);
 
                     // Double-check that LLM was actually loaded after the call
-                    if (!MLPipeline.llm || !MLPipeline.isModelFunctional('llm')) {
+                    if (!MLPipeline.llm || !MLPipeline.isVoiceInputFunctional()) {
                         throw new Error("LLM model failed to load after initialization attempt");
                     }
 
@@ -240,7 +242,6 @@ self.onmessage = async (event) => {
                     messenger.postMessage({
                         type: 'status',
                         status: 'Social Brain loaded successfully',
-                        mlStateData: MLPipeline.getMLStateData(),
                         taskId
                     });
                 } else {
@@ -248,8 +249,7 @@ self.onmessage = async (event) => {
                     messenger.postMessage({
                         type: 'ready',
                         taskId,
-                        status: 'Social Brain already loaded',
-                        mlStateData: MLPipeline.getMLStateData()
+                        status: 'Social Brain already loaded'
                     });
                 }
             } catch (loadError) {
@@ -272,7 +272,6 @@ self.onmessage = async (event) => {
                 messenger.postMessage({
                     type: 'error',
                     error: `${specificErrorMessage}: ${loadError.message || 'Unknown error'}`,
-                    mlStateData: MLPipeline.getMLStateData(),
                     taskId
                 });
             }
@@ -293,7 +292,7 @@ self.onmessage = async (event) => {
                     await Promise.race([loadPromise, timeoutPromise]);
 
                     // Double-check that STT was actually loaded after the call
-                    if (!MLPipeline.stt || !MLPipeline.isModelFunctional('stt')) {
+                    if (!MLPipeline.stt || !MLPipeline.isVoiceInputFunctional()) {
                         throw new Error("STT model failed to load after initialization attempt");
                     }
                 } catch (loadError) {
@@ -316,7 +315,6 @@ self.onmessage = async (event) => {
                     messenger.postMessage({
                         type: 'error',
                         error: `${specificErrorMessage}: ${loadError.message || 'Unknown error'}`,
-                        mlStateData: MLPipeline.getMLStateData(),
                         taskId
                     });
                     return;
@@ -334,7 +332,6 @@ self.onmessage = async (event) => {
                 messenger.postMessage({
                     type: 'error',
                     error: 'Speech recognition model is not available',
-                    mlStateData: MLPipeline.getMLStateData(),
                     taskId
                 });
                 return;
@@ -386,7 +383,6 @@ self.onmessage = async (event) => {
                 messenger.postMessage({
                     type: 'error',
                     error: `${specificErrorMessage}: ${processingError.message || 'Unknown error'}`,
-                    mlStateData: MLPipeline.getMLStateData(),
                     taskId
                 });
                 return;
@@ -419,7 +415,7 @@ self.onmessage = async (event) => {
                     await pipelineManager.loadLLM((p) => throttledProgress(p, 'Social Brain', taskId));
 
                     // Double-check that LLM was actually loaded after the call
-                    if (!MLPipeline.llm || !MLPipeline.isModelFunctional('llm')) {
+                    if (!MLPipeline.llm || !MLPipeline.isVoiceInputFunctional()) {
                         throw new Error("LLM model failed to load after initialization attempt");
                     }
                 }
@@ -743,7 +739,6 @@ self.onmessage = async (event) => {
                     messenger.postMessage({
                         type: 'error',
                         error: `${specificErrorMessage}: ${processingError.message || 'Unknown error'}`,
-                        mlStateData: MLPipeline.getMLStateData(),
                         taskId
                     });
                     return;
@@ -753,7 +748,6 @@ self.onmessage = async (event) => {
                 messenger.postMessage({
                     type: 'error',
                     error: `General LLM processing failed: ${outerProcessingError.message || 'Unknown error'}`,
-                    mlStateData: MLPipeline.getMLStateData(),
                     taskId
                 });
                 return;

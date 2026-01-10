@@ -2,6 +2,39 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import App from './App';
 
+// Mock useMLWorker
+vi.mock('./hooks/useMLWorker', () => ({
+  useMLWorker: vi.fn(() => ({
+    status: 'Ready',
+    progress: 100,
+    isReady: true,
+    isLowMemory: false,
+    mlState: 'ready', // Match ML_STATES.READY
+    transcript: '',
+    suggestion: '',
+    error: null,
+    history: [],
+    conversationSentiment: null,
+    processAudio: vi.fn(),
+    refreshSuggestion: vi.fn(),
+    prewarmLLM: vi.fn(),
+    retrySTTLoad: vi.fn(),
+    retryLLMLoad: vi.fn(),
+    isRetrying: false,
+    isRetryingLLM: false,
+    setTranscript: vi.fn(),
+    setSuggestion: vi.fn(),
+    setStatus: vi.fn(),
+    setPersona: vi.fn(),
+    setCulturalContext: vi.fn(),
+    clearHistory: vi.fn(),
+    resetWorker: vi.fn(),
+    settings: { privacyMode: false, showAnalytics: true },
+    lastSwitchReason: null,
+    undoPersonaSwitch: vi.fn()
+  }))
+}));
+
 // Mock the worker to avoid actual model loading in tests
 vi.mock('./worker.js', () => ({
   // We'll create a mock worker in the test

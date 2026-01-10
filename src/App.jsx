@@ -16,6 +16,7 @@ import { handleSessionEnd } from './utils/privacyHardening';
 import './App.css';
 
 import { getMergedPersonas } from './utils/preferences';
+import { ML_STATES } from './worker/MLStateMachine';
 
 const App = () => {
   const [hasInteracted, setHasInteracted] = useState(false);

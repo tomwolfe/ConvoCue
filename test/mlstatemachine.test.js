@@ -8,27 +8,25 @@ describe('MLStateMachine', () => {
     stateMachine = new MLStateMachine(3);
   });
 
-  describe('isModelFunctional', () => {
+  describe('isVoiceInputFunctional', () => {
     it('should return true when in READY state', () => {
       stateMachine.state = ML_STATES.READY;
       
-      expect(stateMachine.isModelFunctional('stt')).toBe(true);
-      expect(stateMachine.isModelFunctional('llm')).toBe(true);
+      expect(stateMachine.isVoiceInputFunctional()).toBe(true);
     });
 
     it('should return false when in TEXT_ONLY_MODE state', () => {
       stateMachine.state = ML_STATES.TEXT_ONLY_MODE;
       
-      expect(stateMachine.isModelFunctional('stt')).toBe(false);
-      expect(stateMachine.isModelFunctional('llm')).toBe(false);
+      expect(stateMachine.isVoiceInputFunctional()).toBe(false);
     });
 
     it('should return false in other states', () => {
       stateMachine.state = ML_STATES.LOADING_STT;
-      expect(stateMachine.isModelFunctional('stt')).toBe(false);
+      expect(stateMachine.isVoiceInputFunctional()).toBe(false);
       
       stateMachine.state = ML_STATES.ERROR;
-      expect(stateMachine.isModelFunctional('stt')).toBe(false);
+      expect(stateMachine.isVoiceInputFunctional()).toBe(false);
     });
   });
 
@@ -100,6 +98,20 @@ describe('MLStateMachine', () => {
       
       stateMachine.state = ML_STATES.LOADING_STT;
       expect(stateMachine.isReadyForProcessing()).toBe(false);
+    });
+  });
+
+  describe('memory pressure', () => {
+    it('should transition from READY to LOW_MEMORY', () => {
+      stateMachine.state = ML_STATES.READY;
+      stateMachine.transition(ML_TRANSITIONS.MEMORY_PRESSURE);
+      expect(stateMachine.getState()).toBe(ML_STATES.LOW_MEMORY);
+    });
+
+    it('should allow recovery from LOW_MEMORY by starting load', () => {
+      stateMachine.state = ML_STATES.LOW_MEMORY;
+      stateMachine.transition(ML_TRANSITIONS.START_LOADING_STT);
+      expect(stateMachine.getState()).toBe(ML_STATES.LOADING_STT);
     });
   });
 });

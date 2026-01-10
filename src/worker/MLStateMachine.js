@@ -190,10 +190,10 @@ export class MLStateMachine {
   }
 
   /**
-   * Check if a specific model is functional and ready for processing
-   * NOTE: Only in READY state are models considered fully functional for voice.
+   * Check if voice input is functional and ready for processing
+   * NOTE: Only in READY state is voice input considered fully functional.
    */
-  isModelFunctional(modelType) {
+  isVoiceInputFunctional() {
     return this.state === ML_STATES.READY;
   }
 }

@@ -134,7 +134,7 @@ The state machine is integrated into the MLPipeline class and is used to:
 - `getState()`: Get current state
 - `isInState(state)`: Check if in specific state
 - `isReadyForProcessing()`: Check if pipeline is ready for processing
-- `isModelFunctional(modelType)`: Check if specific model is functional
+- `isVoiceInputFunctional()`: Check if voice input is functional
 
 ## Memory Pressure Recovery
 

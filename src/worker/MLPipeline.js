@@ -392,8 +392,8 @@ export class MLPipeline {
         return MLPipeline.stateMachine.isReadyForProcessing();
       }
     
-      static isModelFunctional(modelType) {
-        return MLPipeline.stateMachine.isModelFunctional(modelType);
+      static isVoiceInputFunctional() {
+        return MLPipeline.stateMachine.isVoiceInputFunctional();
       }
     
       static transitionState(transition, context = {}) {        return MLPipeline.stateMachine.transition(transition, context);
@@ -406,6 +406,9 @@ export class MLPipeline {
     // Proactive memory management function
     static async handleMemoryPressure() {
         console.log("Handling memory pressure proactively...");
+
+        // Transition the state machine to LOW_MEMORY
+        MLPipeline.stateMachine.transition(ML_TRANSITIONS.MEMORY_PRESSURE);
 
         // Dispose of all models to free memory
         await MLPipeline.disposeAll();
