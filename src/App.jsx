@@ -437,6 +437,7 @@ const App = () => {
             coachingInsights={coachingInsights}
             lastSwitchReason={lastSwitchReason}
             undoPersonaSwitch={undoPersonaSwitch}
+            retrySTTLoad={retrySTTLoad}
             onReset={() => {
               setHasInteracted(false);
               setMicPermissionError(null);

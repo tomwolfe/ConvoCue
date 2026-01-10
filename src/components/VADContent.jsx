@@ -296,7 +296,8 @@ const VADContent = ({
   onReset,
   coachingInsights,
   lastSwitchReason,
-  undoPersonaSwitch
+  undoPersonaSwitch,
+  retrySTTLoad
 }) => {
   const [availablePersonas, setAvailablePersonas] = useState(AppConfig.models.personas);
 
@@ -553,6 +554,12 @@ const VADContent = ({
       {(vad.errored || vadError || error) && (
         <div className="error-recovery" role="alert" aria-live="assertive">
           <p>{error || vadError || "Microphone access error"}</p>
+          {status === 'Speech recognition unavailable - running in text-only mode' && retrySTTLoad && (
+            <button className="btn-retry" onClick={retrySTTLoad} aria-label="Retry Speech Recognition">
+              <RefreshCw size={18} aria-hidden="true" />
+              Retry Speech Recognition
+            </button>
+          )}
           <button className="btn-retry" onClick={onReset} aria-label="Try again">
             <RefreshCw size={18} aria-hidden="true" />
             Try Again

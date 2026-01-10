@@ -65,12 +65,105 @@ describe('useMLWorker', () => {
     // This test would require more complex mocking of the dispatch mechanism
     // For now, we'll just verify the function exists and can be called
     const { result } = renderHook(() => useMLWorker());
-    
+
     expect(() => {
       act(() => {
         result.current.retrySTTLoad();
       });
     }).not.toThrow();
+  });
+
+  it('should send retry_stt_load message when retrySTTLoad is called', () => {
+    const { result } = renderHook(() => useMLWorker());
+
+    act(() => {
+      result.current.retrySTTLoad();
+    });
+
+    expect(mockWorkerPostMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'retry_stt_load',
+        taskId: expect.stringMatching(/^retry-\d+$/)
+      })
+    );
+  });
+
+  it('should properly handle worker status response during retry', () => {
+    // Create a mock worker with onmessage handler
+    const mockWorker = {
+      postMessage: mockWorkerPostMessage,
+      terminate: mockWorkerTerminate,
+      onmessage: null,
+      onerror: null,
+    };
+
+    global.Worker = vi.fn().mockImplementation(() => mockWorker);
+
+    const { result } = renderHook(() => useMLWorker());
+
+    // Trigger the retrySTTLoad function
+    act(() => {
+      result.current.retrySTTLoad();
+    });
+
+    // Verify that the retry message was sent
+    expect(mockWorkerPostMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'retry_stt_load',
+        taskId: expect.stringMatching(/^retry-\d+$/)
+      })
+    );
+
+    // Simulate the worker sending a status message back
+    const messageEvent = {
+      data: {
+        type: 'status',
+        status: 'Speech Engine loaded successfully',
+        taskId: 'retry-12345'
+      }
+    };
+
+    // Call the onmessage handler if it exists
+    if (mockWorker.onmessage) {
+      act(() => {
+        mockWorker.onmessage(messageEvent);
+      });
+    }
+  });
+
+  it('should properly handle worker error response during retry', () => {
+    // Create a mock worker with onmessage handler
+    const mockWorker = {
+      postMessage: mockWorkerPostMessage,
+      terminate: mockWorkerTerminate,
+      onmessage: null,
+      onerror: null,
+    };
+
+    global.Worker = vi.fn().mockImplementation(() => mockWorker);
+
+    const { result } = renderHook(() => useMLWorker());
+
+    // Trigger the retrySTTLoad function
+    act(() => {
+      result.current.retrySTTLoad();
+    });
+
+    // Simulate the worker sending an error message back
+    const messageEvent = {
+      data: {
+        type: 'error',
+        error: 'Speech recognition model failed to load: Network error',
+        taskId: 'retry-12345'
+      }
+    };
+
+    // Call the onmessage handler if it exists
+    if (mockWorker.onmessage) {
+      act(() => {
+        mockWorker.onmessage(messageEvent);
+      });
+    }
   });
 
   it('should maintain existing functionality after adding retrySTTLoad', () => {
