@@ -14,11 +14,13 @@ import { usePersonaOrchestration } from './usePersonaOrchestration';
 import { ML_STATES } from '../worker/MLStateMachine';
 
 const initialState = {
-  status: 'Initializing Models...',
+  status: 'Initializing Models...', 
   progress: 0,
   isReady: false,
   isLowMemory: false,
   mlState: ML_STATES.UNINITIALIZED, // Track the ML state machine state
+  sttFunctional: false,
+  llmFunctional: false,
   retryCount: 0,
   maxRetries: 3,
   transcript: '',
@@ -36,6 +38,12 @@ const initialState = {
 
 function workerReducer(state, action) {
   switch (action.type) {
+    case 'RESET_STATE':
+      return { 
+        ...initialState, 
+        persona: state.persona, 
+        culturalContext: state.culturalContext 
+      };
     case 'SET_STATUS':
       return { 
         ...state, 
@@ -52,7 +60,9 @@ function workerReducer(state, action) {
         // Ensure mlState is at least 'ready' or 'text_only_mode' when isReady is set
         mlState: (state.mlState === ML_STATES.READY || state.mlState === ML_STATES.TEXT_ONLY_MODE) 
           ? state.mlState 
-          : ML_STATES.READY 
+          : ML_STATES.READY,
+        sttFunctional: state.sttFunctional || state.mlState === ML_STATES.READY,
+        llmFunctional: true
       };
     case 'START_STT':
       return { ...state, isProcessing: true, processingStep: 'transcribing', status: 'Transcribing...' };
@@ -83,7 +93,8 @@ function workerReducer(state, action) {
         status: 'Ready',
         mlState: (state.mlState === ML_STATES.READY || state.mlState === ML_STATES.TEXT_ONLY_MODE) 
           ? state.mlState 
-          : ML_STATES.READY
+          : ML_STATES.READY,
+        llmFunctional: true
       };
     case 'SET_PERSONA':
       return { ...state, persona: action.persona };
@@ -111,6 +122,8 @@ function workerReducer(state, action) {
       return { 
         ...state, 
         mlState: action.mlState,
+        sttFunctional: action.sttFunctional ?? state.sttFunctional,
+        llmFunctional: action.llmFunctional ?? state.llmFunctional,
         retryCount: action.retryCount ?? state.retryCount,
         maxRetries: action.maxRetries ?? state.maxRetries
       };
@@ -121,8 +134,7 @@ function workerReducer(state, action) {
   }
 }
 
-export const useMLWorker = () => {
-  const [state, dispatch] = useReducer(workerReducer, initialState);
+export const useMLWorker = () => {  const [state, dispatch] = useReducer(workerReducer, initialState);
   const { 
     history, 
     conversationTurns, 
@@ -200,6 +212,11 @@ export const useMLWorker = () => {
   }, [state.persona, state.culturalContext, prewarmSystemPrompt]);
 
   const initWorker = useCallback(() => {
+    // Explicitly reset the React state before re-initializing the worker
+    dispatch({ type: 'RESET_STATE' });
+    setIsRetryingState(false);
+    setIsRetryingLLMState(false);
+
     if (worker.current) {
       // Send terminate message to properly clean up the worker
       worker.current.postMessage({ type: 'terminate' });
@@ -219,6 +236,8 @@ export const useMLWorker = () => {
             dispatch({ 
               type: 'SET_ML_STATE', 
               mlState: mlStateData.state,
+              sttFunctional: mlStateData.context.sttFunctional,
+              llmFunctional: mlStateData.context.llmFunctional,
               retryCount: mlStateData.context.retryCount,
               maxRetries: mlStateData.context.maxRetries
             });
@@ -587,6 +606,8 @@ export const useMLWorker = () => {
     retryLLMLoad, // Add the LLM retry function to the returned object
     isRetrying, // Add the STT retrying state to the returned object
     isRetryingLLM, // Add the LLM retrying state to the returned object
+    sttFunctional: state.sttFunctional,
+    llmFunctional: state.llmFunctional,
     prewarmLLM: () => {
       if (!worker.current) return;
       worker.current.postMessage({ type: 'prewarm_llm' });

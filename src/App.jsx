@@ -75,6 +75,8 @@ const App = () => {
     retryLLMLoad,
     isRetrying,
     isRetryingLLM,
+    sttFunctional,
+    llmFunctional,
     setTranscript,
     setSuggestion,
     setStatus,
@@ -455,6 +457,8 @@ const App = () => {
             retryLLMLoad={retryLLMLoad}
             isRetrying={isRetrying}
             isRetryingLLM={isRetryingLLM}
+            sttFunctional={sttFunctional}
+            llmFunctional={llmFunctional}
             mlState={mlState}
             onReset={() => {
               setHasInteracted(false);

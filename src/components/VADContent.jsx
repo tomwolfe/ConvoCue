@@ -301,6 +301,8 @@ const VADContent = ({
   retryLLMLoad,
   isRetrying,
   isRetryingLLM,
+  sttFunctional,
+  llmFunctional,
   mlState,
   onFullReset
 }) => {
@@ -556,16 +558,17 @@ const VADContent = ({
         />
       )}
 
-      {(vad.errored || vadError || error) && (
+      {(vad.errored || vadError || error || !sttFunctional || !llmFunctional) && (
         <div className="error-recovery" role="alert" aria-live="assertive">
-          <p>{error || vadError || "Microphone access error"}</p>
+          <p>{error || vadError || (!sttFunctional ? "Speech engine is unavailable" : !llmFunctional ? "Social Brain is unavailable" : "Microphone access error")}</p>
 
           {/* Memory pressure specific message */}
           {status && status.includes('deferred (Low Memory)') && (
             <p className="memory-pressure-note">Try closing other browser tabs or applications to free up memory.</p>
           )}
 
-          {status === 'Speech recognition unavailable - running in text-only mode' && retrySTTLoad && (
+          {/* STT Retry Button: Show if STT is not functional and we are in a state that allows recovery */}
+          {!sttFunctional && retrySTTLoad && (
             <>
               <button className="btn-retry" onClick={retrySTTLoad} aria-label="Retry Speech Recognition" disabled={isRetrying}>
                 {isRetrying ? <Loader2 className="animate-spin" size={18} aria-hidden="true" /> : <RefreshCw size={18} aria-hidden="true" />}
@@ -580,7 +583,9 @@ const VADContent = ({
               )}
             </>
           )}
-          {(error && (error.includes('AI model failed to load') || error.includes('Social Brain failed to load'))) && (
+
+          {/* LLM Retry Button: Show if LLM is not functional and we have STT or are in text-only mode */}
+          {!llmFunctional && retryLLMLoad && (
             <>
               <button className="btn-retry" onClick={retryLLMLoad} aria-label="Retry AI Model" disabled={isRetryingLLM}>
                 {isRetryingLLM ? <Loader2 className="animate-spin" size={18} aria-hidden="true" /> : <RefreshCw size={18} aria-hidden="true" />}
