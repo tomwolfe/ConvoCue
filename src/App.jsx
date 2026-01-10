@@ -346,7 +346,7 @@ const App = () => {
                 aria-describedby="setup-instruction"
               >
                 {isReady ? <Mic size={24} aria-hidden="true" /> : <Loader2 className="animate-spin" size={24} aria-hidden="true" />}
-                <span>{isReady ? "Start ConvoCue" : "Warming Up..."}</span>
+                <span>{isReady ? "Start ConvoCue" : "Initializing..."}</span>
               </button>
 
               {/* Added quick tips section */}

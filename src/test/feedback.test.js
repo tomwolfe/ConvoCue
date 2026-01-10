@@ -1,29 +1,32 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { submitFeedback, getFeedbackStats, getPreferredPersonaFromFeedback, getDislikedPhrases, clearFeedbackData } from '../utils/feedback';
-import { decryptData, encryptData } from '../utils/encryption';
+import { decryptData } from '../utils/encryption';
 
 // Mock the encryption functions for testing in Node.js environment
 vi.mock('../utils/encryption', async () => {
-  const actual = await vi.importActual('../utils/encryption');
+  const mockEncryptData = async (data) => {
+    // Simple mock encryption for testing - just JSON stringify and encode
+    return Buffer.from(JSON.stringify(data)).toString('base64');
+  };
+
+  const mockDecryptData = async (encryptedData) => {
+    // Simple mock decryption for testing - just decode and parse
+    try {
+      const decoded = Buffer.from(encryptedData, 'base64').toString('utf-8');
+      return JSON.parse(decoded);
+    } catch (e) {
+      console.error('Mock decryption failed:', e);
+      return null;
+    }
+  };
+
   return {
-    ...actual,
-    encryptData: vi.fn(async (data) => {
-      // Simple mock encryption for testing - just JSON stringify and encode
-      return Buffer.from(JSON.stringify(data)).toString('base64');
-    }),
-    decryptData: vi.fn(async (encryptedData) => {
-      // Simple mock decryption for testing - just decode and parse
-      try {
-        const decoded = Buffer.from(encryptedData, 'base64').toString('utf-8');
-        return JSON.parse(decoded);
-      } catch (e) {
-        console.error('Mock decryption failed:', e);
-        return null;
-      }
-    }),
+    isCryptoAvailable: vi.fn(() => false), // Mock to return false to force mock implementations
+    encryptData: vi.fn(mockEncryptData),
+    decryptData: vi.fn(mockDecryptData),
     secureLocalStorageSet: vi.fn(async (key, data) => {
       // Mock secure storage by storing directly in localStorage after "encryption"
-      const encrypted = await encryptData(data);
+      const encrypted = await mockEncryptData(data);
       localStorage.setItem(key, encrypted);
     }),
     secureLocalStorageGet: vi.fn(async (key, defaultValue = null) => {
@@ -31,7 +34,7 @@ vi.mock('../utils/encryption', async () => {
       const encryptedData = localStorage.getItem(key);
       if (!encryptedData) return defaultValue;
       try {
-        return await decryptData(encryptedData);
+        return await mockDecryptData(encryptedData);
       } catch (e) {
         console.error('Mock secure get failed:', e);
         return defaultValue;

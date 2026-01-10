@@ -130,11 +130,11 @@ describe('App Component - New UI Components', () => {
   describe('Setup Tips Component', () => {
     it('renders the setup tips section with correct heading and accessibility attributes', () => {
       render(<App />);
-      
+
       // Check that the setup tips section exists with correct role
       const setupTipsSection = screen.getByRole('complementary');
       expect(setupTipsSection).toBeInTheDocument();
-      
+
       // Check that the heading exists
       const heading = screen.getByText(/What to expect:/i);
       expect(heading).toBeInTheDocument();
@@ -143,17 +143,17 @@ describe('App Component - New UI Components', () => {
 
     it('displays all three setup tips with correct content and accessibility attributes', () => {
       render(<App />);
-      
+
       // Check for the first tip: Real-time conversation suggestions
       const realTimeSuggestionsTip = screen.getByLabelText(/real-time conversation suggestions/i);
       expect(realTimeSuggestionsTip).toBeInTheDocument();
       expect(realTimeSuggestionsTip).toHaveTextContent(/Real-time conversation suggestions/i);
-      
+
       // Check for the second tip: 100% on-device privacy
       const privacyTip = screen.getByLabelText(/100% on-device privacy/i);
       expect(privacyTip).toBeInTheDocument();
       expect(privacyTip).toHaveTextContent(/100% on-device privacy/i);
-      
+
       // Check for the third tip: Adaptive to your communication style
       const adaptiveTip = screen.getByLabelText(/adaptive to your communication style/i);
       expect(adaptiveTip).toBeInTheDocument();
@@ -187,4 +187,5 @@ describe('App Component - New UI Components', () => {
       expect(activityIcon).toHaveClass('lucide-activity');
     });
   });
+
 });
