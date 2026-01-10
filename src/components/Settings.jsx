@@ -48,6 +48,7 @@ const Settings = ({ isOpen, onClose }) => {
   });
 
   const [activeTab, setActiveTab] = useState('personalization');
+  const [showCalibrationModal, setShowCalibrationModal] = useState(false);
 
   useEffect(() => {
     // Load settings from secure storage
@@ -103,31 +104,35 @@ const Settings = ({ isOpen, onClose }) => {
     const val = parseInt(value);
     const otherKeys = Object.keys(weights).filter(k => k !== key);
 
-    // Simple logic to distribute the remaining percentage among other weights
+    // Calculate the remaining percentage after changing one weight
     const remaining = 100 - val;
-    const currentOthersSum = weights[otherKeys[0]] + weights[otherKeys[1]];
 
-    let newWeights;
+    // Calculate the sum of all other weights
+    const currentOthersSum = otherKeys.reduce((sum, k) => sum + weights[k], 0);
+
+    let newWeights = { ...weights, [key]: val };
+
     if (currentOthersSum === 0) {
-      newWeights = {
-        ...weights,
-        [key]: val,
-        [otherKeys[0]]: Math.floor(remaining / 2),
-        [otherKeys[1]]: Math.ceil(remaining / 2)
-      };
+      // If all other weights are 0, distribute equally
+      otherKeys.forEach((k, i) => {
+        if (i === otherKeys.length - 1) {
+          // Adjust the last weight to ensure sum is exactly 100
+          newWeights[k] = remaining - otherKeys.slice(0, i).reduce((sum, key) => sum + newWeights[key], 0);
+        } else {
+          newWeights[k] = Math.floor(remaining / otherKeys.length);
+        }
+      });
     } else {
-      newWeights = {
-        ...weights,
-        [key]: val,
-        [otherKeys[0]]: Math.round((weights[otherKeys[0]] / currentOthersSum) * remaining),
-        [otherKeys[1]]: Math.round((weights[otherKeys[1]] / currentOthersSum) * remaining)
-      };
-    }
-
-    // Ensure it sums exactly to 100
-    const sum = newWeights.satisfaction + newWeights.sentiment + newWeights.engagement;
-    if (sum !== 100) {
-      newWeights[otherKeys[1]] += (100 - sum);
+      // Distribute remaining percentage proportionally among other weights
+      otherKeys.forEach(k => {
+        if (k === otherKeys[otherKeys.length - 1]) {
+          // For the last key, calculate to ensure sum is exactly 100
+          const othersSum = otherKeys.slice(0, -1).reduce((sum, key) => sum + newWeights[key], 0);
+          newWeights[k] = remaining - othersSum;
+        } else {
+          newWeights[k] = Math.round((weights[k] / currentOthersSum) * remaining);
+        }
+      });
     }
 
     setWeights(newWeights);
@@ -381,11 +386,7 @@ const Settings = ({ isOpen, onClose }) => {
                         onClick={() => {
                           const feedback = window.confirm("Score Calibration: If your score feels too high or low, we can adjust weights. Do you want to set weights based on your recent conversation success?");
                           if (feedback) {
-                            // Simple calibration: ask user which factor matters most
-                            const preference = window.prompt("Which matters most to you? Type '1' for Satisfaction, '2' for Emotional Tone, '3' for Frequency of use.");
-                            if (preference === '1') handleWeightChange('satisfaction', 70);
-                            else if (preference === '2') handleWeightChange('sentiment', 70);
-                            else if (preference === '3') handleWeightChange('engagement', 70);
+                            setShowCalibrationModal(true);
                           }
                         }}
                       >
@@ -708,6 +709,51 @@ const Settings = ({ isOpen, onClose }) => {
             </div>
             <div className="sub-modal-footer">
               <button className="btn btn-primary btn-block" onClick={() => setShowDataUsageModal(false)}>Got it</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCalibrationModal && (
+        <div className="settings-sub-modal-overlay" onClick={() => setShowCalibrationModal(false)}>
+          <div className="settings-sub-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="settings-header">
+              <h3>Score Calibration</h3>
+              <button className="close-btn" onClick={() => setShowCalibrationModal(false)}>
+                <X size={18} />
+              </button>
+            </div>
+            <div className="sub-modal-content">
+              <p>Which factor matters most to you in your communication success?</p>
+              <div className="calibration-options">
+                <button
+                  className="btn btn-outline btn-block"
+                  onClick={() => {
+                    handleWeightChange('satisfaction', 70);
+                    setShowCalibrationModal(false);
+                  }}
+                >
+                  Satisfaction Focus
+                </button>
+                <button
+                  className="btn btn-outline btn-block"
+                  onClick={() => {
+                    handleWeightChange('sentiment', 70);
+                    setShowCalibrationModal(false);
+                  }}
+                >
+                  Emotional Tone Focus
+                </button>
+                <button
+                  className="btn btn-outline btn-block"
+                  onClick={() => {
+                    handleWeightChange('engagement', 70);
+                    setShowCalibrationModal(false);
+                  }}
+                >
+                  Interaction Frequency Focus
+                </button>
+              </div>
             </div>
           </div>
         </div>

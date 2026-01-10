@@ -3193,3 +3193,16 @@ input:checked + .slider:before {
     box-shadow: 0 0 0 0 rgba(124, 58, 237, 0);
   }
 }
+
+
+/* Calibration modal styles */
+.calibration-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.calibration-options .btn {
+  margin-bottom: 0.5rem;
+}
