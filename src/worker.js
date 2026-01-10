@@ -127,6 +127,49 @@ self.onmessage = async (event) => {
             };
         }
 
+        if (type === 'retry_stt_load') {
+            try {
+                // Attempt to load STT model with proper error handling
+                if (!MLPipeline.stt) {
+                    // Add timeout for STT loading on resource-constrained devices
+                    const timeoutPromise = new Promise((_, reject) => {
+                        setTimeout(() => reject(new Error('STT model loading timed out')), AppConfig.system.processingTimeout);
+                    });
+
+                    const loadPromise = pipelineManager.loadSTT((p) => throttledProgress(p, 'Speech Engine', taskId));
+
+                    // Race between loading and timeout
+                    await Promise.race([loadPromise, timeoutPromise]);
+
+                    // Double-check that STT was actually loaded after the call
+                    if (!MLPipeline.stt) {
+                        throw new Error("STT model failed to load after initialization attempt");
+                    }
+
+                    // Notify success
+                    messenger.postMessage({
+                        type: 'status',
+                        status: 'Speech Engine loaded successfully',
+                        taskId
+                    });
+                } else {
+                    // STT is already loaded, notify ready
+                    messenger.postMessage({
+                        type: 'ready',
+                        taskId,
+                        status: 'Speech Engine already loaded'
+                    });
+                }
+            } catch (loadError) {
+                console.error("Retry STT load failed:", loadError);
+                messenger.postMessage({
+                    type: 'error',
+                    error: `Speech recognition model failed to load: ${loadError.message || 'Unknown error'}`,
+                    taskId
+                });
+            }
+        }
+
         if (type === 'stt') {
             // Ensure STT is loaded with proper error handling
             if (!MLPipeline.stt) {
@@ -162,7 +205,6 @@ self.onmessage = async (event) => {
             const audioStartTime = performance.now();
             const audioData = audio instanceof Float32Array ? audio : new Float32Array(Object.values(audio));
 
-            // Final check before using the STT model to prevent "mt.stt is not a function" error
             if (!MLPipeline.stt) {
                 console.error("STT model is unexpectedly null during processing");
                 messenger.postMessage({

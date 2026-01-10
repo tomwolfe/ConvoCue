@@ -431,6 +431,20 @@ export const useMLWorker = () => {
     });
   }, [state.transcript, state.isProcessing, history, state.persona, state.culturalContext, prefsCache]); // Optimized: No 'settings' dependency
 
+  const retrySTTLoad = useCallback(() => {
+    if (!worker.current) return;
+
+    // Reset error state before attempting to reload
+    dispatch({ type: 'SET_STATUS', status: 'Retrying to load Speech Engine...' });
+    dispatch({ type: 'SET_ERROR', error: null });
+
+    // Send a message to the worker to attempt reloading STT
+    worker.current.postMessage({
+      type: 'retry_stt_load',
+      taskId: `retry-${Date.now()}`
+    });
+  }, [dispatch]);
+
   return {
     ...state,
     history,
@@ -438,10 +452,11 @@ export const useMLWorker = () => {
     conversationSentiment,
     processAudio,
     refreshSuggestion,
+    retrySTTLoad, // Add the retry function to the returned object
     prewarmLLM: () => {
       if (!worker.current) return;
       worker.current.postMessage({ type: 'prewarm_llm' });
-      
+
       // Also pre-warm the system prompt immediately if we're ready
       if (stateRef.current.isReady) {
         prewarmSystemPrompt();
