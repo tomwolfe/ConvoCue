@@ -20,6 +20,22 @@ vi.mock('../utils/encryption', async () => {
         console.error('Mock decryption failed:', e);
         return null;
       }
+    }),
+    secureLocalStorageSet: vi.fn(async (key, data) => {
+      // Mock secure storage by storing directly in localStorage after "encryption"
+      const encrypted = await encryptData(data);
+      localStorage.setItem(key, encrypted);
+    }),
+    secureLocalStorageGet: vi.fn(async (key, defaultValue = null) => {
+      // Mock secure retrieval by getting from localStorage and "decrypting"
+      const encryptedData = localStorage.getItem(key);
+      if (!encryptedData) return defaultValue;
+      try {
+        return await decryptData(encryptedData);
+      } catch (e) {
+        console.error('Mock secure get failed:', e);
+        return defaultValue;
+      }
     })
   };
 });
