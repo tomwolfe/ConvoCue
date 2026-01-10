@@ -3,39 +3,23 @@
  * Ensures suggestions align with helpful, empathetic, and non-manipulative communication.
  */
 
-const HARMFUL_PATTERNS = [
-  /\bmanipulate\b/i,
-  /\bgaslight\b/i,
-  /\bdeceive\b/i,
-  /\btrick\b/i,
-  /\blie to\b/i,
-  /\bcoerce\b/i,
-  /\bforce them\b/i,
-  /\binsult\b/i
-];
+import { 
+  HARMFUL_PATTERNS, 
+  MANIPULATIVE_TACTICS, 
+  POSITIVE_ALTERNATIVES, 
+  DISMISSIVE_PATTERNS 
+} from '../config/socialEthicsConfig';
 
-const MANIPULATIVE_TACTICS = [
-  "make them feel guilty",
-  "use their weakness",
-  "threaten to leave",
-  "ignore their feelings"
-];
+// Pre-compiled combined regex for better performance
+const COMBINED_HARMFUL_REGEX = new RegExp(
+  HARMFUL_PATTERNS.map(p => `(${p.source})`).join('|'), 
+  'i'
+);
 
-// Positive alternatives for blocked suggestions
-const POSITIVE_ALTERNATIVES = {
-  'manipulate': 'Try expressing your needs directly and respectfully instead.',
-  'gaslight': 'Focus on validating their feelings and finding common ground.',
-  'deceive': 'Be honest about your thoughts and feelings.',
-  'trick': 'Consider having an open and honest conversation.',
-  'lie to': 'Share your perspective truthfully and respectfully.',
-  'coerce': 'Encourage them to make their own decision based on mutual respect.',
-  'force them': 'Give them space to come to their own conclusion.',
-  'insult': 'Express disagreement respectfully without attacking their character.',
-  'make them feel guilty': 'Try understanding their perspective first.',
-  'use their weakness': 'Address the situation with empathy and strength.',
-  'threaten to leave': 'Communicate your concerns without ultimatums.',
-  'ignore their feelings': 'Acknowledge their emotions before suggesting solutions.'
-};
+const COMBINED_MANIPULATIVE_REGEX = new RegExp(
+  MANIPULATIVE_TACTICS.map(t => `(${t})`).join('|'), 
+  'i'
+);
 
 /**
  * Validates a suggested response against safety and ethics standards.
@@ -46,47 +30,36 @@ const POSITIVE_ALTERNATIVES = {
 export const validateSocialSuggestion = (suggestion, context = '') => {
   if (!suggestion) return suggestion;
 
-  const lowerSuggestion = suggestion.toLowerCase();
-
   // Check if this is a discussion about manipulation rather than a recommendation
   const isDiscussionContext = /avoid|discuss|talk about|how not to|don'?t do|problem with|negative effect of/.test(context.toLowerCase());
 
-  // 1. Check for explicitly harmful patterns
-  for (const pattern of HARMFUL_PATTERNS) {
-    if (pattern.test(suggestion)) {
-      // If this is a discussion context, allow it
-      if (isDiscussionContext) {
-        return suggestion;
-      }
+  // 1. Check for explicitly harmful patterns (Optimized single pass)
+  const harmfulMatch = suggestion.match(COMBINED_HARMFUL_REGEX);
+  if (harmfulMatch && !isDiscussionContext) {
+    // Find which specific word matched for targeted feedback
+    const matchedWord = harmfulMatch[0].toLowerCase();
+    const alternative = POSITIVE_ALTERNATIVES[matchedWord] || 'Consider a more respectful approach.';
 
-      // Find which harmful word was matched to provide specific feedback
-      const matchedWord = Array.from(HARMFUL_PATTERNS.keys())
-        .map((_, i) => suggestion.match(HARMFUL_PATTERNS[i]))
-        .find(match => match);
-
-      if (matchedWord) {
-        const word = matchedWord[0].toLowerCase();
-        const alternative = POSITIVE_ALTERNATIVES[word] || 'Consider a more respectful approach.';
-
-        console.warn(`[EthicsGuard] Blocked harmful suggestion: ${suggestion}`);
-        return `I can't suggest that because it could be harmful. Instead, try: ${alternative}`;
-      }
-    }
+    console.warn(`[EthicsGuard] Blocked harmful suggestion. 
+Match: "${matchedWord}"
+Full Suggestion: "${suggestion}"
+Context: "${context}"
+If this is a false positive, please report it in Settings > Feedback.`);
+    return `I can't suggest that because it could be harmful. Instead, try: ${alternative}`;
   }
 
-  // 2. Check for manipulative tactics
-  for (const tactic of MANIPULATIVE_TACTICS) {
-    if (lowerSuggestion.includes(tactic)) {
-      // If this is a discussion context, allow it
-      if (isDiscussionContext) {
-        return suggestion;
-      }
+  // 2. Check for manipulative tactics (Optimized single pass)
+  const manipulativeMatch = suggestion.match(COMBINED_MANIPULATIVE_REGEX);
+  if (manipulativeMatch && !isDiscussionContext) {
+    const matchedTactic = manipulativeMatch[0].toLowerCase();
+    const alternative = POSITIVE_ALTERNATIVES[matchedTactic] || 'Consider a more respectful approach.';
 
-      const alternative = POSITIVE_ALTERNATIVES[tactic] || 'Consider a more respectful approach.';
-
-      console.warn(`[EthicsGuard] Blocked manipulative suggestion: ${suggestion}`);
-      return `I can't suggest that because it could be harmful. Instead, try: ${alternative}`;
-    }
+    console.warn(`[EthicsGuard] Blocked manipulative suggestion.
+Match: "${matchedTactic}"
+Full Suggestion: "${suggestion}"
+Context: "${context}"
+If this is a false positive, please report it in Settings > Feedback.`);
+    return `I can't suggest that because it could be harmful. Instead, try: ${alternative}`;
   }
 
   return suggestion;
@@ -96,18 +69,13 @@ export const validateSocialSuggestion = (suggestion, context = '') => {
  * Analyzes the intent of a suggestion to ensure it promotes empathy.
  */
 export const promoteEmpathy = (suggestion, detectedEmotion) => {
-  // If the other person is sad or angry, ensure the suggestion isn't dismissive
-  const dismissivePatterns = [
-    { pattern: /get over it/i, replacement: "I understand you want them to move on. Before doing that, it might help to first acknowledge how deeply they're feeling this sadness." },
-    { pattern: /calm down/i, replacement: "Instead of telling them to calm down, try acknowledging their feelings first and giving them space to express themselves." },
-    { pattern: /it's not a big deal/i, replacement: "What seems like a small thing to you might feel significant to them. Try validating their feelings first." }
-  ];
+  if (!suggestion || (detectedEmotion !== 'sadness' && detectedEmotion !== 'anger')) {
+    return suggestion;
+  }
 
-  if (detectedEmotion === 'sadness' || detectedEmotion === 'anger') {
-    for (const { pattern, replacement } of dismissivePatterns) {
-      if (pattern.test(suggestion)) {
-        return replacement;
-      }
+  for (const { pattern, replacement } of DISMISSIVE_PATTERNS) {
+    if (pattern.test(suggestion)) {
+      return replacement;
     }
   }
 

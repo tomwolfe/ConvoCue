@@ -4,6 +4,7 @@
  */
 
 import { secureLocalStorageSet } from './encryption';
+import { resetConversationManager } from '../conversationManager';
 
 /**
  * Securely wipes a string or object from memory by overwriting it
@@ -45,6 +46,9 @@ export const clearAllSessionData = async () => {
   // Clear any non-encrypted legacy keys if they exist
   localStorage.removeItem('convocue_history_backup');
   sessionStorage.clear();
+  
+  // Clear in-memory buffers
+  resetConversationManager();
   
   console.log('[Privacy] Session data purged.');
 };

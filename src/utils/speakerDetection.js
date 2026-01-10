@@ -573,6 +573,12 @@ export class ConversationTurnManager {
     this.currentTurn = null;
     this.lastSpeaker = 'user';
     this.lastSpeechTime = 0;
+    this.silenceHistory = [];
+    this.noiseFloorEstimator = null;
+    this.profiles = {
+      user: new SpeakerProfile('user'),
+      other: new SpeakerProfile('other')
+    };
   }
 
   /**

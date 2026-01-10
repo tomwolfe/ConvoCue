@@ -27,6 +27,12 @@ describe('Social Ethics Guardrail', () => {
       expect(result).toBe(suggestion); // Should be allowed in discussion context
     });
 
+    it('should block the first harmful pattern found when multiple exist', () => {
+      const suggestion = 'You should manipulate and gaslight them.';
+      const result = validateSocialSuggestion(suggestion);
+      expect(result).toContain('I can\'t suggest that because it could be harmful. Instead, try: Try expressing your needs directly and respectfully instead.');
+    });
+
     it('should return null/empty if input is null/empty', () => {
       expect(validateSocialSuggestion('')).toBe('');
       expect(validateSocialSuggestion(null)).toBe(null);
