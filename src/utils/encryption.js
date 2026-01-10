@@ -2,9 +2,13 @@
  * @fileoverview Encryption utilities for secure data storage using Web Crypto API
  */
 
+// Import crypto-js for fallback in non-browser environments
+import CryptoJS from 'crypto-js';
+
 // Key for encryption - in a real app, this should be derived from a user secret
 // For this prototype, we'll use a fixed but more secure approach than btoa
 const ENCRYPTION_KEY_ID = 'convocue_storage_key';
+const CRYPTO_JS_KEY = 'convocue_cryptojs_key';
 
 /**
  * Checks if Web Crypto API is available
@@ -19,8 +23,21 @@ function isCryptoAvailable() {
     }
   }
 
-  // For test environments or Node.js, we'll return false to use the fallback
   return false;
+}
+
+/**
+ * Gets or generates a fallback encryption key for crypto-js
+ * @returns {string}
+ */
+function getCryptoJSKey() {
+  let key = localStorage.getItem(CRYPTO_JS_KEY);
+  if (!key) {
+    // Generate a random key
+    key = CryptoJS.lib.WordArray.random(256/8).toString();
+    localStorage.setItem(CRYPTO_JS_KEY, key);
+  }
+  return key;
 }
 
 /**
@@ -71,11 +88,21 @@ async function getEncryptionKey() {
  */
 export const encryptData = async (data) => {
   try {
-    // If crypto is not available, use a simple fallback for testing
+    // If crypto is not available, use crypto-js as fallback
     if (!isCryptoAvailable()) {
-      // For testing environments, just return base64 encoded JSON
-      // This maintains compatibility with the decryptData fallback
-      return btoa(JSON.stringify(data));
+      console.warn('Web Crypto API not available. Using crypto-js fallback for encryption.');
+      try {
+        // Use crypto-js for encryption in non-browser environments
+        const key = getCryptoJSKey();
+        const ciphertext = CryptoJS.AES.encrypt(JSON.stringify(data), key).toString();
+        // Return the ciphertext as is (crypto-js already handles encoding)
+        return ciphertext;
+      } catch (fallbackError) {
+        console.error('Crypto-js encryption failed:', fallbackError);
+        // As a last resort, return base64 encoded JSON (not secure)
+        console.warn('Falling back to base64 encoding (not encrypted) as final fallback.');
+        return btoa(JSON.stringify(data));
+      }
     }
 
     const key = await getEncryptionKey();
@@ -110,8 +137,22 @@ export const decryptData = async (encryptedDataBase64) => {
   try {
     if (!encryptedDataBase64) return null;
 
-    // If crypto is not available, use a simple fallback for testing
+    // If crypto is not available, try crypto-js decryption first, then fallback
     if (!isCryptoAvailable()) {
+      try {
+        // First, try to decrypt with crypto-js (most likely case when Web Crypto is unavailable)
+        const key = getCryptoJSKey();
+        const bytes = CryptoJS.AES.decrypt(encryptedDataBase64, key);
+        const decryptedData = bytes.toString(CryptoJS.enc.Utf8);
+
+        if (decryptedData) {
+          return JSON.parse(decryptedData);
+        }
+      } catch (cryptoJsError) {
+        console.error('Crypto-js decryption failed:', cryptoJsError);
+      }
+
+      // If crypto-js fails, try the original base64 fallback
       try {
         // For testing environments, just decode the base64 JSON
         return JSON.parse(atob(encryptedDataBase64));

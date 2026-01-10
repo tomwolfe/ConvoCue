@@ -323,8 +323,8 @@ const App = () => {
                 {/* Enhanced loading information */}
                 <div className="loading-details">
                   <p className="loading-step">{status}</p>
-                  <div className="loading-hint">
-                    <Info size={14} className="hint-icon" />
+                  <div className="loading-hint" role="note" aria-label="Loading tip">
+                    <Info size={14} className="hint-icon" aria-hidden="true" />
                     <p>Tip: ConvoCue runs entirely on your device for privacy. Initial setup may take a moment.</p>
                   </div>
                 </div>
@@ -350,12 +350,12 @@ const App = () => {
               </button>
 
               {/* Added quick tips section */}
-              <div className="setup-tips">
-                <h3>What to expect:</h3>
-                <ul>
-                  <li><Zap size={16} /> Real-time conversation suggestions</li>
-                  <li><ShieldAlert size={16} /> 100% on-device privacy</li>
-                  <li><Activity size={16} /> Adaptive to your communication style</li>
+              <div className="setup-tips" role="complementary" aria-labelledby="setup-tips-title">
+                <h3 id="setup-tips-title">What to expect:</h3>
+                <ul aria-label="ConvoCue features and capabilities">
+                  <li aria-label="Real-time conversation suggestions"><Zap size={16} aria-hidden="true" /> Real-time conversation suggestions</li>
+                  <li aria-label="100% on-device privacy"><ShieldAlert size={16} aria-hidden="true" /> 100% on-device privacy</li>
+                  <li aria-label="Adaptive to your communication style"><Activity size={16} aria-hidden="true" /> Adaptive to your communication style</li>
                 </ul>
               </div>
             </div>

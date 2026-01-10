@@ -64,6 +64,7 @@ ConvoCue is a privacy-first, on-device AI conversation assistant that provides r
     - **Data Portability**: Full control to export or hard-reset your conversation history and learned data.
     - **Secure Local Storage**: Client-side encryption for all persistent user data.
     - **Structured Transparency**: Detailed logs showing exactly how your data is used.
+    - **Encryption Fallback Notice**: When Web Crypto API is unavailable (e.g., in test environments), a fallback mechanism stores data as base64-encoded JSON strings. This provides no security and should not be used in production for sensitive data.
 - **User Experience**:
     - **Interactive Onboarding**: Guided tutorial for new users.
     - **Performance Diagnostics**: Real-time monitoring of system health, inference latency, and VAD performance.
