@@ -417,7 +417,15 @@ export const useMLWorker = () => {
     conversationSentiment,
     processAudio,
     refreshSuggestion,
-    prewarmLLM: () => worker.current?.postMessage({ type: 'prewarm_llm' }),
+    prewarmLLM: () => {
+      if (!worker.current) return;
+      worker.current.postMessage({ type: 'prewarm_llm' });
+      
+      // Also pre-warm the system prompt immediately if we're ready
+      if (stateRef.current.isReady) {
+        prewarmSystemPrompt();
+      }
+    },
     setTranscript: (text) => dispatch({ type: 'SET_TRANSCRIPT', text }),
     setSuggestion: (text) => dispatch({ type: 'SET_SUGGESTION', text }),
     setStatus: (status) => dispatch({ type: 'SET_STATUS', status }),

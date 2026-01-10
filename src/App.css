@@ -1077,6 +1077,24 @@ header.compact .subtitle {
 .suggestion.thinking {
   animation: breathe 2s ease-in-out infinite;
   border-left-color: var(--primary-light);
+  position: relative;
+}
+
+.suggestion.thinking::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: var(--primary);
+  animation: streaming-progress 2s linear infinite;
+  border-radius: 0 0 0 20px;
+}
+
+@keyframes streaming-progress {
+  0% { width: 0; opacity: 0.5; }
+  50% { width: 50%; opacity: 1; }
+  100% { width: 100%; opacity: 0.5; }
 }
 
 @keyframes breathe {
