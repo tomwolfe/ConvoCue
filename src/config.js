@@ -146,6 +146,22 @@ export const AppConfig = {
       tokenToCharRatio: 4 // Approximation: 1 token ≈ 4 characters
     },
 
+    // Haptic Feedback Patterns
+    haptics: {
+      intentMap: {
+        'CONFLICT': 'CONFLICT',
+        'ACTION_ITEM': 'ACTION',
+        'ACTION': 'ACTION',
+        'QUESTION': 'QUESTION',
+        'STRATEGIC': 'TRANSITION',
+        'NEGOTIATION': 'TRANSITION',
+        'EMPATHY': 'EMPATHY',
+        'SUCCESS': 'SUCCESS',
+        'AGREEMENT': 'SUCCESS',
+        'SUGGESTION': 'SUGGESTION'
+      }
+    },
+
     // Persona Orchestration settings
     orchestrator: {
       stickyCooldownMs: 30000,

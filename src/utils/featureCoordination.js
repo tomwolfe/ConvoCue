@@ -78,10 +78,16 @@ export const resolveFeatureConflicts = (insights, persona) => {
   // Boost priority of the active persona to ensure it takes precedence in conflict resolution.
   const activePersonaFeature = PERSONA_TO_FEATURE_MAP[persona] || null;
 
+  /**
+   * Calculates the priority of a feature, applying a boost if it matches the active persona.
+   * @param {string} feature - The feature key
+   * @returns {number} The numeric priority value
+   */
   const getPriority = (feature) => {
-    let priority = FEATURE_PRIORITIES[feature] || 0;
+    // Ensure priority is always a number to prevent NaN in multiplication
+    let priority = Number(FEATURE_PRIORITIES[feature]) || 0;
     if (activePersonaFeature === feature) {
-      priority *= 2; // 2x weight boost for active persona
+      priority *= 2; // 2x weight boost for active persona to ensure cohesive coaching
     }
     return priority;
   };

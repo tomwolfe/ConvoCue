@@ -135,6 +135,10 @@ export const usePersonaOrchestration = (currentPersona, settings, historyRef, di
     
     // Record this as a manual preference to boost this persona in subsequent turns
     manualPreferenceRef.current = { persona: newPersona, timestamp: now };
+
+    // Reset sticky cooldown on manual change to ensure the user's choice is respected
+    // for at least the sticky duration.
+    lastAutoSwitchTimestampRef.current = now;
     
     // If user switches away from an auto-switched persona within 15 seconds
     if (lastSwitch.time > 0 && (now - lastSwitch.time < 15000) && newPersona !== lastSwitch.to) {

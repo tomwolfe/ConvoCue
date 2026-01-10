@@ -1,4 +1,5 @@
 import { parseSemanticTags } from './intentRecognition';
+import { AppConfig } from '../config';
 
 let lastVibrationTime = 0;
 const COOLDOWN_MS = 1500;
@@ -52,29 +53,11 @@ export const provideIntentHaptics = (intent) => {
   if (!settings.enabled) return;
 
   const upperIntent = intent.toUpperCase();
-  let pattern = VIBRATION_PATTERNS.SUGGESTION;
-  let intentType = 'SUGGESTION';
-
-  // Direct mapping for speed
-  if (upperIntent === 'CONFLICT') {
-    pattern = VIBRATION_PATTERNS.CONFLICT;
-    intentType = 'CONFLICT';
-  } else if (upperIntent === 'ACTION_ITEM' || upperIntent === 'ACTION') {
-    pattern = VIBRATION_PATTERNS.ACTION;
-    intentType = 'ACTION';
-  } else if (upperIntent === 'QUESTION') {
-    pattern = VIBRATION_PATTERNS.QUESTION;
-    intentType = 'QUESTION';
-  } else if (upperIntent === 'STRATEGIC' || upperIntent === 'NEGOTIATION') {
-    pattern = VIBRATION_PATTERNS.TRANSITION;
-    intentType = 'STRATEGIC';
-  } else if (upperIntent === 'EMPATHY') {
-    pattern = VIBRATION_PATTERNS.EMPATHY;
-    intentType = 'EMPATHY';
-  } else if (upperIntent === 'SUCCESS' || upperIntent === 'AGREEMENT') {
-    pattern = VIBRATION_PATTERNS.SUCCESS;
-    intentType = 'SUCCESS';
-  }
+  const intentMap = AppConfig.system.haptics?.intentMap || {};
+  const patternKey = intentMap[upperIntent] || 'SUGGESTION';
+  
+  const pattern = VIBRATION_PATTERNS[patternKey] || VIBRATION_PATTERNS.SUGGESTION;
+  const intentType = patternKey;
 
   if (isHapticSupported()) {
     try {
