@@ -1,6 +1,6 @@
 import { pipeline, env } from '@huggingface/transformers';
 import { AppConfig } from '../config';
-import { getOptimalModelConfig, checkMemoryAdequacy as importedCheckMemoryAdequacy, deviceCaps } from '../utils/performanceOptimizer';
+import { getOptimalModelConfig, checkMemoryAdequacy, deviceCaps } from '../utils/performanceOptimizer';
 import { WorkerMessenger } from './Messenger';
 
 env.allowLocalModels = false;
@@ -314,7 +314,5 @@ export class MLPipeline {
     }
 }
 
-// Export checkMemoryAdequacy for use in other modules
-export { importedCheckMemoryAdequacy as checkMemoryAdequacy };
 
 
