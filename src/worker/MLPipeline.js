@@ -388,16 +388,15 @@ export class MLPipeline {
         return MLPipeline.stateMachine.isInState(state);
     }
 
-    static isReadyForProcessing() {
+      static isReadyForProcessing() {
         return MLPipeline.stateMachine.isReadyForProcessing();
-    }
-
-    static isModelLoaded(modelType) {
-        return MLPipeline.stateMachine.isModelLoaded(modelType);
-    }
-
-    static transitionState(transition, context = {}) {
-        return MLPipeline.stateMachine.transition(transition, context);
+      }
+    
+      static isModelFunctional(modelType) {
+        return MLPipeline.stateMachine.isModelFunctional(modelType);
+      }
+    
+      static transitionState(transition, context = {}) {        return MLPipeline.stateMachine.transition(transition, context);
     }
 
     static resetStateMachine() {

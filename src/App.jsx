@@ -91,6 +91,9 @@ const App = () => {
 
   const [micPermissionError, setMicPermissionError] = useState(null);
 
+  // Derived readiness state from ML FSM
+  const isReadyForUse = mlState === ML_STATES.READY || mlState === ML_STATES.TEXT_ONLY_MODE;
+
   useEffect(() => {
     if (isDyslexicFriendly) {
       document.body.classList.add('dyslexic-mode');
@@ -313,11 +316,11 @@ const App = () => {
         {!hasInteracted ? (
           <main className="initial-screen">
             <div
-              className={`status-badge ${!isReady ? 'processing' : ''}`}
+              className={`status-badge ${!isReadyForUse ? 'processing' : ''}`}
               role="status"
               aria-live="polite"
             >
-              {!isReady ? <Loader2 className="animate-spin" size={16} aria-hidden="true" /> : <div className="dot" aria-hidden="true" />}
+              {!isReadyForUse ? <Loader2 className="animate-spin" size={16} aria-hidden="true" /> : <div className="dot" aria-hidden="true" />}
               <span>{status}</span>
             </div>
 
@@ -369,14 +372,14 @@ const App = () => {
               </div>
 
               <button
-                className={`btn-main ${!isReady ? 'disabled' : 'pulse'}`}
+                className={`btn-main ${!isReadyForUse ? 'disabled' : 'pulse'}`}
                 onClick={handleStart}
-                disabled={!isReady}
-                aria-label={isReady ? "Start ConvoCue" : "Initializing ConvoCue"}
+                disabled={!isReadyForUse}
+                aria-label={isReadyForUse ? "Start ConvoCue" : "Initializing ConvoCue"}
                 aria-describedby="setup-instruction"
               >
-                {isReady ? <Mic size={24} aria-hidden="true" /> : <Loader2 className="animate-spin" size={24} aria-hidden="true" />}
-                <span>{isReady ? "Start ConvoCue" : "Initializing..."}</span>
+                {isReadyForUse ? <Mic size={24} aria-hidden="true" /> : <Loader2 className="animate-spin" size={24} aria-hidden="true" />}
+                <span>{isReadyForUse ? "Start ConvoCue" : "Initializing..."}</span>
               </button>
 
               {/* Added quick tips section */}
@@ -390,7 +393,7 @@ const App = () => {
               </div>
 
               {/* Loading optimization message */}
-              {!isReady && (
+              {!isReadyForUse && (
                 <div className="loading-optimization-message" role="status" aria-live="polite">
                   <p>Optimizing for your device... This may take 1-2 minutes on first use</p>
                 </div>
@@ -421,7 +424,6 @@ const App = () => {
         ) : (
           <VADContent
             status={status}
-            isReady={isReady}
             error={error}
             transcript={transcript}
             suggestion={suggestion}

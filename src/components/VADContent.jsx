@@ -270,7 +270,6 @@ const AudioVisualizer = ({ isActive, analyser, isCompactMode }) => {
 
 const VADContent = ({
   status,
-  isReady,
   error,
   transcript,
   suggestion,
@@ -447,7 +446,7 @@ const VADContent = ({
   };
 
   const handleManualTrigger = () => {
-    if (!vad || vad.loading || (vad.errored && !vadError)) return;
+    if (!vad || vad.loading || (vad.errored && !vadError) || mlState !== ML_STATES.READY) return;
     if (vad.listening && !isVADMode) {
       vad.pause();
       setStatus('Ready');
@@ -546,7 +545,6 @@ const VADContent = ({
 
       {!showMinimalUI && (
         <ControlPanel
-          isReady={isReady}
           isVADMode={isVADMode}
           vadLoading={vad.loading}
           vadErrored={vad.errored}

@@ -168,7 +168,7 @@ self.onmessage = async (event) => {
                     await Promise.race([loadPromise, timeoutPromise]);
 
                     // Double-check that STT was actually loaded after the call
-                    if (!MLPipeline.stt || !MLPipeline.isModelLoaded('stt')) {
+                    if (!MLPipeline.stt || !MLPipeline.isModelFunctional('stt')) {
                         throw new Error("STT model failed to load after initialization attempt");
                     }
 
@@ -232,7 +232,7 @@ self.onmessage = async (event) => {
                     await Promise.race([loadPromise, timeoutPromise]);
 
                     // Double-check that LLM was actually loaded after the call
-                    if (!MLPipeline.llm || !MLPipeline.isModelLoaded('llm')) {
+                    if (!MLPipeline.llm || !MLPipeline.isModelFunctional('llm')) {
                         throw new Error("LLM model failed to load after initialization attempt");
                     }
 
@@ -293,7 +293,7 @@ self.onmessage = async (event) => {
                     await Promise.race([loadPromise, timeoutPromise]);
 
                     // Double-check that STT was actually loaded after the call
-                    if (!MLPipeline.stt || !MLPipeline.isModelLoaded('stt')) {
+                    if (!MLPipeline.stt || !MLPipeline.isModelFunctional('stt')) {
                         throw new Error("STT model failed to load after initialization attempt");
                     }
                 } catch (loadError) {
@@ -419,7 +419,7 @@ self.onmessage = async (event) => {
                     await pipelineManager.loadLLM((p) => throttledProgress(p, 'Social Brain', taskId));
 
                     // Double-check that LLM was actually loaded after the call
-                    if (!MLPipeline.llm || !MLPipeline.isModelLoaded('llm')) {
+                    if (!MLPipeline.llm || !MLPipeline.isModelFunctional('llm')) {
                         throw new Error("LLM model failed to load after initialization attempt");
                     }
                 }

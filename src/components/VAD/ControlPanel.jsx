@@ -3,7 +3,6 @@ import { Mic, Heart } from 'lucide-react';
 import { ML_STATES } from '../../worker/MLStateMachine';
 
 const ControlPanel = ({
-  isReady,
   isVADMode,
   vadLoading,
   vadErrored,
@@ -13,10 +12,12 @@ const ControlPanel = ({
   isCompactMode,
   mlState
 }) => {
-  // Determine button states for better UX
+  // Determine button states based on FSM state
+  const isReadyForVoice = mlState === ML_STATES.READY;
   const isPartialFunctionality = mlState === ML_STATES.TEXT_ONLY_MODE;
-  const manualBtnDisabled = !isReady || isVADMode || vadLoading || (vadErrored && !vadError) || isPartialFunctionality;
-  const continuousBtnDisabled = (!isReady && !isVADMode) || vadLoading || (vadErrored && !vadError) || isPartialFunctionality;
+  
+  const manualBtnDisabled = !isReadyForVoice || isVADMode || vadLoading || (vadErrored && !vadError);
+  const continuousBtnDisabled = (!isReadyForVoice && !isVADMode) || vadLoading || (vadErrored && !vadError);
 
   return (
     <div className="controls" role="group" aria-label="Control buttons">

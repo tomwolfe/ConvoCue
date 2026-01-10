@@ -8,27 +8,27 @@ describe('MLStateMachine', () => {
     stateMachine = new MLStateMachine(3);
   });
 
-  describe('isModelLoaded', () => {
+  describe('isModelFunctional', () => {
     it('should return true when in READY state', () => {
       stateMachine.state = ML_STATES.READY;
       
-      expect(stateMachine.isModelLoaded('stt')).toBe(true);
-      expect(stateMachine.isModelLoaded('llm')).toBe(true);
+      expect(stateMachine.isModelFunctional('stt')).toBe(true);
+      expect(stateMachine.isModelFunctional('llm')).toBe(true);
     });
 
     it('should return false when in TEXT_ONLY_MODE state', () => {
       stateMachine.state = ML_STATES.TEXT_ONLY_MODE;
       
-      expect(stateMachine.isModelLoaded('stt')).toBe(false);
-      expect(stateMachine.isModelLoaded('llm')).toBe(false);
+      expect(stateMachine.isModelFunctional('stt')).toBe(false);
+      expect(stateMachine.isModelFunctional('llm')).toBe(false);
     });
 
     it('should return false in other states', () => {
       stateMachine.state = ML_STATES.LOADING_STT;
-      expect(stateMachine.isModelLoaded('stt')).toBe(false);
+      expect(stateMachine.isModelFunctional('stt')).toBe(false);
       
       stateMachine.state = ML_STATES.ERROR;
-      expect(stateMachine.isModelLoaded('stt')).toBe(false);
+      expect(stateMachine.isModelFunctional('stt')).toBe(false);
     });
   });
 

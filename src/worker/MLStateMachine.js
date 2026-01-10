@@ -190,10 +190,10 @@ export class MLStateMachine {
   }
 
   /**
-   * Check if a specific model is loaded
-   * NOTE: Only in READY state are models considered fully loaded and functional.
+   * Check if a specific model is functional and ready for processing
+   * NOTE: Only in READY state are models considered fully functional for voice.
    */
-  isModelLoaded(modelType) {
+  isModelFunctional(modelType) {
     return this.state === ML_STATES.READY;
   }
 }
