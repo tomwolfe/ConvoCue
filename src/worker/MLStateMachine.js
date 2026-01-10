@@ -1,5 +1,15 @@
 /**
  * Formal State Machine for MLPipeline to manage model loading states
+ *
+ * NOTE: This state machine represents a critical architectural component that manages
+ * the lifecycle of ML models in the ConvoCue application. It provides explicit paths
+ * for failure recovery and graceful degradation, transforming the user experience
+ * from "crash or work" to "adapt and recover".
+ *
+ * This implementation serves as a temporary but necessary solution to handle the
+ * inherent unreliability of client-side ML model loading. In the long term, we may
+ * want to explore more robust solutions such as server-side processing or more
+ * sophisticated client-side resource management.
  */
 
 // Define possible states

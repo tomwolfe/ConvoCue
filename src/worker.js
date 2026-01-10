@@ -22,22 +22,6 @@ import { WorkerMessenger } from './worker/Messenger';
 // Create a messenger instance for communication
 const messenger = new WorkerMessenger();
 
-// Utility function to generate unique IDs in the worker context
-// Note: Currently unused but kept for potential future use
-// eslint-disable-next-line no-unused-vars
-const generateUniqueId = (prefix = '') => {
-  // Use high-resolution timestamp (microsecond precision if available)
-  const now = typeof performance !== 'undefined' && performance.now ?
-    Math.floor(performance.now() * 1000) : Date.now();
-
-  // Add a random component to reduce collision probability
-  const randomComponent = Math.floor(Math.random() * 1000000);
-
-  // Combine timestamp and random component
-  const uniqueId = `${now}${randomComponent.toString().padStart(6, '0')}`;
-
-  return prefix ? `${prefix}-${uniqueId}` : uniqueId;
-};
 
 self.onmessage = async (event) => {
     const {
@@ -758,7 +742,7 @@ self.onmessage = async (event) => {
             messenger.postMessage({ type: 'cleanup_complete', taskId });
         }
 
-        // Additional safety check to prevent memory leaks
+        // Handle worker termination request
         if (type === 'terminate') {
             await MLPipeline.disposeAll();
             self.close(); // Close the worker

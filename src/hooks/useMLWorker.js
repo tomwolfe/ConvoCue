@@ -168,6 +168,8 @@ export const useMLWorker = () => {
 
   const initWorker = useCallback(() => {
     if (worker.current) {
+      // Send terminate message to properly clean up the worker
+      worker.current.postMessage({ type: 'terminate' });
       worker.current.terminate();
     }
 
@@ -410,6 +412,8 @@ export const useMLWorker = () => {
   useEffect(() => {
     return () => {
       if (worker.current) {
+        // Send terminate message to properly clean up the worker
+        worker.current.postMessage({ type: 'terminate' });
         worker.current.terminate();
       }
     };
