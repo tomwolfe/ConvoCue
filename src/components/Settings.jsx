@@ -9,6 +9,7 @@ import IntentDetectionSettings from './IntentDetectionSettings';
 import IntentFilterSettings from './IntentFilterSettings';
 import HapticFeedbackSettings from './HapticFeedbackSettings';
 import { ALL_INTENTS } from '../constants/intents';
+import { mergeNewIntents } from '../utils/intentUtils';
 
 const Settings = ({ isOpen, onClose }) => {
   const [settings, setSettings] = useState({
@@ -68,9 +69,7 @@ const Settings = ({ isOpen, onClose }) => {
 
         // If the user already had enabledIntents, we want to make sure new ones are added
         if (savedSettings.enabledIntents) {
-          const existingIntents = savedSettings.enabledIntents;
-          const newIntents = ALL_INTENTS.filter(i => !existingIntents.includes(i));
-          mergedSettings.enabledIntents = [...new Set([...existingIntents, ...newIntents])];
+          mergedSettings.enabledIntents = mergeNewIntents(savedSettings.enabledIntents, ALL_INTENTS);
         }
 
         setSettings(mergedSettings);

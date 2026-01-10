@@ -1,7 +1,7 @@
 import React from 'react';
-import { 
+import {
   AlertTriangle, Zap, Target, MessageCircle, Heart, ShieldAlert,
-  Handshake, Users, Globe, BookOpen
+  Handshake, Users, Globe, BookOpen, Lightbulb, Star
 } from 'lucide-react';
 
 const TagIcon = ({ name, size = 14, className = "" }) => {
@@ -16,6 +16,8 @@ const TagIcon = ({ name, size = 14, className = "" }) => {
     case 'Users': return <Users size={size} className={className} />;
     case 'Globe': return <Globe size={size} className={className} />;
     case 'BookOpen': return <BookOpen size={size} className={className} />;
+    case 'Lightbulb': return <Lightbulb size={size} className={className} />;
+    case 'Star': return <Star size={size} className={className} />;
     default: return <MessageCircle size={size} className={className} />;
   }
 };

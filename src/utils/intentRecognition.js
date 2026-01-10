@@ -1103,7 +1103,7 @@ export const TAG_METADATA = {
     tag: '[leadership]',
     aliases: ['[lead]', '[direct]'],
     label: 'Leadership',
-    icon: 'Users',
+    icon: 'Star',
     variant: 'strategic',
     description: 'Guiding or directing others'
   },
@@ -1111,7 +1111,7 @@ export const TAG_METADATA = {
     tag: '[clarity]',
     aliases: ['[clear]', '[explain]'],
     label: 'Clarity',
-    icon: 'Zap',
+    icon: 'Lightbulb',
     variant: 'language',
     description: 'Improving understanding'
   },

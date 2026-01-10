@@ -135,4 +135,35 @@ describe('intentRecognition', () => {
       expect(tagMetadataKeys).toEqual(allIntentsSorted);
     });
   });
+
+  describe('TAG_METADATA structure validation', () => {
+    it('should validate that all intents have required properties with correct types', () => {
+      ALL_INTENTS.forEach(intent => {
+        const metadata = TAG_METADATA[intent];
+
+        // Check that metadata exists for the intent
+        expect(metadata).toBeDefined();
+        expect(typeof metadata).toBe('object');
+
+        // Check required properties
+        expect(metadata).toHaveProperty('tag');
+        expect(typeof metadata.tag).toBe('string');
+
+        expect(metadata).toHaveProperty('aliases');
+        expect(Array.isArray(metadata.aliases)).toBe(true);
+
+        expect(metadata).toHaveProperty('label');
+        expect(typeof metadata.label).toBe('string');
+
+        expect(metadata).toHaveProperty('icon');
+        expect(typeof metadata.icon).toBe('string');
+
+        expect(metadata).toHaveProperty('variant');
+        expect(typeof metadata.variant).toBe('string');
+
+        expect(metadata).toHaveProperty('description');
+        expect(typeof metadata.description).toBe('string');
+      });
+    });
+  });
 });
