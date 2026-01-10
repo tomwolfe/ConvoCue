@@ -233,7 +233,7 @@ const App = () => {
             </div>
             <div className="header-actions">
               {hasInteracted && (
-                <div className="quick-toggles" role="group" aria-label="Quick View Toggles">
+                <div className="quick-toggles" role="toolbar" aria-label="Quick View Toggles">
                   <button
                     onClick={() => setIsCompactMode(!isCompactMode)}
                     className={`btn-toggle-icon ${isCompactMode ? 'active' : ''}`}
@@ -269,12 +269,18 @@ const App = () => {
                   onClick={() => setShowViewMenu(!showViewMenu)}
                   aria-label="More View Options"
                   title="More View Options"
+                  aria-haspopup="menu"
+                  aria-expanded={showViewMenu}
                 >
                   <LayoutIcon size={18} />
                 </button>
                 {showViewMenu && (
-                  <div className="view-menu">
-                    <button onClick={() => { showTutorialHandler(); setShowViewMenu(false); }}>
+                  <div className="view-menu" role="menu" aria-label="View Options Menu">
+                    <button
+                      onClick={() => { showTutorialHandler(); setShowViewMenu(false); }}
+                      className="menu-item"
+                      role="menuitem"
+                    >
                       <BookOpen size={16} /> Show Tutorial
                     </button>
                   </div>
@@ -371,6 +377,13 @@ const App = () => {
                   <li aria-label="Adaptive to your communication style"><Activity size={16} aria-hidden="true" /> Learns your preferred response length over time</li>
                 </ul>
               </div>
+
+              {/* Loading optimization message */}
+              {!isReady && (
+                <div className="loading-optimization-message" role="status" aria-live="polite">
+                  <p>Optimizing for your device... This may take 1-2 minutes on first use</p>
+                </div>
+              )}
             </div>
 
             {isLowMemory && (

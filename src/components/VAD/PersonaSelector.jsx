@@ -4,7 +4,7 @@ import { AppConfig } from '../../config';
 
 const PersonaSelector = ({ persona, setPersona, culturalContext, setCulturalContext, availablePersonas, settings, lastSwitchReason, undoPersonaSwitch }) => {
   if (!availablePersonas || Object.keys(availablePersonas).length === 0) return null;
-  
+
   return (
     <div className="persona-selector" role="group" aria-label="Select conversation mode">
       {settings?.enableAutoPersona && (
@@ -13,13 +13,14 @@ const PersonaSelector = ({ persona, setPersona, culturalContext, setCulturalCont
             <Sparkles size={14} />
             <span>Smart Switch: {lastSwitchReason || 'Active'}</span>
             {lastSwitchReason && (
-              <button 
-                className="btn-undo-switch" 
+              <button
+                className="btn-undo-switch"
                 onClick={(e) => {
                   e.stopPropagation();
                   undoPersonaSwitch();
                 }}
                 title="Undo automatic switch"
+                aria-label="Undo automatic persona switch"
               >
                 Undo
               </button>
@@ -33,13 +34,15 @@ const PersonaSelector = ({ persona, setPersona, culturalContext, setCulturalCont
           </div>
         </div>
       )}
-      <div className="persona-grid">
+      <div className="persona-grid" role="radiogroup" aria-label="Choose conversation persona">
         {Object.values(availablePersonas).map((p) => (
           <button
             key={p.id}
             className={`persona-btn ${persona === p.id ? 'active' : ''}`}
             onClick={() => setPersona(p.id)}
-            aria-pressed={persona === p.id}
+            role="radio"
+            aria-checked={persona === p.id}
+            title={p.description}
           >
             <span className="persona-label">{p.label}</span>
             <span className="persona-desc">{p.description}</span>
@@ -55,6 +58,7 @@ const PersonaSelector = ({ persona, setPersona, culturalContext, setCulturalCont
             className="cultural-context-dropdown"
             value={culturalContext || 'general'}
             onChange={(e) => setCulturalContext(e.target.value)}
+            aria-label="Select cultural context for communication"
           >
             <option value="general">General Cultural Awareness</option>
             <option value="east_asian">East Asian (High-context)</option>
