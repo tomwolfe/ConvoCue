@@ -1,5 +1,6 @@
 import React from 'react';
 import { Mic, Heart } from 'lucide-react';
+import { ML_STATES } from '../../worker/MLStateMachine';
 
 const ControlPanel = ({
   isReady,
@@ -9,11 +10,13 @@ const ControlPanel = ({
   vadError,
   handleManualTrigger,
   toggleVAD,
-  isCompactMode
+  isCompactMode,
+  mlState
 }) => {
   // Determine button states for better UX
-  const manualBtnDisabled = !isReady || isVADMode || vadLoading || (vadErrored && !vadError);
-  const continuousBtnDisabled = (!isReady && !isVADMode) || vadLoading || (vadErrored && !vadError);
+  const isPartialFunctionality = mlState === ML_STATES.PARTIAL_FUNCTIONALITY;
+  const manualBtnDisabled = !isReady || isVADMode || vadLoading || (vadErrored && !vadError) || isPartialFunctionality;
+  const continuousBtnDisabled = (!isReady && !isVADMode) || vadLoading || (vadErrored && !vadError) || isPartialFunctionality;
 
   return (
     <div className="controls" role="group" aria-label="Control buttons">
@@ -21,7 +24,7 @@ const ControlPanel = ({
         className={`btn-control pulse ${!isVADMode ? 'active' : ''} ${isCompactMode ? 'compact' : ''} ${manualBtnDisabled ? 'disabled' : ''}`}
         onClick={handleManualTrigger}
         disabled={manualBtnDisabled}
-        title="Manual Mode: Tap to analyze specific moments"
+        title={isPartialFunctionality ? "Voice input unavailable in text-only mode" : "Manual Mode: Tap to analyze specific moments"}
         aria-pressed={!isVADMode}
         aria-disabled={manualBtnDisabled}
       >
@@ -35,7 +38,7 @@ const ControlPanel = ({
         className={`btn-control heartbeat-btn ${isVADMode ? 'active' : ''} ${isCompactMode ? 'compact' : ''} ${continuousBtnDisabled ? 'disabled' : ''}`}
         onClick={toggleVAD}
         disabled={continuousBtnDisabled}
-        title="Continuous Mode: AI listens and updates in real-time"
+        title={isPartialFunctionality ? "Voice input unavailable in text-only mode" : "Continuous Mode: AI listens and updates in real-time"}
         aria-pressed={isVADMode}
         aria-disabled={continuousBtnDisabled}
       >

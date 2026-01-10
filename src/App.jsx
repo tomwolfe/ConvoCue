@@ -58,6 +58,7 @@ const App = () => {
     progress,
     isReady,
     isLowMemory,
+    mlState,
     error,
     transcript,
     suggestion,
@@ -69,6 +70,8 @@ const App = () => {
     processAudio,
     prewarmLLM,
     refreshSuggestion,
+    retrySTTLoad,
+    isRetrying,
     setTranscript,
     setSuggestion,
     setStatus,
@@ -197,14 +200,10 @@ const App = () => {
     console.log("Privacy consent given or acknowledged");
   };
 
-  // More granular reset function for STT errors only
-  const handleSTTReset = () => {
-    // Only reset STT-related errors and state, not the entire app
-    resetWorker(); // Reset the worker to clear any error states
-    // Clear any error messages related to STT
-    if (error && error.includes('Speech recognition')) {
-      // We can't directly dispatch from here, so we'll reset the worker which will clear the error state
-    }
+  // Full reset function for when STT errors persist
+  const handleFullReset = () => {
+    // Reset the entire worker to clear all error states
+    resetWorker();
   };
 
   return (
@@ -449,12 +448,13 @@ const App = () => {
             undoPersonaSwitch={undoPersonaSwitch}
             retrySTTLoad={retrySTTLoad}
             isRetrying={isRetrying}
+            mlState={state.mlState}
             onReset={() => {
               setHasInteracted(false);
               setMicPermissionError(null);
               resetWorker();
             }}
-            onSTTReset={handleSTTReset}
+            onFullReset={handleFullReset}
           />
         )}
       </div>

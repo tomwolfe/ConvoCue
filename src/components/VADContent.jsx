@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useMicVAD } from '@ricky0123/vad-react';
 import { Loader2, AlertCircle, RefreshCw, Zap, ShieldAlert, Info, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { AppConfig } from '../config';
+import { ML_STATES } from '../worker/MLStateMachine';
 import { processConversationTurn } from '../conversationManager';
 import PersonaSelector from './VAD/PersonaSelector';
 import DisplayArea from './VAD/DisplayArea';
@@ -299,7 +300,8 @@ const VADContent = ({
   undoPersonaSwitch,
   retrySTTLoad,
   isRetrying,
-  onSTTReset
+  mlState,
+  onFullReset
 }) => {
   const [availablePersonas, setAvailablePersonas] = useState(AppConfig.models.personas);
 
@@ -428,7 +430,7 @@ const VADContent = ({
   }, [vad]);
 
   const toggleVAD = () => {
-    if (!vad || vad.loading || (vad.errored && !vadError)) return;
+    if (!vad || vad.loading || (vad.errored && !vadError) || mlState === ML_STATES.PARTIAL_FUNCTIONALITY) return;
     if (isVADMode) {
       vad.pause();
       setIsVADMode(false);
@@ -541,7 +543,7 @@ const VADContent = ({
       </div>
 
       {!showMinimalUI && (
-        <ControlPanel 
+        <ControlPanel
           isReady={isReady}
           isVADMode={isVADMode}
           vadLoading={vad.loading}
@@ -550,6 +552,7 @@ const VADContent = ({
           handleManualTrigger={handleManualTrigger}
           toggleVAD={toggleVAD}
           isCompactMode={isCompactMode}
+          mlState={mlState}
         />
       )}
 
@@ -564,7 +567,7 @@ const VADContent = ({
               </button>
               {/* Give up button appears when retry count reaches max attempts */}
               {error && error.includes('maximum retry attempts') && (
-                <button className="btn-give-up" onClick={onSTTReset} aria-label="Give up and reset">
+                <button className="btn-give-up" onClick={onFullReset} aria-label="Give up and reset">
                   <ShieldAlert size={18} aria-hidden="true" />
                   Give Up & Reset
                 </button>

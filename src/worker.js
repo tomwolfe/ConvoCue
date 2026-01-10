@@ -77,7 +77,8 @@ self.onmessage = async (event) => {
                         type: 'ready',
                         taskId,
                         status: 'Minimal mode: STT loaded, LLM will load on demand',
-                        isLowSpec: true
+                        isLowSpec: true,
+                        mlState: MLPipeline.getCurrentState()
                     });
                 } else {
                     // For other devices, initiate background LLM loading if specified in delayedLoad
@@ -86,7 +87,8 @@ self.onmessage = async (event) => {
                         messenger.postMessage({
                             type: 'ready',
                             taskId,
-                            status: 'STT loaded, Social Brain loading in background...'
+                            status: 'STT loaded, Social Brain loading in background...',
+                            mlState: MLPipeline.getCurrentState()
                         });
 
                         // Load LLM in background without blocking the ready state
@@ -98,7 +100,11 @@ self.onmessage = async (event) => {
                         }
                     } else {
                         // Both models loaded upfront
-                        messenger.postMessage({ type: 'ready', taskId });
+                        messenger.postMessage({
+                            type: 'ready',
+                            taskId,
+                            mlState: MLPipeline.getCurrentState()
+                        });
                     }
                 }
             } catch (loadError) {
@@ -106,6 +112,7 @@ self.onmessage = async (event) => {
                 messenger.postMessage({
                     type: 'error',
                     error: `Model loading failed: ${loadError.message || 'Unknown error'}`,
+                    mlState: MLPipeline.getCurrentState(),
                     taskId
                 });
                 return;
@@ -165,6 +172,7 @@ self.onmessage = async (event) => {
                     messenger.postMessage({
                         type: 'status',
                         status: 'Speech Engine loaded successfully',
+                        mlState: MLPipeline.getCurrentState(),
                         taskId
                     });
                 } else {
@@ -195,6 +203,7 @@ self.onmessage = async (event) => {
                 messenger.postMessage({
                     type: 'error',
                     error: `${specificErrorMessage}: ${loadError.message || 'Unknown error'}`,
+                    mlState: MLPipeline.getCurrentState(),
                     taskId
                 });
             }
@@ -238,6 +247,7 @@ self.onmessage = async (event) => {
                     messenger.postMessage({
                         type: 'error',
                         error: `${specificErrorMessage}: ${loadError.message || 'Unknown error'}`,
+                        mlState: MLPipeline.getCurrentState(),
                         taskId
                     });
                     return;
@@ -255,6 +265,7 @@ self.onmessage = async (event) => {
                 messenger.postMessage({
                     type: 'error',
                     error: 'Speech recognition model is not available',
+                    mlState: MLPipeline.getCurrentState(),
                     taskId
                 });
                 return;
@@ -306,6 +317,7 @@ self.onmessage = async (event) => {
                 messenger.postMessage({
                     type: 'error',
                     error: `${specificErrorMessage}: ${processingError.message || 'Unknown error'}`,
+                    mlState: MLPipeline.getCurrentState(),
                     taskId
                 });
                 return;
@@ -662,6 +674,7 @@ self.onmessage = async (event) => {
                 messenger.postMessage({
                     type: 'error',
                     error: `${specificErrorMessage}: ${processingError.message || 'Unknown error'}`,
+                    mlState: MLPipeline.getCurrentState(),
                     taskId
                 });
                 return;

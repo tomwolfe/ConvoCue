@@ -11,12 +11,14 @@ import { getInsightCategoryScores } from '../utils/feedback';
 import performanceMonitor from '../utils/performance';
 import { usePerformanceMonitor } from './usePerformanceMonitor';
 import { usePersonaOrchestration } from './usePersonaOrchestration';
+import { ML_STATES } from '../worker/MLStateMachine';
 
 const initialState = {
   status: 'Initializing Models...',
   progress: 0,
   isReady: false,
   isLowMemory: false,
+  mlState: ML_STATES.UNINITIALIZED, // Track the ML state machine state
   transcript: '',
   suggestion: '',
   detectedIntent: null,
@@ -77,6 +79,8 @@ function workerReducer(state, action) {
       return { ...state, isProcessing: false, processingStep: 'none', status: 'Ready' };
     case 'SET_ERROR':
       return { ...state, error: action.error, status: `Model Error: ${action.error}`, isProcessing: false, isReady: false };
+    case 'SET_ML_STATE':
+      return { ...state, mlState: action.mlState };
     case 'CLEAR_INTERACTION':
       return { ...state, transcript: '', suggestion: '' };
     default:
@@ -173,7 +177,12 @@ export const useMLWorker = () => {
 
       newWorker.onmessage = async (event) => {
         try {
-          const { type, text, status, progress, metadata, emotionData, isLowMemory, isFallbackFailed } = event.data;
+          const { type, text, status, progress, metadata, emotionData, isLowMemory, isFallbackFailed, mlState } = event.data;
+
+          // Update ML state if provided
+          if (mlState) {
+            dispatch({ type: 'SET_ML_STATE', mlState });
+          }
 
           switch (type) {
             case 'status':
@@ -242,7 +251,7 @@ export const useMLWorker = () => {
                     provideIntentHaptics(rawIntent);
                     lastHapticTimeRef.current = now;
                     lastHapticIntentRef.current = rawIntent;
-                    
+
                     // Instant Cue for UI
                     const instantCueMap = {
                       'question': 'Ask for clarification...',
@@ -363,6 +372,13 @@ export const useMLWorker = () => {
                 setIsRetryingState(prev => false); // Reset retrying state on general error
               }
               break;
+            case 'cleanup_complete':
+              // Worker cleanup completed, terminate the worker reference
+              if (worker.current) {
+                worker.current.terminate();
+                worker.current = null;
+              }
+              break;
           }
         } catch (err) {
           console.error("Error in worker message handler:", err);
@@ -378,9 +394,16 @@ export const useMLWorker = () => {
         }
       };
 
+      // Handle worker errors
+      newWorker.onerror = (error) => {
+        console.error("Worker error:", error);
+        dispatch({ type: 'SET_ERROR', error: `Worker error: ${error.message}` });
+      };
+
       newWorker.postMessage({ type: 'load' });
-    } catch {
-      dispatch({ type: 'SET_ERROR', error: 'Worker creation failed' });
+    } catch (error) {
+      console.error("Worker creation failed:", error);
+      dispatch({ type: 'SET_ERROR', error: `Worker creation failed: ${error.message || 'Unknown error'}` });
     }
   }, [addMessage, setSentiment, updateLastMessageTime, prefsCache]); // Optimized: No 'settings' dependency to avoid worker reload on UI changes
 
