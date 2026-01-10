@@ -75,6 +75,8 @@ const App = () => {
     retryLLMLoad,
     isRetrying,
     isRetryingLLM,
+    retryCount,
+    maxRetries,
     sttFunctional,
     llmFunctional,
     setTranscript,
@@ -319,12 +321,15 @@ const App = () => {
         {!hasInteracted ? (
           <main className="initial-screen">
             <div
-              className={`status-badge ${!isReadyForUse ? 'processing' : ''}`}
+              className={`status-badge ${!isReadyForUse ? 'processing' : ''} ${mlState === ML_STATES.TEXT_ONLY_MODE ? 'text-only' : ''}`}
               role="status"
               aria-live="polite"
             >
               {!isReadyForUse ? <Loader2 className="animate-spin" size={16} aria-hidden="true" /> : <div className="dot" aria-hidden="true" />}
               <span>{status}</span>
+              {mlState === ML_STATES.TEXT_ONLY_MODE && (
+                <span className="mode-tag">Text-only</span>
+              )}
             </div>
 
             <div className="setup-card" role="region" aria-labelledby="setup-card-title">
@@ -457,6 +462,8 @@ const App = () => {
             retryLLMLoad={retryLLMLoad}
             isRetrying={isRetrying}
             isRetryingLLM={isRetryingLLM}
+            retryCount={retryCount}
+            maxRetries={maxRetries}
             sttFunctional={sttFunctional}
             llmFunctional={llmFunctional}
             mlState={mlState}

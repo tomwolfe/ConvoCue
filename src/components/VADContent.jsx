@@ -301,6 +301,8 @@ const VADContent = ({
   retryLLMLoad,
   isRetrying,
   isRetryingLLM,
+  retryCount,
+  maxRetries,
   sttFunctional,
   llmFunctional,
   mlState,
@@ -572,7 +574,7 @@ const VADContent = ({
             <>
               <button className="btn-retry" onClick={retrySTTLoad} aria-label="Retry Speech Recognition" disabled={isRetrying}>
                 {isRetrying ? <Loader2 className="animate-spin" size={18} aria-hidden="true" /> : <RefreshCw size={18} aria-hidden="true" />}
-                {isRetrying ? 'Retrying...' : 'Retry Speech Recognition'}
+                {isRetrying ? `Retrying... (${(retryCount || 0) + 1}/${maxRetries || 3})` : 'Retry Speech Recognition'}
               </button>
               {/* Give up button appears when retry count reaches max attempts */}
               {error && error.includes('maximum retry attempts') && (
@@ -589,7 +591,7 @@ const VADContent = ({
             <>
               <button className="btn-retry" onClick={retryLLMLoad} aria-label="Retry AI Model" disabled={isRetryingLLM}>
                 {isRetryingLLM ? <Loader2 className="animate-spin" size={18} aria-hidden="true" /> : <RefreshCw size={18} aria-hidden="true" />}
-                {isRetryingLLM ? 'Retrying...' : 'Retry AI Model'}
+                {isRetryingLLM ? `Retrying... (${(retryCount || 0) + 1}/${maxRetries || 3})` : 'Retry AI Model'}
               </button>
               {/* Give up button appears when retry count reaches max attempts */}
               {error && error.includes('maximum retry attempts') && (

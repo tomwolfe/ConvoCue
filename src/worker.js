@@ -804,7 +804,14 @@ const processMessage = async (event) => {
         if (type === 'terminate') {
             if (memoryInterval) clearInterval(memoryInterval);
             await MLPipeline.disposeAll();
-            self.close(); // Close the worker
+            
+            // Notify main thread that cleanup is complete before closing
+            messenger.postMessage({ type: 'cleanup_complete', taskId });
+            
+            // Allow a small window for the message to be dispatched before self-termination
+            setTimeout(() => {
+                self.close();
+            }, 50);
         }
     } catch (error) {
         messenger.postMessage({ type: 'error', error: error.message, taskId: taskId || 'unknown' });
