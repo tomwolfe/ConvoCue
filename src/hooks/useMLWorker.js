@@ -1,5 +1,6 @@
-import { useReducer, useEffect, useRef, useCallback } from 'react';
+import { useReducer, useEffect, useRef, useCallback, useState } from 'react';
 import { AppConfig } from '../config';
+import { generateUniqueId } from '../utils/idGenerator';
 import { enhanceResponse } from '../utils/responseEnhancement';
 import { useConversation } from './useConversation';
 import { useAppPreferences } from './useAppPreferences';
@@ -180,7 +181,7 @@ export const useMLWorker = () => {
               // Reset retry counter when we get a success status related to STT
               if (status && (status.includes('Speech Engine loaded successfully') || status.includes('Ready'))) {
                 retryCountRef.current = 0; // Reset retry counter on success
-                setIsRetryingState(false); // Reset retrying state
+                setIsRetryingState(prev => false); // Reset retrying state
               }
               break;
             case 'ready':
@@ -191,7 +192,7 @@ export const useMLWorker = () => {
               }
               // Reset retry counter when worker is ready
               retryCountRef.current = 0;
-              setIsRetryingState(false); // Reset retrying state
+              setIsRetryingState(prev => false); // Reset retrying state
               break;
             case 'stt_result': {
               if (!text?.trim()) {
@@ -296,7 +297,7 @@ export const useMLWorker = () => {
                       metadata,
                       preferences: prefsCache.current,
                       settings: settingsRef.current,
-                      taskId: `llm-${Date.now()}`
+                      taskId: generateUniqueId('llm')
                   });
                   updateLastMessageTime();
 
@@ -351,15 +352,15 @@ export const useMLWorker = () => {
                 console.warn("Model fallback failed, continuing with reduced functionality:", event.data.error);
                 dispatch({ type: 'SET_STATUS', status: 'Running in reduced functionality mode' });
                 retryCountRef.current = 0; // Reset retry counter on fallback success
-                setIsRetryingState(false); // Reset retrying state
+                setIsRetryingState(prev => false); // Reset retrying state
               } else if (event.data.error && event.data.error.includes('Speech recognition')) {
                 // Handle STT-specific errors gracefully
                 console.warn("STT error, continuing with reduced functionality:", event.data.error);
                 dispatch({ type: 'SET_STATUS', status: 'Speech recognition unavailable - running in text-only mode' });
-                setIsRetryingState(false); // Reset retrying state on STT error
+                setIsRetryingState(prev => false); // Reset retrying state on STT error
               } else {
                 dispatch({ type: 'SET_ERROR', error: event.data.error });
-                setIsRetryingState(false); // Reset retrying state on general error
+                setIsRetryingState(prev => false); // Reset retrying state on general error
               }
               break;
           }
@@ -439,7 +440,7 @@ export const useMLWorker = () => {
       communicationProfile,
       preferences: preferences,
       settings: settingsRef.current,
-      taskId: `refresh-${Date.now()}`
+      taskId: generateUniqueId('refresh')
     });
   }, [state.transcript, state.isProcessing, history, state.persona, state.culturalContext, prefsCache]); // Optimized: No 'settings' dependency
 
@@ -467,8 +468,8 @@ export const useMLWorker = () => {
     // Increment retry count
     retryCountRef.current += 1;
 
-    // Set retrying state
-    setIsRetryingState(true);
+    // Set retrying state using functional update to avoid dependency
+    setIsRetryingState(prev => true);
 
     // Reset error state before attempting to reload
     dispatch({ type: 'SET_STATUS', status: `Retrying to load Speech Engine... (${retryCountRef.current}/${maxRetryAttempts})` });
@@ -477,9 +478,9 @@ export const useMLWorker = () => {
     // Send a message to the worker to attempt reloading STT
     worker.current.postMessage({
       type: 'retry_stt_load',
-      taskId: `retry-${Date.now()}`
+      taskId: generateUniqueId('retry')
     });
-  }, [dispatch, maxRetryAttempts, setIsRetryingState]);
+  }, [dispatch, maxRetryAttempts]); // Removed setIsRetryingState from dependencies
 
   return {
     ...state,

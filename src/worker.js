@@ -22,6 +22,21 @@ import { WorkerMessenger } from './worker/Messenger';
 // Create a messenger instance for communication
 const messenger = new WorkerMessenger();
 
+// Utility function to generate unique IDs in the worker context
+const generateUniqueId = (prefix = '') => {
+  // Use high-resolution timestamp (microsecond precision if available)
+  const now = typeof performance !== 'undefined' && performance.now ?
+    Math.floor(performance.now() * 1000) : Date.now();
+
+  // Add a random component to reduce collision probability
+  const randomComponent = Math.floor(Math.random() * 1000000);
+
+  // Combine timestamp and random component
+  const uniqueId = `${now}${randomComponent.toString().padStart(6, '0')}`;
+
+  return prefix ? `${prefix}-${uniqueId}` : uniqueId;
+};
+
 self.onmessage = async (event) => {
     const {
         type, audio, taskId, text: _text, persona, history,
@@ -142,7 +157,7 @@ self.onmessage = async (event) => {
                     await Promise.race([loadPromise, timeoutPromise]);
 
                     // Double-check that STT was actually loaded after the call
-                    if (!MLPipeline.stt) {
+                    if (!MLPipeline.stt || !MLPipeline.isModelLoaded('stt')) {
                         throw new Error("STT model failed to load after initialization attempt");
                     }
 
@@ -200,7 +215,7 @@ self.onmessage = async (event) => {
                     await Promise.race([loadPromise, timeoutPromise]);
 
                     // Double-check that STT was actually loaded after the call
-                    if (!MLPipeline.stt) {
+                    if (!MLPipeline.stt || !MLPipeline.isModelLoaded('stt')) {
                         throw new Error("STT model failed to load after initialization attempt");
                     }
                 } catch (loadError) {
@@ -323,7 +338,7 @@ self.onmessage = async (event) => {
                     await pipelineManager.loadLLM((p) => throttledProgress(p, 'Social Brain', taskId));
 
                     // Double-check that LLM was actually loaded after the call
-                    if (!MLPipeline.llm) {
+                    if (!MLPipeline.llm || !MLPipeline.isModelLoaded('llm')) {
                         throw new Error("LLM model failed to load after initialization attempt");
                     }
                 }

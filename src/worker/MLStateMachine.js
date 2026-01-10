@@ -1,0 +1,204 @@
+/**
+ * Formal State Machine for MLPipeline to manage model loading states
+ */
+
+// Define possible states
+export const ML_STATES = {
+  UNINITIALIZED: 'uninitialized',
+  LOADING_STT: 'loading_stt',
+  LOADING_LLM: 'loading_llm',
+  READY: 'ready',
+  ERROR: 'error',
+  RETRYING_STT: 'retrying_stt',
+  LOW_MEMORY: 'low_memory',
+  PARTIAL_FUNCTIONALITY: 'partial_functionality'
+};
+
+// Define possible transitions
+export const ML_TRANSITIONS = {
+  START_LOADING_STT: 'start_loading_stt',
+  START_LOADING_LLM: 'start_loading_llm',
+  STT_LOADED: 'stt_loaded',
+  LLM_LOADED: 'llm_loaded',
+  LOAD_ERROR: 'load_error',
+  RETRY_STT: 'retry_stt',
+  RESET: 'reset',
+  MEMORY_PRESSURE: 'memory_pressure',
+  FALLBACK_SUCCESS: 'fallback_success'
+};
+
+// State machine class
+export class MLStateMachine {
+  constructor() {
+    this.state = ML_STATES.UNINITIALIZED;
+    this.transitions = [];
+    this.context = {};
+  }
+
+  // Get current state
+  getState() {
+    return this.state;
+  }
+
+  // Check if in a specific state
+  isInState(state) {
+    return this.state === state;
+  }
+
+  // Transition to a new state based on transition type
+  transition(transition, context = {}) {
+    const prevState = this.state;
+    this.context = { ...this.context, ...context };
+    
+    switch (prevState) {
+      case ML_STATES.UNINITIALIZED:
+        switch (transition) {
+          case ML_TRANSITIONS.START_LOADING_STT:
+            this.state = ML_STATES.LOADING_STT;
+            break;
+          case ML_TRANSITIONS.START_LOADING_LLM:
+            this.state = ML_STATES.LOADING_LLM;
+            break;
+        }
+        break;
+
+      case ML_STATES.LOADING_STT:
+        switch (transition) {
+          case ML_TRANSITIONS.STT_LOADED:
+            this.state = ML_STATES.READY;
+            break;
+          case ML_TRANSITIONS.LOAD_ERROR:
+            this.state = ML_STATES.ERROR;
+            break;
+          case ML_TRANSITIONS.RETRY_STT:
+            this.state = ML_STATES.RETRYING_STT;
+            break;
+        }
+        break;
+
+      case ML_STATES.LOADING_LLM:
+        switch (transition) {
+          case ML_TRANSITIONS.LLM_LOADED:
+            this.state = ML_STATES.READY;
+            break;
+          case ML_TRANSITIONS.LOAD_ERROR:
+            this.state = ML_STATES.ERROR;
+            break;
+        }
+        break;
+
+      case ML_STATES.READY:
+        switch (transition) {
+          case ML_TRANSITIONS.START_LOADING_STT:
+            this.state = ML_STATES.LOADING_STT;
+            break;
+          case ML_TRANSITIONS.START_LOADING_LLM:
+            this.state = ML_STATES.LOADING_LLM;
+            break;
+          case ML_TRANSITIONS.MEMORY_PRESSURE:
+            this.state = ML_STATES.LOW_MEMORY;
+            break;
+          case ML_TRANSITIONS.RETRY_STT:
+            this.state = ML_STATES.RETRYING_STT;
+            break;
+        }
+        break;
+
+      case ML_STATES.ERROR:
+        switch (transition) {
+          case ML_TRANSITIONS.RESET:
+            this.state = ML_STATES.UNINITIALIZED;
+            break;
+          case ML_TRANSITIONS.RETRY_STT:
+            this.state = ML_STATES.RETRYING_STT;
+            break;
+          case ML_TRANSITIONS.FALLBACK_SUCCESS:
+            this.state = ML_STATES.PARTIAL_FUNCTIONALITY;
+            break;
+        }
+        break;
+
+      case ML_STATES.RETRYING_STT:
+        switch (transition) {
+          case ML_TRANSITIONS.STT_LOADED:
+            this.state = ML_STATES.READY;
+            break;
+          case ML_TRANSITIONS.LOAD_ERROR:
+            this.state = ML_STATES.ERROR;
+            break;
+        }
+        break;
+
+      case ML_STATES.LOW_MEMORY:
+        switch (transition) {
+          case ML_TRANSITIONS.START_LOADING_STT:
+            this.state = ML_STATES.LOADING_STT;
+            break;
+          case ML_TRANSITIONS.START_LOADING_LLM:
+            this.state = ML_STATES.LOADING_LLM;
+            break;
+          case ML_TRANSITIONS.RESET:
+            this.state = ML_STATES.UNINITIALIZED;
+            break;
+        }
+        break;
+
+      case ML_STATES.PARTIAL_FUNCTIONALITY:
+        switch (transition) {
+          case ML_TRANSITIONS.START_LOADING_STT:
+            this.state = ML_STATES.LOADING_STT;
+            break;
+          case ML_TRANSITIONS.START_LOADING_LLM:
+            this.state = ML_STATES.LOADING_LLM;
+            break;
+          case ML_TRANSITIONS.RESET:
+            this.state = ML_STATES.UNINITIALIZED;
+            break;
+        }
+        break;
+    }
+
+    // Log transition for debugging
+    this.transitions.push({
+      from: prevState,
+      to: this.state,
+      transition,
+      timestamp: Date.now(),
+      context
+    });
+
+    return this.state;
+  }
+
+  // Get context information
+  getContext() {
+    return this.context;
+  }
+
+  // Reset the state machine
+  reset() {
+    this.state = ML_STATES.UNINITIALIZED;
+    this.context = {};
+    this.transitions = [];
+  }
+
+  // Get recent transitions for debugging
+  getRecentTransitions(limit = 10) {
+    return this.transitions.slice(-limit);
+  }
+
+  // Check if the pipeline is ready for processing
+  isReadyForProcessing() {
+    return this.state === ML_STATES.READY || this.state === ML_STATES.PARTIAL_FUNCTIONALITY;
+  }
+
+  // Check if a specific model is loaded
+  isModelLoaded(modelType) {
+    if (modelType === 'stt') {
+      return [ML_STATES.READY, ML_STATES.PARTIAL_FUNCTIONALITY].includes(this.state);
+    } else if (modelType === 'llm') {
+      return [ML_STATES.READY].includes(this.state);
+    }
+    return false;
+  }
+}

@@ -298,7 +298,8 @@ const VADContent = ({
   lastSwitchReason,
   undoPersonaSwitch,
   retrySTTLoad,
-  isRetrying
+  isRetrying,
+  onSTTReset
 }) => {
   const [availablePersonas, setAvailablePersonas] = useState(AppConfig.models.personas);
 
@@ -563,7 +564,7 @@ const VADContent = ({
               </button>
               {/* Give up button appears when retry count reaches max attempts */}
               {error && error.includes('maximum retry attempts') && (
-                <button className="btn-give-up" onClick={onReset} aria-label="Give up and reset">
+                <button className="btn-give-up" onClick={onSTTReset} aria-label="Give up and reset">
                   <ShieldAlert size={18} aria-hidden="true" />
                   Give Up & Reset
                 </button>

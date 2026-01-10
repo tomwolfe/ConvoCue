@@ -2,6 +2,7 @@ import { pipeline, env } from '@huggingface/transformers';
 import { AppConfig } from '../config';
 import { getOptimalModelConfig, checkMemoryAdequacy, deviceCaps } from '../utils/performanceOptimizer';
 import { WorkerMessenger } from './Messenger';
+import { MLStateMachine, ML_STATES, ML_TRANSITIONS } from './MLStateMachine';
 
 env.allowLocalModels = false;
 env.useBrowserCache = true;
@@ -37,6 +38,7 @@ export class MLPipeline {
     static inactivityTimer = null;
     static sttConfig = null;
     static llmConfig = null;
+    static stateMachine = new MLStateMachine();
 
     static async getInstance() {
         if (!this.instance) {
@@ -47,6 +49,9 @@ export class MLPipeline {
 
     async loadSTT(progress_callback) {
         try {
+            // Transition to loading state
+            MLPipeline.stateMachine.transition(ML_TRANSITIONS.START_LOADING_STT);
+
             const optimizedSTTConfig = getOptimalModelConfig('stt', deviceCaps);
             const optimizedLLMConfig = getOptimalModelConfig('llm', deviceCaps);
 
@@ -58,6 +63,9 @@ export class MLPipeline {
                     status: 'Speech Engine deferred (Low Memory)',
                     isLowMemory: true
                 });
+
+                // Transition to low memory state
+                MLPipeline.stateMachine.transition(ML_TRANSITIONS.MEMORY_PRESSURE);
                 return;
             }
 
@@ -74,6 +82,9 @@ export class MLPipeline {
                         device: optimizedSTTConfig.device,
                         dtype: optimizedSTTConfig.dtype,
                     });
+
+                    // Transition to STT loaded state
+                    MLPipeline.stateMachine.transition(ML_TRANSITIONS.STT_LOADED);
                 } catch (initialLoadError) {
                     console.warn("Initial STT load failed, attempting fallback with smaller model:", initialLoadError);
 
@@ -91,6 +102,9 @@ export class MLPipeline {
                             dtype: fallbackConfig.dtype,
                         });
                         console.log("Loaded fallback STT model successfully");
+
+                        // Transition to STT loaded state
+                        MLPipeline.stateMachine.transition(ML_TRANSITIONS.STT_LOADED);
                     } catch (fallbackError) {
                         console.error("Fallback STT load also failed:", fallbackError);
 
@@ -108,6 +122,9 @@ export class MLPipeline {
                                 dtype: minimalConfig.dtype,
                             });
                             console.log("Loaded minimal fallback STT model successfully");
+
+                            // Transition to STT loaded state
+                            MLPipeline.stateMachine.transition(ML_TRANSITIONS.STT_LOADED);
                         } catch (minimalError) {
                             console.error("All STT loading attempts failed:", minimalError);
 
@@ -117,6 +134,9 @@ export class MLPipeline {
                                 error: `Speech recognition model failed to load after fallback attempts: ${minimalError.message || 'Unknown error'}`,
                                 isFallbackFailed: true
                             });
+
+                            // Transition to error state
+                            MLPipeline.stateMachine.transition(ML_TRANSITIONS.LOAD_ERROR, { error: minimalError.message });
 
                             // Explicitly set to null to ensure consistent state
                             MLPipeline.stt = null;
@@ -137,6 +157,10 @@ export class MLPipeline {
                 type: 'error',
                 error: `Speech recognition model failed to load: ${err.message || 'Unknown error'}`
             });
+
+            // Transition to error state
+            MLPipeline.stateMachine.transition(ML_TRANSITIONS.LOAD_ERROR, { error: err.message });
+
             // Ensure consistent state by setting to null on error
             MLPipeline.stt = null;
             throw err;
@@ -145,6 +169,9 @@ export class MLPipeline {
 
     async loadLLM(progress_callback) {
         try {
+            // Transition to loading state
+            MLPipeline.stateMachine.transition(ML_TRANSITIONS.START_LOADING_LLM);
+
             const optimizedLLMConfig = getOptimalModelConfig('llm', deviceCaps);
             const memoryCheck = checkMemoryAdequacy(
                 MLPipeline.sttConfig || getOptimalModelConfig('stt', deviceCaps),
@@ -159,6 +186,9 @@ export class MLPipeline {
                     status: 'Social Brain deferred (Low Memory)',
                     isLowMemory: true
                 });
+
+                // Transition to low memory state
+                MLPipeline.stateMachine.transition(ML_TRANSITIONS.MEMORY_PRESSURE);
                 return;
             }
 
@@ -178,6 +208,9 @@ export class MLPipeline {
                         device: optimizedLLMConfig.device,
                         dtype: optimizedLLMConfig.dtype,
                     });
+
+                    // Transition to LLM loaded state
+                    MLPipeline.stateMachine.transition(ML_TRANSITIONS.LLM_LOADED);
                 } catch (initialLoadError) {
                     console.warn("Initial LLM load failed, attempting fallback with smaller model:", initialLoadError);
 
@@ -195,6 +228,9 @@ export class MLPipeline {
                             dtype: fallbackConfig.dtype,
                         });
                         console.log("Loaded fallback LLM model successfully");
+
+                        // Transition to LLM loaded state
+                        MLPipeline.stateMachine.transition(ML_TRANSITIONS.LLM_LOADED);
                     } catch (fallbackError) {
                         console.error("Fallback LLM load also failed:", fallbackError);
 
@@ -212,6 +248,9 @@ export class MLPipeline {
                                 dtype: minimalConfig.dtype,
                             });
                             console.log("Loaded minimal fallback LLM model successfully");
+
+                            // Transition to LLM loaded state
+                            MLPipeline.stateMachine.transition(ML_TRANSITIONS.LLM_LOADED);
                         } catch (minimalError) {
                             console.error("All LLM loading attempts failed:", minimalError);
 
@@ -221,6 +260,9 @@ export class MLPipeline {
                                 error: `AI model failed to load after fallback attempts: ${minimalError.message || 'Unknown error'}`,
                                 isFallbackFailed: true
                             });
+
+                            // Transition to error state
+                            MLPipeline.stateMachine.transition(ML_TRANSITIONS.LOAD_ERROR, { error: minimalError.message });
 
                             // Explicitly set to null to ensure consistent state
                             MLPipeline.llm = null;
@@ -241,6 +283,10 @@ export class MLPipeline {
                 type: 'error',
                 error: `AI model failed to load: ${err.message || 'Unknown error'}`
             });
+
+            // Transition to error state
+            MLPipeline.stateMachine.transition(ML_TRANSITIONS.LOAD_ERROR, { error: err.message });
+
             // Ensure consistent state by setting to null on error
             MLPipeline.llm = null;
             throw err;
@@ -321,6 +367,31 @@ export class MLPipeline {
     static async disposeAll() {
         await MLPipeline.disposeLLM();
         await MLPipeline.disposeSTT();
+    }
+
+    // State machine helper methods
+    static getCurrentState() {
+        return MLPipeline.stateMachine.getState();
+    }
+
+    static isInState(state) {
+        return MLPipeline.stateMachine.isInState(state);
+    }
+
+    static isReadyForProcessing() {
+        return MLPipeline.stateMachine.isReadyForProcessing();
+    }
+
+    static isModelLoaded(modelType) {
+        return MLPipeline.stateMachine.isModelLoaded(modelType);
+    }
+
+    static transitionState(transition, context = {}) {
+        return MLPipeline.stateMachine.transition(transition, context);
+    }
+
+    static resetStateMachine() {
+        MLPipeline.stateMachine.reset();
     }
 }
 

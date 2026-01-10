@@ -197,6 +197,16 @@ const App = () => {
     console.log("Privacy consent given or acknowledged");
   };
 
+  // More granular reset function for STT errors only
+  const handleSTTReset = () => {
+    // Only reset STT-related errors and state, not the entire app
+    resetWorker(); // Reset the worker to clear any error states
+    // Clear any error messages related to STT
+    if (error && error.includes('Speech recognition')) {
+      // We can't directly dispatch from here, so we'll reset the worker which will clear the error state
+    }
+  };
+
   return (
     <ErrorBoundary>
       {settings && !settings.privacyMode && settings.showAnalytics && <Analytics />}
@@ -444,6 +454,7 @@ const App = () => {
               setMicPermissionError(null);
               resetWorker();
             }}
+            onSTTReset={handleSTTReset}
           />
         )}
       </div>
