@@ -323,6 +323,19 @@ const App = () => {
                 {/* Enhanced loading information */}
                 <div className="loading-details">
                   <p className="loading-step">{status}</p>
+
+                  {/* Progressive Loading Stages */}
+                  <div className="loading-stage-indicator" aria-label="Loading stages">
+                    <div className="loading-stage">
+                      <div className={`stage-dot ${status.includes('Speech Engine') ? 'active' : status.includes('Ready') || status.includes('Social Brain') || status.includes('background') ? 'completed' : ''}`} />
+                      <span className={`stage-label ${status.includes('Speech Engine') ? 'active' : status.includes('Ready') || status.includes('Social Brain') || status.includes('background') ? 'completed' : ''}`}>Speech Engine</span>
+                    </div>
+                    <div className="loading-stage">
+                      <div className={`stage-dot ${status.includes('Social Brain') ? 'active' : status.includes('Ready') || status.includes('background') ? 'completed' : ''}`} />
+                      <span className={`stage-label ${status.includes('Social Brain') ? 'active' : status.includes('Ready') || status.includes('background') ? 'completed' : ''}`}>Social Brain</span>
+                    </div>
+                  </div>
+
                   <div className="loading-hint" role="note" aria-label="Loading tip">
                     <Info size={14} className="hint-icon" aria-hidden="true" />
                     <p>Tip: ConvoCue runs entirely on your device for privacy. Initial setup may take a moment.</p>

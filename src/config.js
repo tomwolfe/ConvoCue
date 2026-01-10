@@ -65,6 +65,7 @@ export const AppConfig = {
   models: {
     stt: {
       name: 'onnx-community/whisper-tiny.en',
+      fallbackModel: 'onnx-community/whisper-tiny.en', // Same model as primary for now, but could be different
       device: 'wasm',
       dtype: 'q4',
       chunk_length_s: isMobile ? 15 : 30,
@@ -72,6 +73,7 @@ export const AppConfig = {
     },
     llm: {
       name: 'HuggingFaceTB/SmolLM2-135M-Instruct',
+      fallbackModel: 'HuggingFaceTB/SmolLM2-135M-Instruct', // Same model as primary for now, but could be different
       device: 'wasm',
       dtype: 'q4',
       max_new_tokens: isMobile ? 64 : 128,

@@ -8,15 +8,19 @@ import { analyzeRelationshipCoaching } from './utils/relationshipCoaching';
 import { analyzeAnxietyCoaching } from './utils/anxietyCoaching';
 import { analyzeProfessionalCoaching, analyzeMeetingCoaching } from './utils/professionalCoaching';
 import { estimateConversationSize, logPerformanceMetric, monitorAndOptimizeHistory } from './utils/performanceMonitoring';
-import { getOptimalModelConfig } from './utils/performanceOptimizer';
+import { getOptimalModelConfig, createProgressiveLoadingStrategy, deviceCaps } from './utils/performanceOptimizer';
 import { provideContextualLanguageFeedback } from './utils/languageLearning';
 import { coordinateFeaturesInResponse, resolveFeatureConflicts } from './utils/featureCoordination';
 
 // Modular Worker Components
-import { MLPipeline, deviceCaps, checkMemoryUsage } from './worker/MLPipeline';
+import { MLPipeline, checkMemoryUsage } from './worker/MLPipeline';
 import { WorkerState, updatePerformanceMode, initConversationTurnManager, HIGH_STAKES_THRESHOLD_TURNS } from './worker/state';
 import { sanitizeText, throttledProgress, validateCoachingInsights } from './worker/utils';
 import { generateSystemPrompt } from './worker/promptGenerator';
+import { WorkerMessenger } from './worker/Messenger';
+
+// Create a messenger instance for communication
+const messenger = new WorkerMessenger();
 
 self.onmessage = async (event) => {
     const {
@@ -36,12 +40,60 @@ self.onmessage = async (event) => {
 
         if (type === 'load') {
             try {
-                // Simplified loading strategy for brevity in entry point
-                await pipelineManager.loadSTT((p) => throttledProgress(p, 'Speech Engine', taskId));
-                await pipelineManager.loadLLM((p) => throttledProgress(p, 'Social Brain', taskId));
-                self.postMessage({ type: 'ready', taskId });
+                // Create progressive loading strategy based on device capabilities
+                const loadingStrategy = createProgressiveLoadingStrategy(deviceCaps);
+
+                console.log(`[Worker] Using ${loadingStrategy.initialLoad.length} initial models for ${deviceCaps.performanceTier} performance tier`);
+
+                // Load initial models based on strategy
+                if (loadingStrategy.initialLoad.includes('stt') || loadingStrategy.initialLoad.includes('minimal_stt')) {
+                    await pipelineManager.loadSTT((p) => throttledProgress(p, 'Speech Engine', taskId));
+                }
+
+                if (loadingStrategy.initialLoad.includes('llm')) {
+                    await pipelineManager.loadLLM((p) => throttledProgress(p, 'Social Brain', taskId));
+                }
+
+                // For low-spec devices, only load STT initially and defer LLM loading
+                if (loadingStrategy.initialLoad.includes('minimal_stt')) {
+                    await pipelineManager.loadSTT((p) => throttledProgress(p, 'Speech Engine', taskId));
+                    // LLM will be loaded later when needed
+                    messenger.postMessage({
+                        type: 'ready',
+                        taskId,
+                        status: 'Minimal mode: STT loaded, LLM will load on demand',
+                        isLowSpec: true
+                    });
+                } else {
+                    // For other devices, initiate background LLM loading if specified in delayedLoad
+                    if (loadingStrategy.delayedLoad.includes('llm')) {
+                        // Send initial ready message but continue loading LLM in background
+                        messenger.postMessage({
+                            type: 'ready',
+                            taskId,
+                            status: 'STT loaded, Social Brain loading in background...'
+                        });
+
+                        // Load LLM in background without blocking the ready state
+                        try {
+                            await pipelineManager.loadLLM((p) => throttledProgress(p, 'Social Brain', taskId));
+                        } catch (llmLoadError) {
+                            console.warn("Background LLM loading failed:", llmLoadError);
+                            // Still consider worker ready since STT is loaded
+                        }
+                    } else {
+                        // Both models loaded upfront
+                        messenger.postMessage({ type: 'ready', taskId });
+                    }
+                }
             } catch (loadError) {
-                self.postMessage({ type: 'error', error: loadError.message, taskId });
+                console.error("Model loading failed:", loadError);
+                messenger.postMessage({
+                    type: 'error',
+                    error: `Model loading failed: ${loadError.message || 'Unknown error'}`,
+                    taskId
+                });
+                return;
             }
         }
 
@@ -97,7 +149,7 @@ self.onmessage = async (event) => {
                 : { turn: { speaker: 'user' }, isLikelyNewSpeaker: false };
 
             updatePerformanceMode(audioProcessingTime, 'audio');
-            self.postMessage({
+            messenger.postMessage({
                 type: 'stt_result',
                 text: sanitizedText,
                 metadata: { turnInfo, performance: { audioProcessingTime, mode: WorkerState.performanceStats.mode } },
@@ -106,120 +158,340 @@ self.onmessage = async (event) => {
         }
 
         if (type === 'llm') {
-            const startTime = performance.now();
-            if (!MLPipeline.llm) await pipelineManager.loadLLM((p) => throttledProgress(p, 'Social Brain', taskId));
-            if (!MLPipeline.llm) throw new Error("Social Brain failed to load.");
+            try {
+                const startTime = performance.now();
 
-            MLPipeline.lastUsed = Date.now();
-            pipelineManager.resetInactivityTimer();
+                // Check if LLM is loaded, and if not, load it (especially important for deferred loading)
+                if (!MLPipeline.llm) {
+                    // For low-spec devices, we may need to temporarily unload STT to make room
+                    if (MLPipeline.stt && deviceCaps.capabilities.isLowSpec) {
+                        console.log("Unloading STT temporarily to make room for LLM on low-spec device");
+                        await MLPipeline.disposeSTT();
+                    }
 
-            const personaConfig = AppConfig.models.personas[persona] || AppConfig.models.personas.anxiety;
-            const sanitizedText = _text.trim().substring(0, AppConfig.system.maxTranscriptLength);
-            const emotionData = analyzeEmotion(sanitizedText);
-            const intents = detectMultipleIntents(sanitizedText, 0.4);
+                    // Check memory adequacy before loading LLM
+                    const memoryCheck = checkMemoryAdequacy(
+                        MLPipeline.sttConfig || getOptimalModelConfig('stt', deviceCaps),
+                        getOptimalModelConfig('llm', deviceCaps)
+                    );
 
-            // Dynamic Thresholds & Context
-            let culturalOverrideThreshold = settings?.culturalOverrideThreshold || 0.85;
-            const hasHighStakesIntent = intents?.some(i => ['strategic', 'negotiation', 'leadership'].includes(i.intent));
-            if (hasHighStakesIntent) WorkerState.highStakesCounter++;
-            else WorkerState.highStakesCounter = Math.max(0, WorkerState.highStakesCounter - 1);
+                    if (!memoryCheck.isAdequate && deviceCaps.performanceTier === 'low') {
+                        console.warn(`[Worker] Insufficient memory for full LLM on low-spec device. Available: ${memoryCheck.availableMemoryMB}MB, Required: ${memoryCheck.totalMemoryMB}MB`);
+                        // For now, we'll proceed with the standard load but with awareness of constraints
+                    }
 
-            if (hasHighStakesIntent && WorkerState.highStakesCounter >= HIGH_STAKES_THRESHOLD_TURNS) culturalOverrideThreshold = 0.7;
+                    await pipelineManager.loadLLM((p) => throttledProgress(p, 'Social Brain', taskId));
+                }
 
-            const isPowerSavingMode = WorkerState.performanceStats.mode === 'minimal';
-            const detectedCulturalContext = analyzeCulturalContext(sanitizedText, culturalContext, isPowerSavingMode ? [] : (history || []));
-            const effectiveCulturalContext = (detectedCulturalContext.primaryCulture !== 'general' && detectedCulturalContext.confidence > culturalOverrideThreshold)
-                ? detectedCulturalContext.primaryCulture : culturalContext;
+                if (!MLPipeline.llm) throw new Error("Social Brain failed to load or was deferred due to memory.");
 
-            // Analysis
-            let relationshipInsights = null, anxietyInsights = null, professionalInsights = null, meetingInsights = null, languageLearningInsights = null;
-            let coachingAnalysisTime = 0;
-            let conversationSentiment = WorkerState.lastSentiment || { overallSentiment: 'neutral', emotionalTrend: 'stable' };
+                MLPipeline.lastUsed = Date.now();
+                pipelineManager.resetInactivityTimer();
 
-            if (!isPowerSavingMode) {
-                const coachingStartTime = performance.now();
-                relationshipInsights = (persona === 'relationship') ? analyzeRelationshipCoaching(sanitizedText, history, emotionData, insightCategoryScores) : null;
-                anxietyInsights = (persona === 'anxiety') ? analyzeAnxietyCoaching(sanitizedText, history, emotionData) : null;
-                professionalInsights = (persona === 'professional') ? analyzeProfessionalCoaching(sanitizedText, history, emotionData, insightCategoryScores) : null;
-                meetingInsights = (persona === 'meeting') ? analyzeMeetingCoaching(sanitizedText, history, emotionData, insightCategoryScores) : null;
-                if (persona === 'languagelearning') languageLearningInsights = provideContextualLanguageFeedback(sanitizedText, settings?.nativeLanguage || 'general', history);
+                const personaConfig = AppConfig.models.personas[persona] || AppConfig.models.personas.anxiety;
+                const sanitizedText = _text.trim().substring(0, AppConfig.system.maxTranscriptLength);
+                const emotionData = analyzeEmotion(sanitizedText);
+                const intents = detectMultipleIntents(sanitizedText, 0.4);
 
-                const coordinated = resolveFeatureConflicts({ relationship: relationshipInsights, anxiety: anxietyInsights, professional: professionalInsights, meeting: meetingInsights, language: languageLearningInsights }, persona);
-                relationshipInsights = coordinated.relationship; anxietyInsights = coordinated.anxiety; professionalInsights = coordinated.professional; meetingInsights = coordinated.meeting; languageLearningInsights = coordinated.language;
-                coachingAnalysisTime = performance.now() - coachingStartTime;
-            }
+                // Dynamic Resource Allocation based on Performance Mode and Device Capabilities
+                const baseMaxTokens = MLPipeline.llmConfig ? MLPipeline.llmConfig.max_new_tokens : AppConfig.models.llm.max_new_tokens;
+                const maxTokens = WorkerState.performanceStats.mode === 'minimal'
+                    ? Math.min(32, baseMaxTokens)
+                    : WorkerState.performanceStats.mode === 'balanced'
+                        ? Math.min(64, baseMaxTokens)
+                        : baseMaxTokens;
 
-            // Parallel Sentiment
-            const sentimentPromise = (WorkerState.performanceStats.mode !== 'minimal' && settings.enableSentimentAnalysis !== false && !settings.privacyMode)
-                ? Promise.resolve().then(() => {
-                    const result = analyzeConversationSentiment(history || []);
-                    WorkerState.lastSentiment = result;
-                    return result;
-                }) : Promise.resolve(conversationSentiment);
+                // Deep Coaching Analysis Decision
+                // We prioritize battery life and responsiveness over analysis depth in minimal mode.
+                // Determines if Auto-Persona is enabled, indicating user preference for sophisticated AI assistance.
+                const isPowerSavingMode = WorkerState.performanceStats.mode === 'minimal';
+                const shouldRunDeepAnalysis = !isPowerSavingMode;
 
-            // Prompt
-            const isSubtleMode = settings?.isSubtleMode || preferences?.isSubtleMode;
-            const profileHash = communicationProfile ? communicationProfile.length : 0;
-            const promptKey = `${persona}-${culturalContext}-${preferences?.preferredLength}-${isSubtleMode ? 'subtle' : 'normal'}-${profileHash}`;
-            
-            if (WorkerState.cachedSystemPrompt.key !== promptKey) {
-                WorkerState.cachedSystemPrompt = {
-                    key: promptKey,
-                    content: generateSystemPrompt({ persona, personaConfig, effectiveCulturalContext, communicationProfile, detectedCulturalContext, sanitizedText, isPowerSavingMode, isSubtleMode, preferences, relationshipInsights, anxietyInsights, settings })
-                };
-            }
+                // Detect cultural context from the input text using advanced cultural intelligence
+                // In power saving mode, reduce the frequency of cultural analysis or use simplified analysis
+                let detectedCulturalContext;
+                if (isPowerSavingMode) {
+                    // In power saving mode, only analyze current text without history to reduce computation
+                    detectedCulturalContext = analyzeCulturalContext(sanitizedText, culturalContext, []);
+                } else {
+                    detectedCulturalContext = analyzeCulturalContext(sanitizedText, culturalContext, history || []);
+                }
 
-            let dynamicContext = "";
-            if (metadata && !settings.privacyMode) {
-                if (metadata.rms > 0.01 && (sanitizedText.split(/\s+/).length / (metadata.duration || 1)) > 3) dynamicContext += "User sounds urgent. ";
-                if (metadata?.turnInfo?.isLikelyNewSpeaker) dynamicContext += "Another person may be speaking. ";
-            }
-            if (!settings.privacyMode && emotionData.emotion !== 'neutral') dynamicContext += `Emotion: ${emotionData.emotion}. `;
-            if (!settings.privacyMode && conversationSentiment.overallSentiment !== 'neutral') dynamicContext += `Context: ${conversationSentiment.overallSentiment} vibe. `;
+                // Use detected cultural context if more specific than current context AND if confidence is high enough
+                // The threshold is dynamic: it can be provided by user settings, or falls back to AppConfig/CulturalIntelligenceConfig
+                let culturalOverrideThreshold = _settings?.culturalOverrideThreshold ||
+                                                 AppConfig.culturalIntelligenceConfig?.confidence?.overrideThreshold ||
+                                                 0.85;
 
-            const conversationHistory = monitorAndOptimizeHistory((history || []).map(m => ({ role: m.role || 'user', content: m.content })));
-            const messages = [{ role: "system", content: `${WorkerState.cachedSystemPrompt.content} ${dynamicContext}` }, ...conversationHistory, { role: "user", content: sanitizedText }];
+                // Cycle 2: Cultural Intelligence Tuning (Robust Refinement)
+                // Dynamically adjust threshold based on persistent intent intensity.
+                // We require multiple consecutive turns of high-stakes intent before lowering
+                // the threshold to ensure it's not a misclassification.
+                const hasHighStakesIntent = intents?.some(i => ['strategic', 'negotiation', 'leadership'].includes(i.intent));
+                const hasSocialIntent = intents?.some(i => i.intent === 'social');
 
-            const streamer = new TextStreamer(MLPipeline.llm.tokenizer, {
-                skip_prompt: true, skip_special_tokens: true,
-                callback_function: (chunk) => { if (chunk) self.postMessage({ type: 'llm_chunk', text: chunk, taskId }); }
-            });
+                if (hasHighStakesIntent) {
+                    WorkerState.highStakesCounter++;
+                } else {
+                    WorkerState.highStakesCounter = Math.max(0, WorkerState.highStakesCounter - 1);
+                }
 
-            const maxTokens = isPowerSavingMode ? 32 : (WorkerState.performanceStats.mode === 'balanced' ? 64 : 128);
-            const output = await MLPipeline.llm(messages, { max_new_tokens: maxTokens, temperature: AppConfig.models.llm.temperature, do_sample: AppConfig.models.llm.do_sample, streamer });
+                if (hasHighStakesIntent && WorkerState.highStakesCounter >= HIGH_STAKES_THRESHOLD_TURNS) {
+                    culturalOverrideThreshold = 0.7; // Be more aggressive in persistent high-stakes context
+                } else if (hasSocialIntent) {
+                    culturalOverrideThreshold = 0.9; // Be more conservative in social context to avoid jitter
+                    WorkerState.highStakesCounter = 0; // Reset counter in social context
+                } else {
+                    // Standard threshold
+                    culturalOverrideThreshold = _settings?.culturalOverrideThreshold ||
+                                               AppConfig.culturalIntelligenceConfig?.confidence?.overrideThreshold ||
+                                               0.85;
+                }
 
-            let response = "";
-            if (output[0]?.generated_text) {
-                const gen = output[0].generated_text;
-                response = Array.isArray(gen) ? gen[gen.length - 1].content : gen;
-            }
+                const effectiveCulturalContext = detectedCulturalContext.primaryCulture !== 'general' &&
+                                                detectedCulturalContext.confidence > culturalOverrideThreshold
+                    ? detectedCulturalContext.primaryCulture
+                    : culturalContext;
 
-            const coordinatedResponse = coordinateFeaturesInResponse(response, { relationship: relationshipInsights, anxiety: anxietyInsights, professional: professionalInsights, meeting: meetingInsights, language: languageLearningInsights }, persona);
-            const finalSentiment = await sentimentPromise;
+                // Perform coaching analysis based on persona - Skip if in power saving mode
+                let relationshipInsights = null;
+                let anxietyInsights = null;
+                let professionalInsights = null;
+                let meetingInsights = null;
+                let languageLearningInsights = null;
+                let coachingAnalysisTime = 0;
+                let conversationSentiment = null;
+                let sentimentAnalysisTime = 0;
 
-            self.postMessage({
-                type: 'llm_result',
-                text: sanitizeText(coordinatedResponse.trim()),
-                emotionData,
-                conversationSentiment: finalSentiment,
-                coachingInsights: {
+                if (shouldRunDeepAnalysis) {
+                    const coachingStartTime = performance.now();
+
+                    relationshipInsights = (persona === 'relationship')
+                        ? analyzeRelationshipCoaching(sanitizedText, history, emotionData, insightCategoryScores)
+                        : null;
+
+                    anxietyInsights = (persona === 'anxiety')
+                        ? analyzeAnxietyCoaching(sanitizedText, history, emotionData)
+                        : null;
+
+                    professionalInsights = (persona === 'professional')
+                        ? analyzeProfessionalCoaching(sanitizedText, history, emotionData, insightCategoryScores)
+                        : null;
+
+                    meetingInsights = (persona === 'meeting')
+                        ? analyzeMeetingCoaching(sanitizedText, history, emotionData, insightCategoryScores)
+                        : null;
+
+                    // Add language learning insights for language learning persona
+                    if (persona === 'languagelearning') {
+                        // Get user's native language from settings (separate from cultural context)
+                        const nativeLanguage = _settings?.nativeLanguage ||
+                                              (AppConfig.culturalLanguageConfig?.languageLearningSettings?.nativeLanguage) ||
+                                              'general';
+                        languageLearningInsights = provideContextualLanguageFeedback(sanitizedText, nativeLanguage, history);
+                    }
+
+                    coachingAnalysisTime = performance.now() - coachingStartTime;
+
+                    // Coordinate insights to handle potential conflicts between features
+                    const allInsights = {
+                        relationship: relationshipInsights,
+                        anxiety: anxietyInsights,
+                        professional: professionalInsights,
+                        meeting: meetingInsights,
+                        language: languageLearningInsights
+                    };
+
+                    // Resolve conflicts between different insights
+                    const coordinatedInsights = resolveFeatureConflicts(allInsights, persona);
+
+                    // Update the insight variables with coordinated versions
+                    relationshipInsights = coordinatedInsights.relationship;
+                    anxietyInsights = coordinatedInsights.anxiety;
+                    professionalInsights = coordinatedInsights.professional;
+                    meetingInsights = coordinatedInsights.meeting;
+                    languageLearningInsights = coordinatedInsights.language;
+                }
+
+                // Cached System Prompt Generation
+                const isSubtleMode = _settings?.isSubtleMode || preferences?.isSubtleMode;
+                const profileHash = communicationProfile ? communicationProfile.length : 0;
+                const promptKey = `${persona}-${culturalContext}-${preferences?.preferredLength}-${isSubtleMode ? 'subtle' : 'normal'}-${profileHash}`;
+
+                if (WorkerState.cachedSystemPrompt.key !== promptKey) {
+                    WorkerState.cachedSystemPrompt = {
+                        key: promptKey,
+                        content: generateSystemPrompt({
+                            persona,
+                            personaConfig,
+                            effectiveCulturalContext,
+                            communicationProfile,
+                            detectedCulturalContext,
+                            sanitizedText,
+                            isPowerSavingMode,
+                            isSubtleMode,
+                            preferences,
+                            relationshipInsights,
+                            anxietyInsights,
+                            settings
+                        })
+                    };
+                }
+
+                // Resource Governor: Throttling and conditional execution
+                const isShortUtterance = sanitizedText.split(/\s+/).length < 3;
+                const timeSinceLastLLM = Date.now() - (WorkerState.lastLLMCallTime || 0);
+                const isHighFrequency = timeSinceLastLLM < 2000;
+
+                // Launch LLM and Sentiment Analysis in parallel
+                // Sentiment analysis is secondary and shouldn't block LLM start, but we want it for the prompt
+                const sentimentPromise = (WorkerState.performanceStats.mode !== 'minimal' &&
+                    settings.enableSentimentAnalysis !== false &&
+                    !settings.privacyMode &&
+                    (!isShortUtterance || !isHighFrequency))
+                    ? Promise.resolve().then(() => {
+                        const sStartTime = performance.now();
+                        const result = analyzeConversationSentiment(history || []);
+                        sentimentAnalysisTime = performance.now() - sStartTime;
+                        // Update the last sentiment in the global state
+                        WorkerState.lastSentiment = result;
+                        return result;
+                    })
+                    : Promise.resolve(WorkerState.lastSentiment || { overallSentiment: 'neutral', emotionalTrend: 'stable' });
+
+                // Store the current sentiment promise in the global state to track it
+                WorkerState.sentimentPromise = sentimentPromise;
+
+                // Dynamic Context (Not cached)
+                let dynamicContext = "";
+                if (metadata && !settings.privacyMode) {
+                    const speechRate = sanitizedText.split(/\s+/).length / (metadata.duration || 1);
+                    if (metadata.rms > 0.01 && speechRate > 3) dynamicContext += "User sounds urgent. ";
+
+                    // Add turn information if available
+                    if (metadata?.turnInfo) {
+                        const turnInfo = metadata.turnInfo;
+                        if (turnInfo.isLikelyNewSpeaker) {
+                            dynamicContext += "Another person may be speaking now. ";
+                        }
+                    }
+                }
+
+                // Add emotional context (if not in privacy mode)
+                if (!settings.privacyMode && emotionData.emotion !== 'neutral') {
+                    dynamicContext += `Emotion: ${emotionData.emotion}. `;
+                }
+
+                // Wait for sentiment to complete so we can include it in the current prompt
+                // Given the new caching, this should be extremely fast (< 2ms)
+                const finalSentiment = await sentimentPromise;
+                conversationSentiment = finalSentiment;
+
+                // Add conversation sentiment context (if not in privacy mode)
+                if (!settings.privacyMode && finalSentiment.overallSentiment !== 'neutral') {
+                    dynamicContext += `Overall conversation sentiment: ${finalSentiment.overallSentiment}. `;
+                    if (finalSentiment.emotionalTrend !== 'stable') {
+                        dynamicContext += `Trend: ${finalSentiment.emotionalTrend}. `;
+                    }
+                }
+
+                // Prepare conversation history with proper roles
+                const conversationHistory = monitorAndOptimizeHistory((history || []).map(m => ({
+                    role: m.role || 'user',
+                    content: m.content
+                })));
+
+                // Performance monitoring for large histories
+                const historySize = estimateConversationSize(conversationHistory);
+                if (historySize > 10000) { // More than 10KB of history
+                    console.warn(`Large conversation history detected: ${historySize} characters`);
+                }
+
+                // Create messages for the LLM
+                const messages = [
+                    { role: "system", content: `${WorkerState.cachedSystemPrompt.content} ${dynamicContext}` },
+                    ...conversationHistory,
+                    { role: "user", content: sanitizedText }
+                ];
+
+                const llmStartTime = performance.now();
+                const streamer = new TextStreamer(MLPipeline.llm.tokenizer, {
+                    skip_prompt: true,
+                    skip_special_tokens: true,
+                    callback_function: (chunk) => {
+                        if (chunk) messenger.postMessage({ type: 'llm_chunk', text: chunk, taskId });
+                    },
+                });
+
+                const output = await MLPipeline.llm(messages, {
+                    max_new_tokens: maxTokens,
+                    temperature: AppConfig.models.llm.temperature,
+                    do_sample: AppConfig.models.llm.do_sample,
+                    streamer,
+                });
+
+                let response = "";
+                if (output[0]?.generated_text) {
+                    const gen = output[0].generated_text;
+                    response = Array.isArray(gen) ? gen[gen.length - 1].content : gen;
+                }
+
+                const llmProcessingTime = performance.now() - llmStartTime;
+
+                // Log performance metrics for large histories
+                logPerformanceMetric('llm_processing', llmStartTime, history);
+
+                // Apply feature coordination to the final response
+                const coordinatedResponse = coordinateFeaturesInResponse(response, {
+                    relationship: relationshipInsights,
+                    anxiety: anxietyInsights,
+                    professional: professionalInsights,
+                    meeting: meetingInsights,
+                    language: languageLearningInsights
+                }, persona);
+
+                // Sanitize the response before sending it back
+                const sanitizedResponse = sanitizeText(coordinatedResponse.trim());
+                messenger.postMessage({
+                  type: 'llm_result',
+                  text: sanitizedResponse,
+                  emotionData,
+                  conversationSentiment, // Include conversation sentiment
+                  coachingInsights: {
                     relationship: validateCoachingInsights(relationshipInsights),
                     anxiety: validateCoachingInsights(anxietyInsights),
                     professional: validateCoachingInsights(professionalInsights),
                     meeting: validateCoachingInsights(meetingInsights),
                     language: validateCoachingInsights(languageLearningInsights),
                     cultural: detectedCulturalContext
-                },
-                metadata: { performance: { llmProcessingTime: performance.now() - startTime, historySize: estimateConversationSize(conversationHistory) } },
-                taskId
-            });
+                  },
+                  metadata: {
+                    performance: {
+                      llmProcessingTime,
+                      coachingAnalysisTime,
+                      sentimentAnalysisTime,
+                      totalTime: performance.now() - startTime,
+                      historySize
+                    }
+                  },
+                  taskId
+                });
+            } catch (llmError) {
+                console.error("LLM processing failed:", llmError);
+                messenger.postMessage({
+                    type: 'error',
+                    error: `AI response generation failed: ${llmError.message || 'Unknown error'}`,
+                    taskId
+                });
+                return;
+            }
         }
 
         if (type === 'cleanup') {
             await MLPipeline.disposeAll();
-            self.postMessage({ type: 'cleanup_complete', taskId });
+            messenger.postMessage({ type: 'cleanup_complete', taskId });
         }
     } catch (error) {
-        self.postMessage({ type: 'error', error: error.message, taskId: taskId || 'unknown' });
+        messenger.postMessage({ type: 'error', error: error.message, taskId: taskId || 'unknown' });
     }
 };

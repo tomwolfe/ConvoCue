@@ -27,6 +27,7 @@ export const WorkerState = {
     cachedSystemPrompt: { key: null, content: null },
     lastLLMCallTime: 0,
     lastSentiment: null,
+    sentimentPromise: null, // Track ongoing sentiment analysis promise
     performanceStats: {
         audioProcessingTimes: [],
         llmProcessingTimes: [],

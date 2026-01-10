@@ -218,7 +218,7 @@ export const checkMemoryAdequacy = (sttConfig, llmConfig) => {
  */
 export const createProgressiveLoadingStrategy = (deviceCaps) => {
   const { performanceTier } = deviceCaps;
-  
+
   switch (performanceTier) {
     case 'low':
       return {
@@ -228,7 +228,7 @@ export const createProgressiveLoadingStrategy = (deviceCaps) => {
         unloadAggressively: true,
         maxConcurrentModels: 1
       };
-    
+
     case 'medium':
       return {
         initialLoad: ['stt'], // Load STT first
@@ -237,18 +237,20 @@ export const createProgressiveLoadingStrategy = (deviceCaps) => {
         unloadAggressively: false,
         maxConcurrentModels: 2
       };
-    
+
     case 'high':
-        default:
-          return {
-            initialLoad: ['stt', 'llm'], // Load all models upfront
-            delayedLoad: [],
-            memoryThreshold: 0.85, // Start memory management at 85%
-            unloadAggressively: false,
-            maxConcurrentModels: 2
-          };
-      }
-    };
+    default:
+      // For high-tier devices, we can still use the original aggressive loading
+      // But we'll add fallback options for memory-constrained environments
+      return {
+        initialLoad: ['stt'], // Start with STT only
+        delayedLoad: ['llm'], // Load LLM after initial setup
+        memoryThreshold: 0.85, // Start memory management at 85%
+        unloadAggressively: false,
+        maxConcurrentModels: 2
+      };
+  }
+};
     
     /**
      * Singleton instance of device capabilities

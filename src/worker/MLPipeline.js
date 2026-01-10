@@ -1,6 +1,7 @@
 import { pipeline, env } from '@huggingface/transformers';
 import { AppConfig } from '../config';
 import { assessDeviceCapabilities, getOptimalModelConfig, checkMemoryAdequacy, deviceCaps } from '../utils/performanceOptimizer';
+import { WorkerMessenger } from './Messenger';
 
 env.allowLocalModels = false;
 env.useBrowserCache = true;
@@ -13,6 +14,9 @@ env.backends.onnx.wasm.proxy = false;
 if (AppConfig.vad.onnxWASMPaths) {
     env.backends.onnx.wasm.wasmPaths = AppConfig.vad.onnxWASMPaths;
 }
+
+// Create a messenger instance for communication
+const messenger = new WorkerMessenger();
 
 export const checkMemoryUsage = () => {
     if (self.performance && self.performance.memory) {
@@ -49,7 +53,7 @@ export class MLPipeline {
             const mem = checkMemoryUsage();
             if (mem && mem.usagePercent > AppConfig.system.memory.modelUnloadThreshold) {
                 console.warn("Memory too high to load STT:", mem.usagePercent);
-                self.postMessage({
+                messenger.postMessage({
                     type: 'status',
                     status: 'Speech Engine deferred (Low Memory)',
                     isLowMemory: true
@@ -63,11 +67,62 @@ export class MLPipeline {
                     await MLPipeline.disposeLLM();
                 }
 
-                MLPipeline.stt = await pipeline('automatic-speech-recognition', optimizedSTTConfig.name, {
-                    progress_callback,
-                    device: optimizedSTTConfig.device,
-                    dtype: optimizedSTTConfig.dtype,
-                });
+                // Try loading with fallback options for low-end devices
+                try {
+                    MLPipeline.stt = await pipeline('automatic-speech-recognition', optimizedSTTConfig.name, {
+                        progress_callback,
+                        device: optimizedSTTConfig.device,
+                        dtype: optimizedSTTConfig.dtype,
+                    });
+                } catch (initialLoadError) {
+                    console.warn("Initial STT load failed, attempting fallback with smaller model:", initialLoadError);
+
+                    // Fallback: try loading a smaller model configuration
+                    const fallbackConfig = {
+                        ...optimizedSTTConfig,
+                        dtype: 'q2', // More aggressive quantization
+                        name: optimizedSTTConfig.name.replace('base', 'tiny').replace('small', 'base') // Try smaller variant if available
+                    };
+
+                    try {
+                        MLPipeline.stt = await pipeline('automatic-speech-recognition', fallbackConfig.name, {
+                            progress_callback,
+                            device: fallbackConfig.device,
+                            dtype: fallbackConfig.dtype,
+                        });
+                        console.log("Loaded fallback STT model successfully");
+                    } catch (fallbackError) {
+                        console.error("Fallback STT load also failed:", fallbackError);
+
+                        // Final fallback: try with minimal configuration
+                        const minimalConfig = {
+                            name: AppConfig.models.stt.fallbackModel || optimizedSTTConfig.name,
+                            device: 'cpu',
+                            dtype: 'q4'
+                        };
+
+                        try {
+                            MLPipeline.stt = await pipeline('automatic-speech-recognition', minimalConfig.name, {
+                                progress_callback,
+                                device: minimalConfig.device,
+                                dtype: minimalConfig.dtype,
+                            });
+                            console.log("Loaded minimal fallback STT model successfully");
+                        } catch (minimalError) {
+                            console.error("All STT loading attempts failed:", minimalError);
+
+                            // Send error but don't throw to allow graceful degradation
+                            messenger.postMessage({
+                                type: 'error',
+                                error: `Speech recognition model failed to load after fallback attempts: ${minimalError.message || 'Unknown error'}`,
+                                isFallbackFailed: true
+                            });
+
+                            // Return early to prevent further processing
+                            return;
+                        }
+                    }
+                }
 
                 MLPipeline.sttConfig = optimizedSTTConfig;
             }
@@ -75,7 +130,7 @@ export class MLPipeline {
             this.resetInactivityTimer();
         } catch (err) {
             console.error("STT Load Failed:", err);
-            self.postMessage({
+            messenger.postMessage({
                 type: 'error',
                 error: `Speech recognition model failed to load: ${err.message || 'Unknown error'}`
             });
@@ -94,7 +149,7 @@ export class MLPipeline {
             const mem = checkMemoryUsage();
             if (mem && mem.usagePercent > AppConfig.system.memory.modelUnloadThreshold) {
                 console.warn("Memory too high to load LLM:", mem.usagePercent);
-                self.postMessage({
+                messenger.postMessage({
                     type: 'status',
                     status: 'Social Brain deferred (Low Memory)',
                     isLowMemory: true
@@ -103,18 +158,70 @@ export class MLPipeline {
             }
 
             if (!MLPipeline.llm) {
+                // Attempt to make space for LLM loading
                 if (MLPipeline.stt && (!memoryCheck.isAdequate || deviceCaps.capabilities.isLowSpec)) {
                     console.log("Disposing STT to make room for LLM due to memory constraints");
                     await MLPipeline.disposeSTT();
                 }
 
-                self.postMessage({ type: 'status', status: 'Loading Social Brain...' });
+                messenger.postMessage({ type: 'status', status: 'Loading Social Brain...' });
 
-                MLPipeline.llm = await pipeline('text-generation', optimizedLLMConfig.name, {
-                    progress_callback,
-                    device: optimizedLLMConfig.device,
-                    dtype: optimizedLLMConfig.dtype,
-                });
+                // Try loading with fallback options for low-end devices
+                try {
+                    MLPipeline.llm = await pipeline('text-generation', optimizedLLMConfig.name, {
+                        progress_callback,
+                        device: optimizedLLMConfig.device,
+                        dtype: optimizedLLMConfig.dtype,
+                    });
+                } catch (initialLoadError) {
+                    console.warn("Initial LLM load failed, attempting fallback with smaller model:", initialLoadError);
+
+                    // Fallback: try loading a smaller model configuration
+                    const fallbackConfig = {
+                        ...optimizedLLMConfig,
+                        dtype: 'q2', // More aggressive quantization
+                        name: optimizedLLMConfig.name.replace('135M', '80M').replace('300M', '135M') // Try smaller variant if available
+                    };
+
+                    try {
+                        MLPipeline.llm = await pipeline('text-generation', fallbackConfig.name, {
+                            progress_callback,
+                            device: fallbackConfig.device,
+                            dtype: fallbackConfig.dtype,
+                        });
+                        console.log("Loaded fallback LLM model successfully");
+                    } catch (fallbackError) {
+                        console.error("Fallback LLM load also failed:", fallbackError);
+
+                        // Final fallback: try with minimal configuration
+                        const minimalConfig = {
+                            name: AppConfig.models.llm.fallbackModel || optimizedLLMConfig.name,
+                            device: 'cpu',
+                            dtype: 'q4'
+                        };
+
+                        try {
+                            MLPipeline.llm = await pipeline('text-generation', minimalConfig.name, {
+                                progress_callback,
+                                device: minimalConfig.device,
+                                dtype: minimalConfig.dtype,
+                            });
+                            console.log("Loaded minimal fallback LLM model successfully");
+                        } catch (minimalError) {
+                            console.error("All LLM loading attempts failed:", minimalError);
+
+                            // Send error but don't throw to allow graceful degradation
+                            messenger.postMessage({
+                                type: 'error',
+                                error: `AI model failed to load after fallback attempts: ${minimalError.message || 'Unknown error'}`,
+                                isFallbackFailed: true
+                            });
+
+                            // Return early to prevent further processing
+                            return;
+                        }
+                    }
+                }
 
                 MLPipeline.llmConfig = optimizedLLMConfig;
             }
@@ -122,7 +229,7 @@ export class MLPipeline {
             this.resetInactivityTimer();
         } catch (err) {
             console.error("LLM Load Failed:", err);
-            self.postMessage({
+            messenger.postMessage({
                 type: 'error',
                 error: `AI model failed to load: ${err.message || 'Unknown error'}`
             });

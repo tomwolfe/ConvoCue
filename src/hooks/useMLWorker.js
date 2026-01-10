@@ -172,7 +172,7 @@ export const useMLWorker = () => {
 
       newWorker.onmessage = async (event) => {
         try {
-          const { type, text, status, progress, metadata, emotionData, isLowMemory } = event.data;
+          const { type, text, status, progress, metadata, emotionData, isLowMemory, isFallbackFailed } = event.data;
 
           switch (type) {
             case 'status':
@@ -180,6 +180,10 @@ export const useMLWorker = () => {
               break;
             case 'ready':
               dispatch({ type: 'SET_READY' });
+              // If we have a status message in the ready event, update it
+              if (status) {
+                dispatch({ type: 'SET_STATUS', status });
+              }
               break;
             case 'stt_result': {
               if (!text?.trim()) {
@@ -333,7 +337,14 @@ export const useMLWorker = () => {
               break;
             }
             case 'error':
-              dispatch({ type: 'SET_ERROR', error: event.data.error });
+              // Check if this is a fallback failure that we can handle gracefully
+              if (event.data.isFallbackFailed) {
+                // For fallback failures, we can still continue with reduced functionality
+                console.warn("Model fallback failed, continuing with reduced functionality:", event.data.error);
+                dispatch({ type: 'SET_STATUS', status: 'Running in reduced functionality mode' });
+              } else {
+                dispatch({ type: 'SET_ERROR', error: event.data.error });
+              }
               break;
           }
         } catch (err) {

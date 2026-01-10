@@ -1103,6 +1103,69 @@ header.compact .subtitle {
   100% { opacity: 0.8; transform: scale(1); }
 }
 
+/* Progressive Loading Indicators */
+.loading-stage-indicator {
+  display: flex;
+  gap: 1rem;
+  margin: 1rem 0;
+  justify-content: center;
+  align-items: center;
+}
+
+.loading-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.stage-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: var(--gray-300);
+  transition: all 0.3s ease;
+}
+
+.stage-dot.active {
+  background-color: var(--primary);
+  transform: scale(1.2);
+}
+
+.stage-dot.completed {
+  background-color: var(--success);
+}
+
+.stage-label {
+  font-size: 0.75rem;
+  color: var(--gray-500);
+  text-align: center;
+}
+
+.stage-label.active {
+  color: var(--primary);
+  font-weight: 500;
+}
+
+.stage-label.completed {
+  color: var(--success);
+}
+
+/* Loading Animation */
+.loading-animation {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(255,255,255,.3);
+  border-radius: 50%;
+  border-top-color: #fff;
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 #suggestion-content-wrapper {
   position: relative;
   display: flex;

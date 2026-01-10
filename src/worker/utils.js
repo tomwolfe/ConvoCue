@@ -1,4 +1,8 @@
 import { AppConfig } from '../config';
+import { WorkerMessenger } from '../worker/Messenger';
+
+// Create a messenger instance for communication
+const messenger = new WorkerMessenger();
 
 /**
  * Sanitizes input text by removing potentially malicious script tags and shortening to max length.
@@ -27,11 +31,11 @@ export const sanitizeText = (text) => {
  */
 export const throttledProgress = (p, statusPrefix, taskId) => {
     if (p.status === 'progress') {
-        self.postMessage({ type: 'status', status: `${statusPrefix}: ${Math.round(p.progress ?? 0)}%`, progress: p.progress, taskId });
+        messenger.postMessage({ type: 'status', status: `${statusPrefix}: ${Math.round(p.progress ?? 0)}%`, progress: p.progress, taskId });
     } else if (p.status === 'initiate') {
-        self.postMessage({ type: 'status', status: `${statusPrefix}: Initializing...`, taskId });
+        messenger.postMessage({ type: 'status', status: `${statusPrefix}: Initializing...`, taskId });
     } else if (p.status === 'done') {
-        self.postMessage({ type: 'status', status: `${statusPrefix}: Ready`, taskId });
+        messenger.postMessage({ type: 'status', status: `${statusPrefix}: Ready`, taskId });
     }
 };
 
