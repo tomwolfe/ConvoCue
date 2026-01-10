@@ -745,6 +745,8 @@ self.onmessage = async (event) => {
                 let meetingInsights = null;
                 let languageLearningInsights = null;
                 let coachingAnalysisTime = 0;
+                let conversationSentiment = null;
+                let sentimentAnalysisTime = 0;
 
                 if (shouldRunDeepAnalysis) {
                     const coachingStartTime = performance.now();
@@ -947,6 +949,7 @@ self.onmessage = async (event) => {
                     performance: {
                       llmProcessingTime,
                       coachingAnalysisTime,
+                      sentimentAnalysisTime,
                       totalTime: performance.now() - startTime,
                       historySize
                     }
