@@ -231,13 +231,13 @@ export class MLStateMachine {
   /**
    * Check if a specific model is loaded
    * NOTE: This method reflects the actual model loading state rather than functionality.
-   * In TEXT_ONLY_MODE, the STT model is considered loaded (for potential use) but the LLM is not.
-   * This is intentional as TEXT_ONLY_MODE represents a degraded functionality where
-   * core application features remain available without full ML capabilities.
+   * In TEXT_ONLY_MODE, neither STT nor LLM models are considered loaded since this state
+   * represents a fallback mode where the STT model has failed to load/function properly.
+   * Only in READY state are models considered fully loaded and functional.
    */
   isModelLoaded(modelType) {
     if (modelType === 'stt') {
-      return [ML_STATES.READY, ML_STATES.TEXT_ONLY_MODE].includes(this.state);
+      return [ML_STATES.READY].includes(this.state);
     } else if (modelType === 'llm') {
       return [ML_STATES.READY].includes(this.state);
     }
