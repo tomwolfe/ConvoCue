@@ -11,6 +11,7 @@ import ErrorBoundary from './ErrorBoundary';
 import { AppConfig } from './config';
 import { checkAssets } from './utils/diagnostics';
 import { secureLocalStorageGet, secureLocalStorageSet } from './utils/encryption';
+import { clearAllSessionData, handleSessionEnd } from './utils/privacyHardening';
 
 import './App.css';
 
@@ -27,6 +28,15 @@ const App = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [showViewMenu, setShowViewMenu] = useState(false);
   const [availablePersonas, setAvailablePersonas] = useState(AppConfig.models.personas);
+
+  useEffect(() => {
+    // Session cleanup on mount/unmount
+    window.addEventListener('beforeunload', handleSessionEnd);
+    return () => {
+      window.removeEventListener('beforeunload', handleSessionEnd);
+      handleSessionEnd();
+    };
+  }, []);
 
   useEffect(() => {
     const loadPersonas = async () => {

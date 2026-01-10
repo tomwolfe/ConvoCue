@@ -9,6 +9,7 @@ import {
 import { generateIntentBasedCue, detectIntentWithContext } from './intentRecognition';
 import { analyzeRelationshipCoaching, generateRelationshipCoachingPrompt } from './relationshipCoaching';
 import { analyzeAnxietyCoaching, generateAnxietyCoachingPrompt } from './anxietyCoaching';
+import { validateSocialSuggestion, promoteEmpathy } from './socialEthics';
 
 /**
  * Gets user's preferred response patterns based on feedback history
@@ -360,6 +361,13 @@ export const enhanceResponse = async (response, persona, emotionData = null, inp
     }
   }
 
+  // 4.5 Apply Ethics-based Empathy Promotion
+  if (!isSubtleMode && emotionData) {
+    const prev = enhancedResponse;
+    enhancedResponse = promoteEmpathy(enhancedResponse, emotionData.emotion);
+    if (prev !== enhancedResponse) transformations.push('empathy_promotion');
+  }
+
   // 5. Apply conversation context awareness (bypass if subtle)
   if (!isSubtleMode && conversationHistory && conversationHistory.length > 0) {
     const prev = enhancedResponse;
@@ -419,7 +427,13 @@ export const enhanceResponse = async (response, persona, emotionData = null, inp
     }
   }
 
-  return enhancedResponse;
+  // 7. Final Ethics & Safety Guardrail
+  const finalizedResponse = validateSocialSuggestion(enhancedResponse);
+  if (finalizedResponse !== enhancedResponse) {
+    transformations.push('safety_guardrail_triggered');
+  }
+
+  return finalizedResponse;
 };
 
 /**

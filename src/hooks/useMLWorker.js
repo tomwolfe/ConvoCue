@@ -194,6 +194,20 @@ export const useMLWorker = () => {
                     provideHapticFeedback(`[${rawIntent}]`);
                     lastHapticTimeRef.current = now;
                     lastHapticIntentRef.current = rawIntent;
+                    
+                    // Instant Cue for UI
+                    const instantCueMap = {
+                      'question': 'Ask for clarification...',
+                      'agreement': 'Show agreement...',
+                      'conflict': 'De-escalate carefully...',
+                      'empathy': 'Validate their feeling...',
+                      'professional': 'Stay objective...',
+                      'action_item': 'Note the task...'
+                    };
+                    const instantCue = instantCueMap[rawIntent];
+                    if (instantCue) {
+                      dispatch({ type: 'SET_SUGGESTION', text: `[Analyzing] ${instantCue}` });
+                    }
                   }
                 }
               }
