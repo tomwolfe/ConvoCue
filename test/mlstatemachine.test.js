@@ -48,6 +48,12 @@ describe('MLStateMachine', () => {
       stateMachine.transition(ML_TRANSITIONS.STT_LOADED); // Invalid from UNINITIALIZED
       expect(stateMachine.getState()).toBe(ML_STATES.UNINITIALIZED);
     });
+
+    it('should transition from ERROR to TEXT_ONLY_MODE via FALLBACK_SUCCESS', () => {
+      stateMachine.state = ML_STATES.ERROR;
+      stateMachine.transition(ML_TRANSITIONS.FALLBACK_SUCCESS);
+      expect(stateMachine.getState()).toBe(ML_STATES.TEXT_ONLY_MODE);
+    });
   });
 
   describe('retry logic', () => {

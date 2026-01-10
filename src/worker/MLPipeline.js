@@ -129,19 +129,13 @@ export class MLPipeline {
                             // Transition to STT loaded state
                             MLPipeline.stateMachine.transition(ML_TRANSITIONS.STT_LOADED);
                         } catch (minimalError) {
-                            console.error("All STT loading attempts failed:", minimalError);
-
-                            // Send error but don't throw to allow graceful degradation
-                            messenger.postMessage({
-                                type: 'error',
-                                error: `Speech recognition model failed to load after fallback attempts: ${minimalError.message || 'Unknown error'}`,
-                                isFallbackFailed: true
-                            });
-
-                            // Transition to error state
-                            MLPipeline.stateMachine.transition(ML_TRANSITIONS.LOAD_ERROR, { error: minimalError.message });
-
-                            // Explicitly set to null to ensure consistent state
+                                                        // Transition to error state
+                                                        MLPipeline.stateMachine.transition(ML_TRANSITIONS.LOAD_ERROR, { error: minimalError.message });
+                            
+                                                        // Transition to TEXT_ONLY_MODE since we allow graceful degradation
+                                                        MLPipeline.stateMachine.transition(ML_TRANSITIONS.FALLBACK_SUCCESS);
+                            
+                                                        // Explicitly set to null to ensure consistent state
                             MLPipeline.stt = null;
 
                             // Return early to prevent further processing
@@ -269,6 +263,9 @@ export class MLPipeline {
 
                             // Transition to error state
                             MLPipeline.stateMachine.transition(ML_TRANSITIONS.LOAD_ERROR, { error: minimalError.message });
+
+                            // Transition to TEXT_ONLY_MODE since we allow graceful degradation
+                            MLPipeline.stateMachine.transition(ML_TRANSITIONS.FALLBACK_SUCCESS);
 
                             // Explicitly set to null to ensure consistent state
                             MLPipeline.llm = null;
