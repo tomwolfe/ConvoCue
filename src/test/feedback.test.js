@@ -1,6 +1,28 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { submitFeedback, getFeedbackStats, getPreferredPersonaFromFeedback, getDislikedPhrases, clearFeedbackData } from '../utils/feedback';
-import { decryptData } from '../utils/encryption';
+import { decryptData, encryptData } from '../utils/encryption';
+
+// Mock the encryption functions for testing in Node.js environment
+vi.mock('../utils/encryption', async () => {
+  const actual = await vi.importActual('../utils/encryption');
+  return {
+    ...actual,
+    encryptData: vi.fn(async (data) => {
+      // Simple mock encryption for testing - just JSON stringify and encode
+      return Buffer.from(JSON.stringify(data)).toString('base64');
+    }),
+    decryptData: vi.fn(async (encryptedData) => {
+      // Simple mock decryption for testing - just decode and parse
+      try {
+        const decoded = Buffer.from(encryptedData, 'base64').toString('utf-8');
+        return JSON.parse(decoded);
+      } catch (e) {
+        console.error('Mock decryption failed:', e);
+        return null;
+      }
+    })
+  };
+});
 
 describe('Feedback Utilities', () => {
   beforeEach(() => {
@@ -134,7 +156,7 @@ describe('Feedback Utilities', () => {
       // After clearing, the data should be an empty array when decrypted
       const clearedData = localStorage.getItem('convocue_feedback');
       if (clearedData) {
-        const decrypted = await import('../utils/encryption').then(m => m.decryptData(clearedData));
+        const decrypted = await decryptData(clearedData);
         expect(decrypted).toEqual([]);
       } else {
         // If the key was removed entirely, that's also valid
