@@ -7,6 +7,7 @@ import { getCommunicationProfileSummary } from '../utils/personalization';
 import { provideHapticFeedback, provideIntentHaptics, refreshHapticSettingsCache } from '../utils/haptics';
 import { detectIntentWithConfidence, detectIntentHighPerformance } from '../utils/intentRecognition';
 import { getInsightCategoryScores } from '../utils/feedback';
+import performanceMonitor from '../utils/performance';
 import { usePerformanceMonitor } from './usePerformanceMonitor';
 import { usePersonaOrchestration } from './usePersonaOrchestration';
 
