@@ -1,3 +1,9 @@
+// Import cultural and language learning configuration
+import CulturalLanguageConfig from './config/culturalLanguageConfig.js';
+import { CulturalIntelligenceConfig } from './config/culturalIntelligenceConfig.js';
+import { HapticsConfig } from './config/hapticsConfig.js';
+import { OrchestratorConfig } from './config/orchestratorConfig.js';
+
 // Device detection
 const isMobile = typeof navigator !== 'undefined' && /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
@@ -46,12 +52,6 @@ const DEFAULT_PERSONAS = {
     prompt: 'Acts as a strategic meeting assistant. Suggest a concise interjection to summarize a complex point, ask a calibrated question (e.g., "How does this align with our goals?"), or bridge to a new topic. Under 15 words.'
   }
 };
-
-// Import cultural and language learning configuration
-import CulturalLanguageConfig from './config/culturalLanguageConfig.js';
-import { CulturalIntelligenceConfig } from './config/culturalIntelligenceConfig.js';
-import { HapticsConfig } from './config/hapticsConfig.js';
-import { OrchestratorConfig } from './config/orchestratorConfig.js';
 
 // Configuration for ConvoCue application
 export const AppConfig = {
