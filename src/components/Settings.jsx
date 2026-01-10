@@ -8,6 +8,7 @@ import { getSystemLogs, clearSystemLogs } from '../utils/diagnostics';
 import IntentDetectionSettings from './IntentDetectionSettings';
 import IntentFilterSettings from './IntentFilterSettings';
 import HapticFeedbackSettings from './HapticFeedbackSettings';
+import { ALL_INTENTS } from '../constants/intents';
 
 const Settings = ({ isOpen, onClose }) => {
   const [settings, setSettings] = useState({
@@ -26,7 +27,7 @@ const Settings = ({ isOpen, onClose }) => {
       debounceWindowMs: 800,
       stickyDurationMs: 2000
     },
-    enabledIntents: ['social', 'question', 'conflict', 'strategic', 'action', 'empathy', 'language', 'negotiation', 'leadership', 'clarity', 'execution', 'cultural', 'learning']
+    enabledIntents: ALL_INTENTS
   });
 
   const [weights, setWeights] = useState({
@@ -44,9 +45,6 @@ const Settings = ({ isOpen, onClose }) => {
     const loadSettings = async () => {
       const savedSettings = await secureLocalStorageGet('convocue_settings');
       if (savedSettings) {
-        // List of all possible intents
-        const allIntents = ['social', 'question', 'conflict', 'strategic', 'action', 'empathy', 'language', 'negotiation', 'leadership', 'clarity', 'execution', 'cultural', 'learning'];
-
         // Merge with defaults to ensure new settings exist
         const mergedSettings = {
           enablePersonalization: true,
@@ -64,14 +62,14 @@ const Settings = ({ isOpen, onClose }) => {
             debounceWindowMs: 800,
             stickyDurationMs: 2000
           },
-          enabledIntents: allIntents,
+          enabledIntents: ALL_INTENTS,
           ...savedSettings
         };
 
         // If the user already had enabledIntents, we want to make sure new ones are added
         if (savedSettings.enabledIntents) {
           const existingIntents = savedSettings.enabledIntents;
-          const newIntents = allIntents.filter(i => !existingIntents.includes(i));
+          const newIntents = ALL_INTENTS.filter(i => !existingIntents.includes(i));
           mergedSettings.enabledIntents = [...new Set([...existingIntents, ...newIntents])];
         }
 

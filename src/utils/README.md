@@ -7,7 +7,7 @@ This directory contains utilities for real-time intent detection and analysis in
 ### `intentRecognition.js`
 Core intent detection system that identifies conversation intents in real-time. Features include:
 
-- **Intent Taxonomy**: Seven distinct intent categories (social, question, conflict, strategic, action, empathy, language)
+- **Intent Taxonomy**: Thirteen distinct intent categories (social, question, conflict, strategic, action, empathy, language, negotiation, leadership, clarity, execution, cultural, learning)
 - **High-Performance Detection**: Optimized for real-time processing with early termination
 - **Context-Aware Detection**: Considers conversation history to disambiguate similar phrases
 - **Similarity Matching**: Enhanced Jaccard-based algorithm with synonym support

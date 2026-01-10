@@ -119,7 +119,7 @@ const Tutorial = ({ onComplete, isCompactMode }) => {
     },
     {
       title: "Understanding Intent Labels",
-      content: "ConvoCue uses these intent categories: Social (greetings & affirmations), Question (inquiries & clarifications), Conflict (disagreements & tensions), Strategic (business & planning), Action (suggestions & recommendations), Empathy (emotional support), Language (phrasing & clarity). Each helps tailor the AI's response.",
+      content: "ConvoCue uses these intent categories: Social (greetings & affirmations), Question (inquiries & clarifications), Conflict (disagreements & tensions), Strategic (business & planning), Action (suggestions & recommendations), Empathy (emotional support), Language (phrasing & clarity), Negotiation (bargaining & deal-making), Leadership (guiding & directing others), Clarity (improving understanding), Execution (focus on implementation), Cultural (cultural context & etiquette), Learning (educational moments). Each helps tailor the AI's response.",
       visual: "intent-breakdown"
     },
     {

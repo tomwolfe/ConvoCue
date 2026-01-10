@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { TAG_METADATA } from '../utils/intentRecognition';
+import { ALL_INTENTS } from '../constants/intents';
 
 const IntentFilterSettings = ({ settings, onSave }) => {
   const [enabledIntents, setEnabledIntents] = useState(
-    settings.enabledIntents || Object.keys(TAG_METADATA)
+    settings.enabledIntents || ALL_INTENTS
   );
-  
+
   useEffect(() => {
-    setEnabledIntents(settings.enabledIntents || Object.keys(TAG_METADATA));
+    setEnabledIntents(settings.enabledIntents || ALL_INTENTS);
   }, [settings]);
 
   const toggleIntent = (intent) => {
@@ -23,7 +24,7 @@ const IntentFilterSettings = ({ settings, onSave }) => {
   };
 
   const handleEnableAll = () => {
-    setEnabledIntents(Object.keys(TAG_METADATA));
+    setEnabledIntents(ALL_INTENTS);
   };
 
   const handleDisableAll = () => {
