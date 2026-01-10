@@ -14,7 +14,7 @@ const ControlPanel = ({
   mlState
 }) => {
   // Determine button states for better UX
-  const isPartialFunctionality = mlState === ML_STATES.PARTIAL_FUNCTIONALITY;
+  const isPartialFunctionality = mlState === ML_STATES.TEXT_ONLY_MODE;
   const manualBtnDisabled = !isReady || isVADMode || vadLoading || (vadErrored && !vadError) || isPartialFunctionality;
   const continuousBtnDisabled = (!isReady && !isVADMode) || vadLoading || (vadErrored && !vadError) || isPartialFunctionality;
 

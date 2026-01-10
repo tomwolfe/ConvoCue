@@ -45,7 +45,7 @@ The ML State Machine manages the lifecycle of machine learning models (STT and L
 - **Entry Conditions**: Memory usage exceeds threshold
 - **Exit Conditions**: Memory is freed or reset occurs
 
-### PARTIAL_FUNCTIONALITY
+### TEXT_ONLY_MODE
 - **Description**: State when only partial functionality is available (e.g., text-only mode)
 - **Entry Conditions**: Fallback success after model failure
 - **Exit Conditions**: Reset or model reload
@@ -53,12 +53,12 @@ The ML State Machine manages the lifecycle of machine learning models (STT and L
 ## Transitions
 
 ### START_LOADING_STT
-- **From**: UNINITIALIZED, READY, LOW_MEMORY, PARTIAL_FUNCTIONALITY, ERROR
+- **From**: UNINITIALIZED, READY, LOW_MEMORY, TEXT_ONLY_MODE, ERROR
 - **To**: LOADING_STT
 - **Description**: Initiates loading of the STT model
 
 ### START_LOADING_LLM
-- **From**: UNINITIALIZED, READY, LOW_MEMORY, PARTIAL_FUNCTIONALITY, ERROR
+- **From**: UNINITIALIZED, READY, LOW_MEMORY, TEXT_ONLY_MODE, ERROR
 - **To**: LOADING_LLM
 - **Description**: Initiates loading of the LLM
 
@@ -88,7 +88,7 @@ The ML State Machine manages the lifecycle of machine learning models (STT and L
 - **Description**: Attempt to reload LLM
 
 ### RESET
-- **From**: ERROR, LOW_MEMORY, PARTIAL_FUNCTIONALITY
+- **From**: ERROR, LOW_MEMORY, TEXT_ONLY_MODE
 - **To**: UNINITIALIZED
 - **Description**: Reset the state machine to initial state
 
@@ -99,7 +99,7 @@ The ML State Machine manages the lifecycle of machine learning models (STT and L
 
 ### FALLBACK_SUCCESS
 - **From**: ERROR
-- **To**: PARTIAL_FUNCTIONALITY
+- **To**: TEXT_ONLY_MODE
 - **Description**: Fallback mode activated after failure
 
 ## State Transition Diagram
@@ -114,7 +114,7 @@ LOADING_STT ←→ RETRYING_STT
      ↓ (MEMORY_PRESSURE)    ↓ (LLM_LOADED)
 LOW_MEMORY ←------------ READY
      ↑                       ↓ (RETRY_STT/RETRY_LLM)
-ERROR ←------------------ PARTIAL_FUNCTIONALITY
+ERROR ←------------------ TEXT_ONLY_MODE
      ↑ (RESET)              ↑ (RESET)
      └──────────────────────┘
 ```
@@ -135,3 +135,7 @@ The state machine is integrated into the MLPipeline class and is used to:
 - `isInState(state)`: Check if in specific state
 - `isReadyForProcessing()`: Check if pipeline is ready for processing
 - `isModelLoaded(modelType)`: Check if specific model is loaded
+
+## Memory Pressure Recovery
+
+The LOW_MEMORY state can transition back to LOADING_STT/LOADING_LLM when attempting to reload models. The implementation assumes that the browser's garbage collection or user action (such as closing other tabs) will free sufficient memory to allow model loading. This is a reasonable implicit assumption for most scenarios, but developers should be aware that memory pressure conditions may persist if the user's system remains constrained.

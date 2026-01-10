@@ -71,7 +71,9 @@ const App = () => {
     prewarmLLM,
     refreshSuggestion,
     retrySTTLoad,
+    retryLLMLoad,
     isRetrying,
+    isRetryingLLM,
     setTranscript,
     setSuggestion,
     setStatus,
@@ -447,8 +449,10 @@ const App = () => {
             lastSwitchReason={lastSwitchReason}
             undoPersonaSwitch={undoPersonaSwitch}
             retrySTTLoad={retrySTTLoad}
+            retryLLMLoad={retryLLMLoad}
             isRetrying={isRetrying}
-            mlState={state.mlState}
+            isRetryingLLM={isRetryingLLM}
+            mlState={mlState}
             onReset={() => {
               setHasInteracted(false);
               setMicPermissionError(null);

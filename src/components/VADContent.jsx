@@ -299,7 +299,9 @@ const VADContent = ({
   lastSwitchReason,
   undoPersonaSwitch,
   retrySTTLoad,
+  retryLLMLoad,
   isRetrying,
+  isRetryingLLM,
   mlState,
   onFullReset
 }) => {
@@ -430,7 +432,7 @@ const VADContent = ({
   }, [vad]);
 
   const toggleVAD = () => {
-    if (!vad || vad.loading || (vad.errored && !vadError) || mlState === ML_STATES.PARTIAL_FUNCTIONALITY) return;
+    if (!vad || vad.loading || (vad.errored && !vadError) || mlState === ML_STATES.TEXT_ONLY_MODE) return;
     if (isVADMode) {
       vad.pause();
       setIsVADMode(false);
@@ -564,6 +566,21 @@ const VADContent = ({
               <button className="btn-retry" onClick={retrySTTLoad} aria-label="Retry Speech Recognition" disabled={isRetrying}>
                 {isRetrying ? <Loader2 className="animate-spin" size={18} aria-hidden="true" /> : <RefreshCw size={18} aria-hidden="true" />}
                 {isRetrying ? 'Retrying...' : 'Retry Speech Recognition'}
+              </button>
+              {/* Give up button appears when retry count reaches max attempts */}
+              {error && error.includes('maximum retry attempts') && (
+                <button className="btn-give-up" onClick={onFullReset} aria-label="Give up and reset">
+                  <ShieldAlert size={18} aria-hidden="true" />
+                  Give Up & Reset
+                </button>
+              )}
+            </>
+          )}
+          {(error && (error.includes('AI model failed to load') || error.includes('Social Brain failed to load'))) && (
+            <>
+              <button className="btn-retry" onClick={retryLLMLoad} aria-label="Retry AI Model" disabled={isRetryingLLM}>
+                {isRetryingLLM ? <Loader2 className="animate-spin" size={18} aria-hidden="true" /> : <RefreshCw size={18} aria-hidden="true" />}
+                {isRetryingLLM ? 'Retrying...' : 'Retry AI Model'}
               </button>
               {/* Give up button appears when retry count reaches max attempts */}
               {error && error.includes('maximum retry attempts') && (

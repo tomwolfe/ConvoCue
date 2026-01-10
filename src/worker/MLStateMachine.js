@@ -12,7 +12,7 @@ export const ML_STATES = {
   RETRYING_STT: 'retrying_stt',
   RETRYING_LLM: 'retrying_llm',
   LOW_MEMORY: 'low_memory',
-  PARTIAL_FUNCTIONALITY: 'partial_functionality'
+  TEXT_ONLY_MODE: 'text_only_mode'
 };
 
 // Define possible transitions
@@ -124,7 +124,7 @@ export class MLStateMachine {
             this.state = ML_STATES.RETRYING_LLM;
             break;
           case ML_TRANSITIONS.FALLBACK_SUCCESS:
-            this.state = ML_STATES.PARTIAL_FUNCTIONALITY;
+            this.state = ML_STATES.TEXT_ONLY_MODE;
             break;
         }
         break;
@@ -165,7 +165,7 @@ export class MLStateMachine {
         }
         break;
 
-      case ML_STATES.PARTIAL_FUNCTIONALITY:
+      case ML_STATES.TEXT_ONLY_MODE:
         switch (transition) {
           case ML_TRANSITIONS.START_LOADING_STT:
             this.state = ML_STATES.LOADING_STT;
@@ -211,13 +211,13 @@ export class MLStateMachine {
 
   // Check if the pipeline is ready for processing
   isReadyForProcessing() {
-    return this.state === ML_STATES.READY || this.state === ML_STATES.PARTIAL_FUNCTIONALITY;
+    return this.state === ML_STATES.READY || this.state === ML_STATES.TEXT_ONLY_MODE;
   }
 
   // Check if a specific model is loaded
   isModelLoaded(modelType) {
     if (modelType === 'stt') {
-      return [ML_STATES.READY, ML_STATES.PARTIAL_FUNCTIONALITY].includes(this.state);
+      return [ML_STATES.READY, ML_STATES.TEXT_ONLY_MODE].includes(this.state);
     } else if (modelType === 'llm') {
       return [ML_STATES.READY].includes(this.state);
     }
