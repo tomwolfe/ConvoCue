@@ -23,4 +23,4 @@ console.log("Suggested persona:", result2.suggestedPersona);
 // Let's also check the intent map configuration
 import { AppConfig } from './src/config.js';
 console.log("\n=== Intent Map Configuration ===");
-console.log("Intent map:", JSON.stringify(AppConfig.system.orchestrator.intentMap, null, 2));
+console.log("Intent map:", JSON.stringify(AppConfig.orchestratorConfig.intentMap, null, 2));

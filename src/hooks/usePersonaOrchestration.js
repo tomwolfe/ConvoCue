@@ -83,8 +83,8 @@ export const usePersonaOrchestration = (currentPersona, settings, historyRef, di
       // Prevent switching again too quickly if we just switched automatically.
       // Use a shorter cooldown for similar personas to improve responsiveness.
       const getDynamicCooldown = (from, to) => {
-        const baseCooldown = AppConfig.system.orchestrator?.stickyCooldownMs || 30000;
-        const similarityMap = AppConfig.system.orchestrator?.similarityMatrix || {};
+        const baseCooldown = AppConfig.orchestratorConfig?.stickyCooldownMs || 30000;
+        const similarityMap = AppConfig.orchestratorConfig?.similarityMatrix || {};
         
         const isRelated = similarityMap[from]?.includes(to) || similarityMap[to]?.includes(from);
         return isRelated ? baseCooldown / 3 : baseCooldown; // 10s for related, 30s for unrelated
@@ -159,7 +159,7 @@ export const usePersonaOrchestration = (currentPersona, settings, historyRef, di
       const currentDampening = currentEntry ? currentEntry.value : 0;
       
       rejectionDampeningRef.current[lastSwitch.to] = {
-        value: currentDampening + (AppConfig.system.orchestrator?.rejectionDampening || 0.3),
+        value: currentDampening + (AppConfig.orchestratorConfig?.rejectionDampening || 0.3),
         timestamp: now
       };
       

@@ -1,32 +1,61 @@
 import { parseSemanticTags } from './intentRecognition';
 import { AppConfig } from '../config';
 
-let lastVibrationTime = 0;
-const COOLDOWN_MS = 1500;
+/**
+ * HapticService - Encapsulates haptic state and logic
+ */
+const HapticService = {
+  lastVibrationTime: 0,
+  cachedSettings: null,
 
-// Cache haptic settings to avoid localStorage overhead in the hot path
-let cachedHapticSettings = null;
+  getCooldown() {
+    return AppConfig.hapticsConfig?.defaultCooldownMs || 1500;
+  },
 
-const getCachedSettings = () => {
-  if (cachedHapticSettings) return cachedHapticSettings;
-  try {
-    const settings = JSON.parse(localStorage.getItem('hapticSettings') || '{}');
-    cachedHapticSettings = {
-      enabled: settings.enabled !== false,
-      intensity: settings.intensity || 'medium'
-    };
-  } catch {
-    cachedHapticSettings = { enabled: true, intensity: 'medium' };
+  getCachedSettings() {
+    if (this.cachedSettings) return this.cachedSettings;
+    try {
+      const settings = JSON.parse(localStorage.getItem('hapticSettings') || '{}');
+      this.cachedSettings = {
+        enabled: settings.enabled !== false,
+        intensity: settings.intensity || AppConfig.hapticsConfig?.defaults?.intensity || 'medium'
+      };
+    } catch {
+      this.cachedSettings = { 
+        enabled: AppConfig.hapticsConfig?.defaults?.enabled !== false, 
+        intensity: AppConfig.hapticsConfig?.defaults?.intensity || 'medium' 
+      };
+    }
+    return this.cachedSettings;
+  },
+
+  refreshSettingsCache() {
+    this.cachedSettings = null;
+    this.getCachedSettings();
+  },
+
+  canVibrate() {
+    const now = Date.now();
+    if (now - this.lastVibrationTime < this.getCooldown()) return false;
+    
+    const settings = this.getCachedSettings();
+    return settings.enabled;
+  },
+
+  recordVibration() {
+    this.lastVibrationTime = Date.now();
+  },
+
+  resetCooldown() {
+    this.lastVibrationTime = 0;
   }
-  return cachedHapticSettings;
 };
 
 /**
  * Refreshes the haptic settings cache (should be called when settings change)
  */
 export const refreshHapticSettingsCache = () => {
-  cachedHapticSettings = null;
-  getCachedSettings();
+  HapticService.refreshSettingsCache();
 };
 
 // Listen for storage changes to keep the cache consistent across components/tabs
@@ -46,14 +75,10 @@ if (typeof window !== 'undefined') {
 export const provideIntentHaptics = (intent) => {
   if (!intent) return;
   
-  const now = Date.now();
-  if (now - lastVibrationTime < COOLDOWN_MS) return;
-
-  const settings = getCachedSettings();
-  if (!settings.enabled) return;
+  if (!HapticService.canVibrate()) return;
 
   const upperIntent = intent.toUpperCase();
-  const intentMap = AppConfig.system.haptics?.intentMap || {};
+  const intentMap = AppConfig.hapticsConfig?.intentMap || {};
   const patternKey = intentMap[upperIntent] || 'SUGGESTION';
   
   const pattern = VIBRATION_PATTERNS[patternKey] || VIBRATION_PATTERNS.SUGGESTION;
@@ -64,7 +89,7 @@ export const provideIntentHaptics = (intent) => {
       if (typeof navigator.vibrate === 'function') {
         const adjustedPattern = getAdjustedPattern(pattern);
         if (navigator.vibrate(adjustedPattern)) {
-          lastVibrationTime = now;
+          HapticService.recordVibration();
           return;
         }
       }
@@ -75,14 +100,14 @@ export const provideIntentHaptics = (intent) => {
 
   // Fallback to visual feedback if haptics fail
   provideVisualFeedback(intentType);
-  lastVibrationTime = now;
+  HapticService.recordVibration();
 };
 
 /**
  * Resets the last vibration time (used for testing)
  */
 export const _resetHapticCooldown = () => {
-  lastVibrationTime = 0;
+  HapticService.resetCooldown();
 };
 
 /**
@@ -203,8 +228,7 @@ const getVisualFeedbackText = (intentType) => {
 export const provideHapticFeedback = (suggestion) => {
   if (!suggestion) return;
 
-  const now = Date.now();
-  if (now - lastVibrationTime < COOLDOWN_MS) return;
+  if (!HapticService.canVibrate()) return;
 
   const { tags } = parseSemanticTags(suggestion);
   const lowerSuggestion = suggestion.toLowerCase();
@@ -242,7 +266,7 @@ export const provideHapticFeedback = (suggestion) => {
       if (typeof navigator.vibrate === 'function') {
         // Test with a simple vibration first to check if it works
         if (navigator.vibrate(getAdjustedPattern(pattern))) {
-          lastVibrationTime = now;
+          HapticService.recordVibration();
           // Log successful haptic feedback for analytics
           logHapticFeedback(intentType, 'success');
           return; // Successfully provided haptic feedback
@@ -266,7 +290,7 @@ export const provideHapticFeedback = (suggestion) => {
 
   // Fall back to visual feedback if haptics are unavailable or failed
   provideVisualFeedback(intentType);
-  lastVibrationTime = now;
+  HapticService.recordVibration();
 };
 
 /**

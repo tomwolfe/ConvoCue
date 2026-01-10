@@ -5,7 +5,7 @@ import { AppConfig } from '../config';
  * Checks for overlapping keywords and intents that might cause "jitter."
  */
 export const validateOrchestratorConfig = () => {
-  const { intentMap } = AppConfig.system.orchestrator;
+  const { intentMap } = AppConfig.orchestratorConfig;
   const personas = Object.keys(intentMap);
   const conflicts = [];
 
@@ -18,7 +18,7 @@ export const validateOrchestratorConfig = () => {
 
       // Check for overlapping keywords
       const commonKeywords = conf1.keywords?.filter(k => conf2.keywords?.includes(k)) || [];
-      const ignoreKeywords = AppConfig.system.orchestrator.ignoreKeywords || [];
+      const ignoreKeywords = AppConfig.orchestratorConfig.ignoreKeywords || [];
       const significantKeywords = commonKeywords.filter(k => !ignoreKeywords.includes(k));
 
       if (significantKeywords.length > 0) {

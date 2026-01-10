@@ -67,7 +67,7 @@ export const resolveFeatureConflicts = (insights, persona) => {
 
   // Cycle 2: Coaching Calibration (Scalable Refinement)
   // Use the priority matrix from configuration to determine feature weights.
-  const priorityMatrix = AppConfig.system.orchestrator?.priorityMatrix || {};
+  const priorityMatrix = AppConfig.orchestratorConfig?.priorityMatrix || {};
   const personaPriorities = priorityMatrix[persona] || {};
 
   /**

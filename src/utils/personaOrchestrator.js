@@ -47,7 +47,7 @@ const hasKeyword = (text, keyword, useFuzzy = false) => {
  * @returns {Object} { suggestedPersona: string, confidence: number, debug: Object }
  */
 export const orchestratePersona = (input, history = [], currentPersona, options = {}) => {
-  const config = AppConfig.system.orchestrator;
+  const config = AppConfig.orchestratorConfig;
   const intentMap = config.intentMap;
 
   const intents = detectMultipleIntents(input, 0.3);

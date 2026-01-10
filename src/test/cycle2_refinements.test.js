@@ -64,8 +64,8 @@ describe('Cycle 2 Refinements', () => {
 
   describe('Dynamic Sticky Cooldown', () => {
     it('should document that related personas have 1/3 cooldown', () => {
-       const base = AppConfig.system.orchestrator.stickyCooldownMs;
-       const related = AppConfig.system.orchestrator.similarityMatrix.meeting;
+       const base = AppConfig.orchestratorConfig.stickyCooldownMs;
+       const related = AppConfig.orchestratorConfig.similarityMatrix.meeting;
        expect(related).toContain('professional');
     });
   });

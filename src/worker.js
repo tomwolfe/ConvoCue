@@ -304,16 +304,19 @@ const sanitizeText = (text) => {
         .substring(0, AppConfig.system.maxTranscriptLength); // Also enforce length limit
 };
 
-// Performance tracking for adaptive downgrading
-const performanceStats = {
-    audioProcessingTimes: [],
-    llmProcessingTimes: [],
-    mode: 'optimal' // 'optimal', 'balanced', 'minimal'
+// Worker State Management
+const WorkerState = {
+    conversationTurnManager: null,
+    highStakesCounter: 0,
+    cachedSystemPrompt: { key: null, content: null },
+    lastLLMCallTime: 0,
+    performanceStats: {
+        audioProcessingTimes: [],
+        llmProcessingTimes: [],
+        mode: 'optimal' // 'optimal', 'balanced', 'minimal'
+    }
 };
 
-// Conversation turn management in worker
-let conversationTurnManager = null;
-let highStakesCounter = 0; // Cycle 2: Multi-turn counter for cultural override safety
 const HIGH_STAKES_THRESHOLD_TURNS = 2; // Required turns before lowering override threshold
 
 /**
@@ -321,25 +324,116 @@ const HIGH_STAKES_THRESHOLD_TURNS = 2; // Required turns before lowering overrid
  */
 
 const updatePerformanceMode = (time, type) => {
-    const list = type === 'audio' ? performanceStats.audioProcessingTimes : performanceStats.llmProcessingTimes;
+    const list = type === 'audio' ? WorkerState.performanceStats.audioProcessingTimes : WorkerState.performanceStats.llmProcessingTimes;
     list.push(time);
     if (list.length > 5) list.shift();
 
     const avg = list.reduce((a, b) => a + b, 0) / list.length;
     
     if (type === 'audio') {
-        if (avg > 300) performanceStats.mode = 'minimal';
-        else if (avg > 150) performanceStats.mode = 'balanced';
-        else performanceStats.mode = 'optimal';
+        if (avg > 300) WorkerState.performanceStats.mode = 'minimal';
+        else if (avg > 150) WorkerState.performanceStats.mode = 'balanced';
+        else WorkerState.performanceStats.mode = 'optimal';
     }
 };
 
 // Initialize conversation turn manager
 const initConversationTurnManager = () => {
-    if (!conversationTurnManager) {
-        conversationTurnManager = new ConversationTurnManager();
+    if (!WorkerState.conversationTurnManager) {
+        WorkerState.conversationTurnManager = new ConversationTurnManager();
     }
-    return conversationTurnManager;
+    return WorkerState.conversationTurnManager;
+};
+
+/**
+ * Validates coaching insights to prevent oversized or malformed data
+ * @param {Object} insights - The coaching insights object to validate
+ * @returns {Object|null} Validated insights or null if invalid/malformed
+ */
+const validateCoachingInsights = (insights) => {
+  if (!insights) return null;
+
+  // Check if it's a valid object
+  if (typeof insights !== 'object' || Array.isArray(insights)) {
+    console.warn('[Worker] Invalid coaching insights format, rejecting');
+    return null;
+  }
+
+  // Limit the size of insights to prevent memory issues
+  const serialized = JSON.stringify(insights);
+  if (serialized.length > (AppConfig.system.maxCoachingInsightsSize || 100000)) { 
+    console.warn('[Worker] Coaching insights too large, rejecting');
+    return null;
+  }
+
+  // Validate structure
+  if (insights.insights && !Array.isArray(insights.insights)) {
+    console.warn('[Worker] Invalid insights array format, rejecting');
+    return null;
+  }
+
+  return insights;
+};
+
+/**
+ * Generates cultural-specific prompt instructions
+ */
+const generateCulturalPrompt = (effectiveCulturalContext, detectedCulturalContext, settings, isPowerSavingMode) => {
+    if (!effectiveCulturalContext || effectiveCulturalContext === 'general') return '';
+
+    let prompt = getCulturalPromptTips(effectiveCulturalContext);
+    const isAdvancedCulturalGuidanceEnabled = settings?.enableAdvancedCulturalGuidance !== false;
+
+    if (!isPowerSavingMode && isAdvancedCulturalGuidanceEnabled && detectedCulturalContext?.recommendations) {
+        const culturalRecommendations = detectedCulturalContext.recommendations
+            .filter(rec => rec.priority === 'high')
+            .map(rec => `💡 ${rec.suggestion}`)
+            .join(' ');
+        if (culturalRecommendations) {
+            prompt += `Cultural Tips: ${culturalRecommendations} `;
+        }
+    }
+    return prompt;
+};
+
+/**
+ * Generates language learning specific prompt instructions
+ */
+const generateLanguageLearningPrompt = (effectiveCulturalContext, sanitizedText, settings) => {
+    const nativeLanguage = settings?.nativeLanguage ||
+        (AppConfig.culturalLanguageConfig?.languageLearningSettings?.nativeLanguage) ||
+        'general';
+
+    const languageAnalysis = analyzeLanguageLearningText(sanitizedText, nativeLanguage);
+    let prompt = getLanguageLearningPromptTips(effectiveCulturalContext || 'english');
+
+    if (languageAnalysis.grammarErrors.length > 0) {
+        const grammarTips = languageAnalysis.grammarErrors.map(error => error.explanation).join('; ');
+        prompt += `Grammar correction: ${grammarTips}. `;
+    }
+
+    if (languageAnalysis.vocabularySuggestions.length > 0) {
+        const vocabTips = languageAnalysis.vocabularySuggestions.map(suggestion => `Instead of "${suggestion.original}", consider "${suggestion.alternatives[0]}".`).join(' ');
+        prompt += `Vocabulary tip: ${vocabTips} `;
+    }
+    return prompt;
+};
+
+/**
+ * Generates coaching-specific prompt instructions for relationship or anxiety personas
+ */
+const generateCoachingPrompt = (persona, relationshipInsights, anxietyInsights) => {
+    let prompt = '';
+    if (relationshipInsights && persona === 'relationship') {
+        const relationshipPrompt = generateRelationshipCoachingPrompt(relationshipInsights, persona);
+        if (relationshipPrompt) prompt += relationshipPrompt + " ";
+    }
+
+    if (anxietyInsights && persona === 'anxiety') {
+        const anxietyPrompt = generateAnxietyCoachingPrompt(anxietyInsights);
+        if (anxietyPrompt) prompt += anxietyPrompt + " ";
+    }
+    return prompt;
 };
 
 /**
@@ -349,7 +443,6 @@ const generateSystemPrompt = (config) => {
     const {
         persona,
         personaConfig,
-        culturalContext,
         effectiveCulturalContext,
         communicationProfile,
         detectedCulturalContext,
@@ -364,85 +457,34 @@ const generateSystemPrompt = (config) => {
 
     let contextInstruction = `Persona: ${personaConfig.label}. `;
 
-    // Add Communication Profile (Long-term memory)
-    if (communicationProfile) {
-        contextInstruction += `${communicationProfile} `;
-    }
+    if (communicationProfile) contextInstruction += `${communicationProfile} `;
 
-    // Add Cultural Context Tips
-    if (effectiveCulturalContext && effectiveCulturalContext !== 'general') {
-        contextInstruction += getCulturalPromptTips(effectiveCulturalContext);
+    contextInstruction += generateCulturalPrompt(effectiveCulturalContext, detectedCulturalContext, settings, isPowerSavingMode);
 
-        const isAdvancedCulturalGuidanceEnabled = settings?.enableAdvancedCulturalGuidance !== false;
-
-        if (!isPowerSavingMode && isAdvancedCulturalGuidanceEnabled && detectedCulturalContext?.recommendations) {
-            const culturalRecommendations = detectedCulturalContext.recommendations
-                .filter(rec => rec.priority === 'high')
-                .map(rec => `💡 ${rec.suggestion}`)
-                .join(' ');
-            if (culturalRecommendations) {
-                contextInstruction += `Cultural Tips: ${culturalRecommendations} `;
-            }
-        }
-    }
-
-    // Add Social Nuance and High-Stakes Tips
     const socialTips = getSocialNuanceTips(sanitizedText);
-    if (socialTips) {
-        contextInstruction += `Social Tips: ${socialTips} `;
-    }
+    if (socialTips) contextInstruction += `Social Tips: ${socialTips} `;
 
     if (persona === 'meeting' || persona === 'professional') {
         const highStakesCategory = sanitizedText.toLowerCase().includes('negotiate') || sanitizedText.toLowerCase().includes('price')
             ? 'negotiation'
             : 'leadership';
         contextInstruction += getHighStakesTips(highStakesCategory);
-    }
-
-    // Add Persona-specific Contextual Tips
-    if (persona === 'languagelearning') {
-        const nativeLanguage = settings?.nativeLanguage ||
-            (AppConfig.culturalLanguageConfig?.languageLearningSettings?.nativeLanguage) ||
-            'general';
-
-        const languageAnalysis = analyzeLanguageLearningText(sanitizedText, nativeLanguage);
-        contextInstruction += getLanguageLearningPromptTips(effectiveCulturalContext || 'english');
-
-        if (languageAnalysis.grammarErrors.length > 0) {
-            const grammarTips = languageAnalysis.grammarErrors.map(error => error.explanation).join('; ');
-            contextInstruction += `Grammar correction: ${grammarTips}. `;
-        }
-
-        if (languageAnalysis.vocabularySuggestions.length > 0) {
-            const vocabTips = languageAnalysis.vocabularySuggestions.map(suggestion => `Instead of "${suggestion.original}", consider "${suggestion.alternatives[0]}".`).join(' ');
-            contextInstruction += `Vocabulary tip: ${vocabTips} `;
-        }
-    } else if (persona === 'meeting' || persona === 'professional') {
         contextInstruction += getProfessionalPromptTips(persona === 'meeting' ? 'business' : 'academic');
     }
 
-    // Enhanced coaching for specific personas
-    if (relationshipInsights && persona === 'relationship') {
-        const relationshipPrompt = generateRelationshipCoachingPrompt(relationshipInsights, persona);
-        if (relationshipPrompt) {
-            contextInstruction += relationshipPrompt + " ";
-        }
+    if (persona === 'languagelearning') {
+        contextInstruction += generateLanguageLearningPrompt(effectiveCulturalContext, sanitizedText, settings);
     }
 
-    if (anxietyInsights && persona === 'anxiety') {
-        const anxietyPrompt = generateAnxietyCoachingPrompt(anxietyInsights);
-        if (anxietyPrompt) {
-            contextInstruction += anxietyPrompt + " ";
-        }
-    }
+    contextInstruction += generateCoachingPrompt(persona, relationshipInsights, anxietyInsights);
 
     if (isSubtleMode) {
-        contextInstruction += "SUBTLE MODE ACTIVE: Provide ONLY extremely brief, context-aware Quick Cues (1-5 words). No full sentences. Examples: 'Pause', 'Smile', 'Ask', 'Consider', 'Hmm'. ";
+        contextInstruction += "SUBTLE MODE ACTIVE: Provide ONLY extremely brief, context-aware Quick Cues (1-5 words). No full sentences. ";
     } else if (preferences) {
         contextInstruction += `Preference: ${preferences.preferredLength} length. `;
     }
 
-    contextInstruction += "IMPORTANT: Always include semantic tags in square brackets for specific cues: [conflict] for de-escalation, [action item] for follow-ups, [strategic] for negotiations, [social tip] for etiquette, [language tip] for phrasing, [empathy] for emotional support. [empathy] tags are especially important for relationship coaching. ";
+    contextInstruction += "IMPORTANT: Always include semantic tags in square brackets for specific cues: [conflict], [action item], [strategic], [social tip], [language tip], [empathy]. ";
 
     return `${personaConfig.prompt} ${contextInstruction} Respond naturally.`;
 };
@@ -519,8 +561,8 @@ self.onmessage = async (event) => {
         }
 
         if (type === 'performance_update') {
-            performanceStats.mode = event.data.mode;
-            console.log(`[Worker] Performance mode manually set to: ${performanceStats.mode} (Reason: ${event.data.reason})`);
+            WorkerState.performanceStats.mode = event.data.mode;
+            console.log(`[Worker] Performance mode manually set to: ${WorkerState.performanceStats.mode} (Reason: ${event.data.reason})`);
         }
 
         if (type === 'stt') {
@@ -553,7 +595,7 @@ self.onmessage = async (event) => {
                 let speakerDetectionTime = 0;
 
                 // Only run speaker detection if enabled, NOT in minimal mode, and NOT in privacy mode
-                if (performanceStats.mode !== 'minimal' &&
+                if (WorkerState.performanceStats.mode !== 'minimal' &&
                     settings.enableSpeakerDetection !== false &&
                     !settings.privacyMode) {
                     const speakerDetectionStartTime = performance.now();
@@ -577,7 +619,7 @@ self.onmessage = async (event) => {
                         performance: {
                             audioProcessingTime,
                             speakerDetectionTime,
-                            mode: performanceStats.mode
+                            mode: WorkerState.performanceStats.mode
                         }
                     },
                     taskId
@@ -636,16 +678,16 @@ self.onmessage = async (event) => {
 
                 // Dynamic Resource Allocation based on Performance Mode and Device Capabilities
                 const baseMaxTokens = MLPipeline.llmConfig ? MLPipeline.llmConfig.max_new_tokens : AppConfig.models.llm.max_new_tokens;
-                const maxTokens = performanceStats.mode === 'minimal'
+                const maxTokens = WorkerState.performanceStats.mode === 'minimal'
                     ? Math.min(32, baseMaxTokens)
-                    : performanceStats.mode === 'balanced'
+                    : WorkerState.performanceStats.mode === 'balanced'
                         ? Math.min(64, baseMaxTokens)
                         : baseMaxTokens;
 
                 // Deep Coaching Analysis Decision
                 // We prioritize battery life and responsiveness over analysis depth in minimal mode.
                 // Determines if Auto-Persona is enabled, indicating user preference for sophisticated AI assistance.
-                const isPowerSavingMode = performanceStats.mode === 'minimal';
+                const isPowerSavingMode = WorkerState.performanceStats.mode === 'minimal';
                 const isAutoPersonaEnabled = _settings?.enableAutoPersona !== false;
                 const shouldRunDeepAnalysis = !isPowerSavingMode;
 
@@ -673,16 +715,16 @@ self.onmessage = async (event) => {
                 const hasSocialIntent = intents?.some(i => i.intent === 'social');
 
                 if (hasHighStakesIntent) {
-                    highStakesCounter++;
+                    WorkerState.highStakesCounter++;
                 } else {
-                    highStakesCounter = Math.max(0, highStakesCounter - 1);
+                    WorkerState.highStakesCounter = Math.max(0, WorkerState.highStakesCounter - 1);
                 }
 
-                if (hasHighStakesIntent && highStakesCounter >= HIGH_STAKES_THRESHOLD_TURNS) {
+                if (hasHighStakesIntent && WorkerState.highStakesCounter >= HIGH_STAKES_THRESHOLD_TURNS) {
                     culturalOverrideThreshold = 0.7; // Be more aggressive in persistent high-stakes context
                 } else if (hasSocialIntent) {
                     culturalOverrideThreshold = 0.9; // Be more conservative in social context to avoid jitter
-                    highStakesCounter = 0; // Reset counter in social context
+                    WorkerState.highStakesCounter = 0; // Reset counter in social context
                 } else {
                     // Standard threshold
                     culturalOverrideThreshold = _settings?.culturalOverrideThreshold || 
@@ -758,13 +800,12 @@ self.onmessage = async (event) => {
                 const profileHash = communicationProfile ? communicationProfile.length : 0;
                 const promptKey = `${persona}-${culturalContext}-${preferences?.preferredLength}-${isSubtleMode ? 'subtle' : 'normal'}-${profileHash}`;
                 
-                if (cachedSystemPrompt.key !== promptKey) {
-                    cachedSystemPrompt = {
+                if (WorkerState.cachedSystemPrompt.key !== promptKey) {
+                    WorkerState.cachedSystemPrompt = {
                         key: promptKey,
                         content: generateSystemPrompt({
                             persona,
                             personaConfig,
-                            culturalContext,
                             effectiveCulturalContext,
                             communicationProfile,
                             detectedCulturalContext,
@@ -781,7 +822,7 @@ self.onmessage = async (event) => {
 
                 // Resource Governor: Throttling and conditional execution
                 const isShortUtterance = sanitizedText.split(/\s+/).length < 3;
-                const timeSinceLastLLM = Date.now() - (MLPipeline.lastLLMCallTime || 0);
+                const timeSinceLastLLM = Date.now() - (WorkerState.lastLLMCallTime || 0);
                 const isHighFrequency = timeSinceLastLLM < 2000;
 
                 // Skip deep sentiment analysis for very short or high-frequency utterances
@@ -791,7 +832,7 @@ self.onmessage = async (event) => {
                 let conversationSentiment = { overallSentiment: 'neutral', emotionalTrend: 'stable' };
                 let sentimentAnalysisTime = 0;
 
-                if (performanceStats.mode !== 'minimal' &&
+                if (WorkerState.performanceStats.mode !== 'minimal' &&
                     settings.enableSentimentAnalysis !== false &&
                     !settings.privacyMode &&
                     (!isShortUtterance || !isHighFrequency)) {
@@ -800,7 +841,7 @@ self.onmessage = async (event) => {
                     sentimentAnalysisTime = performance.now() - sentimentAnalysisStartTime;
                 }
 
-                MLPipeline.lastLLMCallTime = Date.now();
+                WorkerState.lastLLMCallTime = Date.now();
 
                 // Dynamic Context (Not cached)
                 let dynamicContext = "";
@@ -844,7 +885,7 @@ self.onmessage = async (event) => {
 
                 // Create messages for the LLM
                 const messages = [
-                    { role: "system", content: `${cachedSystemPrompt.content} ${dynamicContext}` },
+                    { role: "system", content: `${WorkerState.cachedSystemPrompt.content} ${dynamicContext}` },
                     ...conversationHistory,
                     { role: "user", content: sanitizedText }
                 ];
