@@ -9,14 +9,25 @@ import ControlPanel from './VAD/ControlPanel';
 import SocialSuccessScore from './SocialSuccessScore';
 import { getMergedPersonas } from '../utils/preferences';
 import { submitSubtleModeFeedback } from '../utils/feedback';
+import { trackCueDisplayed } from '../utils/engagementTracking';
 import { parseSemanticTags, TAG_METADATA } from '../utils/intentRecognition';
 import performanceMonitor from '../utils/performance';
 import TagIcon from './VAD/TagIcon';
 
-const GlanceWidget = ({ suggestion, emotionData, isProcessing, detectedIntent, settings }) => {
+const GlanceWidget = ({ suggestion, emotionData, isProcessing, detectedIntent, settings, persona }) => {
   const [feedbackGiven, setFeedbackGiven] = useState(false);
   const [showExplanation, setShowExplanation] = useState(false);
   const emotion = emotionData?.emotion || 'neutral';
+
+  const lastTrackedSuggestion = useRef(null);
+
+  useEffect(() => {
+    if (suggestion && suggestion !== lastTrackedSuggestion.current && !isProcessing) {
+      trackCueDisplayed('subtle', persona);
+      lastTrackedSuggestion.current = suggestion;
+      setFeedbackGiven(false);
+    }
+  }, [suggestion, isProcessing, persona]);
 
   const { cleanText: displaySuggestion, tags } = React.useMemo(() => {
     if (!suggestion) return { cleanText: isProcessing ? 'Thinking...' : 'Listening...', tags: [] };
@@ -32,7 +43,7 @@ const GlanceWidget = ({ suggestion, emotionData, isProcessing, detectedIntent, s
 
   const handleFeedback = async (type) => {
     if (feedbackGiven || !displaySuggestion || isProcessing) return;
-    await submitSubtleModeFeedback(displaySuggestion, type);
+    await submitSubtleModeFeedback(displaySuggestion, type, persona);
     setFeedbackGiven(true);
   };
 
@@ -507,6 +518,7 @@ const VADContent = ({
             isProcessing={isProcessing}
             detectedIntent={detectedIntent}
             settings={settings}
+            persona={persona}
           />
         )}
         

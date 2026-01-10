@@ -7,6 +7,7 @@ import {
 import { AppConfig } from '../../config';
 import { CoachingConfig } from '../../config/coaching';
 import { submitFeedback, submitInsightFeedback, getInsightCategoryScores } from '../../utils/feedback';
+import { trackCueDisplayed } from '../../utils/engagementTracking';
 import { overrideSpeakerForTurn } from '../../conversationManager';
 import { parseSemanticTags, TAG_METADATA } from '../../utils/intentRecognition';
 import { secureLocalStorageGet, secureLocalStorageSet } from '../../utils/encryption';
@@ -39,6 +40,16 @@ const DisplayArea = ({
   const [showInfo, setShowInfo] = useState(false);
   const [isStorageLoaded, setIsStorageLoaded] = useState(false);
   const [isAllCaughtUpDismissed, setIsAllCaughtUpDismissed] = useState(false);
+
+  const lastTrackedSuggestion = useRef(null);
+
+  // Track when a full suggestion is displayed
+  useEffect(() => {
+    if (suggestion && suggestion !== lastTrackedSuggestion.current && processingStep === 'none') {
+      trackCueDisplayed('suggestion', persona);
+      lastTrackedSuggestion.current = suggestion;
+    }
+  }, [suggestion, processingStep, persona]);
 
   // Determine if feedback should be enabled based on settings
   const isPersonalizationEnabled = settings.enablePersonalization !== false && !settings.privacyMode;

@@ -84,6 +84,7 @@ class MLPipeline {
         try {
             // Get optimized STT configuration based on device capabilities
             const optimizedSTTConfig = getOptimalModelConfig('stt', deviceCapabilities);
+            const optimizedLLMConfig = getOptimalModelConfig('llm', deviceCapabilities);
 
             // Check memory before loading STT model
             const mem = checkMemoryUsage();
@@ -98,8 +99,11 @@ class MLPipeline {
             }
 
             if (!MLPipeline.stt) {
-                // Dispose any existing LLM to free up memory before loading STT
-                await MLPipeline.disposeLLM();
+                // Only dispose LLM if memory is tight or device is low-spec
+                const memoryCheck = checkMemoryAdequacy(optimizedSTTConfig, MLPipeline.llmConfig || optimizedLLMConfig);
+                if (!memoryCheck.isAdequate || deviceCapabilities.capabilities.isLowSpec) {
+                    await MLPipeline.disposeLLM();
+                }
 
                 MLPipeline.stt = await pipeline('automatic-speech-recognition', optimizedSTTConfig.name, {
                     progress_callback,
@@ -148,9 +152,14 @@ class MLPipeline {
             }
 
             if (!MLPipeline.llm) {
-                // Dispose STT temporarily if needed to free up memory for LLM
-                if (MLPipeline.stt && deviceCapabilities.capabilities.isLowSpec) {
-                    console.log("Temporarily disposing STT to make room for LLM on low-spec device");
+                // Dispose STT only if memory is tight or device is low-spec
+                const memoryCheck = checkMemoryAdequacy(
+                    MLPipeline.sttConfig || getOptimalModelConfig('stt', deviceCapabilities),
+                    optimizedLLMConfig
+                );
+
+                if (MLPipeline.stt && (!memoryCheck.isAdequate || deviceCapabilities.capabilities.isLowSpec)) {
+                    console.log("Disposing STT to make room for LLM due to memory constraints");
                     try {
                         if (MLPipeline.stt.processor && MLPipeline.stt.processor.session) {
                             await MLPipeline.stt.processor.session.release();
@@ -161,6 +170,7 @@ class MLPipeline {
                     } catch (disposeErr) {
                         console.warn("Error disposing STT for LLM loading:", disposeErr);
                     }
+                    MLPipeline.stt = null; // Ensure STT is marked as null
                 }
 
                 // Signal that we are starting to load heavy model
@@ -559,6 +569,32 @@ self.onmessage = async (event) => {
                     taskId
                 });
             }
+        }
+
+        if (type === 'prewarm_system_prompt') {
+            const { persona, culturalContext, preferences, communicationProfile, settings } = event.data;
+            const personaConfig = AppConfig.models.personas[persona] || AppConfig.models.personas.anxiety;
+            const isSubtleMode = settings?.isSubtleMode || preferences?.isSubtleMode;
+            const profileHash = communicationProfile ? communicationProfile.length : 0;
+            const promptKey = `${persona}-${culturalContext}-${preferences?.preferredLength}-${isSubtleMode ? 'subtle' : 'normal'}-${profileHash}`;
+
+            WorkerState.cachedSystemPrompt = {
+                key: promptKey,
+                content: generateSystemPrompt({
+                    persona,
+                    personaConfig,
+                    effectiveCulturalContext: culturalContext,
+                    communicationProfile,
+                    detectedCulturalContext: null, // Initial prewarm doesn't have live context
+                    sanitizedText: "",
+                    isPowerSavingMode: WorkerState.performanceStats.mode === 'minimal',
+                    isSubtleMode,
+                    preferences,
+                    relationshipInsights: null,
+                    anxietyInsights: null,
+                    settings
+                })
+            };
         }
 
         if (type === 'performance_update') {

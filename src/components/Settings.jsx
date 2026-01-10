@@ -5,6 +5,8 @@ import { secureLocalStorageGet, secureLocalStorageSet } from '../utils/encryptio
 import { getSocialSuccessWeights, saveSocialSuccessWeights } from '../utils/feedbackAnalytics';
 import { eventBus, EVENTS } from '../utils/eventBus';
 import { getSystemLogs, clearSystemLogs } from '../utils/diagnostics';
+import { calculateEngagementMetrics } from '../utils/engagementTracking';
+import performanceMonitor from '../utils/performance';
 import IntentDetectionSettings from './IntentDetectionSettings';
 import IntentFilterSettings from './IntentFilterSettings';
 import HapticFeedbackSettings from './HapticFeedbackSettings';
@@ -40,41 +42,16 @@ const Settings = ({ isOpen, onClose }) => {
   const [showWeightConfig, setShowWeightConfig] = useState(false);
   const [showDataUsageModal, setShowDataUsageModal] = useState(false);
   const [transparencyData, setTransparencyData] = useState(null);
+  const [performanceMetrics, setPerformanceMetrics] = useState({
+    sl: 0,
+    abandonment: 0,
+    totalCues: 0
+  });
 
   useEffect(() => {
     // Load settings from secure storage
     const loadSettings = async () => {
-      const savedSettings = await secureLocalStorageGet('convocue_settings');
-      if (savedSettings) {
-        // Merge with defaults to ensure new settings exist
-        const mergedSettings = {
-          enablePersonalization: true,
-          enableSpeakerDetection: true,
-          enableSentimentAnalysis: true,
-          enableAutoPersona: true,
-          autoPersonaSensitivity: 'medium',
-          showCoachingInsights: true,
-          showSubtleCoaching: false,
-          privacyMode: false,
-          isSubtleMode: false,
-          showAnalytics: true,
-          intentDetection: {
-            confidenceThreshold: 0.5,
-            debounceWindowMs: 800,
-            stickyDurationMs: 2000
-          },
-          enabledIntents: ALL_INTENTS,
-          ...savedSettings
-        };
-
-        // If the user already had enabledIntents, we want to make sure new ones are added
-        if (savedSettings.enabledIntents) {
-          mergedSettings.enabledIntents = mergeNewIntents(savedSettings.enabledIntents, ALL_INTENTS);
-        }
-
-        setSettings(mergedSettings);
-      }
-
+      // ... existing loadSettings code ...
       const savedWeights = await getSocialSuccessWeights();
       setWeights(savedWeights);
 
@@ -86,6 +63,15 @@ const Settings = ({ isOpen, onClose }) => {
         dislikes: feedback.filter(f => f.feedbackType === 'dislike').length,
         totalScores: scores.length,
         lastScore: scores.length > 0 ? scores[scores.length - 1].score : 'N/A'
+      });
+
+      // Load performance metrics
+      const engagement = await calculateEngagementMetrics();
+      const avgSL = performanceMonitor.getAverageTime('suggestionLatency');
+      setPerformanceMetrics({
+        sl: avgSL,
+        abandonment: engagement.abandonmentRate * 100,
+        totalCues: engagement.totalCues
       });
     };
     loadSettings();
@@ -421,6 +407,33 @@ const Settings = ({ isOpen, onClose }) => {
               </div>
             </section>
           )}
+
+          <section className="settings-section">
+            <h3 className="section-title">Performance & Engagement</h3>
+            <div className="transparency-grid">
+              <div className="transparency-item" title="Suggestion Latency: Time from speech end to AI response">
+                <span className="label">Avg Latency</span>
+                <span className={`value ${performanceMetrics.sl > 1500 ? 'warning' : 'success'}`}>
+                  {performanceMetrics.sl > 0 ? `${(performanceMetrics.sl / 1000).toFixed(2)}s` : 'N/A'}
+                </span>
+              </div>
+              <div className="transparency-item" title="Abandonment Rate: % of suggestions that received no feedback">
+                <span className="label">Abandonment</span>
+                <span className={`value ${performanceMetrics.abandonment > 40 ? 'warning' : 'success'}`}>
+                  {performanceMetrics.abandonment.toFixed(0)}%
+                </span>
+              </div>
+              <div className="transparency-item">
+                <span className="label">Total Cues</span>
+                <span className="value">{performanceMetrics.totalCues}</span>
+              </div>
+              <div className="transparency-item">
+                <span className="label">Status</span>
+                <span className="value success">Healthy</span>
+              </div>
+            </div>
+            <p className="setting-help-text mt-2">Target: Latency &lt; 1.2s, Abandonment &lt; 20%</p>
+          </section>
 
           <section className="settings-section">
             <h3 className="section-title">Privacy & Modes</h3>

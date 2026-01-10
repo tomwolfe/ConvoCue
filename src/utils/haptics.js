@@ -69,38 +69,39 @@ if (typeof window !== 'undefined') {
 
 /**
  * Fast-path for haptic feedback when the intent is already known.
- * Bypasses string parsing and uses cached settings.
+ * Bypasses string parsing and uses cached settings for sub-200ms response.
  * @param {string} intent - The detected intent (e.g., 'conflict', 'question')
  */
 export const provideIntentHaptics = (intent) => {
   if (!intent) return;
   
-  if (!HapticService.canVibrate()) return;
+  // High-performance check: skip if we've recently vibrated
+  const now = Date.now();
+  if (now - HapticService.lastVibrationTime < HapticService.getCooldown()) return;
 
-  const upperIntent = intent.toUpperCase();
+  const settings = HapticService.getCachedSettings();
+  if (!settings.enabled) return;
+
   const intentMap = AppConfig.hapticsConfig?.intentMap || {};
-  const patternKey = intentMap[upperIntent] || 'SUGGESTION';
+  const patternKey = intentMap[intent.toUpperCase()] || 'SUGGESTION';
   
   const pattern = VIBRATION_PATTERNS[patternKey] || VIBRATION_PATTERNS.SUGGESTION;
-  const intentType = patternKey;
 
-  if (isHapticSupported()) {
+  if (typeof navigator !== 'undefined' && navigator.vibrate) {
     try {
-      if (typeof navigator.vibrate === 'function') {
-        const adjustedPattern = getAdjustedPattern(pattern);
-        if (navigator.vibrate(adjustedPattern)) {
-          HapticService.recordVibration();
-          return;
-        }
+      const adjustedPattern = getAdjustedPattern(pattern);
+      if (navigator.vibrate(adjustedPattern)) {
+        HapticService.lastVibrationTime = now;
+        return;
       }
     } catch (error) {
-      console.warn('Haptic fast-path error:', error);
+      // Silently fail in fast-path to avoid blocking main thread
     }
   }
 
-  // Fallback to visual feedback if haptics fail
-  provideVisualFeedback(intentType);
-  HapticService.recordVibration();
+  // Minimal visual fallback if haptics fail
+  provideVisualFeedback(patternKey);
+  HapticService.lastVibrationTime = now;
 };
 
 /**

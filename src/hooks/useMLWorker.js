@@ -112,6 +112,23 @@ export const useMLWorker = () => {
   const lastIntentSwitchTimeRef = useRef(0);
   const stickyIntentRef = useRef({ intent: null, timestamp: 0 });
 
+  const prewarmSystemPrompt = useCallback(async () => {
+    if (!worker.current || !stateRef.current.isReady) return;
+
+    const communicationProfile = settingsRef.current.enablePersonalization !== false && !settingsRef.current.privacyMode
+      ? await getCommunicationProfileSummary()
+      : "";
+
+    worker.current.postMessage({
+      type: 'prewarm_system_prompt',
+      persona: stateRef.current.persona,
+      culturalContext: stateRef.current.culturalContext,
+      preferences: prefsCache.current,
+      communicationProfile,
+      settings: settingsRef.current
+    });
+  }, [prefsCache]);
+
   const { performOrchestration, handleManualPersonaChange, undoPersonaSwitch, lastSwitchReason } = usePersonaOrchestration(
     state.persona,
     settings,
@@ -122,16 +139,21 @@ export const useMLWorker = () => {
   usePerformanceMonitor(worker);
 
   // Performance Optimization: Decoupling Settings from Worker Lifecycle
-  // We use refs for settings and state to allow the worker and its callbacks 
-  // (initWorker, refreshSuggestion) to access the latest values without 
-  // triggering expensive re-initializations of the ML model when settings change.
-  // This reduces worker restarts from ~3 per session to 0.
   useEffect(() => {
     stateRef.current = state;
     historyRef.current = history;
     lastMessageTimeRef.current = lastMessageTime;
-    settingsRef.current = settings;
-  }, [state, history, lastMessageTime, settings]);
+    
+    if (JSON.stringify(settingsRef.current) !== JSON.stringify(settings)) {
+      settingsRef.current = settings;
+      prewarmSystemPrompt();
+    }
+  }, [state, history, lastMessageTime, settings, prewarmSystemPrompt]);
+
+  // Pre-warm system prompt on persona or cultural context change
+  useEffect(() => {
+    prewarmSystemPrompt();
+  }, [state.persona, state.culturalContext, prewarmSystemPrompt]);
 
   const initWorker = useCallback(() => {
     if (worker.current) {
@@ -273,6 +295,12 @@ export const useMLWorker = () => {
               dispatch({ type: 'LLM_CHUNK', text });
               break;
             case 'llm_result': {
+              // Calculate Suggestion Latency (SL)
+              if (lastMessageTimeRef.current) {
+                const sl = Date.now() - lastMessageTimeRef.current;
+                performanceMonitor.recordValue('suggestionLatency', sl);
+              }
+
               stickyIntentRef.current = { intent: null, timestamp: 0 };
               const enhanced = await enhanceResponse(
                 text,

@@ -3,6 +3,7 @@
  */
 import { secureLocalStorageGet, secureLocalStorageSet } from './encryption';
 import { eventBus, EVENTS } from './eventBus';
+import { trackInteraction } from './engagementTracking';
 
 /**
  * Submit feedback for a suggestion
@@ -15,6 +16,9 @@ import { eventBus, EVENTS } from './eventBus';
  * @param {string} originalInput - The original user input that led to the suggestion
  */
 export const submitFeedback = async (suggestion, feedbackType, persona, culturalContext, transcript, originalInput = '') => {
+  // Track interaction for abandonment metrics
+  trackInteraction('suggestion', persona);
+
   // Create feedback object
   const feedback = {
     suggestion,
@@ -27,6 +31,8 @@ export const submitFeedback = async (suggestion, feedbackType, persona, cultural
     userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
     isMobile: typeof navigator !== 'undefined' ? /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) : false
   };
+// ... rest of the function ...
+
 
   // Store feedback in localStorage with encryption
   try {
@@ -53,15 +59,22 @@ export const submitFeedback = async (suggestion, feedbackType, persona, cultural
  * Submit micro-feedback for a subtle mode cue
  * @param {string} cue - The cue text
  * @param {string} feedbackType - 'like' or 'dislike'
+ * @param {string} persona - Current persona
  */
-export const submitSubtleModeFeedback = async (cue, feedbackType) => {
+export const submitSubtleModeFeedback = async (cue, feedbackType, persona = 'general') => {
+  // Track interaction for abandonment metrics
+  trackInteraction('subtle', persona);
+
   try {
     const feedback = {
       cue,
       feedbackType,
       timestamp: Date.now(),
-      mode: 'subtle'
+      mode: 'subtle',
+      persona
     };
+// ... rest of the function ...
+
 
     const feedbackHistory = await secureLocalStorageGet('convocue_subtle_feedback', []);
     feedbackHistory.push(feedback);

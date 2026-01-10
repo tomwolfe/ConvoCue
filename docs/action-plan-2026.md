@@ -1,65 +1,76 @@
-# ConvoCue Action Plan: 30-Day Performance & Relevance Sprint
+# ConvoCue 90-Day Action Plan (2026)
 
 ## Executive Summary
-This plan prioritizes the 20% of technical factors (Inference Latency, Intent Accuracy, and Worker Stability) that drive 80% of the user experience. The goal is to transform ConvoCue from a "smart tool" into a "real-time companion" by hitting sub-1.2s latency targets.
+This plan outlines a 90-day strategic roadmap to transform ConvoCue into a high-performance, high-relevance social companion. By targeting the top 20% of technical and UX friction points, we aim to reduce task abandonment by 40% and achieve sub-1.2s suggestion latency.
+
+## Prioritization Matrix (Weighted Impact-Effort)
+
+| Issue | Impact (1-10) | Effort (1-10) | Score (I * E) | Priority |
+| :--- | :--- | :--- | :--- | :--- |
+| **Suggestion Latency** | 10 | 8 | 80 | **Critical** |
+| **Suggestion Relevance** | 9 | 7 | 63 | **High** |
+| **Task Abandonment** | 9 | 6 | 54 | **High** |
+| **Worker Instability** | 8 | 4 | 32 | **Medium** |
+| **Persona Flicker** | 6 | 3 | 18 | **Low** |
+| **Haptic Lag** | 7 | 2 | 14 | **Low** |
 
 ## Key Performance Indicators (KPIs)
 
-| KPI | Metric Definition | Baseline (Est.) | Target (30 Days) |
-| :--- | :--- | :--- | :--- |
-| **Suggestion Latency (SL)** | Speech end to first token of suggestion | 2.5s - 4.0s | **< 1.2s** |
-| **Haptic Latency (HL)** | Intent detection to vibration | 300ms - 500ms | **< 200ms** |
-| **Worker Stability** | Unintended worker restarts per session | 2 - 3 | **0** |
-| **RS (Relevance Score)** | User thumbs-up ratio on suggestions | N/A | **> 85%** |
-
-### RS Measurement Strategy
-The Relevance Score (RS) will be measured using the `analyzeFeedbackTrends` utility, which aggregates "Very Helpful" (like) vs "Not Helpful" (dislike) feedback from the `InsightCard` component. 
-- **Methodology**: Internal dogfooding and a 5-user pilot group will provide the baseline.
-- **Reporting**: Weekly automated satisfaction reports generated from `localStorage` exports.
+| KPI | Baseline (Jan 2026) | Target (90 Days) |
+| :--- | :--- | :--- |
+| **Suggestion Latency (SL)** | 2.5s - 4.0s | **< 1.2s** |
+| **Relevance Score (RS)** | ~65% (est.) | **> 90%** |
+| **Task Abandonment Rate** | ~35% (est.) | **< 20%** |
+| **Worker Restarts** | 2-3 / session | **0** |
+| **Haptic Latency (HL)** | 300ms - 500ms | **< 200ms** |
 
 ---
 
-## Cycle 1: Speed & Stability (Days 1–14)
-**Focus**: Eliminating technical friction in the inference pipeline.
+## Phase 1: Foundation & Speed (Days 1–30)
+**Goal**: Technical stabilization and sub-1.5s latency.
 
-### High-Leverage Interventions
-1.  **Inference Pipeline Hardening**:
-    - Stabilize `useMLWorker` to prevent unnecessary worker terminations.
-    - Implement an "Active Context" keep-alive for LLM models to avoid reload latency.
-2.  **Prompt Generation Refactor**:
-    - Pre-compile static persona prompts.
-    - Use partial updates for dynamic context (Emotion, Sentiment) to reduce string manipulation overhead.
-3.  **Haptic Fast-Path**:
-    - Direct binding between `detectIntentHighPerformance` and `provideHapticFeedback` to bypass the event bus for critical notifications.
-    - *Correction*: `getAdjustedPattern` is verified as present in the utility layer; the fast-path ensures sub-200ms haptic response.
+### Cycle 1: The Fast-Path (Days 1–14)
+- **Inference Pipeline**: Implement "Active Context" pre-warming in `useMLWorker`.
+- **Haptic Fast-Path**: Direct binding of intent detection to haptic drivers to bypass the event bus.
+- **Stability**: Harden worker lifecycle to prevent resets during settings changes.
 
-### Milestones
-- **Day 3**: Performance baseline established via automated benchmarks.
-- **Day 7**: Sugggestion Latency reduced to < 1.8s on desktop.
-- **Day 14**: Worker stability reached (0 restarts per 15-min session).
+### Cycle 2: Intelligence Foundation (Days 15–30)
+- **Prompt Optimization**: Pre-compile static persona tokens; use incremental context updates.
+- **Persona Smoothing**: Implement the 30s "Sticky Persona" duration and hysteresis logic.
+- **Baseline Analytics**: Establish concrete abandonment tracking via `session_purged` vs `interaction_completed` metrics.
 
 ---
 
-## Cycle 2: Intelligence & Relevance (Days 15–30)
-**Focus**: Refining AI output for maximum user value.
+## Phase 2: Relevance & Engagement (Days 31–60)
+**Goal**: Personalization and meaningful coaching.
 
-### High-Leverage Interventions
-1.  **Persona Smoothing Logic**:
-    - Implement a 30s "Sticky Persona" duration to prevent flicker.
-    - *Note on Trade-off*: A 30s cooldown is an intentional choice for stability. Rapid emotional shifts may be lagged by this duration; this is a known trade-off prioritizing UI stability over instantaneous adaptation.
-    - Increase transition thresholds during high-intensity intents (e.g., Conflict).
-2.  **Coaching Calibration**:
-    - Weight "Active Persona" insights 2x higher than auxiliary coaching systems in `resolveFeatureConflicts` using a maintainable map.
-3.  **Cultural Intelligence Tuning**:
-    - Adjust override thresholds dynamically based on intent (e.g., Strategic vs. Social).
+### Cycle 3: Personalization (Days 31–45)
+- **Feedback Loop**: Integrate `analyzeFeedbackTrends` directly into the LLM prompt generation for real-time adaptation.
+- **Preference Learning**: Automatically adjust suggestion length and tone based on user's "Improvement Areas" (e.g., if user dislikes "longResponses", auto-truncate).
+- **Subtle Mode Expansion**: Introduce haptic-only cues for high-confidence intents to reduce visual clutter.
 
-### Milestones
-- **Day 21**: Persona switching flicker reduced by 90%.
-- **Day 30**: Final KPI measurement and documentation of performance gains.
+### Cycle 4: Coaching & Context (Days 46–60)
+- **Contextual Awareness**: Improve `isResponseRelevant` logic using semantic embedding comparisons instead of keyword matching.
+- **Proactive Coaching**: Trigger coaching insights *during* silence gaps rather than after speech, using VAD (Voice Activity Detection) cues.
 
 ---
 
-## Accountability & Review Process
-- **Data-Driven Decisions**: No priority shift without a benchmark report.
-- **Cycle Retrospectives**: Every 14 days, compare measured KPIs against targets.
-- **Documentation**: All performance improvements must be logged in `docs/performance-optimization.md`.
+## Phase 3: Growth & Optimization (Days 61–90)
+**Goal**: User retention and system polish.
+
+### Cycle 5: Abandonment Reduction (Days 61–75)
+- **Onboarding Refinement**: Implement a "Tutorial 2.0" that focuses on AI personalization settings.
+- **Frictionless Feedback**: Introduce 1-tap "Correction" mode where users can quickly edit a suggestion to train the model.
+- **Offline Reliability**: Ensure all features function with zero latency in Airplane Mode (fully local inference).
+
+### Cycle 6: Final Polish (Days 76–90)
+- **UI/UX Audit**: Minimize layout shift during persona transitions.
+- **Performance Wrap-up**: Final pass on memory management (History Trimming) to ensure stability in 2-hour+ sessions.
+- **90-Day Review**: Final KPI measurement and planning for 2026 H2.
+
+---
+
+## Measurement Methodology
+- **Abandonment Rate**: Calculated as `1 - (interactions_with_feedback / total_detected_cues)`.
+- **Latency**: Measured using `performance.now()` from `STT_START` to `LLM_FIRST_TOKEN`.
+- **Relevance**: 7-day rolling average of `thumbs_up / (thumbs_up + thumbs_down)`.
