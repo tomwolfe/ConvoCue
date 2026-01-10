@@ -27,6 +27,20 @@ describe('Social Ethics Guardrail', () => {
       expect(result).toBe(suggestion); // Should be allowed in discussion context
     });
 
+    it('should allow discussion when context is a question about the topic', () => {
+      const suggestion = 'What is the negative effect of gaslighting?';
+      const context = 'User is asking a question about the impact of gaslighting?';
+      const result = validateSocialSuggestion(suggestion, context);
+      expect(result).toBe(suggestion);
+    });
+
+    it('should block harmful pattern when context is not clearly a discussion', () => {
+      const suggestion = 'You should manipulate them.';
+      const context = 'Generic help';
+      const result = validateSocialSuggestion(suggestion, context);
+      expect(result).toContain('I can\'t suggest that');
+    });
+
     it('should block the first harmful pattern found when multiple exist', () => {
       const suggestion = 'You should manipulate and gaslight them.';
       const result = validateSocialSuggestion(suggestion);
@@ -50,6 +64,18 @@ describe('Social Ethics Guardrail', () => {
       const dismissive = "Just calm down.";
       const result = promoteEmpathy(dismissive, 'anger');
       expect(result).toContain('acknowledging their feelings first');
+    });
+
+    it('should transform dismissive patterns when emotion is fear', () => {
+      const dismissive = "Stop worrying about it.";
+      const result = promoteEmpathy(dismissive, 'fear');
+      expect(result).toContain('asking what would make them feel safer');
+    });
+
+    it('should transform dismissive patterns when emotion is frustration', () => {
+      const dismissive = "You're overreacting to this.";
+      const result = promoteEmpathy(dismissive, 'frustration');
+      expect(result).toContain('I can see this is really upsetting you');
     });
 
     it('should not modify non-dismissive patterns', () => {

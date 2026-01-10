@@ -52,5 +52,13 @@ export const DISMISSIVE_PATTERNS = [
   { 
     pattern: /it's not a big deal/i, 
     replacement: "What seems like a small thing to you might feel significant to them. Try validating their feelings first." 
+  },
+  {
+    pattern: /stop worrying/i,
+    replacement: "Their fear is real to them right now. Instead of telling them to stop worrying, try asking what would make them feel safer."
+  },
+  {
+    pattern: /you're overreacting/i,
+    replacement: "They seem very frustrated. Instead of dismissing it as an overreaction, try saying 'I can see this is really upsetting you, can you tell me more?'"
   }
 ];

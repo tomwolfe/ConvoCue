@@ -5,6 +5,7 @@
 
 import { secureLocalStorageSet } from './encryption';
 import { resetConversationManager } from '../conversationManager';
+import { trackEthicsEvent } from './ethicsAnalytics';
 
 /**
  * Securely wipes a string or object from memory by overwriting it
@@ -50,6 +51,7 @@ export const clearAllSessionData = async () => {
   // Clear in-memory buffers
   resetConversationManager();
   
+  trackEthicsEvent('session_purged');
   console.log('[Privacy] Session data purged.');
 };
 
