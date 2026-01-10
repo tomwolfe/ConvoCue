@@ -96,7 +96,9 @@ export class MLStateMachine {
     this.context = {
       retryCount: 0,
       maxRetries: maxRetries,
-      errors: []
+      errors: [],
+      sttFunctional: false,
+      llmFunctional: false
     };
   }
 
@@ -113,7 +115,7 @@ export class MLStateMachine {
   // Transition to a new state based on transition type
   transition(transition, contextUpdate = {}) {
     const prevState = this.state;
-    const nextState = TRANSITION_TABLE[prevState]?.[transition];
+    let nextState = TRANSITION_TABLE[prevState]?.[transition];
 
     if (!nextState) {
       console.warn(`Invalid transition: ${transition} from state: ${prevState}`);
@@ -123,9 +125,37 @@ export class MLStateMachine {
     // Handle context updates and side effects
     this.context = { ...this.context, ...contextUpdate };
 
-    // Reset retry count on successful load
-    if (transition === ML_TRANSITIONS.STT_LOADED || transition === ML_TRANSITIONS.LLM_LOADED) {
+    // Update functional status based on transitions
+    if (transition === ML_TRANSITIONS.STT_LOADED) {
+      this.context.sttFunctional = true;
       this.context.retryCount = 0;
+    }
+    if (transition === ML_TRANSITIONS.LLM_LOADED) {
+      this.context.llmFunctional = true;
+      this.context.retryCount = 0;
+    }
+    if (transition === ML_TRANSITIONS.LOAD_ERROR) {
+      if (prevState === ML_STATES.LOADING_STT || prevState === ML_STATES.RETRYING_STT) {
+        this.context.sttFunctional = false;
+      }
+      if (prevState === ML_STATES.LOADING_LLM || prevState === ML_STATES.RETRYING_LLM) {
+        this.context.llmFunctional = false;
+      }
+    }
+    if (transition === ML_TRANSITIONS.FALLBACK_SUCCESS) {
+      // If we fallback after STT error, mark it as non-functional
+      if (prevState === ML_STATES.ERROR && this.context.errors.length > 0) {
+        const lastError = this.context.errors[this.context.errors.length - 1];
+        if (lastError.state === ML_STATES.LOADING_STT || lastError.state === ML_STATES.RETRYING_STT) {
+          this.context.sttFunctional = false;
+        }
+      }
+    }
+
+    // Refine nextState based on functional status
+    // If we transition to READY but STT is not functional, it should be TEXT_ONLY_MODE
+    if (nextState === ML_STATES.READY && !this.context.sttFunctional) {
+      nextState = ML_STATES.TEXT_ONLY_MODE;
     }
 
     // Increment retry count on retry transitions

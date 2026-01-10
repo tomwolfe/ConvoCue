@@ -21,7 +21,7 @@ import { generateSystemPrompt } from './worker/promptGenerator';
 import { WorkerMessenger } from './worker/Messenger';
 
 // Create a messenger instance for communication
-const messenger = new WorkerMessenger();
+const messenger = WorkerMessenger.getInstance();
 
 // Enhance messenger to automatically include ML state data in every message
 const originalPostMessage = messenger.postMessage.bind(messenger);

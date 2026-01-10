@@ -44,7 +44,16 @@ function workerReducer(state, action) {
         isLowMemory: action.isLowMemory ?? state.isLowMemory
       };
     case 'SET_READY':
-      return { ...state, isReady: true, status: 'Ready', progress: 100 };
+      return { 
+        ...state, 
+        isReady: true, 
+        status: 'Ready', 
+        progress: 100,
+        // Ensure mlState is at least 'ready' or 'text_only_mode' when isReady is set
+        mlState: (state.mlState === ML_STATES.READY || state.mlState === ML_STATES.TEXT_ONLY_MODE) 
+          ? state.mlState 
+          : ML_STATES.READY 
+      };
     case 'START_STT':
       return { ...state, isProcessing: true, processingStep: 'transcribing', status: 'Transcribing...' };
     case 'STT_RESULT':
@@ -71,14 +80,25 @@ function workerReducer(state, action) {
         coachingInsights: action.coachingInsights || state.coachingInsights,
         isProcessing: false, 
         processingStep: 'none', 
-        status: 'Ready' 
+        status: 'Ready',
+        mlState: (state.mlState === ML_STATES.READY || state.mlState === ML_STATES.TEXT_ONLY_MODE) 
+          ? state.mlState 
+          : ML_STATES.READY
       };
     case 'SET_PERSONA':
       return { ...state, persona: action.persona };
     case 'SET_CULTURAL_CONTEXT':
       return { ...state, culturalContext: action.culturalContext };
     case 'RESET_PROCESSING':
-      return { ...state, isProcessing: false, processingStep: 'none', status: 'Ready' };
+      return { 
+        ...state, 
+        isProcessing: false, 
+        processingStep: 'none', 
+        status: 'Ready',
+        mlState: (state.mlState === ML_STATES.READY || state.mlState === ML_STATES.TEXT_ONLY_MODE) 
+          ? state.mlState 
+          : ML_STATES.READY
+      };
     case 'SET_ERROR':
       return { 
         ...state, 

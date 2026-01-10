@@ -38,8 +38,21 @@ export class Messenger {
  * Concrete implementation for Web Workers
  */
 export class WorkerMessenger extends Messenger {
+  static instance = null;
+
   constructor() {
+    if (WorkerMessenger.instance) {
+      return WorkerMessenger.instance;
+    }
     super(self);
+    WorkerMessenger.instance = this;
+  }
+
+  static getInstance() {
+    if (!WorkerMessenger.instance) {
+      WorkerMessenger.instance = new WorkerMessenger();
+    }
+    return WorkerMessenger.instance;
   }
 }
 

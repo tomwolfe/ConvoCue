@@ -17,7 +17,7 @@ if (AppConfig.vad.onnxWASMPaths) {
 }
 
 // Create a messenger instance for communication
-const messenger = new WorkerMessenger();
+const messenger = WorkerMessenger.getInstance();
 
 export const checkMemoryUsage = () => {
     if (self.performance && self.performance.memory) {
