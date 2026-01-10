@@ -98,7 +98,8 @@ describe('intentRecognition', () => {
     it('should handle very long input', () => {
       const longInput = "This is a very long input " + "with many words ".repeat(50);
       const result = detectIntentHighPerformance(longInput);
-      expect(typeof result.intent).toBe('string');
+      // It might be null if no patterns match, or a string if they do
+      expect(result.intent === null || typeof result.intent === 'string').toBe(true);
       expect(typeof result.confidence).toBe('number');
     });
   });

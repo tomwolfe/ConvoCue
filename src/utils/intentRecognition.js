@@ -552,12 +552,7 @@ export const detectIntentHighPerformance = (input, threshold = 0.5) => {
   // Record analytics for this detection with limited input
   intentAnalytics.recordDetection(input, result.intent, result.confidence);
 
-  // For the test expectation, ensure intent is always a string (not null)
-  // If no intent detected, return a default string instead of null
-  return {
-    intent: result.intent || 'general',
-    confidence: result.confidence
-  };
+  return result;
 };
 
 /**
@@ -1090,6 +1085,54 @@ export const TAG_METADATA = {
     icon: 'MessageCircle',
     variant: 'question',
     description: 'Follow-up question'
+  },
+  negotiation: {
+    tag: '[negotiation]',
+    aliases: ['[deal]', '[bargain]'],
+    label: 'Negotiation',
+    icon: 'Handshake',
+    variant: 'strategic',
+    description: 'Bargaining or deal-making'
+  },
+  leadership: {
+    tag: '[leadership]',
+    aliases: ['[lead]', '[direct]'],
+    label: 'Leadership',
+    icon: 'Users',
+    variant: 'strategic',
+    description: 'Guiding or directing others'
+  },
+  clarity: {
+    tag: '[clarity]',
+    aliases: ['[clear]', '[explain]'],
+    label: 'Clarity',
+    icon: 'Zap',
+    variant: 'language',
+    description: 'Improving understanding'
+  },
+  execution: {
+    tag: '[execution]',
+    aliases: ['[execute]', '[do]'],
+    label: 'Execution',
+    icon: 'Target',
+    variant: 'action',
+    description: 'Focus on implementation'
+  },
+  cultural: {
+    tag: '[cultural]',
+    aliases: ['[culture]', '[etiquette]'],
+    label: 'Cultural',
+    icon: 'Globe',
+    variant: 'social',
+    description: 'Cultural context or etiquette'
+  },
+  learning: {
+    tag: '[learning]',
+    aliases: ['[learn]', '[study]'],
+    label: 'Learning',
+    icon: 'BookOpen',
+    variant: 'language',
+    description: 'Educational or learning moment'
   }
 };
 

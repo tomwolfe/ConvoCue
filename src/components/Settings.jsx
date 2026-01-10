@@ -26,7 +26,7 @@ const Settings = ({ isOpen, onClose }) => {
       debounceWindowMs: 800,
       stickyDurationMs: 2000
     },
-    enabledIntents: ['social', 'question', 'conflict', 'strategic', 'action', 'empathy', 'language']
+    enabledIntents: ['social', 'question', 'conflict', 'strategic', 'action', 'empathy', 'language', 'negotiation', 'leadership', 'clarity', 'execution', 'cultural', 'learning']
   });
 
   const [weights, setWeights] = useState({
@@ -44,6 +44,9 @@ const Settings = ({ isOpen, onClose }) => {
     const loadSettings = async () => {
       const savedSettings = await secureLocalStorageGet('convocue_settings');
       if (savedSettings) {
+        // List of all possible intents
+        const allIntents = ['social', 'question', 'conflict', 'strategic', 'action', 'empathy', 'language', 'negotiation', 'leadership', 'clarity', 'execution', 'cultural', 'learning'];
+
         // Merge with defaults to ensure new settings exist
         const mergedSettings = {
           enablePersonalization: true,
@@ -61,9 +64,17 @@ const Settings = ({ isOpen, onClose }) => {
             debounceWindowMs: 800,
             stickyDurationMs: 2000
           },
-          enabledIntents: ['social', 'question', 'conflict', 'strategic', 'action', 'empathy', 'language'],
+          enabledIntents: allIntents,
           ...savedSettings
         };
+
+        // If the user already had enabledIntents, we want to make sure new ones are added
+        if (savedSettings.enabledIntents) {
+          const existingIntents = savedSettings.enabledIntents;
+          const newIntents = allIntents.filter(i => !existingIntents.includes(i));
+          mergedSettings.enabledIntents = [...new Set([...existingIntents, ...newIntents])];
+        }
+
         setSettings(mergedSettings);
       }
 

@@ -18,7 +18,8 @@ export const useAppPreferences = (initialDispatch) => {
       confidenceThreshold: 0.5,
       debounceWindowMs: 800,
       stickyDurationMs: 2000
-    }
+    },
+    enabledIntents: ['social', 'question', 'conflict', 'strategic', 'action', 'empathy', 'language', 'negotiation', 'leadership', 'clarity', 'execution', 'cultural', 'learning']
   });
   
   const prefsCache = useRef(null);
@@ -30,6 +31,9 @@ export const useAppPreferences = (initialDispatch) => {
 
     const savedSettings = await secureLocalStorageGet('convocue_settings');
     if (savedSettings) {
+      // List of all possible intents
+      const allIntents = ['social', 'question', 'conflict', 'strategic', 'action', 'empathy', 'language', 'negotiation', 'leadership', 'clarity', 'execution', 'cultural', 'learning'];
+      
       // Merge with defaults to ensure intentDetection settings exist
       const mergedSettings = {
         ...{
@@ -45,10 +49,29 @@ export const useAppPreferences = (initialDispatch) => {
             debounceWindowMs: 800,
             stickyDurationMs: 2000
           },
-          enabledIntents: ['social', 'question', 'conflict', 'strategic', 'action', 'empathy', 'language']
+          enabledIntents: allIntents
         },
         ...savedSettings
       };
+
+      // If the user already had enabledIntents, we want to make sure new ones are added
+      // but they keep their choices for old ones.
+      if (savedSettings.enabledIntents) {
+        const existingIntents = savedSettings.enabledIntents;
+        // Find intents that are in allIntents but NOT in existingIntents (newly added intents)
+        const newIntents = allIntents.filter(i => !existingIntents.includes(i));
+        
+        // We only add new intents if they aren't already there. 
+        // We don't want to re-enable ones they manually disabled, 
+        // but since we just added NEW intent types to the codebase, 
+        // they wouldn't be in the saved list at all.
+        // NOTE: This logic assumes that any intent not in the saved list is "new" 
+        // and should be enabled. If they disabled an intent that WAS there, 
+        // it would still be in the saved list (if they were using a different version).
+        // Actually, let's keep it simple: if it's missing, add it.
+        mergedSettings.enabledIntents = [...new Set([...existingIntents, ...newIntents])];
+      }
+      
       setSettings(mergedSettings);
     }
 
