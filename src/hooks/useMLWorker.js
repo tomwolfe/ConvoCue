@@ -471,6 +471,7 @@ export const useMLWorker = () => {
   const retryCountRef = useRef(0);
   const maxRetryAttempts = 3; // Maximum number of retry attempts
   const [isRetrying, setIsRetryingState] = useState(false);
+  const [isRetryingLLM, setIsRetryingLLMState] = useState(false);
 
   const retrySTTLoad = useCallback(() => {
     if (!worker.current) return;
@@ -505,6 +506,39 @@ export const useMLWorker = () => {
     });
   }, [dispatch, maxRetryAttempts]); // Removed setIsRetryingState from dependencies
 
+  const retryLLMLoad = useCallback(() => {
+    if (!worker.current) return;
+
+    // Check if we've exceeded the maximum retry attempts
+    if (retryCountRef.current >= maxRetryAttempts) {
+      dispatch({
+        type: 'SET_STATUS',
+        status: `Maximum retry attempts (${maxRetryAttempts}) reached. AI model unavailable.`
+      });
+      dispatch({
+        type: 'SET_ERROR',
+        error: `AI model unavailable after ${maxRetryAttempts} attempts. Please refresh the page or check your connection.`
+      });
+      return;
+    }
+
+    // Increment retry count
+    retryCountRef.current += 1;
+
+    // Set retrying state using functional update to avoid dependency
+    setIsRetryingLLMState(prev => true);
+
+    // Reset error state before attempting to reload
+    dispatch({ type: 'SET_STATUS', status: `Retrying to load Social Brain... (${retryCountRef.current}/${maxRetryAttempts})` });
+    dispatch({ type: 'SET_ERROR', error: null });
+
+    // Send a message to the worker to attempt reloading LLM
+    worker.current.postMessage({
+      type: 'retry_llm_load',
+      taskId: generateUniqueId('retry-llm')
+    });
+  }, [dispatch, maxRetryAttempts]); // Removed setIsRetryingLLMState from dependencies
+
   return {
     ...state,
     history,
@@ -513,7 +547,9 @@ export const useMLWorker = () => {
     processAudio,
     refreshSuggestion,
     retrySTTLoad, // Add the retry function to the returned object
-    isRetrying, // Add the retrying state to the returned object
+    retryLLMLoad, // Add the LLM retry function to the returned object
+    isRetrying, // Add the STT retrying state to the returned object
+    isRetryingLLM, // Add the LLM retrying state to the returned object
     prewarmLLM: () => {
       if (!worker.current) return;
       worker.current.postMessage({ type: 'prewarm_llm' });

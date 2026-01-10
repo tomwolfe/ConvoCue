@@ -1,0 +1,137 @@
+# ML State Machine Documentation
+
+## Overview
+The ML State Machine manages the lifecycle of machine learning models (STT and LLM) in the ConvoCue application. It tracks the loading, readiness, and error states of the models to ensure proper functionality and graceful degradation.
+
+## States
+
+### UNINITIALIZED
+- **Description**: Initial state when the application starts
+- **Entry Conditions**: Application initialization
+- **Exit Conditions**: Loading of STT or LLM models begins
+
+### LOADING_STT
+- **Description**: State when the Speech-to-Text model is being loaded
+- **Entry Conditions**: STT loading initiated
+- **Exit Conditions**: STT loads successfully, fails, or transitions to retry
+
+### LOADING_LLM
+- **Description**: State when the Language Model is being loaded
+- **Entry Conditions**: LLM loading initiated
+- **Exit Conditions**: LLM loads successfully, fails, or transitions to retry
+
+### READY
+- **Description**: Both models are loaded and ready for processing
+- **Entry Conditions**: Both STT and LLM loaded successfully
+- **Exit Conditions**: Model unloading, memory pressure, or error occurs
+
+### ERROR
+- **Description**: An error occurred during model loading or processing
+- **Entry Conditions**: Model loading or processing failure
+- **Exit Conditions**: Reset, retry attempt, or fallback success
+
+### RETRYING_STT
+- **Description**: State when retrying to load the STT model after failure
+- **Entry Conditions**: Retry STT transition triggered
+- **Exit Conditions**: STT loads successfully or fails again
+
+### RETRYING_LLM
+- **Description**: State when retrying to load the LLM after failure
+- **Entry Conditions**: Retry LLM transition triggered
+- **Exit Conditions**: LLM loads successfully or fails again
+
+### LOW_MEMORY
+- **Description**: State when the system is experiencing memory pressure
+- **Entry Conditions**: Memory usage exceeds threshold
+- **Exit Conditions**: Memory is freed or reset occurs
+
+### PARTIAL_FUNCTIONALITY
+- **Description**: State when only partial functionality is available (e.g., text-only mode)
+- **Entry Conditions**: Fallback success after model failure
+- **Exit Conditions**: Reset or model reload
+
+## Transitions
+
+### START_LOADING_STT
+- **From**: UNINITIALIZED, READY, LOW_MEMORY, PARTIAL_FUNCTIONALITY, ERROR
+- **To**: LOADING_STT
+- **Description**: Initiates loading of the STT model
+
+### START_LOADING_LLM
+- **From**: UNINITIALIZED, READY, LOW_MEMORY, PARTIAL_FUNCTIONALITY, ERROR
+- **To**: LOADING_LLM
+- **Description**: Initiates loading of the LLM
+
+### STT_LOADED
+- **From**: LOADING_STT
+- **To**: READY
+- **Description**: STT model loaded successfully
+
+### LLM_LOADED
+- **From**: LOADING_LLM
+- **To**: READY
+- **Description**: LLM loaded successfully
+
+### LOAD_ERROR
+- **From**: LOADING_STT, LOADING_LLM, RETRYING_STT, RETRYING_LLM
+- **To**: ERROR
+- **Description**: Model loading failed
+
+### RETRY_STT
+- **From**: ERROR, READY
+- **To**: RETRYING_STT
+- **Description**: Attempt to reload STT model
+
+### RETRY_LLM
+- **From**: ERROR, READY
+- **To**: RETRYING_LLM
+- **Description**: Attempt to reload LLM
+
+### RESET
+- **From**: ERROR, LOW_MEMORY, PARTIAL_FUNCTIONALITY
+- **To**: UNINITIALIZED
+- **Description**: Reset the state machine to initial state
+
+### MEMORY_PRESSURE
+- **From**: READY
+- **To**: LOW_MEMORY
+- **Description**: System experiencing memory pressure
+
+### FALLBACK_SUCCESS
+- **From**: ERROR
+- **To**: PARTIAL_FUNCTIONALITY
+- **Description**: Fallback mode activated after failure
+
+## State Transition Diagram
+
+```
+UNINITIALIZED
+     ↓ (START_LOADING_STT)
+LOADING_STT ←→ RETRYING_STT
+     ↓ (STT_LOADED)      ↓ (STT_LOADED)
+   READY ←→ LOADING_LLM ←→ RETRYING_LLM
+     ↑ (LOAD_ERROR)         ↑ (LOAD_ERROR)
+     ↓ (MEMORY_PRESSURE)    ↓ (LLM_LOADED)
+LOW_MEMORY ←------------ READY
+     ↑                       ↓ (RETRY_STT/RETRY_LLM)
+ERROR ←------------------ PARTIAL_FUNCTIONALITY
+     ↑ (RESET)              ↑ (RESET)
+     └──────────────────────┘
+```
+
+## Usage in Application
+
+The state machine is integrated into the MLPipeline class and is used to:
+- Track model loading progress
+- Handle error recovery scenarios
+- Enable retry mechanisms for both STT and LLM
+- Manage memory pressure situations
+- Provide status updates to the UI
+
+## Key Methods
+
+- `transition(transition, context)`: Change state based on transition type
+- `getState()`: Get current state
+- `isInState(state)`: Check if in specific state
+- `isReadyForProcessing()`: Check if pipeline is ready for processing
+- `isModelLoaded(modelType)`: Check if specific model is loaded

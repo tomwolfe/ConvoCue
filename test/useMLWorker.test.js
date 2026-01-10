@@ -200,4 +200,74 @@ describe('useMLWorker', () => {
     // Verify that the status reflects the retry limit being reached
     expect(result.current.status).toContain('Maximum retry attempts');
   });
+
+  it('should include retryLLMLoad function in the returned object', () => {
+    const { result } = renderHook(() => useMLWorker());
+
+    expect(result.current).toHaveProperty('retryLLMLoad');
+    expect(typeof result.current.retryLLMLoad).toBe('function');
+  });
+
+  it('should call retryLLMLoad without errors', () => {
+    const { result } = renderHook(() => useMLWorker());
+
+    // Just verify that calling the function doesn't throw errors
+    expect(() => {
+      act(() => {
+        result.current.retryLLMLoad();
+      });
+    }).not.toThrow();
+  });
+
+  it('should not send retry LLM message if worker is not available', () => {
+    // Temporarily mock Worker to return null for this test
+    const originalWorker = global.Worker;
+    global.Worker = vi.fn().mockImplementation(() => null);
+
+    const { result } = renderHook(() => useMLWorker());
+
+    act(() => {
+      result.current.retryLLMLoad();
+    });
+
+    expect(mockWorkerPostMessage).not.toHaveBeenCalled();
+
+    // Restore original Worker
+    global.Worker = originalWorker;
+  });
+
+  it('should send retry_llm_load message when retryLLMLoad is called', () => {
+    const { result } = renderHook(() => useMLWorker());
+
+    act(() => {
+      result.current.retryLLMLoad();
+    });
+
+    expect(mockWorkerPostMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'retry_llm_load',
+        taskId: expect.stringMatching(/^retry-llm-\d+$/)
+      })
+    );
+  });
+
+  it('should maintain existing functionality after adding retryLLMLoad', () => {
+    const { result } = renderHook(() => useMLWorker());
+
+    // Check that all expected properties are still present
+    const expectedProperties = [
+      'status', 'progress', 'isReady', 'isLowMemory', 'transcript', 'suggestion',
+      'detectedIntent', 'emotionData', 'coachingInsights', 'isProcessing',
+      'processingStep', 'error', 'persona', 'culturalContext', 'history',
+      'conversationTurns', 'conversationSentiment', 'processAudio',
+      'refreshSuggestion', 'retrySTTLoad', 'retryLLMLoad', 'isRetrying', 'isRetryingLLM', 'prewarmLLM', 'setTranscript',
+      'setSuggestion', 'setStatus', 'setPersona', 'setCulturalContext',
+      'clearHistory', 'resetWorker', 'settings', 'lastSwitchReason',
+      'undoPersonaSwitch'
+    ];
+
+    expectedProperties.forEach(prop => {
+      expect(result.current).toHaveProperty(prop);
+    });
+  });
 });

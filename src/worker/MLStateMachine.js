@@ -10,6 +10,7 @@ export const ML_STATES = {
   READY: 'ready',
   ERROR: 'error',
   RETRYING_STT: 'retrying_stt',
+  RETRYING_LLM: 'retrying_llm',
   LOW_MEMORY: 'low_memory',
   PARTIAL_FUNCTIONALITY: 'partial_functionality'
 };
@@ -22,6 +23,7 @@ export const ML_TRANSITIONS = {
   LLM_LOADED: 'llm_loaded',
   LOAD_ERROR: 'load_error',
   RETRY_STT: 'retry_stt',
+  RETRY_LLM: 'retry_llm',
   RESET: 'reset',
   MEMORY_PRESSURE: 'memory_pressure',
   FALLBACK_SUCCESS: 'fallback_success'
@@ -84,6 +86,9 @@ export class MLStateMachine {
           case ML_TRANSITIONS.LOAD_ERROR:
             this.state = ML_STATES.ERROR;
             break;
+          case ML_TRANSITIONS.RETRY_LLM:
+            this.state = ML_STATES.RETRYING_LLM;
+            break;
         }
         break;
 
@@ -101,6 +106,9 @@ export class MLStateMachine {
           case ML_TRANSITIONS.RETRY_STT:
             this.state = ML_STATES.RETRYING_STT;
             break;
+          case ML_TRANSITIONS.RETRY_LLM:
+            this.state = ML_STATES.RETRYING_LLM;
+            break;
         }
         break;
 
@@ -112,6 +120,9 @@ export class MLStateMachine {
           case ML_TRANSITIONS.RETRY_STT:
             this.state = ML_STATES.RETRYING_STT;
             break;
+          case ML_TRANSITIONS.RETRY_LLM:
+            this.state = ML_STATES.RETRYING_LLM;
+            break;
           case ML_TRANSITIONS.FALLBACK_SUCCESS:
             this.state = ML_STATES.PARTIAL_FUNCTIONALITY;
             break;
@@ -121,6 +132,17 @@ export class MLStateMachine {
       case ML_STATES.RETRYING_STT:
         switch (transition) {
           case ML_TRANSITIONS.STT_LOADED:
+            this.state = ML_STATES.READY;
+            break;
+          case ML_TRANSITIONS.LOAD_ERROR:
+            this.state = ML_STATES.ERROR;
+            break;
+        }
+        break;
+
+      case ML_STATES.RETRYING_LLM:
+        switch (transition) {
+          case ML_TRANSITIONS.LLM_LOADED:
             this.state = ML_STATES.READY;
             break;
           case ML_TRANSITIONS.LOAD_ERROR:

@@ -209,6 +209,66 @@ self.onmessage = async (event) => {
             }
         }
 
+        if (type === 'retry_llm_load') {
+            try {
+                // Attempt to load LLM model with proper error handling
+                if (!MLPipeline.llm) {
+                    // Add timeout for LLM loading on resource-constrained devices
+                    const timeoutPromise = new Promise((_, reject) => {
+                        setTimeout(() => reject(new Error('LLM model loading timed out')), AppConfig.system.processingTimeout);
+                    });
+
+                    const loadPromise = pipelineManager.loadLLM((p) => throttledProgress(p, 'Social Brain', taskId));
+
+                    // Race between loading and timeout
+                    await Promise.race([loadPromise, timeoutPromise]);
+
+                    // Double-check that LLM was actually loaded after the call
+                    if (!MLPipeline.llm || !MLPipeline.isModelLoaded('llm')) {
+                        throw new Error("LLM model failed to load after initialization attempt");
+                    }
+
+                    // Notify success
+                    messenger.postMessage({
+                        type: 'status',
+                        status: 'Social Brain loaded successfully',
+                        mlState: MLPipeline.getCurrentState(),
+                        taskId
+                    });
+                } else {
+                    // LLM is already loaded, notify ready
+                    messenger.postMessage({
+                        type: 'ready',
+                        taskId,
+                        status: 'Social Brain already loaded'
+                    });
+                }
+            } catch (loadError) {
+                console.error("Retry LLM load failed:", loadError);
+
+                // Categorize error types for more specific messaging
+                let specificErrorMessage = "AI model failed to load";
+                if (loadError.message.includes('timeout')) {
+                    specificErrorMessage = "Network timeout occurred while loading AI model. Please check your connection.";
+                } else if (loadError.message.includes('memory') || loadError.message.includes('OOM')) {
+                    specificErrorMessage = "Insufficient memory to load AI model. Please close other tabs or restart the browser.";
+                } else if (loadError.message.includes('network') || loadError.message.includes('fetch')) {
+                    specificErrorMessage = "Network error occurred while loading AI model. Please check your internet connection.";
+                } else if (loadError.message.includes('corrupt') || loadError.message.includes('invalid')) {
+                    specificErrorMessage = "AI model appears corrupted. Please refresh the page to reload.";
+                } else if (loadError.message.includes('abort')) {
+                    specificErrorMessage = "AI model loading was interrupted. Please try again.";
+                }
+
+                messenger.postMessage({
+                    type: 'error',
+                    error: `${specificErrorMessage}: ${loadError.message || 'Unknown error'}`,
+                    mlState: MLPipeline.getCurrentState(),
+                    taskId
+                });
+            }
+        }
+
         if (type === 'stt') {
             // Ensure STT is loaded with proper error handling
             if (!MLPipeline.stt) {
