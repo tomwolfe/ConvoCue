@@ -1,4 +1,5 @@
-import { detectIntent, detectIntentWithConfidence, detectIntentWithContext, detectIntentHighPerformance, detectMultipleIntents } from './intentRecognition';
+import { detectIntent, detectIntentWithConfidence, detectIntentWithContext, detectIntentHighPerformance, detectMultipleIntents, TAG_METADATA } from './intentRecognition';
+import { ALL_INTENTS } from '../constants/intents';
 
 describe('intentRecognition', () => {
   describe('detectIntent', () => {
@@ -91,15 +92,15 @@ describe('intentRecognition', () => {
 
     it('should handle empty input', () => {
       const result = detectIntentHighPerformance('');
-      expect(result.intent).toBeNull();
+      expect(result.intent).toBe('general'); // Should return default when no intent detected
       expect(result.confidence).toBe(0);
     });
 
     it('should handle very long input', () => {
       const longInput = "This is a very long input " + "with many words ".repeat(50);
       const result = detectIntentHighPerformance(longInput);
-      // It might be null if no patterns match, or a string if they do
-      expect(result.intent === null || typeof result.intent === 'string').toBe(true);
+      // Intent should always be a string for backward compatibility
+      expect(typeof result.intent).toBe('string');
       expect(typeof result.confidence).toBe('number');
     });
   });
@@ -123,6 +124,15 @@ describe('intentRecognition', () => {
       const results = detectMultipleIntents(input, 0.3);
       const intents = results.map(r => r.intent);
       expect(intents).toContain('empathy');
+    });
+  });
+
+  describe('TAG_METADATA and ALL_INTENTS synchronization', () => {
+    it('should ensure TAG_METADATA keys match ALL_INTENTS array', () => {
+      const tagMetadataKeys = Object.keys(TAG_METADATA).sort();
+      const allIntentsSorted = [...ALL_INTENTS].sort();
+
+      expect(tagMetadataKeys).toEqual(allIntentsSorted);
     });
   });
 });

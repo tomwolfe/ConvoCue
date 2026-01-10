@@ -456,7 +456,7 @@ export const detectIntentWithConfidenceAndThreshold = (input, threshold = 0.4) =
  * @returns {Object} An object containing the detected intent and confidence score
  */
 export const detectIntentHighPerformance = (input, threshold = 0.5) => {
-  if (!input || typeof input !== 'string') return { intent: null, confidence: 0 };
+  if (!input || typeof input !== 'string') return { intent: 'general', confidence: 0 };
 
   // Quick length check to avoid processing very long inputs
   if (input.length > 200) {
@@ -552,7 +552,12 @@ export const detectIntentHighPerformance = (input, threshold = 0.5) => {
   // Record analytics for this detection with limited input
   intentAnalytics.recordDetection(input, result.intent, result.confidence);
 
-  return result;
+  // For backward compatibility, ensure intent is always a string (not null)
+  // If no intent detected, return a default string instead of null
+  return {
+    intent: result.intent || 'general',
+    confidence: result.confidence
+  };
 };
 
 /**
