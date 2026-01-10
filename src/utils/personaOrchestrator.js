@@ -153,7 +153,18 @@ export const orchestratePersona = (input, history = [], currentPersona, options 
   const dampening = options.rejectionDampening || 0;
   threshold += dampening;
 
-
+  // Cycle 2: High-Intensity Intent Thresholding
+  // If we detect high-stakes or intense intents, we increase the threshold for switching 
+  // to avoid jittering when the user needs stability most.
+  const highIntensityIntents = ['conflict', 'negotiation', 'leadership', 'strategic'];
+  const activeHighIntensity = intents.filter(i => highIntensityIntents.includes(i.intent) && i.confidence > 0.6);
+  
+  debug.intensityBoost = 0;
+  if (activeHighIntensity.length > 0) {
+    const intensityBoost = 0.3 * activeHighIntensity.length;
+    threshold += intensityBoost;
+    debug.intensityBoost = intensityBoost;
+  }
 
   const result = {
     suggestedPersona: maxScore > threshold ? bestPersona : currentPersona,
@@ -161,6 +172,7 @@ export const orchestratePersona = (input, history = [], currentPersona, options 
     debug: {
       scores: debug,
       threshold,
+      intensityBoost: debug.intensityBoost,
       dampening,
       sensitivity,
       winner: bestPersona,

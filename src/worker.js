@@ -336,52 +336,109 @@ const initConversationTurnManager = () => {
     return conversationTurnManager;
 };
 
-let cachedSystemPrompt = { key: null, content: null };
-
 /**
- * Validates coaching insights to prevent oversized or malformed data
- * @param {Object} insights - The coaching insights object to validate
- * @returns {Object|null} Validated insights or null if invalid/malformed
+ * Generates a comprehensive system prompt based on persona and context
  */
-const validateCoachingInsights = (insights) => {
-  if (!insights) return null;
+const generateSystemPrompt = (config) => {
+    const {
+        persona,
+        personaConfig,
+        culturalContext,
+        effectiveCulturalContext,
+        communicationProfile,
+        detectedCulturalContext,
+        sanitizedText,
+        isPowerSavingMode,
+        isSubtleMode,
+        preferences,
+        relationshipInsights,
+        anxietyInsights,
+        settings
+    } = config;
 
-  // Check if it's a valid object
-  if (typeof insights !== 'object' || Array.isArray(insights)) {
-    console.warn('[Worker] Invalid coaching insights format, rejecting');
-    return null;
-  }
+    let contextInstruction = `Persona: ${personaConfig.label}. `;
 
-  // Limit the size of insights to prevent memory issues
-  const serialized = JSON.stringify(insights);
-  if (serialized.length > AppConfig.system.maxCoachingInsightsSize || serialized.length > 100000) { // 100KB limit
-    console.warn('[Worker] Coaching insights too large, rejecting');
-    return null;
-  }
+    // Add Communication Profile (Long-term memory)
+    if (communicationProfile) {
+        contextInstruction += `${communicationProfile} `;
+    }
 
-  // Validate structure
-  if (insights.insights && !Array.isArray(insights.insights)) {
-    console.warn('[Worker] Invalid insights array format, rejecting');
-    return null;
-  }
+    // Add Cultural Context Tips
+    if (effectiveCulturalContext && effectiveCulturalContext !== 'general') {
+        contextInstruction += getCulturalPromptTips(effectiveCulturalContext);
 
-  if (insights.copingStrategies && !Array.isArray(insights.copingStrategies)) {
-    console.warn('[Worker] Invalid coping strategies array format, rejecting');
-    return null;
-  }
+        const isAdvancedCulturalGuidanceEnabled = settings?.enableAdvancedCulturalGuidance !== false;
 
-  // Limit number of insights and strategies
-  if (insights.insights && insights.insights.length > 20) {
-    console.warn('[Worker] Too many insights, limiting to 20');
-    insights.insights = insights.insights.slice(0, 20);
-  }
+        if (!isPowerSavingMode && isAdvancedCulturalGuidanceEnabled && detectedCulturalContext?.recommendations) {
+            const culturalRecommendations = detectedCulturalContext.recommendations
+                .filter(rec => rec.priority === 'high')
+                .map(rec => `💡 ${rec.suggestion}`)
+                .join(' ');
+            if (culturalRecommendations) {
+                contextInstruction += `Cultural Tips: ${culturalRecommendations} `;
+            }
+        }
+    }
 
-  if (insights.copingStrategies && insights.copingStrategies.length > 20) {
-    console.warn('[Worker] Too many coping strategies, limiting to 20');
-    insights.copingStrategies = insights.copingStrategies.slice(0, 20);
-  }
+    // Add Social Nuance and High-Stakes Tips
+    const socialTips = getSocialNuanceTips(sanitizedText);
+    if (socialTips) {
+        contextInstruction += `Social Tips: ${socialTips} `;
+    }
 
-  return insights;
+    if (persona === 'meeting' || persona === 'professional') {
+        const highStakesCategory = sanitizedText.toLowerCase().includes('negotiate') || sanitizedText.toLowerCase().includes('price')
+            ? 'negotiation'
+            : 'leadership';
+        contextInstruction += getHighStakesTips(highStakesCategory);
+    }
+
+    // Add Persona-specific Contextual Tips
+    if (persona === 'languagelearning') {
+        const nativeLanguage = settings?.nativeLanguage ||
+            (AppConfig.culturalLanguageConfig?.languageLearningSettings?.nativeLanguage) ||
+            'general';
+
+        const languageAnalysis = analyzeLanguageLearningText(sanitizedText, nativeLanguage);
+        contextInstruction += getLanguageLearningPromptTips(effectiveCulturalContext || 'english');
+
+        if (languageAnalysis.grammarErrors.length > 0) {
+            const grammarTips = languageAnalysis.grammarErrors.map(error => error.explanation).join('; ');
+            contextInstruction += `Grammar correction: ${grammarTips}. `;
+        }
+
+        if (languageAnalysis.vocabularySuggestions.length > 0) {
+            const vocabTips = languageAnalysis.vocabularySuggestions.map(suggestion => `Instead of "${suggestion.original}", consider "${suggestion.alternatives[0]}".`).join(' ');
+            contextInstruction += `Vocabulary tip: ${vocabTips} `;
+        }
+    } else if (persona === 'meeting' || persona === 'professional') {
+        contextInstruction += getProfessionalPromptTips(persona === 'meeting' ? 'business' : 'academic');
+    }
+
+    // Enhanced coaching for specific personas
+    if (relationshipInsights && persona === 'relationship') {
+        const relationshipPrompt = generateRelationshipCoachingPrompt(relationshipInsights, persona);
+        if (relationshipPrompt) {
+            contextInstruction += relationshipPrompt + " ";
+        }
+    }
+
+    if (anxietyInsights && persona === 'anxiety') {
+        const anxietyPrompt = generateAnxietyCoachingPrompt(anxietyInsights);
+        if (anxietyPrompt) {
+            contextInstruction += anxietyPrompt + " ";
+        }
+    }
+
+    if (isSubtleMode) {
+        contextInstruction += "SUBTLE MODE ACTIVE: Provide ONLY extremely brief, context-aware Quick Cues (1-5 words). No full sentences. Examples: 'Pause', 'Smile', 'Ask', 'Consider', 'Hmm'. ";
+    } else if (preferences) {
+        contextInstruction += `Preference: ${preferences.preferredLength} length. `;
+    }
+
+    contextInstruction += "IMPORTANT: Always include semantic tags in square brackets for specific cues: [conflict] for de-escalation, [action item] for follow-ups, [strategic] for negotiations, [social tip] for etiquette, [language tip] for phrasing, [empathy] for emotional support. [empathy] tags are especially important for relationship coaching. ";
+
+    return `${personaConfig.prompt} ${contextInstruction} Respond naturally.`;
 };
 
 self.onmessage = async (event) => {
@@ -569,6 +626,7 @@ self.onmessage = async (event) => {
                 const personaConfig = AppConfig.models.personas[persona] || AppConfig.models.personas.anxiety;
                 const sanitizedText = _text.trim().substring(0, AppConfig.system.maxTranscriptLength);
                 const emotionData = analyzeEmotion(sanitizedText);
+                const intents = detectMultipleIntents(sanitizedText, 0.4);
 
                 // Dynamic Resource Allocation based on Performance Mode and Device Capabilities
                 const baseMaxTokens = MLPipeline.llmConfig ? MLPipeline.llmConfig.max_new_tokens : AppConfig.models.llm.max_new_tokens;
@@ -596,11 +654,21 @@ self.onmessage = async (event) => {
                 }
 
                 // Use detected cultural context if more specific than current context AND if confidence is high enough
-                // Only override user's cultural context if confidence is above the threshold
                 // The threshold is dynamic: it can be provided by user settings, or falls back to AppConfig/CulturalIntelligenceConfig
-                const culturalOverrideThreshold = _settings?.culturalOverrideThreshold || 
+                let culturalOverrideThreshold = _settings?.culturalOverrideThreshold || 
                                                  AppConfig.culturalIntelligenceConfig?.confidence?.overrideThreshold || 
                                                  0.85;
+
+                // Cycle 2: Cultural Intelligence Tuning
+                // Dynamically adjust threshold based on intent intensity/importance
+                const hasHighStakesIntent = intents?.some(i => ['strategic', 'negotiation', 'leadership'].includes(i.intent));
+                const hasSocialIntent = intents?.some(i => i.intent === 'social');
+
+                if (hasHighStakesIntent) {
+                    culturalOverrideThreshold = 0.7; // Be more aggressive in high-stakes context
+                } else if (hasSocialIntent) {
+                    culturalOverrideThreshold = 0.9; // Be more conservative in social context to avoid jitter
+                }
 
                 const effectiveCulturalContext = detectedCulturalContext.primaryCulture !== 'general' &&
                                                 detectedCulturalContext.confidence > culturalOverrideThreshold
@@ -669,104 +737,25 @@ self.onmessage = async (event) => {
                 const isSubtleMode = _settings?.isSubtleMode || preferences?.isSubtleMode;
                 const profileHash = communicationProfile ? communicationProfile.length : 0;
                 const promptKey = `${persona}-${culturalContext}-${preferences?.preferredLength}-${isSubtleMode ? 'subtle' : 'normal'}-${profileHash}`;
+                
                 if (cachedSystemPrompt.key !== promptKey) {
-                    let contextInstruction = `Persona: ${personaConfig.label}. `;
-
-                    // Add Communication Profile (Long-term memory)
-                    if (communicationProfile) {
-                        contextInstruction += `${communicationProfile} `;
-                    }
-
-                    // Add Cultural Context Tips
-                    if (effectiveCulturalContext && effectiveCulturalContext !== 'general') {
-                        contextInstruction += getCulturalPromptTips(effectiveCulturalContext);
-
-                        // Check if user has enabled advanced cultural guidance
-                        const isAdvancedCulturalGuidanceEnabled = _settings?.enableAdvancedCulturalGuidance !== false;
-
-                        // Add advanced cultural intelligence guidance only if:
-                        // 1. Not in power saving mode
-                        // 2. User has enabled advanced cultural guidance
-                        if (!isPowerSavingMode && isAdvancedCulturalGuidanceEnabled && detectedCulturalContext.recommendations) {
-                            const culturalRecommendations = detectedCulturalContext.recommendations
-                                .filter(rec => rec.priority === 'high')
-                                .map(rec => `💡 ${rec.suggestion}`)
-                                .join(' ');
-                            if (culturalRecommendations) {
-                                contextInstruction += `Cultural Tips: ${culturalRecommendations} `;
-                            }
-                        }
-                    }
-
-                    // Add Social Nuance and High-Stakes Tips
-                    const socialTips = getSocialNuanceTips(sanitizedText);
-                    if (socialTips) {
-                        contextInstruction += `Social Tips: ${socialTips} `;
-                    }
-
-                    if (persona === 'meeting' || persona === 'professional') {
-                        const highStakesCategory = sanitizedText.toLowerCase().includes('negotiate') || sanitizedText.toLowerCase().includes('price')
-                            ? 'negotiation'
-                            : 'leadership';
-                        contextInstruction += getHighStakesTips(highStakesCategory);
-                    }
-
-                    // Add Persona-specific Contextual Tips
-                    if (persona === 'languagelearning') {
-                        // Get user's native language from settings (separate from cultural context)
-                        const nativeLanguage = _settings?.nativeLanguage ||
-                                              (AppConfig.culturalLanguageConfig?.languageLearningSettings?.nativeLanguage) ||
-                                              'general';
-
-                        // Perform advanced language learning analysis using native language, not cultural context
-                        const languageAnalysis = analyzeLanguageLearningText(sanitizedText, nativeLanguage);
-
-                        // Add language learning prompt tips
-                        contextInstruction += getLanguageLearningPromptTips(effectiveCulturalContext || 'english');
-
-                        // Include specific grammar corrections if needed
-                        if (languageAnalysis.grammarErrors.length > 0) {
-                            const grammarTips = languageAnalysis.grammarErrors.map(error => error.explanation).join('; ');
-                            contextInstruction += `Grammar correction: ${grammarTips}. `;
-                        }
-
-                        // Include vocabulary suggestions
-                        if (languageAnalysis.vocabularySuggestions.length > 0) {
-                            const vocabTips = languageAnalysis.vocabularySuggestions.map(suggestion => `Instead of "${suggestion.original}", consider "${suggestion.alternatives[0]}".`).join(' ');
-                            contextInstruction += `Vocabulary tip: ${vocabTips} `;
-                        }
-                    } else if (persona === 'meeting' || persona === 'professional') {
-                        contextInstruction += getProfessionalPromptTips(persona === 'meeting' ? 'business' : 'academic');
-                    }
-
-                    // Enhanced relationship coaching for relationship persona
-                    if (relationshipInsights && persona === 'relationship') {
-                        const relationshipPrompt = generateRelationshipCoachingPrompt(relationshipInsights, persona);
-                        if (relationshipPrompt) {
-                            contextInstruction += relationshipPrompt + " ";
-                        }
-                    }
-
-                    // Enhanced anxiety coaching for anxiety persona
-                    if (anxietyInsights && persona === 'anxiety') {
-                        const anxietyPrompt = generateAnxietyCoachingPrompt(anxietyInsights);
-                        if (anxietyPrompt) {
-                            contextInstruction += anxietyPrompt + " ";
-                        }
-                    }
-
-                    if (isSubtleMode) {
-                        contextInstruction += "SUBTLE MODE ACTIVE: Provide ONLY extremely brief, context-aware Quick Cues (1-5 words). No full sentences. Examples: 'Pause', 'Smile', 'Ask', 'Consider', 'Hmm'. ";
-                    } else if (preferences) {
-                        contextInstruction += `Preference: ${preferences.preferredLength} length. `;
-                    }
-
-                    // Standardized Intent Tagging for Haptics & UI
-                    contextInstruction += "IMPORTANT: Always include semantic tags in square brackets for specific cues: [conflict] for de-escalation, [action item] for follow-ups, [strategic] for negotiations, [social tip] for etiquette, [language tip] for phrasing, [empathy] for emotional support. [empathy] tags are especially important for relationship coaching. ";
-
                     cachedSystemPrompt = {
                         key: promptKey,
-                        content: `${personaConfig.prompt} ${contextInstruction} Respond naturally.`
+                        content: generateSystemPrompt({
+                            persona,
+                            personaConfig,
+                            culturalContext,
+                            effectiveCulturalContext,
+                            communicationProfile,
+                            detectedCulturalContext,
+                            sanitizedText,
+                            isPowerSavingMode,
+                            isSubtleMode,
+                            preferences,
+                            relationshipInsights,
+                            anxietyInsights,
+                            settings
+                        })
                     };
                 }
 

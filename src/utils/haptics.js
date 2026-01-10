@@ -3,6 +3,89 @@ import { parseSemanticTags } from './intentRecognition';
 let lastVibrationTime = 0;
 const COOLDOWN_MS = 1500;
 
+// Cache haptic settings to avoid localStorage overhead in the hot path
+let cachedHapticSettings = null;
+
+const getCachedSettings = () => {
+  if (cachedHapticSettings) return cachedHapticSettings;
+  try {
+    const settings = JSON.parse(localStorage.getItem('hapticSettings') || '{}');
+    cachedHapticSettings = {
+      enabled: settings.enabled !== false,
+      intensity: settings.intensity || 'medium'
+    };
+  } catch {
+    cachedHapticSettings = { enabled: true, intensity: 'medium' };
+  }
+  return cachedHapticSettings;
+};
+
+/**
+ * Refreshes the haptic settings cache (should be called when settings change)
+ */
+export const refreshHapticSettingsCache = () => {
+  cachedHapticSettings = null;
+  getCachedSettings();
+};
+
+/**
+ * Fast-path for haptic feedback when the intent is already known.
+ * Bypasses string parsing and uses cached settings.
+ * @param {string} intent - The detected intent (e.g., 'conflict', 'question')
+ */
+export const provideIntentHaptics = (intent) => {
+  if (!intent) return;
+  
+  const now = Date.now();
+  if (now - lastVibrationTime < COOLDOWN_MS) return;
+
+  const settings = getCachedSettings();
+  if (!settings.enabled) return;
+
+  const upperIntent = intent.toUpperCase();
+  let pattern = VIBRATION_PATTERNS.SUGGESTION;
+  let intentType = 'SUGGESTION';
+
+  // Direct mapping for speed
+  if (upperIntent === 'CONFLICT') {
+    pattern = VIBRATION_PATTERNS.CONFLICT;
+    intentType = 'CONFLICT';
+  } else if (upperIntent === 'ACTION_ITEM' || upperIntent === 'ACTION') {
+    pattern = VIBRATION_PATTERNS.ACTION;
+    intentType = 'ACTION';
+  } else if (upperIntent === 'QUESTION') {
+    pattern = VIBRATION_PATTERNS.QUESTION;
+    intentType = 'QUESTION';
+  } else if (upperIntent === 'STRATEGIC' || upperIntent === 'NEGOTIATION') {
+    pattern = VIBRATION_PATTERNS.TRANSITION;
+    intentType = 'STRATEGIC';
+  } else if (upperIntent === 'EMPATHY') {
+    pattern = VIBRATION_PATTERNS.EMPATHY;
+    intentType = 'EMPATHY';
+  } else if (upperIntent === 'SUCCESS' || upperIntent === 'AGREEMENT') {
+    pattern = VIBRATION_PATTERNS.SUCCESS;
+    intentType = 'SUCCESS';
+  }
+
+  if (isHapticSupported()) {
+    try {
+      if (typeof navigator.vibrate === 'function') {
+        const adjustedPattern = getAdjustedPattern(pattern);
+        if (navigator.vibrate(adjustedPattern)) {
+          lastVibrationTime = now;
+          return;
+        }
+      }
+    } catch (error) {
+      console.warn('Haptic fast-path error:', error);
+    }
+  }
+
+  // Fallback to visual feedback if haptics fail
+  provideVisualFeedback(intentType);
+  lastVibrationTime = now;
+};
+
 /**
  * Resets the last vibration time (used for testing)
  */

@@ -63,6 +63,22 @@ export const resolveFeatureConflicts = (insights, persona) => {
   // Create a copy of insights to modify
   const resolvedInsights = { ...insights };
 
+  // Cycle 2: Coaching Calibration
+  // Boost priority of the active persona to ensure it takes precedence in conflict resolution.
+  const activePersonaFeature = persona === 'meeting' ? 'meeting' : 
+                               persona === 'professional' ? 'professional' :
+                               persona === 'relationship' ? 'relationship' :
+                               persona === 'anxiety' ? 'anxiety' :
+                               persona === 'languagelearning' ? 'language' : null;
+
+  const getPriority = (feature) => {
+    let priority = FEATURE_PRIORITIES[feature] || 0;
+    if (activePersonaFeature === feature) {
+      priority *= 2; // 2x weight boost for active persona
+    }
+    return priority;
+  };
+
   // Check for high bias risk in cultural insights and adjust accordingly
   if (resolvedInsights.cultural) {
     // If cultural insight has high bias risk, reduce its influence
@@ -98,7 +114,7 @@ export const resolveFeatureConflicts = (insights, persona) => {
 
   // Apply feature priorities to determine which insights take precedence
   const orderedFeatures = Object.keys(resolvedInsights)
-    .sort((a, b) => (FEATURE_PRIORITIES[b] || 0) - (FEATURE_PRIORITIES[a] || 0));
+    .sort((a, b) => getPriority(b) - getPriority(a));
 
   // Create a priority-ordered result
   const prioritizedInsights = {};

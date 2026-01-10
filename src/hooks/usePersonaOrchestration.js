@@ -9,6 +9,7 @@ import { logEvent } from '../utils/diagnostics';
  */
 export const usePersonaOrchestration = (currentPersona, settings, historyRef, dispatch) => {
   const autoSwitchInfoRef = useRef({ time: 0, from: null, to: null });
+  const lastAutoSwitchTimestampRef = useRef(0);
   const rejectionDampeningRef = useRef({}); // { persona: { value, timestamp } }
   const manualPreferenceRef = useRef({ persona: null, timestamp: 0 });
   const [lastSwitchReason, setLastSwitchReason] = useState(null);
@@ -62,6 +63,15 @@ export const usePersonaOrchestration = (currentPersona, settings, historyRef, di
       return currentPersona;
     }
 
+    const now = Date.now();
+    
+    // Cycle 2: Sticky Persona Logic
+    // Prevent switching again too quickly if we just switched automatically
+    const stickyCooldown = AppConfig.system.orchestrator?.stickyCooldownMs || 30000;
+    if (now - lastAutoSwitchTimestampRef.current < stickyCooldown) {
+      return currentPersona;
+    }
+
     const dampening = getDecayedDampening(currentPersona);
     const manualPreference = getActiveManualPreference();
     
@@ -96,10 +106,12 @@ export const usePersonaOrchestration = (currentPersona, settings, historyRef, di
       });
 
       autoSwitchInfoRef.current = { 
-        time: Date.now(), 
+        time: now, 
         from: currentPersona, 
         to: suggestedPersona 
       };
+      
+      lastAutoSwitchTimestampRef.current = now;
       
       setLastSwitchReason(reason);
       logEvent('Orchestrator', `Auto-switch: ${currentPersona} -> ${suggestedPersona}`, {

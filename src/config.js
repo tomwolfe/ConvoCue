@@ -148,6 +148,7 @@ export const AppConfig = {
 
     // Persona Orchestration settings
     orchestrator: {
+      stickyCooldownMs: 30000,
       thresholdBase: 0.7, // Base threshold for switching
       keywordWeight: 0.3,
       historyWeight: 0.1,

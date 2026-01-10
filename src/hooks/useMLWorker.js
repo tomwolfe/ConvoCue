@@ -4,7 +4,7 @@ import { enhanceResponse } from '../utils/responseEnhancement';
 import { useConversation } from './useConversation';
 import { useAppPreferences } from './useAppPreferences';
 import { getCommunicationProfileSummary } from '../utils/personalization';
-import { provideHapticFeedback } from '../utils/haptics';
+import { provideHapticFeedback, provideIntentHaptics, refreshHapticSettingsCache } from '../utils/haptics';
 import { detectIntentWithConfidence, detectIntentHighPerformance } from '../utils/intentRecognition';
 import { getInsightCategoryScores } from '../utils/feedback';
 import { usePerformanceMonitor } from './usePerformanceMonitor';
@@ -103,6 +103,7 @@ export const useMLWorker = () => {
   } = useAppPreferences(dispatch);
   
   const worker = useRef(null);
+  const settingsRef = useRef(settings);
   const stateRef = useRef(state);
   const historyRef = useRef(history);
   const lastMessageTimeRef = useRef(lastMessageTime);
@@ -124,7 +125,9 @@ export const useMLWorker = () => {
     stateRef.current = state;
     historyRef.current = history;
     lastMessageTimeRef.current = lastMessageTime;
-  }, [state, history, lastMessageTime]);
+    settingsRef.current = settings;
+    refreshHapticSettingsCache();
+  }, [state, history, lastMessageTime, settings]);
 
   const initWorker = useCallback(() => {
     if (worker.current) {
@@ -157,7 +160,7 @@ export const useMLWorker = () => {
               let intent = null;
               if (!stateRef.current.isLowMemory) {
                 // Use high-performance detection for real-time processing
-                const confidenceThreshold = settings.intentDetection?.confidenceThreshold ?? 0.5;
+                const confidenceThreshold = settingsRef.current.intentDetection?.confidenceThreshold ?? 0.5;
                 const { intent: rawIntent, confidence } = detectIntentHighPerformance(cleanText, confidenceThreshold);
                 intent = rawIntent;
 
@@ -166,8 +169,8 @@ export const useMLWorker = () => {
                 const now = Date.now();
                 const currentSticky = stickyIntentRef.current.intent;
 
-                const debounceWindow = settings.intentDetection?.debounceWindowMs ?? 800;
-                const stickyDuration = settings.intentDetection?.stickyDurationMs ?? 2000;
+                const debounceWindow = settingsRef.current.intentDetection?.debounceWindowMs ?? 800;
+                const stickyDuration = settingsRef.current.intentDetection?.stickyDurationMs ?? 2000;
 
                 if (intent && confidence > confidenceThreshold) {
                   // Only switch to a DIFFERENT intent if enough time has passed (debounce)
@@ -191,7 +194,7 @@ export const useMLWorker = () => {
 
                   if (now - lastHapticTimeRef.current > cooldown) {
                     // Trigger immediate haptics based on intent before LLM finishes
-                    provideHapticFeedback(`[${rawIntent}]`);
+                    provideIntentHaptics(rawIntent);
                     lastHapticTimeRef.current = now;
                     lastHapticIntentRef.current = rawIntent;
                     
@@ -230,11 +233,11 @@ export const useMLWorker = () => {
                   // Auto-Persona Orchestration
                   const activePersona = performOrchestration(cleanText);
 
-                  const communicationProfile = settings.enablePersonalization !== false && !settings.privacyMode
+                  const communicationProfile = settingsRef.current.enablePersonalization !== false && !settingsRef.current.privacyMode
                       ? await getCommunicationProfileSummary()
                       : "";
 
-                  const insightCategoryScores = settings.enablePersonalization !== false && !settings.privacyMode
+                  const insightCategoryScores = settingsRef.current.enablePersonalization !== false && !settingsRef.current.privacyMode
                       ? await getInsightCategoryScores()
                       : {};
 
@@ -248,7 +251,7 @@ export const useMLWorker = () => {
                       insightCategoryScores,
                       metadata,
                       preferences: prefsCache.current,
-                      settings: settings,
+                      settings: settingsRef.current,
                       taskId: `llm-${Date.now()}`
                   });
                   updateLastMessageTime();
@@ -313,7 +316,7 @@ export const useMLWorker = () => {
     } catch {
       dispatch({ type: 'SET_ERROR', error: 'Worker creation failed' });
     }
-  }, [settings, addMessage, setSentiment, updateLastMessageTime, prefsCache]);
+  }, [addMessage, setSentiment, updateLastMessageTime, prefsCache]);
 
   useEffect(() => {
     return () => {
@@ -333,16 +336,16 @@ export const useMLWorker = () => {
     worker.current.postMessage({ 
       type: 'stt', 
       audio: audioBuffer,
-      settings: settings 
+      settings: settingsRef.current 
     }, [audioBuffer.buffer]);
-  }, [state.isReady, state.isProcessing, settings]);
+  }, [state.isReady, state.isProcessing]);
 
   const refreshSuggestion = useCallback(async () => {
     if (!state.transcript || state.isProcessing || !worker.current) return;
     dispatch({ type: 'SET_STATUS', status: 'Refreshing cue...' });
 
     let preferences = prefsCache.current;
-    if (settings.enablePersonalization === false || settings.privacyMode) {
+    if (settingsRef.current.enablePersonalization === false || settingsRef.current.privacyMode) {
         preferences = {
           preferredLength: 'medium',
           preferredTone: 'balanced',
@@ -352,7 +355,7 @@ export const useMLWorker = () => {
         };
     }
 
-    const communicationProfile = settings.enablePersonalization !== false && !settings.privacyMode
+    const communicationProfile = settingsRef.current.enablePersonalization !== false && !settingsRef.current.privacyMode
         ? await getCommunicationProfileSummary()
         : "";
 
@@ -364,10 +367,10 @@ export const useMLWorker = () => {
       culturalContext: state.culturalContext,
       communicationProfile,
       preferences: preferences,
-      settings: settings,
+      settings: settingsRef.current,
       taskId: `refresh-${Date.now()}`
     });
-  }, [state.transcript, state.isProcessing, history, state.persona, state.culturalContext, settings, prefsCache]);
+  }, [state.transcript, state.isProcessing, history, state.persona, state.culturalContext, prefsCache]);
 
   return {
     ...state,
