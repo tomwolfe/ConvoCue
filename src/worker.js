@@ -1,6 +1,7 @@
 import { pipeline, env, TextStreamer } from '@huggingface/transformers';
 import { AppConfig } from './config';
 import { analyzeEmotion } from './utils/emotion';
+import { detectMultipleIntents } from './utils/intentRecognition';
 import {
     getCulturalPromptTips,
     getLanguageLearningPromptTips,
