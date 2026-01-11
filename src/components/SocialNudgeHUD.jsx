@@ -3,50 +3,25 @@ import { X } from 'lucide-react';
 import { useMLWorker } from '../hooks/useMLWorker';
 import { provideIntentHaptics } from '../utils/haptics';
 import { trackSystemEvent } from '../utils/systemAnalytics';
+import { getNudgeConfig } from '../utils/culturalNudgeLogic';
 import styles from './SocialNudgeHUD.module.css';
 
 /**
- * Pareto Feature #1: Social Nudge HUD (Refined)
- * Provides real-time visual and haptic cues based on conversation flow.
- * Refinements: CSS Modules, Soft Glow for positive states, Haptic failure tracking.
+ * Pareto Feature #1: Social Nudge HUD (Culturally Adaptive)
+ * Provides real-time visual and haptic cues based on conversation flow,
+ * calibrated by detected cultural context to avoid Western-centric bias.
  */
 const SocialNudgeHUD = () => {
-  const { engagement, detectedIntent, isProcessing, settings } = useMLWorker();
+  const { engagement, detectedIntent, isProcessing, settings, culturalContext } = useMLWorker();
   
   // State for tracking dismissals
   const [dismissedId, setDismissedId] = useState(null);
   const [prevNudgeId, setPrevNudgeId] = useState(null);
 
-  // Logic: Pareto-optimal coaching rules
+  // Logic: Pareto-optimal coaching rules (Now Culturally Aware)
   const nudge = useMemo(() => {
-    if (!engagement || engagement.totalTurns === 0) {
-      return { color: '#666', label: 'Listening...', intensity: 0, id: 'IDLE' };
-    }
-
-    const { talkRatio } = engagement;
-    
-    // Rule 1: Dominating the conversation (> 60% talk time)
-    if (talkRatio > 0.6 && engagement.totalTurns > 4) {
-      return { color: '#ff4b2b', label: 'Pause & Listen', intensity: 2, id: 'CONFLICT' };
-    }
-    
-    // Rule 2: Critical Intent Detected
-    if (detectedIntent === 'CONFLICT' || detectedIntent === 'MISUNDERSTANDING') {
-      return { color: '#ffcc00', label: 'Clarify Intent', intensity: 1, id: 'QUESTION' };
-    }
-
-    // Rule 3: Empathy opportunity
-    if (detectedIntent === 'EMPATHY') {
-      return { color: '#fce7f3', label: 'Show Support', intensity: 1, id: 'EMPATHY' };
-    }
-
-    // Rule 4: Balanced Flow (Positive State)
-    if (talkRatio > 0.3 && talkRatio < 0.5) {
-      return { color: '#00e676', label: 'Great Flow', intensity: 0, id: 'SUCCESS' };
-    }
-
-    return { color: '#2979ff', label: 'Engage More', intensity: 0, id: 'SUGGESTION' };
-  }, [engagement, detectedIntent]);
+    return getNudgeConfig(culturalContext, engagement, detectedIntent);
+  }, [culturalContext, engagement, detectedIntent]);
 
   // Adjust state when nudge changes - React pattern for adjusting state based on props/memoized values
   if (nudge.id !== prevNudgeId) {
@@ -62,7 +37,7 @@ const SocialNudgeHUD = () => {
     // Only trigger haptics for "warning" or "action" nudges to avoid fatigue
     if (settings?.hapticsEnabled !== false && nudge.intensity > 0 && nudge.id !== dismissedId) {
       try {
-        provideIntentHaptics(nudge.id);
+        provideIntentHaptics(nudge.hapticId || nudge.id);
       } catch (error) {
         console.warn('Haptic feedback failed:', error);
         trackSystemEvent('haptics_failure', { 
@@ -73,7 +48,7 @@ const SocialNudgeHUD = () => {
       }
     }
     // We only want to trigger haptics when the nudge ID changes or dismissal is reset
-  }, [nudge.id, nudge.intensity, settings?.hapticsEnabled, dismissedId]);
+  }, [nudge.id, nudge.hapticId, nudge.intensity, settings?.hapticsEnabled, dismissedId]);
 
   if (dismissedId === nudge.id) return null;
   if (!isProcessing && (!engagement || engagement.totalTurns === 0)) return null;
