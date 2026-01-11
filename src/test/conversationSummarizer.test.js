@@ -3,10 +3,10 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { generateConversationSummary, generateSummaryCard } from '../src/utils/conversationSummarizer';
+import { generateConversationSummary, generateSummaryCard } from '../utils/conversationSummarizer';
 
 // Mock the AppConfig import
-vi.mock('../src/config', () => ({
+vi.mock('../config', () => ({
   AppConfig: {
     models: {
       personas: {}

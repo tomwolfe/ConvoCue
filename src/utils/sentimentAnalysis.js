@@ -88,7 +88,8 @@ export const analyzeSentiment = (text) => {
     'safe', 'secure', 'protected', 'guarded', 'defended', 'sheltered',
     'healthy', 'robust', 'vibrant', 'lively', 'vigorous', 'strong',
     'prosperous', 'flourishing', 'thriving', 'blooming', 'booming', 'expanding',
-    'sustainable', 'responsible', 'ethical', 'fair', 'just', 'equitable'
+    'sustainable', 'responsible', 'ethical', 'fair', 'just', 'equitable',
+    'love', 'loves', 'loved', 'liking', 'like', 'likes', 'enjoy', 'enjoys', 'enjoyed', 'enjoying'
   ];
 
   const negativeWords = [
@@ -246,12 +247,22 @@ export const analyzeSentimentWithConfidence = (text) => {
   };
 };
 
+// Simple cache to store results based on conversation history
+const sentimentCache = new Map();
+
 /**
  * Analyzes sentiment across an entire conversation history
  * @param {Array<Object>} conversationHistory - Array of conversation messages with content and role
  * @returns {Object} - Overall sentiment analysis for the conversation
  */
 export const analyzeConversationSentiment = (conversationHistory) => {
+  // Create a cache key based on the conversation history
+  const cacheKey = JSON.stringify(conversationHistory || []);
+
+  // Check if we have a cached result
+  if (sentimentCache.has(cacheKey)) {
+    return sentimentCache.get(cacheKey);
+  }
   if (!conversationHistory || !Array.isArray(conversationHistory) || conversationHistory.length === 0) {
     return {
       overallSentiment: 'neutral',
@@ -321,6 +332,51 @@ export const analyzeConversationSentiment = (conversationHistory) => {
     overallSentiment = 'neutral';
   }
 
+  // Calculate emotional trend
+  let emotionalTrend = null;
+  if (conversationHistory.length >= 2) {
+    // Analyze sentiment of early messages vs later messages
+    const earlyMessages = conversationHistory.slice(0, Math.ceil(conversationHistory.length / 2));
+    const lateMessages = conversationHistory.slice(Math.floor(conversationHistory.length / 2));
+
+    const earlyAvgSentiment = earlyMessages.reduce((sum, msg) => {
+      const content = typeof msg === 'string' ? msg : (msg.content || '');
+      if (content) {
+        const sentimentResult = analyzeSentimentWithConfidence(content);
+        return sum + (sentimentResult.sentiment === 'positive' ? 1 :
+                     sentimentResult.sentiment === 'negative' ? -1 : 0);
+      }
+      return sum;
+    }, 0) / earlyMessages.length;
+
+    const lateAvgSentiment = lateMessages.reduce((sum, msg) => {
+      const content = typeof msg === 'string' ? msg : (msg.content || '');
+      if (content) {
+        const sentimentResult = analyzeSentimentWithConfidence(content);
+        return sum + (sentimentResult.sentiment === 'positive' ? 1 :
+                     sentimentResult.sentiment === 'negative' ? -1 : 0);
+      }
+      return sum;
+    }, 0) / lateMessages.length;
+
+    // Determine trend based on comparison
+    if (earlyAvgSentiment < lateAvgSentiment) {
+      if (earlyAvgSentiment <= 0 && lateAvgSentiment > 0) {
+        emotionalTrend = 'improving';
+      } else {
+        emotionalTrend = 'becoming more positive';
+      }
+    } else if (earlyAvgSentiment > lateAvgSentiment) {
+      if (earlyAvgSentiment >= 0 && lateAvgSentiment < 0) {
+        emotionalTrend = 'declining';
+      } else {
+        emotionalTrend = 'becoming more negative';
+      }
+    } else {
+      emotionalTrend = 'stable';
+    }
+  }
+
   // Normalize participant sentiments
   Object.keys(participantSentiments).forEach(role => {
     const participant = participantSentiments[role];
@@ -335,9 +391,34 @@ export const analyzeConversationSentiment = (conversationHistory) => {
     }
   });
 
-  return {
+  // Create message analyses for each message in the conversation
+  const messageAnalyses = conversationHistory.map(message => {
+    const content = typeof message === 'string' ? message : (message.content || '');
+    const role = (typeof message !== 'string' && message.role) ? message.role : 'unknown';
+
+    if (content) {
+      const sentimentResult = analyzeSentimentWithConfidence(content);
+      return {
+        content,
+        role,
+        sentiment: sentimentResult.sentiment,
+        confidence: sentimentResult.confidence
+      };
+    }
+
+    return {
+      content: '',
+      role,
+      sentiment: 'neutral',
+      confidence: 0
+    };
+  });
+
+  const result = {
     overallSentiment,
     sentimentScore: parseFloat(avgScore.toFixed(3)),
+    emotionalTrend,
+    messageAnalyses, // Add the message analyses to the result
     participantSentiments,
     statistics: {
       totalMessages: conversationHistory.length,
@@ -346,4 +427,9 @@ export const analyzeConversationSentiment = (conversationHistory) => {
       neutralMessages: neutralCount
     }
   };
+
+  // Store the result in the cache
+  sentimentCache.set(cacheKey, result);
+
+  return result;
 };

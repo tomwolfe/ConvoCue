@@ -16,7 +16,26 @@ const messenger = WorkerMessenger.getInstance();
 export const handleSTT = async (audio, taskId, settings) => {
   await MLPipeline.getInstance();
   const audioStartTime = performance.now();
-  const audioData = audio instanceof Float32Array ? audio : new Float32Array(Object.values(audio));
+
+  // Convert audio data to proper format (Float32Array) if needed
+  let audioData;
+  if (audio instanceof Float32Array) {
+    audioData = audio;
+  } else if (audio instanceof Float64Array) {
+    audioData = new Float32Array(audio);
+  } else if (Array.isArray(audio)) {
+    audioData = new Float32Array(audio);
+  } else if (typeof audio === 'object' && audio !== null) {
+    // Handle object with buffer property or similar structures
+    if (audio.buffer && audio.buffer instanceof ArrayBuffer) {
+      audioData = new Float32Array(audio.buffer);
+    } else {
+      // Extract values from object if it's a plain object
+      audioData = new Float32Array(Object.values(audio));
+    }
+  } else {
+    throw new Error('Audio data is in an unsupported format');
+  }
 
   const output = await MLPipeline.stt(audioData, {
     chunk_length_s: AppConfig.models.stt.chunk_length_s,
@@ -27,13 +46,13 @@ export const handleSTT = async (audio, taskId, settings) => {
   const audioProcessingTime = performance.now() - audioStartTime;
   const sanitizedText = sanitizeText(output.text);
   const turnManager = initConversationTurnManager();
-  
+
   const turnInfo = (WorkerState.performanceStats.mode !== 'minimal' && settings.enableSpeakerDetection !== false)
     ? turnManager.processAudio(audioData, sanitizedText)
     : { turn: { speaker: 'user' } };
 
   updatePerformanceMode(audioProcessingTime, 'audio');
-  
+
   messenger.postMessage({
     type: 'stt_result',
     text: sanitizedText,

@@ -3,7 +3,8 @@ import { secureWipe, clearAllSessionData } from '../utils/privacyHardening';
 import * as encryption from '../utils/encryption';
 
 vi.mock('../utils/encryption', () => ({
-  secureLocalStorageSet: vi.fn().mockResolvedValue(true)
+  secureLocalStorageSet: vi.fn().mockResolvedValue(true),
+  secureLocalStorageGet: vi.fn().mockResolvedValue([])
 }));
 
 describe('Privacy Hardening Utilities', () => {

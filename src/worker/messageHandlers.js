@@ -142,8 +142,28 @@ export const handleSTT = async (data) => {
       throw new Error('STT pipeline not initialized');
     }
 
+    // Convert audio data to proper format (Float32Array) if needed
+    let processedAudioData;
+    if (audioData instanceof Float32Array) {
+      processedAudioData = audioData;
+    } else if (audioData instanceof Float64Array) {
+      processedAudioData = new Float32Array(audioData);
+    } else if (Array.isArray(audioData)) {
+      processedAudioData = new Float32Array(audioData);
+    } else if (typeof audioData === 'object' && audioData !== null) {
+      // Handle object with buffer property or similar structures
+      if (audioData.buffer && audioData.buffer instanceof ArrayBuffer) {
+        processedAudioData = new Float32Array(audioData.buffer);
+      } else {
+        // Extract values from object if it's a plain object
+        processedAudioData = new Float32Array(Object.values(audioData));
+      }
+    } else {
+      throw new Error('Audio data is in an unsupported format');
+    }
+
     // Perform speech-to-text
-    const result = await stt({ input: audioData });
+    const result = await stt({ input: processedAudioData });
 
     // Detect intent from the transcribed text
     const intentResult = detectIntentWithContext(result.text);
@@ -154,8 +174,8 @@ export const handleSTT = async (data) => {
       text: result.text,
       intent: intentResult.intent,
       metadata: {
-        rms: audioData.reduce((sum, sample) => sum + sample * sample, 0) / audioData.length, // Calculate RMS for volume
-        duration: audioData.length / 16000 // Assuming 16kHz sample rate
+        rms: processedAudioData.reduce((sum, sample) => sum + sample * sample, 0) / processedAudioData.length, // Calculate RMS for volume
+        duration: processedAudioData.length / 16000 // Assuming 16kHz sample rate
       }
     };
 

@@ -6,8 +6,8 @@ import mitt from 'mitt';
  */
 const bus = mitt();
 
-// Add debug logging in development mode
-if (import.meta.env?.DEV) {
+// Add debug logging in development mode but not in test environment
+if (import.meta.env?.DEV && !import.meta.env?.TEST) {
   const originalEmit = bus.emit;
   bus.emit = (type, e) => {
     console.groupCollapsed(`%c[EventBus] ${type}`, 'color: #6c5ce7; font-weight: bold;');

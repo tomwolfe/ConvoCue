@@ -547,15 +547,34 @@ const VADContent = ({
     try {
       if (!isVADModeRef.current && vadRef.current) vadRef.current.pause();
       if (processAudioRef.current) {
+        // Convert audio to proper format (Float32Array) if needed
+        let processedAudio;
+        if (audio instanceof Float32Array) {
+          processedAudio = audio;
+        } else if (audio instanceof Float64Array) {
+          processedAudio = new Float32Array(audio);
+        } else if (Array.isArray(audio)) {
+          processedAudio = new Float32Array(audio);
+        } else if (typeof audio === 'object' && audio !== null) {
+          // Handle object with buffer property or similar structures
+          if (audio.buffer && audio.buffer instanceof ArrayBuffer) {
+            processedAudio = new Float32Array(audio.buffer);
+          } else {
+            // Extract values from object if it's a plain object
+            processedAudio = new Float32Array(Object.values(audio));
+          }
+        } else {
+          throw new Error('Audio data is in an unsupported format');
+        }
+
         // Create a copy of the audio data for local processing (speaker detection)
-        const audioArray = audio instanceof Float32Array ? audio : new Float32Array(Object.values(audio));
-        const audioCopy = new Float32Array(audioArray);
-        
+        const audioCopy = new Float32Array(processedAudio);
+
         // Process the audio through conversation turn manager
-        processConversationTurn(audioCopy, ''); 
-        
-        // Send original audio to worker
-        processAudioRef.current(audio);
+        processConversationTurn(audioCopy, '');
+
+        // Send properly formatted audio to worker
+        processAudioRef.current(processedAudio);
 
         // Record latency
         const latency = performance.now() - startTime;
