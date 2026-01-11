@@ -396,9 +396,193 @@ const getSituationalContext = (text, intents) => {
  * Retrieves communication style for a given culture
  */
 export const getCommunicationStyleForCulture = (culture) => {
-  const country = COUNTRY_DATA[culture];
-  const regionStyle = country ? REGIONAL_STYLES[country.region] : REGIONAL_STYLES[culture];
+  if (!culture) return { directness: 'moderate', formality: 'moderate' };
+  const lowerCulture = culture.toLowerCase();
+  const country = COUNTRY_DATA[lowerCulture];
+  const regionStyle = country ? REGIONAL_STYLES[country.region] : REGIONAL_STYLES[lowerCulture];
   return { ...(regionStyle || REGIONAL_STYLES['anglo'] || { directness: 'moderate', formality: 'moderate' }), ...(country || {}) };
+};
+
+/**
+ * Get business etiquette for a specific culture
+ */
+export const getBusinessEtiquetteForCulture = (culture) => {
+  if (!culture) return culturalContextDatabase.businessEtiquette.Western;
+  const lowerCulture = culture.toLowerCase();
+  
+  if (lowerCulture.includes('asia') || ['china', 'japan', 'korea', 'vietnam', 'thailand'].includes(lowerCulture)) {
+    return culturalContextDatabase.businessEtiquette['East Asian'];
+  }
+  if (lowerCulture.includes('middle east') || lowerCulture.includes('arab') || ['egypt', 'saudi-arabia', 'uae'].includes(lowerCulture)) {
+    return culturalContextDatabase.businessEtiquette['Middle Eastern'];
+  }
+  if (lowerCulture.includes('latin') || ['brazil', 'mexico', 'argentina'].includes(lowerCulture)) {
+    return culturalContextDatabase.businessEtiquette['Latin American'];
+  }
+  if (['germany', 'france', 'uk', 'italy', 'spain'].includes(lowerCulture)) {
+    return culturalContextDatabase.businessEtiquette['European'];
+  }
+  
+  return culturalContextDatabase.businessEtiquette.Western;
+};
+
+/**
+ * Get appropriate greeting for a culture
+ */
+export const getGreetingForCulture = (culture) => {
+  if (!culture) return 'Hello';
+  const lowerCulture = culture.toLowerCase();
+  
+  for (const region in culturalContextDatabase.greetings) {
+    const cultures = culturalContextDatabase.greetings[region];
+    for (const c in cultures) {
+      if (c.toLowerCase() === lowerCulture) return cultures[c][0];
+    }
+  }
+  return 'Hello';
+};
+
+/**
+ * Get communication preferences for a specific culture
+ */
+export const getCommunicationPreferencesForCulture = (culture) => {
+  if (!culture) return { formality: 'neutral', relationshipFocus: 'balanced' };
+  const lowerCulture = culture.toLowerCase();
+  const prefs = { formality: 'neutral', relationshipFocus: 'balanced' };
+
+  if (culturalContextDatabase.communicationPreferences.formal.some(c => c.toLowerCase().includes(lowerCulture))) {
+    prefs.formality = 'high';
+  } else if (culturalContextDatabase.communicationPreferences.informal.some(c => c.toLowerCase().includes(lowerCulture))) {
+    prefs.formality = 'low';
+  }
+
+  if (culturalContextDatabase.communicationPreferences['relationship-focused'].some(c => c.toLowerCase().includes(lowerCulture))) {
+    prefs.relationshipFocus = 'high';
+  } else if (culturalContextDatabase.communicationPreferences['task-focused'].some(c => c.toLowerCase().includes(lowerCulture))) {
+    prefs.relationshipFocus = 'low';
+  }
+
+  return prefs;
+};
+
+/**
+ * Get time concept for a specific culture
+ */
+export const getTimeConceptForCulture = (culture) => {
+  if (!culture) return 'monochronic';
+  const lowerCulture = culture.toLowerCase();
+
+  if (culturalContextDatabase.timeConcepts.polychronic.cultures.some(c => c.toLowerCase().includes(lowerCulture))) {
+    return 'polychronic';
+  }
+  return 'monochronic';
+};
+
+/**
+ * Get prompt-ready tips for a specific culture
+ */
+export const getCulturalPromptTips = (culture) => {
+  if (!culture || culture === 'general') return '';
+
+  const style = getCommunicationStyleForCulture(culture);
+  const styleKey = style.context || (style.directness === 'indirect' ? 'high-context' : 'low-context');
+  const styleData = culturalContextDatabase.communicationStyles[styleKey];
+  const tips = styleData ? styleData.tips.slice(0, 3) : [];
+
+  const etiquette = getBusinessEtiquetteForCulture(culture);
+  const preferences = getCommunicationPreferencesForCulture(culture);
+  const concept = getTimeConceptForCulture(culture);
+  const greeting = getGreetingForCulture(culture);
+
+  let promptTips = `Cultural Context (${culture}): `;
+  promptTips += `Communication Style: ${styleData?.description || styleKey}. `;
+  if (tips.length > 0) promptTips += `Key Tips: ${tips.join(', ')}. `;
+  promptTips += `Formality: ${preferences.formality}. `;
+  promptTips += `Time Concept: ${concept}. `;
+  promptTips += `Native Greeting: ${greeting}. `;
+
+  if (etiquette && etiquette.practices) {
+    promptTips += `Business Etiquette: ${etiquette.practices.slice(0, 2).join(', ')}. `;
+  }
+
+  return promptTips;
+};
+
+/**
+ * Get language learning specific prompt tips
+ */
+export const getLanguageLearningPromptTips = (language) => {
+  const languageSupport = {
+    'english': {
+      commonMistakes: ['Using wrong prepositions', 'Forgetting articles'],
+      culturalNotes: ['In American English, be direct but polite', 'Use "please" and "thank you" frequently']
+    },
+    'spanish': {
+      commonMistakes: ['Gender agreement', 'Ser vs. Estar'],
+      culturalNotes: ['Use formal "usted" with elders', 'Physical contact is more common']
+    },
+    'chinese': {
+      commonMistakes: ['Tone errors', 'Missing measure words'],
+      culturalNotes: ['Respect for hierarchy is important', 'Face-saving is crucial']
+    }
+  };
+
+  const support = languageSupport[language.toLowerCase()] || languageSupport.english;
+  let tips = `Language Learning (${language}): `;
+  tips += `Watch for: ${support.commonMistakes.join(', ')}. `;
+  tips += `Cultural Notes: ${support.culturalNotes.join(' ')}`;
+  return tips;
+};
+
+/**
+ * Get professional meeting specific prompt tips
+ */
+export const getProfessionalPromptTips = (context) => {
+  const meetingSupport = {
+    'business': {
+      keyPhrases: ['Thank you for your time', 'What are the next steps?'],
+      etiquette: ['Arrive on time', 'Come prepared with agenda']
+    },
+    'academic': {
+      keyPhrases: ['Could you elaborate on that?', 'What are the implications?'],
+      etiquette: ['Respect for expertise', 'Evidence-based arguments']
+    }
+  };
+
+  const support = meetingSupport[context] || meetingSupport.business;
+  let tips = `Meeting Context (${context}): `;
+  tips += `Useful Phrases: ${support.keyPhrases.join(', ')}. `;
+  tips += `Etiquette: ${support.etiquette.join(', ')}. `;
+  return tips;
+};
+
+/**
+ * Get social nuance tips based on detected triggers
+ */
+export const getSocialNuanceTips = (text) => {
+  if (!text) return '';
+  const lowerText = text.toLowerCase();
+  let tips = '';
+
+  const categories = ['empathy', 'socialAnxiety', 'conflict'];
+  categories.forEach(cat => {
+    culturalContextDatabase.socialNuance[cat].forEach(item => {
+      if (lowerText.includes(item.trigger)) {
+        tips += `${cat.charAt(0).toUpperCase() + cat.slice(1)} Tip: ${item.suggestion} `;
+      }
+    });
+  });
+
+  return tips.trim();
+};
+
+/**
+ * Get high-stakes tips for a specific category
+ */
+export const getHighStakesTips = (category) => {
+  const highStakes = culturalContextDatabase.highStakes[category];
+  if (!highStakes) return '';
+  return `High-Stakes ${category.charAt(0).toUpperCase() + category.slice(1)}: ${highStakes.slice(0, 3).join(' ')} `;
 };
 
 /**
@@ -456,6 +640,16 @@ export const detectMultilingualElements = (text) => {
     if (matches.length > 0) results.push({ language: lang, type: 'greeting', count: matches.length, confidence: 0.9 });
   }
   return results;
+};
+
+/**
+ * Get natural phrasing suggestion for language learners
+ */
+export const getNaturalPhrasing = (language, input) => {
+  const phrases = culturalContextDatabase.naturalPhrasing?.[language.toLowerCase()];
+  if (!phrases || !input) return null;
+  const lowerInput = input.toLowerCase();
+  return phrases.find(p => lowerInput.includes(p.literal.toLowerCase())) || null;
 };
 
 export const detectCulturalContext = analyzeCulturalContext;

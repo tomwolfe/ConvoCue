@@ -55,6 +55,7 @@ export const calculateSimilarity = (str1, str2) => {
   };
 
   checkSynonyms(s1Words, s2Words);
+  checkSynonyms(s2Words, s1Words);
   if (synonymMatches > 0) {
     return Math.min(1.0, calculateBaseSimilarity(s1, s2) + Math.min(0.3, synonymMatches * 0.15));
   }
@@ -173,6 +174,19 @@ export const detectIntentWithContext = (input, conversationHistory = []) => {
         intent: hasNeg ? 'conflict' : 'empathy', 
         confidence: res.confidence 
       };
+    }
+  }
+
+  // Strategic boost based on context
+  if (inputLower.includes('maybe') || inputLower.includes('perhaps')) {
+    const businessIndicators = ['proposal', 'deal', 'contract', 'negotiation', 'meeting', 'project', 'budget', 'strategy'];
+    const hasBusinessInInput = businessIndicators.some(indicator => inputLower.includes(indicator));
+    const isBusinessContext = hasBusinessInInput || conversationHistory.some(turn =>
+      businessIndicators.some(indicator => (turn.content || turn.text || '').toLowerCase().includes(indicator))
+    );
+
+    if (isBusinessContext) {
+      return { intent: 'strategic', confidence: Math.min(1.0, baseResult.confidence + 0.15) };
     }
   }
 

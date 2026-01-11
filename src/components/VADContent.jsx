@@ -11,7 +11,7 @@ import SocialSuccessScore from './SocialSuccessScore';
 import { getMergedPersonas } from '../utils/preferences';
 import { submitSubtleModeFeedback } from '../utils/feedback';
 import { trackCueDisplayed } from '../utils/engagementTracking';
-import { parseSemanticTags, TAG_METADATA } from '../utils/intentRecognition';
+import { parseSemanticTags, TAG_METADATA } from '../utils/intentUtils';
 import performanceMonitor from '../utils/performance';
 import TagIcon from './VAD/TagIcon';
 

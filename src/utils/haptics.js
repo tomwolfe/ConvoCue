@@ -1,4 +1,4 @@
-import { parseSemanticTags } from './intentRecognition';
+import { parseSemanticTags } from './intentUtils';
 import { AppConfig } from '../config';
 
 /**

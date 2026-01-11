@@ -9,7 +9,7 @@ import { CoachingConfig } from '../../config/coaching';
 import { submitFeedback, submitInsightFeedback, getInsightCategoryScores } from '../../utils/feedback';
 import { trackCueDisplayed } from '../../utils/engagementTracking';
 import { overrideSpeakerForTurn } from '../../conversationManager';
-import { parseSemanticTags, TAG_METADATA } from '../../utils/intentRecognition';
+import { parseSemanticTags, TAG_METADATA } from '../../utils/intentUtils';
 import { secureLocalStorageGet, secureLocalStorageSet } from '../../utils/encryption';
 import InsightCard from './InsightCard';
 import CoachingDisclaimer from './CoachingDisclaimer';

@@ -63,5 +63,18 @@ export const validateCoachingInsights = (insights) => {
     return null;
   }
 
-  return insights;
-};
+      return insights;
+  };
+  
+  /**
+   * Polyfill for scheduler.yield to prevent blocking the event loop.
+   * Prioritizes yielding to the main thread to keep the UI responsive.
+   */
+  export const yieldToMain = async () => {
+      if (self.scheduler && self.scheduler.yield) {
+          await self.scheduler.yield();
+      } else {
+          // Fallback to setTimeout for older browsers or Safari
+          await new Promise(resolve => setTimeout(resolve, 0));
+      }
+  };
