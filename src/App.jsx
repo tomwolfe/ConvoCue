@@ -91,7 +91,8 @@ const App = () => {
     clearHistory,
     settings,
     lastSwitchReason,
-    undoPersonaSwitch
+    undoPersonaSwitch,
+    sessionTone
   } = useMLWorker();
 
   const [micPermissionError, setMicPermissionError] = useState(null);
@@ -484,6 +485,7 @@ const App = () => {
               resetWorker();
             }}
             onFullReset={handleFullReset}
+            sessionTone={sessionTone}
           />
         )}
       </div>

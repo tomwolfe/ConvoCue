@@ -14,9 +14,11 @@ import { trackCueDisplayed } from '../utils/engagementTracking';
 import { parseSemanticTags, TAG_METADATA } from '../utils/intentUtils';
 import performanceMonitor from '../utils/performance';
 import TagIcon from './VAD/TagIcon';
+import { recordMirroringFeedback } from '../utils/personalization';
 
-const GlanceWidget = ({ suggestion, emotionData, isProcessing, detectedIntent, settings, persona }) => {
+const GlanceWidget = ({ suggestion, emotionData, isProcessing, detectedIntent, settings, persona, sessionTone }) => {
   const [feedbackGiven, setFeedbackGiven] = useState(false);
+  const [mirroringFeedbackGiven, setMirroringFeedbackGiven] = useState(false);
   const [showExplanation, setShowExplanation] = useState(false);
   const emotion = emotionData?.emotion || 'neutral';
 
@@ -25,6 +27,7 @@ const GlanceWidget = ({ suggestion, emotionData, isProcessing, detectedIntent, s
   if (suggestion && suggestion !== lastTrackedSuggestion && !isProcessing) {
     setLastTrackedSuggestion(suggestion);
     setFeedbackGiven(false);
+    setMirroringFeedbackGiven(false);
   }
 
   useEffect(() => {
@@ -42,6 +45,12 @@ const GlanceWidget = ({ suggestion, emotionData, isProcessing, detectedIntent, s
     if (feedbackGiven || !displaySuggestion || isProcessing) return;
     await submitSubtleModeFeedback(displaySuggestion, type, persona);
     setFeedbackGiven(true);
+  };
+
+  const handleMirroringFeedback = async (type) => {
+    if (mirroringFeedbackGiven || !sessionTone || isProcessing) return;
+    await recordMirroringFeedback(type, sessionTone, settings);
+    setMirroringFeedbackGiven(true);
   };
 
   // Define tooltip descriptions for common subtle cues
@@ -205,6 +214,29 @@ const GlanceWidget = ({ suggestion, emotionData, isProcessing, detectedIntent, s
           >
             <ThumbsDown size={14} />
           </button>
+
+          {/* Mirroring Feedback Buttons - Only show if sessionTone is available */}
+          {sessionTone && (
+            <div className="mirroring-feedback-group">
+              <span className="feedback-label">AI Tone:</span>
+              <button
+                className={`feedback-btn feedback-btn--sm ${mirroringFeedbackGiven ? 'disabled' : ''}`}
+                onClick={() => handleMirroringFeedback('right')}
+                disabled={mirroringFeedbackGiven}
+                title="AI tone felt appropriate"
+              >
+                <ThumbsUp size={14} />
+              </button>
+              <button
+                className={`feedback-btn feedback-btn--sm ${mirroringFeedbackGiven ? 'disabled' : ''}`}
+                onClick={() => handleMirroringFeedback('wrong')}
+                disabled={mirroringFeedbackGiven}
+                title="AI tone felt inappropriate"
+              >
+                <ThumbsDown size={14} />
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -306,7 +338,8 @@ const VADContent = ({
   sttFunctional,
   llmFunctional,
   mlState,
-  onFullReset
+  onFullReset,
+  sessionTone
 }) => {
   const [availablePersonas, setAvailablePersonas] = useState(AppConfig.models.personas);
 
@@ -524,6 +557,7 @@ const VADContent = ({
             detectedIntent={detectedIntent}
             settings={settings}
             persona={persona}
+            sessionTone={sessionTone}
           />
         )}
         

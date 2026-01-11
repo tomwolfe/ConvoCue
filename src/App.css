@@ -2612,6 +2612,24 @@ input:checked + .slider:before {
   transform: translateY(-1px);
 }
 
+/* Mirroring Feedback Group */
+.mirroring-feedback-group {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem 0.4rem;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.feedback-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
 /* Additional utility classes for Social Success Score */
 .mt-4 {
   margin-top: 1rem;

@@ -171,21 +171,45 @@ export const calculateSessionTone = (text, metadata, emotionData, baselines = DE
   const paceRatio = pace / safeBasePace;
   const volumeRatio = volume / safeBaseVolume;
   
-  // High-arousal emotions add to intensity
-  const isHighArousal = ['anger', 'fear', 'surprise', 'joy'].includes(emotionData.emotion);
+  // High-arousal emotions add to intensity, but with reduced weight to minimize misclassification impact
+  // Check if emotion data is reliable (has confidence score) or if emotion is uncertain
+  const hasReliableEmotion = emotionData && emotionData.emotion && emotionData.confidence !== undefined;
+  const isHighArousal = hasReliableEmotion
+    ? ['anger', 'fear', 'surprise', 'joy'].includes(emotionData.emotion.toLowerCase())
+    : ['anger', 'fear', 'surprise', 'joy'].includes(emotionData.emotion?.toLowerCase()); // fallback for when no confidence data
+
+  // Reduce emotion weight when confidence is low or absent, prioritize pace and volume as more reliable metrics
+  const emotionWeight = hasReliableEmotion && emotionData.confidence > 0.7 ? 0.2 : 0.05;
   const emotionScore = isHighArousal ? 1.4 : 1.0;
 
-  // Weighted Urgency Score
-  const urgencyScore = (paceRatio * 0.5) + (volumeRatio * 0.3) + (emotionScore * 0.2);
+  // Weighted Urgency Score - prioritizing pace and volume over emotion data
+  const urgencyScore = (paceRatio * 0.5) + (volumeRatio * 0.3) + (emotionScore * emotionWeight);
   
   // Configurable Thresholds based on sensitivity setting
   const sensitivity = settings.mirroringSensitivity || 'medium';
-  const thresholds = {
+
+  // Adaptive thresholds that consider user's natural speaking patterns
+  // For users with naturally high energy, adjust thresholds to prevent over-triggering
+  const userPaceFactor = Math.min(2.0, paceRatio); // Cap at 2x baseline to prevent extreme adjustments
+  const userVolumeFactor = Math.min(2.0, volumeRatio); // Cap at 2x baseline to prevent extreme adjustments
+
+  // Adjust thresholds based on user's natural patterns to prevent false positives
+  const baseThresholds = {
     low: { urgent: 2.2, reflective: 0.4 },
     medium: { urgent: 1.6, reflective: 0.6 },
     high: { urgent: 1.2, reflective: 0.8 }
   };
-  const activeThresholds = thresholds[sensitivity] || thresholds.medium;
+
+  // For high sensitivity, increase thresholds if user naturally speaks with high pace/volume
+  // This prevents naturally energetic users from being flagged as distressed
+  // Use more conservative adjustment to prevent over-correction
+  if (sensitivity === 'high') {
+    baseThresholds.high.urgent = 1.2 + (0.1 * userPaceFactor * userVolumeFactor);
+  } else if (sensitivity === 'medium') {
+    baseThresholds.medium.urgent = 1.6 + (0.1 * userPaceFactor * userVolumeFactor);
+  }
+
+  const activeThresholds = baseThresholds[sensitivity] || baseThresholds.medium;
 
   // Respect Privacy Mode: Return balanced metrics without instructions
   if (settings.privacyMode) {
@@ -251,6 +275,46 @@ export const calculateSessionTone = (text, metadata, emotionData, baselines = DE
 };
 
 /**
+ * Stores user feedback on mirroring behavior to improve future responses
+ * @param {string} feedback - 'right' or 'wrong' indicating if the AI's tone felt appropriate
+ * @param {Object} sessionTone - The session tone data that was used
+ * @param {Object} userSettings - Current user settings
+ */
+export const recordMirroringFeedback = async (feedback, sessionTone, userSettings) => {
+  const feedbackKey = 'convocue_mirroring_feedback';
+  const currentFeedback = await secureLocalStorageGet(feedbackKey, []);
+
+  // Ensure currentFeedback is an array
+  const feedbackArray = Array.isArray(currentFeedback) ? currentFeedback : [];
+
+  // Add new feedback entry with timestamp and context
+  const feedbackEntry = {
+    timestamp: Date.now(),
+    feedback, // 'right' or 'wrong'
+    sessionTone,
+    userSettings: { ...userSettings },
+    id: Date.now() + Math.random() // unique ID
+  };
+
+  // Keep only the last 50 feedback entries to prevent storage bloat
+  const updatedFeedback = [feedbackEntry, ...feedbackArray].slice(0, 50);
+
+  await secureLocalStorageSet(feedbackKey, updatedFeedback);
+
+  // Adjust sensitivity based on negative feedback
+  if (feedback === 'wrong' && userSettings.mirroringSensitivity === 'high') {
+    // If user frequently feels the AI is inappropriate, suggest lowering sensitivity
+    const wrongFeedbackCount = updatedFeedback.filter(f => f.feedback === 'wrong').length;
+    const rightFeedbackCount = updatedFeedback.filter(f => f.feedback === 'right').length;
+
+    // If more than 60% of feedback is negative, consider adjusting sensitivity
+    if (wrongFeedbackCount > 0 && (wrongFeedbackCount / (wrongFeedbackCount + rightFeedbackCount)) > 0.6) {
+      console.log("Consider adjusting mirroring sensitivity based on user feedback");
+    }
+  }
+};
+
+/**
  * Gets specific advice for the user based on their historical data
  * @returns {Promise<Array>} List of personalized growth tips
  */
@@ -270,6 +334,15 @@ export const getPersonalizedGrowthTips = async () => {
       tips.push("We're working on matching your conversational tone more accurately.");
     }
   });
+
+  // Add mirroring-specific tip if there's been negative feedback
+  const mirroringFeedback = await secureLocalStorageGet('convocue_mirroring_feedback', []);
+  const negativeFeedbackCount = mirroringFeedback.filter(f => f.feedback === 'wrong').length;
+  const positiveFeedbackCount = mirroringFeedback.filter(f => f.feedback === 'right').length;
+
+  if (negativeFeedbackCount > positiveFeedbackCount && negativeFeedbackCount > 2) {
+    tips.push("The AI's tone adaptation might not match your preferences. Consider adjusting the Mirroring Sensitivity in Settings.");
+  }
 
   return tips;
 };

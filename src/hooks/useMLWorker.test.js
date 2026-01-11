@@ -5,7 +5,9 @@ import { useMLWorker } from './useMLWorker';
 // Mock personalization utils
 vi.mock('../utils/personalization', () => ({
   getCommunicationProfileSummary: vi.fn().mockResolvedValue("Mock Profile Context"),
-  getPersonalizedGrowthTips: vi.fn().mockResolvedValue(["Mock Tip"])
+  getPersonalizedGrowthTips: vi.fn().mockResolvedValue(["Mock Tip"]),
+  getMirroringBaselines: vi.fn().mockResolvedValue({ pace: 2.5, volume: 0.02, count: 0 }),
+  updateMirroringBaselines: vi.fn().mockResolvedValue(undefined)
 }));
 
 // Improved Worker Mock
