@@ -1,12 +1,13 @@
 /**
  * ML-based intent recognition implementations using prototype model
  *
- * ⚠️ CRITICAL WARNING: These classes use a PROTOTYPE ML model that simulates ML behavior.
+ * ⚠️ ⚠️ ⚠️ CRITICAL WARNING: These classes use a PROTOTYPE ML model that simulates ML behavior.
  * This is NOT a real ML model and should NOT be used in production.
  * These implementations are placeholders that demonstrate the architecture
  * that would connect to real ML models.
  *
  * The system's future depends on replacing this prototype with actual learned models.
+ * ⚠️ ⚠️ ⚠️
  */
 
 import {
@@ -145,7 +146,24 @@ export class MLEmotionalIntensityAnalyzer extends EmotionalIntensityAnalyzer {
     console.warn('⚠️ ML Emotional Intensity Analyzer initialized with PROTOTYPE model. This is NOT a real ML model. Production systems require actual learned models.');
   }
 
+  isProductionEnvironment() {
+    // Check for common production indicators
+    return (
+      typeof window !== 'undefined' &&
+      window.location &&
+      window.location.hostname !== 'localhost' &&
+      !window.location.hostname.includes('127.0.0.1') &&
+      !window.location.hostname.includes('.local') &&
+      process.env.NODE_ENV === 'production'
+    );
+  }
+
   async analyze(conversationHistory) {
+    // CRITICAL: This is a prototype model - throw error in production environments
+    if (this.isProductionEnvironment()) {
+      throw new Error('CRITICAL ERROR: Prototype ML model is NOT a real ML model and should NOT be used in production. Replace with actual ML model.');
+    }
+
     if (!this.initialized) {
       await this.initialize();
     }
@@ -193,7 +211,24 @@ export class MLConversationStageDetector extends ConversationStageDetector {
     console.warn('⚠️ ML Conversation Stage Detector initialized with PROTOTYPE model. This is NOT a real ML model. Production systems require actual learned models.');
   }
 
+  isProductionEnvironment() {
+    // Check for common production indicators
+    return (
+      typeof window !== 'undefined' &&
+      window.location &&
+      window.location.hostname !== 'localhost' &&
+      !window.location.hostname.includes('127.0.0.1') &&
+      !window.location.hostname.includes('.local') &&
+      process.env.NODE_ENV === 'production'
+    );
+  }
+
   async detect(conversationHistory) {
+    // CRITICAL: This is a prototype model - throw error in production environments
+    if (this.isProductionEnvironment()) {
+      throw new Error('CRITICAL ERROR: Prototype ML model is NOT a real ML model and should NOT be used in production. Replace with actual ML model.');
+    }
+
     if (!this.initialized) {
       await this.initialize();
     }

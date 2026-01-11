@@ -64,13 +64,17 @@ export class TrainingDataCollector {
   collectIntentTrainingData(input, result, context, processingTime) {
     if (!this.enabled) return;
 
+    // Anonymize the input and context data before storing
+    const anonymizedInput = this.anonymizeText(input);
+    const anonymizedContext = this.anonymizeContext(context);
+
     const record = {
       type: DATA_TYPES.INTENT_DETECTION,
       userId: this.userId,
       timestamp: Date.now(),
-      input,
+      input: anonymizedInput,
       result,
-      context,
+      context: anonymizedContext,
       processingTime,
       version: '__APP_VERSION__', // Will be replaced by build process
       platform: navigator.userAgent || 'unknown'
@@ -87,11 +91,21 @@ export class TrainingDataCollector {
   collectCulturalContextTrainingData(conversationHistory, result) {
     if (!this.enabled) return;
 
+    // Anonymize the conversation history
+    const anonymizedConversationHistory = Array.isArray(conversationHistory)
+      ? conversationHistory.map(turn => {
+          if (turn.content) {
+            return { ...turn, content: this.anonymizeText(turn.content) };
+          }
+          return turn;
+        })
+      : conversationHistory;
+
     const record = {
       type: DATA_TYPES.CULTURAL_CONTEXT,
       userId: this.userId,
       timestamp: Date.now(),
-      conversationHistory,
+      conversationHistory: anonymizedConversationHistory,
       result,
       version: '__APP_VERSION__',
       platform: navigator.userAgent || 'unknown'
@@ -108,11 +122,21 @@ export class TrainingDataCollector {
   collectSentimentTrainingData(conversationHistory, result) {
     if (!this.enabled) return;
 
+    // Anonymize the conversation history
+    const anonymizedConversationHistory = Array.isArray(conversationHistory)
+      ? conversationHistory.map(turn => {
+          if (turn.content) {
+            return { ...turn, content: this.anonymizeText(turn.content) };
+          }
+          return turn;
+        })
+      : conversationHistory;
+
     const record = {
       type: DATA_TYPES.SENTIMENT_ANALYSIS,
       userId: this.userId,
       timestamp: Date.now(),
-      conversationHistory,
+      conversationHistory: anonymizedConversationHistory,
       result,
       version: '__APP_VERSION__',
       platform: navigator.userAgent || 'unknown'
@@ -132,22 +156,26 @@ export class TrainingDataCollector {
   collectUserFeedback(input, prediction, feedback, correction = null, feedbackText = '') {
     if (!this.enabled) return;
 
+    // Anonymize the input and feedback text
+    const anonymizedInput = this.anonymizeText(input);
+    const anonymizedFeedbackText = this.anonymizeText(feedbackText);
+
     const record = {
       type: DATA_TYPES.USER_FEEDBACK,
       userId: this.userId,
       timestamp: Date.now(),
-      input,
+      input: anonymizedInput,
       prediction,
       feedback,
-      correction,
-      feedbackText,
+      correction: correction ? this.anonymizeText(correction) : null,
+      feedbackText: anonymizedFeedbackText,
       version: '__APP_VERSION__',
       platform: navigator.userAgent || 'unknown'
     };
 
     // Store in separate feedback storage for easier access
     this.storeFeedbackRecord(record);
-    
+
     // Also store in main training data for ML training
     this.storeRecord(record);
   }
@@ -186,13 +214,17 @@ export class TrainingDataCollector {
   collectEdgeCase(input, result, reason) {
     if (!this.enabled) return;
 
+    // Anonymize the input and reason
+    const anonymizedInput = this.anonymizeText(input);
+    const anonymizedReason = this.anonymizeText(reason);
+
     const record = {
       type: DATA_TYPES.EDGE_CASES,
       userId: this.userId,
       timestamp: Date.now(),
-      input,
+      input: anonymizedInput,
       result,
-      reason,
+      reason: anonymizedReason,
       version: '__APP_VERSION__',
       platform: navigator.userAgent || 'unknown'
     };
@@ -283,6 +315,98 @@ export class TrainingDataCollector {
       console.error('Error sending training data:', error);
       // Keep data locally for retry
     }
+  }
+
+  /**
+   * Anonymize text by removing or obfuscating personal information
+   * @param {string|Object} text - Text to anonymize
+   * @returns {string|Object} Anonymized text
+   */
+  anonymizeText(text) {
+    if (!text) return text;
+
+    let content = typeof text === 'string' ? text : JSON.stringify(text);
+
+    // Remove or obfuscate email addresses
+    content = content.replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, '[EMAIL_REMOVED]');
+
+    // Remove or obfuscate phone numbers
+    content = content.replace(/\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/g, '[PHONE_REMOVED]');
+    content = content.replace(/\+\d{1,3}[-.\s]?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g, '[PHONE_REMOVED]');
+
+    // Remove or obfuscate IP addresses
+    content = content.replace(/\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g, '[IP_REMOVED]');
+
+    // Remove or obfuscate credit card numbers
+    content = content.replace(/\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b/g, '[CARD_REMOVED]');
+
+    // Remove or obfuscate SSN patterns
+    content = content.replace(/\b\d{3}-\d{2}-\d{4}\b/g, '[SSN_REMOVED]');
+
+    // For objects, parse and anonymize string values
+    if (typeof text !== 'string') {
+      try {
+        const parsed = JSON.parse(JSON.stringify(text));
+        this.anonymizeObject(parsed);
+        return parsed;
+      } catch (e) {
+        // If parsing fails, return the original anonymized string
+        return content;
+      }
+    }
+
+    return content;
+  }
+
+  /**
+   * Recursively anonymize an object's string values
+   * @param {Object} obj - Object to anonymize
+   */
+  anonymizeObject(obj) {
+    if (typeof obj === 'string') {
+      return this.anonymizeText(obj);
+    }
+
+    if (obj && typeof obj === 'object') {
+      for (const key in obj) {
+        if (obj.hasOwnProperty(key)) {
+          if (typeof obj[key] === 'string') {
+            obj[key] = this.anonymizeText(obj[key]);
+          } else if (typeof obj[key] === 'object' && obj[key] !== null) {
+            this.anonymizeObject(obj[key]);
+          }
+        }
+      }
+    }
+
+    return obj;
+  }
+
+  /**
+   * Anonymize context data
+   * @param {Object} context - Context object to anonymize
+   * @returns {Object} Anonymized context
+   */
+  anonymizeContext(context) {
+    if (!context) return context;
+
+    // Deep clone the context to avoid modifying the original
+    const anonymizedContext = JSON.parse(JSON.stringify(context));
+
+    // Anonymize conversation history if present
+    if (anonymizedContext.conversationHistory && Array.isArray(anonymizedContext.conversationHistory)) {
+      anonymizedContext.conversationHistory = anonymizedContext.conversationHistory.map(turn => {
+        if (turn.content) {
+          turn.content = this.anonymizeText(turn.content);
+        }
+        return turn;
+      });
+    }
+
+    // Anonymize any other text fields in the context
+    this.anonymizeObject(anonymizedContext);
+
+    return anonymizedContext;
   }
 
   /**
@@ -414,7 +538,7 @@ export const logIntentDetectionMetricsEnhanced = (input, result, processingTime)
     console.warn('Could not store intent detection metrics:', e);
   }
 
-  // Also collect for ML training
+  // Also collect for ML training with anonymization
   const collector = getTrainingDataCollector();
   collector.collectIntentTrainingData(input, result, result.contextAnalysis, processingTime);
 

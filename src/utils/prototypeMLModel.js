@@ -29,30 +29,53 @@ export class PrototypeMLModel {
     this.model = null;
     this.isInitialized = false;
     this.trainingData = [];
-    
+
     // Simulated model parameters learned from training data
     this.intentWeights = {};
     this.contextWeights = {};
     this.embeddingVocabulary = new Map(); // Simplified word embeddings
+
+    // Show strong warning about prototype usage
+    this.showPrototypeWarning();
+  }
+
+  /**
+   * Show strong warning about prototype usage
+   */
+  showPrototypeWarning() {
+    console.warn(`⚠️ ⚠️ ⚠️ CRITICAL WARNING: PROTOTYPE ML MODEL IN USE ⚠️ ⚠️ ⚠️
+    This is a SIMULATED ML model that does NOT perform actual machine learning.
+    This is a placeholder implementation that uses statistical patterns derived from training data
+    to simulate ML behavior. IT IS NOT A REAL ML MODEL and should NOT BE USED IN PRODUCTION.
+
+    This prototype is intended solely for demonstrating the architecture and interfaces
+    that would connect to a real ML model. In a production environment, this would be
+    replaced with a proper ML model using TensorFlow.js or similar technology.
+
+    The system's future depends on replacing this prototype with actual learned models.
+    This prototype is NOT the long-term solution.
+    ⚠️ ⚠️ ⚠️ CRITICAL WARNING: PROTOTYPE ML MODEL IN USE ⚠️ ⚠️ ⚠️`);
   }
 
   /**
    * Initialize the model (in a real implementation, this would load actual model weights)
    */
   async initialize() {
+    console.warn('⚠️ Initializing PROTOTYPE ML model - NOT suitable for production use!');
     console.log('Initializing prototype ML model...');
-    
+
     try {
       // Load training data if available
       await this.loadTrainingData();
-      
+
       // Build vocabulary from training data
       this.buildVocabulary();
-      
+
       // Train the model on available data
       await this.trainOnData();
-      
+
       this.isInitialized = true;
+      console.warn('⚠️ Prototype ML model initialized - NOT suitable for production use!');
       console.log('Prototype ML model initialized successfully');
     } catch (error) {
       console.error('Failed to initialize prototype ML model:', error);
@@ -176,21 +199,26 @@ export class PrototypeMLModel {
    * Predict intent using the trained model
    */
   async predictIntent(input, context = null) {
+    // CRITICAL: This is a prototype model - throw error in production environments
+    if (this.isProductionEnvironment()) {
+      throw new Error('CRITICAL ERROR: Prototype ML model is NOT a real ML model and should NOT be used in production. Replace with actual ML model.');
+    }
+
     if (!this.isInitialized) {
       await this.initialize();
     }
 
     // Convert input to features
     const features = this.textToFeatures(input);
-    
+
     // Calculate intent probabilities based on learned patterns
     const intentProbabilities = this.calculateIntentProbabilities(features, context);
-    
+
     // Convert to the expected format
     const intents = Object.entries(intentProbabilities)
       .map(([intent, confidence]) => ({ intent, confidence }))
       .sort((a, b) => b.confidence - a.confidence);
-    
+
     return {
       primaryIntent: intents[0] || { intent: null, confidence: 0 },
       allIntents: intents,
@@ -268,24 +296,29 @@ export class PrototypeMLModel {
    * Predict cultural context using ML approach
    */
   async predictCulturalContext(conversationHistory) {
+    // CRITICAL: This is a prototype model - throw error in production environments
+    if (this.isProductionEnvironment()) {
+      throw new Error('CRITICAL ERROR: Prototype ML model is NOT a real ML model and should NOT be used in production. Replace with actual ML model.');
+    }
+
     if (!this.isInitialized) {
       await this.initialize();
     }
 
     // Simplified cultural context prediction based on learned patterns
     // In a real model, this would use sequence modeling
-    
+
     const culturalContexts = ['formal', 'business', 'casual_professional', 'casual'];
     const contextScores = {};
-    
+
     // Analyze conversation for cultural indicators
     const allText = conversationHistory.map(turn => turn.content || '').join(' ').toLowerCase();
-    
+
     culturalContexts.forEach(context => {
       // In a real model, this would use learned weights
       // For demo, we'll use simple keyword matching based on patterns learned from data
       let score = 0;
-      
+
       switch(context) {
         case 'formal':
           score = (allText.match(/\b(mr\.|ms\.|dr\.|sir|ma'am|please|thank you|regards|esteemed|honorable)\b/g) || []).length;
@@ -300,14 +333,14 @@ export class PrototypeMLModel {
           score = (allText.match(/\b(dude|bro|chill|hang out|gonna|wanna|hey|cool|fun|weekend|movie|food)\b/g) || []).length;
           break;
       }
-      
+
       contextScores[context] = score / Math.max(1, allText.split(/\s+/).length / 100); // Normalize by text length
     });
-    
+
     // Find the highest scoring context
-    const maxContext = Object.entries(contextScores).reduce((max, current) => 
+    const maxContext = Object.entries(contextScores).reduce((max, current) =>
       current[1] > max[1] ? current : max, ['', 0]);
-    
+
     return {
       context: maxContext[0] || null,
       confidence: maxContext[1] > 0.1 ? 'high' : maxContext[1] > 0.01 ? 'medium' : 'low',
@@ -320,26 +353,46 @@ export class PrototypeMLModel {
    * Predict sentiment using ML approach
    */
   async predictSentiment(conversationHistory) {
+    // CRITICAL: This is a prototype model - throw error in production environments
+    if (this.isProductionEnvironment()) {
+      throw new Error('CRITICAL ERROR: Prototype ML model is NOT a real ML model and should NOT be used in production. Replace with actual ML model.');
+    }
+
     if (!this.isInitialized) {
       await this.initialize();
     }
 
     // Simplified sentiment prediction based on learned patterns
     const allText = conversationHistory.map(turn => turn.content || '').join(' ').toLowerCase();
-    
+
     // Count positive and negative indicators based on learned patterns
     const positiveWords = (allText.match(/\b(good|great|excellent|amazing|wonderful|love|like|happy|pleased|satisfied|perfect|awesome|fantastic|brilliant|outstanding|superb)\b/g) || []).length;
     const negativeWords = (allText.match(/\b(bad|terrible|awful|horrible|hate|dislike|angry|frustrated|annoyed|disappointed|worst|sucks|disgusting|pathetic|ridiculous|stupid|useless)\b/g) || []).length;
-    
+
     const totalSentimentWords = positiveWords + negativeWords;
-    
+
     if (totalSentimentWords === 0) return 'neutral';
-    
+
     const sentimentRatio = positiveWords / totalSentimentWords;
-    
+
     if (sentimentRatio > 0.6) return 'positive';
     if (sentimentRatio < 0.4) return 'negative';
     return 'mixed';
+  }
+
+  /**
+   * Check if running in production environment
+   */
+  isProductionEnvironment() {
+    // Check for common production indicators
+    return (
+      typeof window !== 'undefined' &&
+      window.location &&
+      window.location.hostname !== 'localhost' &&
+      !window.location.hostname.includes('127.0.0.1') &&
+      !window.location.hostname.includes('.local') &&
+      process.env.NODE_ENV === 'production'
+    );
   }
 
   /**
