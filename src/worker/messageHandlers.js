@@ -351,7 +351,7 @@ export const handleRetrySTTLoad = async (data) => {
     const { taskId } = data;
     const pipelineManager = await MLPipeline.getInstance();
     try {
-        MLPipeline.transitionState(ML_TRANSITIONS.RETRY_STT);
+        await MLPipeline.transitionState(ML_TRANSITIONS.RETRY_STT);
         if (!MLPipeline.stt) {
             const timeoutPromise = new Promise((_, reject) => {
                 setTimeout(() => reject(new Error('STT model loading timed out')), AppConfig.system.processingTimeout);
@@ -371,7 +371,7 @@ export const handleRetryLLMLoad = async (data) => {
     const { taskId } = data;
     const pipelineManager = await MLPipeline.getInstance();
     try {
-        MLPipeline.transitionState(ML_TRANSITIONS.RETRY_LLM);
+        await MLPipeline.transitionState(ML_TRANSITIONS.RETRY_LLM);
         if (!MLPipeline.llm) {
             const timeoutPromise = new Promise((_, reject) => {
                 setTimeout(() => reject(new Error('LLM model loading timed out')), AppConfig.system.processingTimeout);
