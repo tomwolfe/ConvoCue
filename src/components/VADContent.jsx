@@ -808,7 +808,6 @@ const VADContent = ({
           conversationTurns={conversationTurns}
           isVisible={showConversationSummary}
           onClose={() => setShowConversationSummary(false)}
-          workerRef={workerRef}
         />
       )}
     </main>

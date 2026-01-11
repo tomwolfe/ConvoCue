@@ -3243,3 +3243,44 @@ input:checked + .slider:before {
   margin-left: 8px;
   text-transform: uppercase;
 }
+
+/* Privacy Tooltip Styles */
+.privacy-tooltip {
+  margin-left: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: rgba(99, 102, 241, 0.1); /* var(--primary) with opacity */
+  color: var(--primary);
+  cursor: help;
+  font-size: 12px;
+}
+
+.privacy-tooltip:hover {
+  background-color: rgba(99, 102, 241, 0.2);
+}
+
+.summary-title-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+
+/* Summary Warning Styles */
+.summary-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  margin: 12px 0;
+  background-color: #fef3c7; /* amber-100 */
+  border: 1px solid #fbbf24; /* amber-400 */
+  border-radius: 8px;
+  color: #92400e; /* amber-800 */
+  font-size: 0.9rem;
+}
+

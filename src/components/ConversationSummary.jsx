@@ -4,15 +4,19 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { FileText, Calendar, TrendingUp, CheckCircle, AlertCircle, Clock, Download, Copy } from 'lucide-react';
+import { FileText, Calendar, TrendingUp, CheckCircle, AlertCircle, Clock, Download, Copy, Info } from 'lucide-react';
 import { generateConversationSummary, generateSummaryCard } from '../utils/conversationSummarizer';
 import { useConversation } from '../hooks/useConversation';
+import { useMLWorker } from '../hooks/useMLWorker';
 
-const ConversationSummary = ({ conversationTurns, isVisible, onClose, workerRef }) => {
+const ConversationSummary = ({ conversationTurns, isVisible, onClose }) => {
   const [summary, setSummary] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('summary'); // 'summary', 'themes', 'action-items'
+
+  // Use the ML worker hook directly
+  const mlWorker = useMLWorker();
 
   // Generate summary when component mounts or conversation changes
   useEffect(() => {
@@ -32,7 +36,7 @@ const ConversationSummary = ({ conversationTurns, isVisible, onClose, workerRef 
         includeActionItems: true,
         includeSentiment: true,
         summaryLength: 'medium'
-      }, workerRef);
+      }, mlWorker.workerRef);
 
       setSummary(summaryData);
     } catch (err) {
@@ -81,6 +85,9 @@ const ConversationSummary = ({ conversationTurns, isVisible, onClose, workerRef 
           <div className="summary-title-section">
             <FileText size={24} className="summary-icon" />
             <h2>Conversation Summary</h2>
+            <div className="privacy-tooltip" title="Your conversation is processed locally on your device. No data is sent to servers.">
+              <Info size={16} />
+            </div>
           </div>
           <button className="summary-close-btn" onClick={onClose} aria-label="Close summary">
             ×
@@ -122,21 +129,37 @@ const ConversationSummary = ({ conversationTurns, isVisible, onClose, workerRef 
               </div>
             </div>
 
+            {/* Parsing Status Indicator */}
+            {summary.parsingSuccessful === false && (
+              <div className="summary-warning">
+                <AlertCircle size={16} color="#f59e0b" />
+                <span>Structured parsing failed. Showing raw summary.</span>
+              </div>
+            )}
+
+            {/* Long History Warning */}
+            {summary.showLongHistoryWarning && (
+              <div className="summary-warning">
+                <AlertCircle size={16} color="#f59e0b" />
+                <span>Large conversation history detected. Processing may take longer than usual.</span>
+              </div>
+            )}
+
             {/* Tabs */}
             <div className="summary-tabs">
-              <button 
+              <button
                 className={`tab-btn ${activeTab === 'summary' ? 'active' : ''}`}
                 onClick={() => setActiveTab('summary')}
               >
                 Summary
               </button>
-              <button 
+              <button
                 className={`tab-btn ${activeTab === 'themes' ? 'active' : ''}`}
                 onClick={() => setActiveTab('themes')}
               >
                 Themes
               </button>
-              <button 
+              <button
                 className={`tab-btn ${activeTab === 'action-items' ? 'active' : ''}`}
                 onClick={() => setActiveTab('action-items')}
               >
@@ -154,7 +177,7 @@ const ConversationSummary = ({ conversationTurns, isVisible, onClose, workerRef 
 
               {activeTab === 'themes' && (
                 <div className="summary-tab-pane">
-                  {summary.themes.length > 0 ? (
+                  {summary.themes && summary.themes.length > 0 ? (
                     <ul className="themes-list">
                       {summary.themes.map((theme, index) => (
                         <li key={index} className="theme-item">
@@ -171,7 +194,7 @@ const ConversationSummary = ({ conversationTurns, isVisible, onClose, workerRef 
 
               {activeTab === 'action-items' && (
                 <div className="summary-tab-pane">
-                  {summary.actionItems.length > 0 ? (
+                  {summary.actionItems && summary.actionItems.length > 0 ? (
                     <ul className="action-items-list">
                       {summary.actionItems.map((item, index) => (
                         <li key={index} className="action-item">
@@ -189,23 +212,23 @@ const ConversationSummary = ({ conversationTurns, isVisible, onClose, workerRef 
 
             {/* Action Buttons */}
             <div className="summary-actions">
-              <button 
-                className="btn-secondary" 
+              <button
+                className="btn-secondary"
                 onClick={handleRegenerate}
                 title="Regenerate summary"
               >
                 Regenerate
               </button>
-              <button 
-                className="btn-secondary" 
+              <button
+                className="btn-secondary"
                 onClick={handleCopy}
                 title="Copy summary to clipboard"
               >
                 <Copy size={16} />
                 Copy
               </button>
-              <button 
-                className="btn-primary" 
+              <button
+                className="btn-primary"
                 onClick={handleDownload}
                 title="Download summary as text file"
               >

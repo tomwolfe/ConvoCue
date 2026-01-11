@@ -1,3 +1,5 @@
+import { analyzeSentimentWithConfidence } from './sentimentAnalysis';
+
 /**
  * Summary Parser Utility
  * Parses LLM responses to extract structured information like themes, action items, and sentiment
@@ -13,7 +15,10 @@
  * @returns {Object} Structured data with themes, action items, and sentiment
  */
 export const parseSummaryResponse = (response, options) => {
-  const result = {};
+  const result = {
+    // Add a flag to indicate if parsing was successful
+    parsingSuccessful: true
+  };
 
   if (options.includeThemes) {
     // Extract themes using pattern matching
@@ -44,7 +49,7 @@ export const parseSummaryResponse = (response, options) => {
         line = line.trim();
         if (line.startsWith('- ') || line.startsWith('* ')) {
           // Look for lines that might be themes (contain common theme words)
-          if (line.toLowerCase().includes('theme') || line.toLowerCase().includes('topic') || 
+          if (line.toLowerCase().includes('theme') || line.toLowerCase().includes('topic') ||
               line.toLowerCase().includes('discussion') || line.toLowerCase().includes('focus')) {
             const theme = line.replace(/^- |^\* /, '').trim();
             if (theme && !themes.includes(theme)) {
@@ -88,9 +93,9 @@ export const parseSummaryResponse = (response, options) => {
         line = line.trim();
         if (line.startsWith('- ') || line.startsWith('* ')) {
           const content = line.replace(/^- |^\* /, '').trim();
-          if (content.toLowerCase().startsWith('need to') || 
-              content.toLowerCase().startsWith('should') || 
-              content.toLowerCase().startsWith('will') || 
+          if (content.toLowerCase().startsWith('need to') ||
+              content.toLowerCase().startsWith('should') ||
+              content.toLowerCase().startsWith('will') ||
               content.toLowerCase().startsWith('must')) {
             if (content && !actionItems.includes(content)) {
               actionItems.push(content);
@@ -106,58 +111,30 @@ export const parseSummaryResponse = (response, options) => {
   if (options.includeSentiment) {
     // Determine sentiment based on keywords in the response
     const positiveKeywords = [
-      'positive', 'good', 'great', 'excellent', 'happy', 'satisfied', 'pleased', 
-      'successful', 'beneficial', 'constructive', 'optimistic', 'encouraging', 
+      'positive', 'good', 'great', 'excellent', 'happy', 'satisfied', 'pleased',
+      'successful', 'beneficial', 'constructive', 'optimistic', 'encouraging',
       'uplifting', 'hopeful', 'confident', 'impressed', 'pleased', 'satisfied'
     ];
     const negativeKeywords = [
-      'negative', 'bad', 'poor', 'terrible', 'sad', 'frustrated', 'angry', 
-      'problem', 'issue', 'concern', 'difficult', 'challenging', 'worry', 
+      'negative', 'bad', 'poor', 'terrible', 'sad', 'frustrated', 'angry',
+      'problem', 'issue', 'concern', 'difficult', 'challenging', 'worry',
       'concerned', 'disappointed', 'frustrated', 'upset', 'tense', 'stressful'
     ];
-    
-    // Also check for sentiment-indicating phrases
-    const positivePhrases = [
-      'positive outcome', 'good progress', 'great success', 'excellent result',
-      'constructive discussion', 'productive meeting', 'positive feedback'
-    ];
-    const negativePhrases = [
-      'negative outcome', 'poor result', 'major issue', 'significant problem',
-      'unproductive discussion', 'negative feedback', 'concerning trend'
-    ];
 
-    const responseLower = response.toLowerCase();
-    
-    // Count sentiment words
-    const positiveCount = positiveKeywords.filter(word => responseLower.includes(word)).length;
-    const negativeCount = negativeKeywords.filter(word => responseLower.includes(word)).length;
-    
-    // Count sentiment phrases
-    const positivePhraseCount = positivePhrases.filter(phrase => responseLower.includes(phrase.toLowerCase())).length;
-    const negativePhraseCount = negativePhrases.filter(phrase => responseLower.includes(phrase.toLowerCase())).length;
-    
-    // Calculate overall sentiment
-    const totalPositive = positiveCount + positivePhraseCount;
-    const totalNegative = negativeCount + negativePhraseCount;
-    
-    if (totalPositive > totalNegative) {
-      result.sentiment = 'positive';
-    } else if (totalNegative > totalPositive) {
-      result.sentiment = 'negative';
-    } else {
-      // If counts are equal, look for explicit sentiment mentions
-      if (responseLower.includes('overall sentiment is') || responseLower.includes('the sentiment is')) {
-        if (responseLower.includes('positive')) {
-          result.sentiment = 'positive';
-        } else if (responseLower.includes('negative')) {
-          result.sentiment = 'negative';
-        } else {
-          result.sentiment = 'neutral';
-        }
-      } else {
-        result.sentiment = 'neutral';
-      }
-    }
+    // Use advanced sentiment analysis
+    const sentimentAnalysis = analyzeSentimentWithConfidence(response);
+    result.sentiment = sentimentAnalysis.sentiment;
+    result.sentimentConfidence = sentimentAnalysis.confidence;
+  }
+
+  // Check if parsing was successful - if all arrays are empty and no sentiment was detected,
+  // it might indicate parsing failure
+  if (options.includeThemes && (!result.themes || result.themes.length === 0) &&
+      options.includeActionItems && (!result.actionItems || result.actionItems.length === 0) &&
+      options.includeSentiment && (!result.sentiment || result.sentiment === 'neutral')) {
+    // This might be a parsing failure, but we'll still return what we have
+    // The fallback will be handled in the worker
+    result.parsingSuccessful = false;
   }
 
   return result;

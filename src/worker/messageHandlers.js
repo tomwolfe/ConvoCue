@@ -8,6 +8,7 @@ import { enhanceResponse } from '../utils/responseEnhancement';
 import { detectIntentWithContext } from '../utils/intentRecognition';
 import { analyzeEmotion } from '../utils/emotion'; // Assuming this exists
 import { parseSummaryResponse, createStructuredSummaryPrompt } from '../utils/summaryParser';
+import { trackParserSuccess, trackSummaryParsingResult } from '../utils/telemetry';
 
 const messenger = WorkerMessenger.getInstance();
 
@@ -71,16 +72,49 @@ export const handleGenerateSummary = async (data) => {
     // Parse the response to extract structured information
     const parsedSummary = parseSummaryResponse(summaryText, options);
 
+    // Track parsing success/failure for telemetry
+    trackParserSuccess(parsedSummary.parsingSuccessful !== false, {
+      taskId,
+      hasThemes: !!(parsedSummary.themes && parsedSummary.themes.length > 0),
+      hasActionItems: !!(parsedSummary.actionItems && parsedSummary.actionItems.length > 0),
+      hasSentiment: !!parsedSummary.sentiment
+    });
+
+    trackSummaryParsingResult(parsedSummary.parsingSuccessful !== false, {
+      taskId,
+      themeCount: parsedSummary.themes ? parsedSummary.themes.length : 0,
+      actionItemCount: parsedSummary.actionItems ? parsedSummary.actionItems.length : 0,
+      sentiment: parsedSummary.sentiment
+    });
+
+    // Prepare the summary result
+    let summaryResult = {
+      summary: summaryText,
+      themes: parsedSummary.themes || [],
+      actionItems: parsedSummary.actionItems || [],
+      sentiment: parsedSummary.sentiment || 'neutral',
+      confidence: 0.8,
+      parsingSuccessful: parsedSummary.parsingSuccessful !== undefined ? parsedSummary.parsingSuccessful : true
+    };
+
+    // If parsing failed, we still return the raw summary text as fallback
+    if (!parsedSummary.parsingSuccessful) {
+      console.warn("Summary parsing failed, returning raw summary as fallback");
+      summaryResult = {
+        ...summaryResult,
+        themes: [], // Empty themes as parsing failed
+        actionItems: [], // Empty action items as parsing failed
+        // Keep the sentiment if it was detected, otherwise default to neutral
+        sentiment: parsedSummary.sentiment || 'neutral',
+        parsingSuccessful: false,
+        fallbackUsed: true
+      };
+    }
+
     // Send the structured summary back to the main thread
     messenger.postMessage({
       type: 'summary_result',
-      summary: {
-        summary: summaryText,
-        themes: parsedSummary.themes || [],
-        actionItems: parsedSummary.actionItems || [],
-        sentiment: parsedSummary.sentiment || 'neutral',
-        confidence: 0.8,
-      },
+      summary: summaryResult,
       taskId
     });
   } catch (error) {

@@ -21,6 +21,10 @@ export const generateConversationSummary = async (conversationHistory, options =
     summaryLength = 'medium' // 'short', 'medium', 'long'
   } = options;
 
+  // Check for long conversation history and warn if needed
+  const fullHistoryLength = conversationHistory.length;
+  const showLongHistoryWarning = fullHistoryLength > 50; // Threshold for showing warning
+
   // Limit the conversation history to prevent token overflow
   const limitedHistory = conversationHistory.slice(-maxTurns);
 
@@ -30,9 +34,20 @@ export const generateConversationSummary = async (conversationHistory, options =
       themes: [],
       actionItems: [],
       sentiment: "neutral",
-      confidence: 0
+      confidence: 0,
+      showLongHistoryWarning: false
     };
   }
+
+  // Prepare summary result with long history warning
+  const summaryResult = {
+    summary: "",
+    themes: [],
+    actionItems: [],
+    sentiment: "neutral",
+    confidence: 0,
+    showLongHistoryWarning
+  };
 
   // If a worker is provided, use it for summary generation
   if (workerRef && workerRef.current) {
@@ -43,7 +58,11 @@ export const generateConversationSummary = async (conversationHistory, options =
         includeSentiment,
         summaryLength
       });
-      return result;
+      // Merge the long history warning with the result
+      return {
+        ...result,
+        showLongHistoryWarning
+      };
     } catch (error) {
       console.error("Worker summary generation failed:", error);
       // Return an error object when worker fails
@@ -53,6 +72,7 @@ export const generateConversationSummary = async (conversationHistory, options =
         actionItems: [],
         sentiment: "unknown",
         confidence: 0,
+        showLongHistoryWarning,
         error: error.message
       };
     }
@@ -64,6 +84,7 @@ export const generateConversationSummary = async (conversationHistory, options =
       actionItems: [],
       sentiment: "unknown",
       confidence: 0,
+      showLongHistoryWarning,
       error: "Worker reference not provided"
     };
   }
