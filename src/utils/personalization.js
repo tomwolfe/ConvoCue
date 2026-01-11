@@ -86,6 +86,44 @@ export const getCommunicationProfileSummary = async () => {
 };
 
 /**
+ * Calculates real-time session tone based on recent interactions.
+ * This is used for "Mirroring" where the AI matches the user's pace and intensity.
+ * 
+ * @param {string} text - The current user transcript
+ * @param {Object} metadata - Metadata containing duration and RMS (volume)
+ * @param {Object} emotionData - Emotional analysis results
+ * @returns {Object} Session tone metrics
+ */
+export const calculateSessionTone = (text, metadata, emotionData) => {
+  const words = text.trim().split(/\s+/).filter(w => w.length > 0);
+  const wordCount = words.length;
+  
+  // Pace: words per second
+  const duration = metadata?.duration || 1;
+  const pace = wordCount / duration;
+  
+  // Intensity: volume (RMS) + emotional valence
+  const volume = metadata?.rms || 0;
+  const isUrgent = pace > 3.5 || volume > 0.05 || ['anger', 'fear', 'surprise'].includes(emotionData.emotion);
+  
+  let mirroringInstruction = "";
+  if (isUrgent) {
+    mirroringInstruction = "User is in a HIGH-PACE state. Respond with extreme brevity (1-5 words), focusing on immediate survival or tactical social cues.";
+  } else if (pace < 1.5 && wordCount > 0) {
+    mirroringInstruction = "User is in a REFLECTIVE/SLOW state. Provide more nuanced, empathetic coaching (10-15 words).";
+  } else {
+    mirroringInstruction = "User is in a BALANCED state. Match their natural rhythm with medium-length suggestions.";
+  }
+
+  return {
+    pace,
+    volume,
+    isUrgent,
+    mirroringInstruction
+  };
+};
+
+/**
  * Gets specific advice for the user based on their historical data
  * @returns {Promise<Array>} List of personalized growth tips
  */

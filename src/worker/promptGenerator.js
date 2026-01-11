@@ -92,6 +92,7 @@ export const generateCoachingPrompt = (persona, relationshipInsights, anxietyIns
  * @property {Object} [relationshipInsights] - Relationship coaching data
  * @property {Object} [anxietyInsights] - Anxiety coaching data
  * @property {Object} [settings] - General application settings
+ * @property {string} [mirroringInstruction] - Real-time instructions to match user's tone
  */
 
 /**
@@ -133,10 +134,13 @@ export const generateTurnSpecificContext = (config) => {
         relationshipInsights,
         anxietyInsights,
         effectiveCulturalContext,
-        settings
+        settings,
+        mirroringInstruction
     } = config;
 
     let turnContext = "";
+
+    if (mirroringInstruction) turnContext += `MIRRORING: ${mirroringInstruction} `;
 
     const socialTips = getSocialNuanceTips(sanitizedText);
     if (socialTips) turnContext += `Social Tips: ${socialTips} `;

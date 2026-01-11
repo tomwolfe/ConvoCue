@@ -11,6 +11,7 @@ import { estimateConversationSize, monitorAndOptimizeHistory } from '../utils/pe
 import { createProgressiveLoadingStrategy, deviceCaps } from '../utils/performanceOptimizer';
 import { provideContextualLanguageFeedback } from '../utils/languageLearning';
 import { coordinateFeaturesInResponse, resolveFeatureConflicts } from '../utils/featureCoordination';
+import { calculateSessionTone } from '../utils/personalization';
 import { TextStreamer } from '@huggingface/transformers';
 
 import { MLPipeline } from './MLPipeline';
@@ -154,6 +155,7 @@ export const handleLLM = async (data) => {
         const personaConfig = AppConfig.models.personas[persona] || AppConfig.models.personas.anxiety;
         const sanitizedText = _text.trim().substring(0, AppConfig.system.maxTranscriptLength);
         const emotionData = analyzeEmotion(sanitizedText);
+        const sessionTone = calculateSessionTone(sanitizedText, metadata, emotionData);
         const intents = detectMultipleIntents(sanitizedText, 0.4);
 
         const isPowerSavingMode = WorkerState.performanceStats.mode === 'minimal';
@@ -250,7 +252,8 @@ export const handleLLM = async (data) => {
         // Build Turn-Specific Context (Fresh every turn)
         const turnSpecificContext = generateTurnSpecificContext({
             persona, sanitizedText, isSubtleMode, preferences,
-            relationshipInsights, anxietyInsights, effectiveCulturalContext, settings
+            relationshipInsights, anxietyInsights, effectiveCulturalContext, settings,
+            mirroringInstruction: sessionTone.mirroringInstruction
         });
 
         let dynamicContext = turnSpecificContext;
