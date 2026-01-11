@@ -1,9 +1,13 @@
 /**
  * Unified Intent Recognition Engine
- * 
+ *
  * This engine provides a single interface for intent recognition
  * that can work with both heuristic and ML-based implementations.
  * It supports runtime selection of methods and fallback capabilities.
+ *
+ * ⚠️ NOTE: The ML components currently use a PROTOTYPE implementation that simulates ML behavior.
+ * This prototype MUST be replaced with actual learned models for production use.
+ * The system's future depends on transitioning from heuristic to learned models.
  */
 
 import {
@@ -62,14 +66,17 @@ export class IntentRecognitionEngine {
 
     try {
       // Dynamically import ML components if available
-      const { MLContextDetector, MLSentimentAnalyzer, MLIntentClassifier } = 
+      const { MLContextDetector, MLSentimentAnalyzer, MLIntentClassifier } =
         await import('./mlIntentRecognition');
-      
+
       this.mlContextDetector = new MLContextDetector(this.options.mlModelPath);
       this.mlSentimentAnalyzer = new MLSentimentAnalyzer(this.options.mlModelPath);
       this.mlIntentClassifier = new MLIntentClassifier(this.options.mlModelPath);
-      
+
       this.mlInitialized = true;
+
+      // Log a warning that this is still using a prototype
+      console.warn('⚠️ ML models initialized with PROTOTYPE implementation. This is NOT a real ML model. Production systems require actual learned models.');
     } catch (error) {
       console.warn('ML models could not be initialized, falling back to heuristic methods:', error);
       // ML models not available, continue with heuristic methods

@@ -1,8 +1,12 @@
 /**
  * ML-based intent recognition implementations using prototype model
- * 
- * These classes use the prototype ML model to provide learned-based approaches
- * that can adapt and improve over time.
+ *
+ * ⚠️ CRITICAL WARNING: These classes use a PROTOTYPE ML model that simulates ML behavior.
+ * This is NOT a real ML model and should NOT be used in production.
+ * These implementations are placeholders that demonstrate the architecture
+ * that would connect to real ML models.
+ *
+ * The system's future depends on replacing this prototype with actual learned models.
  */
 
 import {
@@ -34,7 +38,7 @@ export class MLContextDetector extends ContextDetector {
   async initialize() {
     await this.model.initialize();
     this.initialized = true;
-    console.log('ML Context Detector initialized with prototype model');
+    console.warn('⚠️ ML Context Detector initialized with PROTOTYPE model. This is NOT a real ML model. Production systems require actual learned models.');
   }
 
   async detect(conversationHistory) {
@@ -60,7 +64,7 @@ export class MLSentimentAnalyzer extends SentimentAnalyzer {
   async initialize() {
     await this.model.initialize();
     this.initialized = true;
-    console.log('ML Sentiment Analyzer initialized with prototype model');
+    console.warn('⚠️ ML Sentiment Analyzer initialized with PROTOTYPE model. This is NOT a real ML model. Production systems require actual learned models.');
   }
 
   async analyze(conversationHistory) {
@@ -86,7 +90,7 @@ export class MLIntentClassifier extends IntentClassifier {
   async initialize() {
     await this.model.initialize();
     this.initialized = true;
-    console.log('ML Intent Classifier initialized with prototype model');
+    console.warn('⚠️ ML Intent Classifier initialized with PROTOTYPE model. This is NOT a real ML model. Production systems require actual learned models.');
   }
 
   async classify(input, context = null) {
@@ -112,7 +116,7 @@ export class MLCulturalContextDetector extends CulturalContextDetector {
   async initialize() {
     await this.model.initialize();
     this.initialized = true;
-    console.log('ML Cultural Context Detector initialized with prototype model');
+    console.warn('⚠️ ML Cultural Context Detector initialized with PROTOTYPE model. This is NOT a real ML model. Production systems require actual learned models.');
   }
 
   async infer(conversationHistory) {
@@ -138,7 +142,7 @@ export class MLEmotionalIntensityAnalyzer extends EmotionalIntensityAnalyzer {
   async initialize() {
     await this.model.initialize();
     this.initialized = true;
-    console.log('ML Emotional Intensity Analyzer initialized with prototype model');
+    console.warn('⚠️ ML Emotional Intensity Analyzer initialized with PROTOTYPE model. This is NOT a real ML model. Production systems require actual learned models.');
   }
 
   async analyze(conversationHistory) {
@@ -186,7 +190,7 @@ export class MLConversationStageDetector extends ConversationStageDetector {
   async initialize() {
     await this.model.initialize();
     this.initialized = true;
-    console.log('ML Conversation Stage Detector initialized with prototype model');
+    console.warn('⚠️ ML Conversation Stage Detector initialized with PROTOTYPE model. This is NOT a real ML model. Production systems require actual learned models.');
   }
 
   async detect(conversationHistory) {

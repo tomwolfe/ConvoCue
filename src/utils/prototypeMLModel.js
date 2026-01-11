@@ -1,10 +1,16 @@
 /**
- * Prototype ML Model for Intent Recognition
- * 
- * This is a simplified prototype that demonstrates how a learned model
- * could be integrated into the existing architecture. In a production
- * environment, this would be replaced with a proper ML model using
- * TensorFlow.js or similar.
+ * PROTOTYPE ML MODEL - FOR DEMONSTRATION ONLY
+ *
+ * ⚠️ CRITICAL WARNING: This is a SIMULATED ML model that does NOT perform actual machine learning.
+ * This is a placeholder implementation that uses statistical patterns derived from training data
+ * to simulate ML behavior. IT IS NOT A REAL ML MODEL and should NOT BE USED IN PRODUCTION.
+ *
+ * This prototype is intended solely for demonstrating the architecture and interfaces
+ * that would connect to a real ML model. In a production environment, this would be
+ * replaced with a proper ML model using TensorFlow.js or similar technology.
+ *
+ * The system's future depends on replacing this prototype with actual learned models.
+ * This prototype is NOT the long-term solution.
  */
 
 // For demonstration purposes, we'll create a simple prototype
@@ -13,6 +19,9 @@
 /**
  * Simple prototype ML model for intent recognition
  * This is a placeholder that simulates ML behavior using rules derived from collected data
+ *
+ * ⚠️ CRITICAL: This is NOT a real ML model. It's a statistical simulation for demonstration purposes only.
+ * This prototype MUST be replaced with actual ML models for production use.
  */
 export class PrototypeMLModel {
   constructor(modelPath = null) {

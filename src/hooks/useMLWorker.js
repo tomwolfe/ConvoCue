@@ -11,6 +11,7 @@ import { getIntentRecognitionEngine } from '../utils/intentRecognitionEngine';
 import { getInsightCategoryScores } from '../utils/feedback';
 import performanceMonitor from '../utils/performance';
 import { calculateEngagement } from '../utils/engagement';
+import { isMLIntentRecognitionEnabled } from '../utils/featureFlags';
 import { usePerformanceMonitor } from './usePerformanceMonitor';
 import { usePersonaOrchestration } from './usePersonaOrchestration';
 import { ML_STATES } from '../worker/MLStateMachine';
@@ -296,7 +297,7 @@ export const useMLWorker = () => {  const [state, dispatch] = useReducer(workerR
                 try {
                   // Use the new intent recognition engine with configurable approach
                   const intentEngine = getIntentRecognitionEngine({
-                    useML: false, // Start with heuristic approach, can be switched later
+                    useML: isMLIntentRecognitionEnabled(), // Use feature flag to determine if ML should be enabled
                     fallbackEnabled: true,
                     confidenceThreshold
                   });

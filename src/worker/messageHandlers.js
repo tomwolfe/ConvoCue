@@ -15,6 +15,7 @@ import { calculateSessionTone } from '../utils/personalization';
 import { secureLocalStorageGet, secureLocalStorageSet } from '../utils/encryption';
 import { TextStreamer } from '@huggingface/transformers';
 import { getIntentRecognitionEngine } from '../utils/intentRecognitionEngine';
+import { isMLIntentRecognitionEnabled } from '../utils/featureFlags';
 
 import { MLPipeline } from './MLPipeline';
 import { ML_TRANSITIONS } from './MLStateMachine';
@@ -199,7 +200,7 @@ export const handleLLM = async (data) => {
 
         // Use enhanced intent detection with conversation context
         const intentEngine = getIntentRecognitionEngine({
-          useML: false, // Start with heuristic approach, can be switched later
+          useML: isMLIntentRecognitionEnabled(), // Use feature flag to determine if ML should be enabled
           fallbackEnabled: true,
           enableMultiIntent: true
         });
