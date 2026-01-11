@@ -7,6 +7,7 @@ import Tutorial from './components/Tutorial';
 import PersonaCustomization from './components/PersonaCustomization';
 import PrivacyConsent from './components/PrivacyConsent';
 import AppSettings from './components/Settings';
+import SocialNudgeHUD from './components/SocialNudgeHUD';
 import ErrorBoundary from './ErrorBoundary';
 import { AppConfig } from './config';
 import { checkAssets } from './utils/diagnostics';
@@ -228,6 +229,7 @@ const App = () => {
       {settings && !settings.privacyMode && settings.showAnalytics && <Analytics />}
       <PrivacyConsent onConsentGiven={handlePrivacyConsent} />
       <div className={`app-container ${isCompactMode ? 'compact-view' : ''}`} role="main" aria-label="ConvoCue Application">
+        {hasInteracted && <SocialNudgeHUD />}
         {showTutorial && (
           <Tutorial
             onComplete={handleTutorialComplete}

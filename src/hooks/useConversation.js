@@ -1,9 +1,10 @@
-import { useReducer, useEffect, useCallback } from 'react';
+import { useReducer, useEffect, useCallback, useMemo } from 'react';
 import { AppConfig } from '../config';
 import { manageConversationHistory, optimizeConversationHistory, isMemoryLimitApproaching, aggressiveMemoryManagement } from '../utils/conversation';
 import { getConversationHistory as getGlobalHistory } from '../conversationManager';
 import { EVENTS } from '../utils/eventBus';
 import { useEvent } from './useEvent';
+import { calculateEngagement } from '../utils/engagement';
 
 const initialState = {
   history: [],
@@ -103,8 +104,11 @@ export const useConversation = () => {
     dispatch({ type: 'CLEAR_HISTORY' });
   }, []);
 
+  const engagement = useMemo(() => calculateEngagement(state.conversationTurns), [state.conversationTurns]);
+
   return {
     ...state,
+    engagement,
     addMessage,
     setSentiment,
     updateLastMessageTime,
