@@ -460,40 +460,105 @@ export const detectIntentWithContext = (input, conversationHistory = []) => {
 
   const inputLower = input.toLowerCase();
 
-  // "Sorry" disambiguation
+  // 1. "Sorry" disambiguation
   if (inputLower.includes('sorry')) {
-    const isConflict = ['sorry but', 'sorry, but', 'but sorry', 'sorry however'].some(i => inputLower.includes(i));
-    if (isConflict) return { intent: 'conflict', confidence: Math.min(1.0, baseResult.confidence + 0.15) };
-    return { intent: 'empathy', confidence: Math.min(1.0, baseResult.confidence + 0.15) };
-  }
+    const empathyIndicators = ['sorry to hear', 'sorry about', 'so sorry', 'i understand', 'must be hard', 'my condolences', 'sympathies'];
+    const conflictIndicators = ['sorry but', 'sorry, but', 'but sorry', 'sorry however', 'sorry though'];
 
-  // "Maybe/Perhaps" strategic boost
-  if (inputLower.includes('maybe') || inputLower.includes('perhaps')) {
-    const biz = ['proposal', 'deal', 'contract', 'negotiation', 'meeting', 'project', 'budget', 'strategy'];
-    const isBiz = biz.some(i => inputLower.includes(i)) || 
-                  conversationHistory.some(t => biz.some(i => t.content.toLowerCase().includes(i)));
-    if (isBiz) return { intent: 'strategic', confidence: Math.min(1.0, baseResult.confidence + 0.1) };
-  }
+    const hasEmpathyIndicator = empathyIndicators.some(indicator => inputLower.includes(indicator));
+    const hasConflictIndicator = conflictIndicators.some(indicator => inputLower.includes(indicator));
 
-  // Action vs Strategic temporal boost
-  if (baseResult.intent === 'action' || baseResult.intent === 'strategic') {
-    const strat = ['plan', 'strategy', 'future', 'long-term', 'vision', 'goal'];
-    const imm = ['now', 'immediately', 'urgent', 'asap'];
-    if (strat.some(i => inputLower.includes(i))) return { intent: 'strategic', confidence: Math.min(1.0, baseResult.confidence + 0.1) };
-    if (imm.some(i => inputLower.includes(i))) return { intent: 'action', confidence: Math.min(1.0, baseResult.confidence + 0.1) };
-  }
-
-  // Question vs Language
-  if (baseResult.intent === 'question' || baseResult.intent === 'language') {
-    if (['what', 'how', 'why', 'when', 'where', 'who'].some(w => inputLower.startsWith(w))) {
-      return { intent: 'question', confidence: Math.min(1.0, baseResult.confidence + 0.1) };
+    if (hasEmpathyIndicator && !hasConflictIndicator) {
+      return { intent: 'empathy', confidence: Math.min(1.0, baseResult.confidence + 0.15) };
+    } else if (hasConflictIndicator && !hasEmpathyIndicator) {
+      return { intent: 'conflict', confidence: Math.min(1.0, baseResult.confidence + 0.15) };
     }
   }
 
-  // Empathy vs Social
+  // 2. "Maybe/Perhaps" strategic boost
+  if (inputLower.includes('maybe') || inputLower.includes('perhaps')) {
+    const businessIndicators = ['proposal', 'deal', 'contract', 'negotiation', 'meeting', 'project', 'budget', 'strategy'];
+    const hasBusinessInInput = businessIndicators.some(indicator => inputLower.includes(indicator));
+    const isBusinessContext = hasBusinessInInput || conversationHistory.some(turn =>
+      businessIndicators.some(indicator => turn.content.toLowerCase().includes(indicator))
+    );
+
+    if (isBusinessContext) {
+      return { intent: 'strategic', confidence: Math.min(1.0, baseResult.confidence + 0.1) };
+    }
+  }
+
+  // 3. Action vs Strategic temporal boost
+  if (baseResult.intent === 'action' || baseResult.intent === 'strategic') {
+    const strategicIndicators = ['plan', 'strategy', 'future', 'long-term', 'vision', 'goal', 'objective', 'timeline'];
+    const immediateIndicators = ['now', 'immediately', 'right away', 'today', 'this week', 'urgent', 'asap'];
+
+    const hasStrategicIndicator = strategicIndicators.some(indicator => inputLower.includes(indicator));
+    const hasImmediateIndicator = immediateIndicators.some(indicator => inputLower.includes(indicator));
+
+    if (hasStrategicIndicator && !hasImmediateIndicator) {
+      return { intent: 'strategic', confidence: Math.min(1.0, baseResult.confidence + 0.1) };
+    } else if (hasImmediateIndicator && !hasStrategicIndicator) {
+      return { intent: 'action', confidence: Math.min(1.0, baseResult.confidence + 0.1) };
+    } else if (hasStrategicIndicator && hasImmediateIndicator) {
+      // Check history for context
+      const recentContext = conversationHistory.slice(-5).map(turn => turn.content.toLowerCase()).join(' ');
+      if (strategicIndicators.some(indicator => recentContext.includes(indicator))) {
+        return { intent: 'strategic', confidence: Math.min(1.0, baseResult.confidence + 0.1) };
+      }
+    }
+  }
+
+  // 4. Question vs Language
+  if (baseResult.intent === 'question' || baseResult.intent === 'language') {
+    const questionWords = ['what', 'how', 'why', 'when', 'where', 'who'];
+    const languageWords = ['explain', 'clarify', 'phrasing', 'word', 'grammar', 'vocabulary'];
+
+    const hasQuestionWord = questionWords.some(word => inputLower.startsWith(word));
+    const hasLanguageWord = languageWords.some(word => inputLower.includes(word));
+
+    if (hasQuestionWord && !hasLanguageWord) {
+      return { intent: 'question', confidence: Math.min(1.0, baseResult.confidence + 0.1) };
+    } else if (hasLanguageWord && !hasQuestionWord) {
+      return { intent: 'language', confidence: Math.min(1.0, baseResult.confidence + 0.1) };
+    }
+  }
+
+  // 5. Empathy vs Social
   if (baseResult.intent === 'empathy' || baseResult.intent === 'social') {
-    const emp = ['sorry to hear', 'so sorry', 'my condolences', 'i\'m here for you', 'i care about'];
-    if (emp.some(i => inputLower.includes(i))) return { intent: 'empathy', confidence: Math.min(1.0, baseResult.confidence + 0.25) };
+    const emotionalWords = ['feel', 'emotion', 'sad', 'happy', 'angry', 'frustrated', 'anxious', 'excited', 'scared', 'worried'];
+    
+    const empathyIndicators = ['sorry to hear', 'so sorry', 'my condolences', 'i\'m here for you', 'i care about', 'i understand how you feel', 'must be difficult'];
+    const socialIndicators = ['hello everyone', 'hi everyone', 'what do you think', 'how are you all', 'thanks everyone', 'hope everyone is well'];
+
+    const hasEmpathyIndicator = empathyIndicators.some(indicator => inputLower.includes(indicator));
+    const hasSocialIndicator = socialIndicators.some(indicator => inputLower.includes(indicator));
+    const recentEmotionalContext = conversationHistory.slice(-3).some(turn =>
+      emotionalWords.some(word => turn.content.toLowerCase().includes(word))
+    );
+
+    if (hasEmpathyIndicator) {
+      return { intent: 'empathy', confidence: Math.min(1.0, baseResult.confidence + 0.25) };
+    } else if (hasSocialIndicator) {
+      return { intent: 'social', confidence: Math.min(1.0, baseResult.confidence + 0.25) };
+    } else if (recentEmotionalContext) {
+      return { intent: 'empathy', confidence: Math.min(1.0, baseResult.confidence + 0.15) };
+    }
+  }
+
+  // 6. Sarcasm detection (confidence reduction)
+  if (baseResult.confidence < 0.7) {
+    const sarcasmIndicators = ['oh great', 'oh wonderful', 'of course', 'sure thing', 'totally', 'obviously', 'yeah right'];
+    const exaggeratedPositives = ['amazing', 'incredible', 'fantastic', 'wonderful', 'perfect'];
+    
+    const hasSarcasmIndicator = sarcasmIndicators.some(indicator => inputLower.includes(indicator));
+    const hasExaggeratedPositive = exaggeratedPositives.some(word => 
+      inputLower.includes(word) && (inputLower.includes('so') || inputLower.includes('really'))
+    );
+
+    if (hasSarcasmIndicator && hasExaggeratedPositive) {
+      return { intent: baseResult.intent, confidence: Math.max(0.1, baseResult.confidence - 0.2) };
+    }
   }
 
   return baseResult;

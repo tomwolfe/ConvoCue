@@ -57,7 +57,6 @@ const App = () => {
   const {
     status,
     progress,
-    isReady,
     isLowMemory,
     mlState,
     error,

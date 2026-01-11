@@ -48,7 +48,7 @@ export const applyRelationshipCoaching = async (response, input, conversationHis
 /**
  * Applies anxiety-specific coaching to responses
  */
-export const applyAnxietyCoaching = async (response, input, conversationHistory, emotionData, persona) => {
+export const applyAnxietyCoaching = async (response, input, conversationHistory, emotionData, _persona) => {
   const insights = await analyzeAnxietyCoaching(input, conversationHistory, emotionData);
   if (!insights) return response;
 

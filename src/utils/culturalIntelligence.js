@@ -4,14 +4,10 @@
  */
 
 import { detectMultipleIntents } from './intentRecognition';
-import { AppConfig } from '../config';
 import { 
-  submitCulturalFeedback, 
-  shouldFlagRecommendation, 
   getUserCulturalBiasAdjustments 
 } from './culturalFeedback';
 import { mergeCulturalContext, isCulturalOptOut } from './userCulturalProfile.js';
-import { getCulturalConfidenceThreshold } from '../config/conservativeDefaults.js';
 
 /**
  * CORE CULTURAL DATA MAP
@@ -141,10 +137,46 @@ const CULTURAL_GREETINGS = {
   'fr': { label: 'france', greetings: ['bonjour', 'salut'] }
 };
 
+const FORMALITY_MARKERS = ['sir', 'madam', 'mr.', 'ms.', 'dr.', 'professor', 'please', 'excuse me'];
+const FORMALITY_REGEXES = FORMALITY_MARKERS.map(m => ({
+  marker: m,
+  regex: new RegExp(`\\b${m.replace('.', '\\.')}\\b`, 'i')
+}));
+
+const RELATIONSHIP_INDICATORS = ['boss', 'manager', 'supervisor', 'teacher', 'student', 'parent', 'child', 'friend', 'colleague'];
+const RELATIONSHIP_REGEXES = RELATIONSHIP_INDICATORS.map(ri => ({
+  indicator: ri,
+  regex: new RegExp(`\\b${ri}\\b`, 'i')
+}));
+
+/**
+ * Analyzes cultural indicators in the text
+ */
+const analyzeCulturalIndicators = (text) => {
+  const indicators = {
+    formalityMarkers: [],
+    relationshipIndicators: []
+  };
+  
+  FORMALITY_REGEXES.forEach(item => {
+    if (item.regex.test(text)) {
+      indicators.formalityMarkers.push(item.marker);
+    }
+  });
+  
+  RELATIONSHIP_REGEXES.forEach(item => {
+    if (item.regex.test(text)) {
+      indicators.relationshipIndicators.push(item.indicator);
+    }
+  });
+  
+  return indicators;
+};
+
 /**
  * Enhanced Cultural Context Detection
  */
-export const analyzeCulturalContext = (text, currentCulturalContext = 'general', conversationHistory = [], relationshipContext = {}) => {
+export const analyzeCulturalContext = (text, currentCulturalContext = 'general', _conversationHistory = [], relationshipContext = {}) => {
   if (!text || isCulturalOptOut()) {
     return { 
       primaryCulture: currentCulturalContext, 
@@ -160,6 +192,9 @@ export const analyzeCulturalContext = (text, currentCulturalContext = 'general',
 
   const lowerText = text.toLowerCase();
   const detected = [];
+  const indicators = analyzeCulturalIndicators(lowerText);
+  const intents = detectMultipleIntents(text, 0.3);
+  
   const decisionLog = {
     timestamp: new Date().toISOString(),
     evidence: [],
@@ -167,7 +202,7 @@ export const analyzeCulturalContext = (text, currentCulturalContext = 'general',
   };
 
   // 1. Check for specific greetings (High confidence)
-  for (const [lang, data] of Object.entries(CULTURAL_GREETINGS)) {
+  for (const [, data] of Object.entries(CULTURAL_GREETINGS)) {
     if (data.greetings.some(g => lowerText.includes(g))) {
       detected.push({ culture: data.label, confidence: 0.9, type: 'greeting' });
       decisionLog.evidence.push(`Detected greeting for ${data.label}`);
@@ -176,23 +211,46 @@ export const analyzeCulturalContext = (text, currentCulturalContext = 'general',
 
   // 2. Check for keywords and patterns (Medium confidence)
   for (const [region, style] of Object.entries(REGIONAL_STYLES)) {
-    let matches = 0;
+    let score = 0;
     const matchedKeywords = [];
     style.keywords?.forEach(k => { 
-      if (lowerText.includes(k)) {
-        matches++; 
+      if (lowerText.includes(k.toLowerCase())) {
+        score += 0.2; 
         matchedKeywords.push(k);
       }
     });
     style.phrases?.forEach(p => { 
-      if (lowerText.includes(p)) {
-        matches++; 
+      if (lowerText.includes(p.toLowerCase())) {
+        score += 0.3; 
         matchedKeywords.push(p);
       }
     });
+
+    // Restore Multi-factor boosts
+    if (indicators.formalityMarkers.length > 0 && style.formality === 'high') {
+      score += 0.3;
+      decisionLog.evidence.push(`Formality boost for ${region}`);
+    }
+
+    if (indicators.relationshipIndicators.some(rel => ['boss', 'manager', 'supervisor'].includes(rel)) && style.hierarchyAware) {
+      score += 0.4;
+      decisionLog.evidence.push(`Hierarchy boost for ${region} due to relationship indicator`);
+    }
+
+    // Boost based on intents
+    intents.forEach(intent => {
+      if (intent.intent === 'conflict' && style.conflictApproach === 'avoidance') {
+        score += 0.2;
+      }
+    });
+
+    // Slight bias toward current context
+    if (currentCulturalContext === region) {
+      score += 0.1;
+    }
     
-    if (matches > 0) {
-      const confidence = Math.min(0.8, matches * 0.15);
+    if (score > 0) {
+      const confidence = Math.min(0.85, score);
       detected.push({
         culture: region, 
         confidence: confidence, 
@@ -203,7 +261,7 @@ export const analyzeCulturalContext = (text, currentCulturalContext = 'general',
   }
 
   // 3. Check for specific country names
-  for (const [country, data] of Object.entries(COUNTRY_DATA)) {
+  for (const [country] of Object.entries(COUNTRY_DATA)) {
     if (lowerText.includes(country)) {
       detected.push({ culture: country, confidence: 0.85, type: 'explicit' });
       decisionLog.evidence.push(`Explicit mention of country: ${country}`);
@@ -227,7 +285,7 @@ export const analyzeCulturalContext = (text, currentCulturalContext = 'general',
   }
 
   const communicationStyle = getCommunicationStyleForCulture(primaryCulture);
-  const situationalContext = getSituationalContext(text, detectMultipleIntents(text, 0.4));
+  const situationalContext = getSituationalContext(text, intents);
 
   const result = {
     primaryCulture,
@@ -272,7 +330,7 @@ const getCulturalDimensions = (culture) => {
 /**
  * Generates recommendations based on communication style
  */
-const generateRecommendations = (style, culture) => {
+const generateRecommendations = (style, _culture) => {
   const recommendations = [];
   const biasAdjustments = getUserCulturalBiasAdjustments();
   
@@ -338,11 +396,25 @@ const getSensitivityPhrases = (culture) => {
  */
 const getSituationalContext = (text, intents) => {
   const lowerText = text.toLowerCase();
-  return {
+  const context = {
     interactionGoal: intents.some(i => i.intent === 'strategic') ? 'negotiation' : 'general',
     isPublicSetting: lowerText.includes('everyone') || lowerText.includes('all') || lowerText.includes('team'),
-    formalityLevel: lowerText.includes('sir') || lowerText.includes('please') ? 'high' : 'neutral'
+    formalityLevel: lowerText.includes('sir') || lowerText.includes('please') ? 'high' : 'neutral',
+    urgency: 'low',
+    relationshipType: 'neutral'
   };
+
+  if (lowerText.includes('asap') || lowerText.includes('urgent') || intents.some(i => i.intent === 'conflict')) {
+    context.urgency = 'high';
+  }
+
+  if (lowerText.includes('boss') || lowerText.includes('manager') || lowerText.includes('supervisor')) {
+    context.relationshipType = 'hierarchical';
+  } else if (lowerText.includes('friend') || lowerText.includes('buddy')) {
+    context.relationshipType = 'peer';
+  }
+
+  return context;
 };
 
 /**

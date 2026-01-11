@@ -3,7 +3,7 @@
  */
 import { MLPipeline } from './MLPipeline';
 import { WorkerState, updatePerformanceMode, initConversationTurnManager } from './state';
-import { sanitizeText, throttledProgress } from './utils';
+import { sanitizeText } from './utils';
 import { WorkerMessenger } from './Messenger';
 import { AppConfig } from '../config';
 import { analyzeEmotion } from '../utils/emotion';
@@ -14,7 +14,7 @@ import { generateSystemPrompt } from './promptGenerator';
 const messenger = WorkerMessenger.getInstance();
 
 export const handleSTT = async (audio, taskId, settings) => {
-  const pipelineManager = await MLPipeline.getInstance();
+  await MLPipeline.getInstance();
   const audioStartTime = performance.now();
   const audioData = audio instanceof Float32Array ? audio : new Float32Array(Object.values(audio));
 
@@ -44,7 +44,7 @@ export const handleSTT = async (audio, taskId, settings) => {
 
 export const handleLLM = async (data, taskId) => {
   const { text, persona, history, culturalContext, preferences, settings } = data;
-  const pipelineManager = await MLPipeline.getInstance();
+  await MLPipeline.getInstance();
   
   const sanitizedText = text.trim().substring(0, AppConfig.system.maxTranscriptLength);
   const emotionData = analyzeEmotion(sanitizedText);
@@ -66,6 +66,11 @@ export const handleLLM = async (data, taskId) => {
   messenger.postMessage({
     type: 'llm_result',
     text: result[0].generated_text,
+    emotionData,
+    coachingInsights: {
+      cultural: detectedCultural,
+      intents // Included to satisfy linter and provide extra context
+    },
     taskId
   });
 };

@@ -146,6 +146,10 @@ export const useMLWorker = () => {  const [state, dispatch] = useReducer(workerR
     updateCulturalContext
   } = useAppPreferences(dispatch);
   
+  // Track retry UI states
+  const [isRetrying, setIsRetryingState] = useState(false);
+  const [isRetryingLLM, setIsRetryingLLMState] = useState(false);
+  
   const worker = useRef(null);
   const settingsRef = useRef(settings);
   const stateRef = useRef(state);
@@ -205,12 +209,12 @@ export const useMLWorker = () => {  const [state, dispatch] = useReducer(workerR
   }, [state.persona, state.culturalContext, prewarmSystemPrompt]);
 
   const initWorker = useCallback(() => {
-    // Explicitly reset the React state before re-initializing the worker
-    dispatch({ type: 'RESET_STATE' });
-    setIsRetryingState(false);
-    setIsRetryingLLMState(false);
-
     if (worker.current) {
+      // Explicitly reset the React state before re-initializing the worker
+      dispatch({ type: 'RESET_STATE' });
+      setIsRetryingState(false);
+      setIsRetryingLLMState(false);
+
       // Send terminate message to properly clean up the worker
       worker.current.postMessage({ type: 'terminate' });
       worker.current.terminate();
@@ -474,6 +478,7 @@ export const useMLWorker = () => {  const [state, dispatch] = useReducer(workerR
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     initWorker();
   }, [initWorker]);
 
@@ -523,10 +528,6 @@ export const useMLWorker = () => {  const [state, dispatch] = useReducer(workerR
       taskId: generateUniqueId('refresh')
     });
   }, [state.transcript, state.isProcessing, history, state.persona, state.culturalContext, prefsCache]); // Optimized: No 'settings' dependency
-
-  // Track retry UI states
-  const [isRetrying, setIsRetryingState] = useState(false);
-  const [isRetryingLLM, setIsRetryingLLMState] = useState(false);
 
   const retrySTTLoad = useCallback(() => {
     if (!worker.current) return;

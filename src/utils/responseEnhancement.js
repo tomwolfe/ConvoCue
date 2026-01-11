@@ -1,9 +1,5 @@
-import { analyzeEmotion } from './emotion';
-import { getDislikedPhrases } from './feedback';
 import { secureLocalStorageGet } from './encryption';
 import {
-  getNaturalPhrasing,
-  culturalContextDatabase,
   getCommunicationStyleForCulture
 } from './culturalContext';
 import { generateIntentBasedCue } from './intentRecognition';
@@ -28,7 +24,6 @@ export const getInferredPreferences = async () => {
     }
 
     const liked = feedbackHistory.filter(f => f.feedbackType === 'like');
-    const disliked = feedbackHistory.filter(f => f.feedbackType === 'dislike');
 
     let preferredLength = 'medium';
     if (liked.length > 0) {
@@ -44,7 +39,7 @@ export const getInferredPreferences = async () => {
       responsePatterns: [],
       avoidPatterns: []
     };
-  } catch (e) {
+  } catch (_e) {
     return { preferredLength: 'medium', preferredTone: 'balanced', preferredStyle: 'adaptive', responsePatterns: [], avoidPatterns: [] };
   }
 };
