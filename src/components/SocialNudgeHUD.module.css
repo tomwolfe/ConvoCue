@@ -1,7 +1,15 @@
-.nudgeHudContainer {
+.nudgeHudWrapper {
   position: fixed;
   top: 20px;
   right: 20px;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.nudgeHudContainer {
   background: rgba(20, 20, 20, 0.9);
   color: white;
   padding: 12px 20px;
@@ -10,13 +18,49 @@
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  z-index: 10000;
   font-family: 'Inter', -apple-system, sans-serif;
   box-shadow: 0 8px 32px rgba(0,0,0,0.5);
   min-width: 220px;
   backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.1);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.nudgeTooltip {
+  background: rgba(40, 40, 40, 0.95);
+  color: #00e676;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  max-width: 200px;
+  text-align: right;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  border: 1px solid rgba(0, 230, 118, 0.2);
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.nudgeInfoBtn {
+  background: none;
+  border: none;
+  color: white;
+  opacity: 0.4;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.nudgeInfoBtn:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .nudgeContent {

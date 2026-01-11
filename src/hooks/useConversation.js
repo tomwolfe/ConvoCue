@@ -104,11 +104,8 @@ export const useConversation = () => {
     dispatch({ type: 'CLEAR_HISTORY' });
   }, []);
 
-  const engagement = useMemo(() => calculateEngagement(state.conversationTurns), [state.conversationTurns]);
-
   return {
     ...state,
-    engagement,
     addMessage,
     setSentiment,
     updateLastMessageTime,

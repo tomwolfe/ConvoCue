@@ -8,16 +8,20 @@
 /**
  * Calculates talk ratio and other dynamics from turns.
  * @param {Array} turns - Array of conversation turns.
+ * @param {Object} options - Options including isGroupMode.
  * @returns {Object} Engagement metrics.
  */
-export const calculateEngagement = (turns) => {
+export const calculateEngagement = (turns, options = {}) => {
+  const { isGroupMode = false } = options;
+  
   if (!turns || turns.length === 0) {
     return {
       talkRatio: 0,
       userTurns: 0,
       otherTurns: 0,
       totalTurns: 0,
-      pace: 0 // words per minute (estimate)
+      pace: 0,
+      isGroupMode
     };
   }
 
@@ -29,13 +33,24 @@ export const calculateEngagement = (turns) => {
   const turnRatio = userTurns.length / totalTurns;
 
   // Refinement: Word-based Talk Ratio (more accurate for 80/20)
-  // This prevents short "OK" responses from being weighted the same as long monologues.
   const userWordCount = userTurns.reduce((sum, t) => sum + (t.content?.split(' ').length || 0), 0);
   const totalWordCount = turns.reduce((sum, t) => sum + (t.content?.split(' ').length || 0), 0);
   const wordRatio = totalWordCount > 0 ? userWordCount / totalWordCount : 0;
 
-  // Balanced Talk Ratio (average of turn and word ratios for robustness)
-  const talkRatio = (turnRatio + wordRatio) / 2;
+  // Balanced Talk Ratio
+  let talkRatio = (turnRatio + wordRatio) / 2;
+
+  // Adjustment for Group Mode: 
+  // If in group mode, we don't know the exact number of participants, but we assume > 2.
+  // We can attempt to estimate unique speakers if they were tracked, 
+  // but since they aren't fully tracked as individual IDs, we use a multiplier
+  // to make the talkRatio more sensitive to "dominating" behavior.
+  if (isGroupMode) {
+    // In a group, a user's "fair share" is smaller. 
+    // We boost the reported talkRatio to trigger nudges earlier.
+    // E.g., if talkRatio is 0.4, in a group of 3 it might be considered "high".
+    talkRatio = talkRatio * 1.5; 
+  }
 
   // Estimate Pace (last 5 turns)
   const recentTurns = turns.slice(-5);
@@ -53,6 +68,7 @@ export const calculateEngagement = (turns) => {
     userTurns: userTurns.length,
     otherTurns: otherTurns.length,
     totalTurns,
-    pace: Math.round(pace)
+    pace: Math.round(pace),
+    isGroupMode
   };
 };

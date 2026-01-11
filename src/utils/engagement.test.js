@@ -47,4 +47,18 @@ describe('calculateEngagement', () => {
     // 10 words over 1 minute = 10 wpm
     expect(metrics.pace).toBe(10);
   });
+
+  it('adjusts talk ratio in group mode', () => {
+    const turns = [
+      { role: 'user', content: 'Balanced turn.', timestamp: Date.now() },
+      { role: 'other', content: 'Another balanced turn.', timestamp: Date.now() + 1000 }
+    ];
+    
+    const normalMetrics = calculateEngagement(turns, { isGroupMode: false });
+    const groupMetrics = calculateEngagement(turns, { isGroupMode: true });
+    
+    // In group mode, talkRatio should be boosted to detect "dominating" behavior earlier
+    expect(groupMetrics.talkRatio).toBe(normalMetrics.talkRatio * 1.5);
+    expect(groupMetrics.isGroupMode).toBe(true);
+  });
 });

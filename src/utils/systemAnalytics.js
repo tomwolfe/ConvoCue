@@ -12,8 +12,16 @@ const MAX_EVENTS = 200;
  * Tracks a system-level event
  * @param {string} eventType - Type of event (e.g., 'haptics_failure', 'wasm_load_retry')
  * @param {Object} details - Event details
+ * @param {boolean} privacyMode - Whether privacy mode is enabled
  */
-export const trackSystemEvent = async (eventType, details = {}) => {
+export const trackSystemEvent = async (eventType, details = {}, privacyMode = false) => {
+  if (privacyMode) {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[SystemAnalytics] Privacy Mode Active: Suppressing ${eventType}`);
+    }
+    return;
+  }
+  
   try {
     const events = await secureLocalStorageGet(SYSTEM_EVENTS_KEY, []);
     

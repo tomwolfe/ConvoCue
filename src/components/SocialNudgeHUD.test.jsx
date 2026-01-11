@@ -52,7 +52,7 @@ describe('SocialNudgeHUD', () => {
       engagement: { talkRatio: 0.7, totalTurns: 5 },
       detectedIntent: null,
       isProcessing: true,
-      settings: { hapticsEnabled: true }
+      settings: { hapticsEnabled: true, privacyMode: false }
     });
 
     provideIntentHaptics.mockImplementationOnce(() => {
@@ -64,7 +64,7 @@ describe('SocialNudgeHUD', () => {
     expect(trackSystemEvent).toHaveBeenCalledWith('haptics_failure', expect.objectContaining({
       nudgeId: 'CONFLICT',
       error: 'Not supported'
-    }));
+    }), false);
   });
 
   it('is hidden when not processing and no turns', () => {
@@ -97,5 +97,25 @@ describe('SocialNudgeHUD', () => {
     });
 
     expect(screen.queryByText('Pause & Listen')).toBeNull();
+  });
+
+  it('shows tooltip when info button is clicked', async () => {
+    useMLWorker.mockReturnValue({
+      engagement: { talkRatio: 0.7, totalTurns: 5 },
+      detectedIntent: null,
+      isProcessing: true,
+      settings: { hapticsEnabled: true },
+      culturalContext: 'japan'
+    });
+
+    render(<SocialNudgeHUD />);
+    
+    const infoBtn = screen.getByLabelText('Why this nudge?');
+    
+    await act(async () => {
+      fireEvent.click(infoBtn);
+    });
+
+    expect(screen.getByText(/Calibrated for japan communication style/)).toBeDefined();
   });
 });

@@ -162,8 +162,8 @@ const analyzeCulturalIndicators = (text) => {
 /**
  * Detects cultural context from text and history
  */
-export const analyzeCulturalContext = (text, currentCulture = 'general', _history = [], relationshipContext = {}) => {
-  if (!text || isCulturalOptOut()) {
+export const analyzeCulturalContext = (text, currentCulture = 'general', _history = [], relationshipContext = {}, privacyMode = false) => {
+  if (!text || isCulturalOptOut() || privacyMode) {
     return {
       primaryCulture: currentCulture,
       confidence: 0,
@@ -175,7 +175,8 @@ export const analyzeCulturalContext = (text, currentCulture = 'general', _histor
       needsCulturalAwareness: false,
       disclaimer: "This is general cultural guidance based on detected patterns.",
       warning: "Cultural patterns are broad generalizations.",
-      relationshipDynamics: relationshipContext
+      relationshipDynamics: relationshipContext,
+      privacyModeActive: privacyMode
     };
   }
 

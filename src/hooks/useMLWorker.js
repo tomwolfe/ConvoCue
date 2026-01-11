@@ -9,6 +9,7 @@ import { provideHapticFeedback, provideIntentHaptics } from '../utils/haptics';
 import { detectIntentHighPerformance } from '../utils/intentRecognition';
 import { getInsightCategoryScores } from '../utils/feedback';
 import performanceMonitor from '../utils/performance';
+import { calculateEngagement } from '../utils/engagement';
 import { usePerformanceMonitor } from './usePerformanceMonitor';
 import { usePersonaOrchestration } from './usePersonaOrchestration';
 import { ML_STATES } from '../worker/MLStateMachine';
@@ -145,6 +146,11 @@ export const useMLWorker = () => {  const [state, dispatch] = useReducer(workerR
     updatePersona,
     updateCulturalContext
   } = useAppPreferences(dispatch);
+  
+  const engagement = useMemo(() => 
+    calculateEngagement(conversationTurns, { isGroupMode: settings.isGroupMode }), 
+    [conversationTurns, settings.isGroupMode]
+  );
   
   // Track retry UI states
   const [isRetrying, setIsRetryingState] = useState(false);
@@ -608,6 +614,7 @@ export const useMLWorker = () => {  const [state, dispatch] = useReducer(workerR
     history,
     conversationTurns,
     conversationSentiment,
+    engagement,
     processAudio,
     refreshSuggestion,
     retrySTTLoad, // Add the retry function to the returned object

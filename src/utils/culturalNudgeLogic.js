@@ -4,6 +4,10 @@ import { getCommunicationStyleForCulture } from './culturalIntelligence';
  * Calibrates nudge configuration based on cultural context.
  * 80/20 Pareto fix for cultural myopia in social coaching.
  * 
+ * DESIGN CHOICE: The 'general' context defaults to a balanced Western-centric average 
+ * (talkRatioThreshold = 0.6) but is designed to be overridden by detected 
+ * high-context or direct communication styles.
+ * 
  * @param {string} culturalContext - The detected cultural context (e.g., 'east-asian', 'usa')
  * @param {Object} engagement - Engagement metrics from calculateEngagement
  * @param {string} detectedIntent - The detected intent from ML worker

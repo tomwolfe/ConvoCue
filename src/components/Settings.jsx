@@ -21,6 +21,7 @@ const Settings = ({ isOpen, onClose }) => {
     autoPersonaSensitivity: 'medium',
     showCoachingInsights: true,
     showSocialNudge: true,
+    isGroupMode: false,
     showSubtleCoaching: false,
     privacyMode: false,
     isSubtleMode: false,
@@ -297,7 +298,7 @@ const Settings = ({ isOpen, onClose }) => {
                   <h3>Social Nudge HUD</h3>
                   <p>Real-time visual and haptic cues for conversation flow</p>
                   <small className="text-muted" style={{ display: 'block', marginTop: '0.25rem', fontSize: '0.7rem' }}>
-                    Optimized for 1:1 interactions. Includes haptic alerts on supported devices.
+                    Includes haptic alerts on supported devices.
                   </small>
                 </div>
                 <label className="toggle-switch">
@@ -305,6 +306,24 @@ const Settings = ({ isOpen, onClose }) => {
                     type="checkbox"
                     checked={settings.showSocialNudge}
                     onChange={(e) => handleSettingChange('showSocialNudge', e.target.checked)}
+                  />
+                  <span className="slider"></span>
+                </label>
+              </div>
+
+              <div className="setting-item">
+                <div className="setting-info">
+                  <h3>Group Mode</h3>
+                  <p>Calibrate engagement metrics for 3+ participants</p>
+                  <small className="text-muted" style={{ display: 'block', marginTop: '0.25rem', fontSize: '0.7rem' }}>
+                    Adjusts "dominating" thresholds for more participants.
+                  </small>
+                </div>
+                <label className="toggle-switch">
+                  <input
+                    type="checkbox"
+                    checked={settings.isGroupMode}
+                    onChange={(e) => handleSettingChange('isGroupMode', e.target.checked)}
                   />
                   <span className="slider"></span>
                 </label>

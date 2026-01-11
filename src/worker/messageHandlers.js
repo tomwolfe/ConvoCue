@@ -159,7 +159,13 @@ export const handleLLM = async (data) => {
         const isPowerSavingMode = WorkerState.performanceStats.mode === 'minimal';
         const shouldRunDeepAnalysis = !isPowerSavingMode;
 
-        let detectedCulturalContext = analyzeCulturalContext(sanitizedText, culturalContext, isPowerSavingMode ? [] : (history || []));
+        let detectedCulturalContext = analyzeCulturalContext(
+            sanitizedText, 
+            culturalContext, 
+            isPowerSavingMode ? [] : (history || []),
+            {},
+            settings.privacyMode
+        );
 
         let culturalOverrideThreshold = _settings?.culturalOverrideThreshold || AppConfig.culturalIntelligenceConfig?.confidence?.overrideThreshold || 0.85;
         const hasHighStakesIntent = intents?.some(i => ['strategic', 'negotiation', 'leadership'].includes(i.intent));
