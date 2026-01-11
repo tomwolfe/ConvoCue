@@ -229,7 +229,7 @@ const App = () => {
       {settings && !settings.privacyMode && settings.showAnalytics && <Analytics />}
       <PrivacyConsent onConsentGiven={handlePrivacyConsent} />
       <div className={`app-container ${isCompactMode ? 'compact-view' : ''}`} role="main" aria-label="ConvoCue Application">
-        {hasInteracted && <SocialNudgeHUD />}
+        {hasInteracted && settings?.showSocialNudge !== false && <SocialNudgeHUD />}
         {showTutorial && (
           <Tutorial
             onComplete={handleTutorialComplete}

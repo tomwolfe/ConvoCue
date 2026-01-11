@@ -1,4 +1,5 @@
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
+import { X } from 'lucide-react';
 import { useMLWorker } from '../hooks/useMLWorker';
 import { provideIntentHaptics } from '../utils/haptics';
 import './SocialNudgeHUD.css';
@@ -7,9 +8,12 @@ import './SocialNudgeHUD.css';
  * Pareto Feature #1: Social Nudge HUD
  * Provides real-time visual and haptic cues based on conversation flow.
  * Maximizes impact by giving immediate, actionable feedback during live interactions.
+ * 
+ * Note: Optimized for 1:1 interactions. Talk ratio may be less accurate in group settings.
  */
 const SocialNudgeHUD = () => {
   const { engagement, detectedIntent, isProcessing, settings } = useMLWorker();
+  const [dismissedNudgeId, setDismissedNudgeId] = useState(null);
 
   // Logic: Pareto-optimal coaching rules
   const nudge = useMemo(() => {
@@ -42,14 +46,26 @@ const SocialNudgeHUD = () => {
     return { color: '#2979ff', label: 'Engage More', intensity: 0, id: 'SUGGESTION' };
   }, [engagement, detectedIntent]);
 
+  // Reset dismissal when nudge ID changes to something high-intensity
+  useEffect(() => {
+    if (nudge.id !== dismissedNudgeId && nudge.intensity > 0) {
+      setDismissedNudgeId(null);
+    }
+  }, [nudge.id, nudge.intensity]);
+
   // Trigger Haptics on Nudge Change
   useEffect(() => {
     // Only trigger haptics for "warning" or "action" nudges to avoid fatigue
-    if (settings?.hapticsEnabled !== false && nudge.intensity > 0) {
-      provideIntentHaptics(nudge.id);
+    if (settings?.hapticsEnabled !== false && nudge.intensity > 0 && nudge.id !== dismissedNudgeId) {
+      try {
+        provideIntentHaptics(nudge.id);
+      } catch (error) {
+        console.warn('Haptic feedback failed:', error);
+      }
     }
-  }, [nudge.id, settings?.hapticsEnabled, nudge.intensity]);
+  }, [nudge.id, settings?.hapticsEnabled, nudge.intensity, dismissedNudgeId]);
 
+  if (dismissedNudgeId === nudge.id) return null;
   if (!isProcessing && (!engagement || engagement.totalTurns === 0)) return null;
 
   return (
@@ -60,14 +76,23 @@ const SocialNudgeHUD = () => {
           <span className="nudge-subtext">Talk Ratio: {Math.round(engagement.talkRatio * 100)}%</span>
         )}
       </div>
-      <div className="nudge-indicator-mini">
-        <div 
-          className="nudge-pulse" 
-          style={{ 
-            backgroundColor: nudge.color, 
-            animation: nudge.intensity > 1 ? 'nudgePulse 1s infinite' : 'none' 
-          }} 
-        />
+      <div className="nudge-actions">
+        <div className="nudge-indicator-mini">
+          <div 
+            className="nudge-pulse" 
+            style={{ 
+              backgroundColor: nudge.color, 
+              animation: nudge.intensity > 1 ? 'nudgePulse 1s infinite' : 'none' 
+            }} 
+          />
+        </div>
+        <button 
+          className="nudge-dismiss-btn" 
+          onClick={() => setDismissedNudgeId(nudge.id)}
+          aria-label="Dismiss nudge"
+        >
+          <X size={14} />
+        </button>
       </div>
     </div>
   );

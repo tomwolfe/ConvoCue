@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import React from 'react';
 import SocialNudgeHUD from './SocialNudgeHUD';
 import { useMLWorker } from '../hooks/useMLWorker';
@@ -61,5 +61,25 @@ describe('SocialNudgeHUD', () => {
 
     const { container } = render(<SocialNudgeHUD />);
     expect(container.firstChild).toBeNull();
+  });
+
+  it('can be dismissed', async () => {
+    useMLWorker.mockReturnValue({
+      engagement: { talkRatio: 0.7, totalTurns: 5 },
+      detectedIntent: null,
+      isProcessing: true,
+      settings: { hapticsEnabled: true }
+    });
+
+    render(<SocialNudgeHUD />);
+    expect(screen.getByText('Pause & Listen')).toBeDefined();
+
+    const dismissBtn = screen.getByLabelText('Dismiss nudge');
+    
+    await act(async () => {
+      fireEvent.click(dismissBtn);
+    });
+
+    expect(screen.queryByText('Pause & Listen')).toBeNull();
   });
 });

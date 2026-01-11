@@ -20,6 +20,7 @@ const Settings = ({ isOpen, onClose }) => {
     enableAutoPersona: true,
     autoPersonaSensitivity: 'medium',
     showCoachingInsights: true,
+    showSocialNudge: true,
     showSubtleCoaching: false,
     privacyMode: false,
     isSubtleMode: false,
@@ -286,6 +287,24 @@ const Settings = ({ isOpen, onClose }) => {
                     type="checkbox"
                     checked={settings.showCoachingInsights}
                     onChange={(e) => handleSettingChange('showCoachingInsights', e.target.checked)}
+                  />
+                  <span className="slider"></span>
+                </label>
+              </div>
+
+              <div className="setting-item">
+                <div className="setting-info">
+                  <h3>Social Nudge HUD</h3>
+                  <p>Real-time visual and haptic cues for conversation flow</p>
+                  <small className="text-muted" style={{ display: 'block', marginTop: '0.25rem', fontSize: '0.7rem' }}>
+                    Optimized for 1:1 interactions. Includes haptic alerts on supported devices.
+                  </small>
+                </div>
+                <label className="toggle-switch">
+                  <input
+                    type="checkbox"
+                    checked={settings.showSocialNudge}
+                    onChange={(e) => handleSettingChange('showSocialNudge', e.target.checked)}
                   />
                   <span className="slider"></span>
                 </label>

@@ -38,6 +38,36 @@
   font-weight: 500;
 }
 
+.nudge-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.nudge-dismiss-btn {
+  background: none;
+  border: none;
+  color: white;
+  opacity: 0.4;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.nudge-dismiss-btn:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.nudge-indicator-mini {
+  display: flex;
+  align-items: center;
+}
+
 .nudge-pulse {
   width: 14px;
   height: 14px;
