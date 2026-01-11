@@ -148,10 +148,35 @@ const applyCulturalRefinement = (response, culture) => {
   const style = getCommunicationStyleForCulture(culture);
   let refined = response;
 
-  if (style.directness === 'indirect' && Math.random() > 0.3) {
-    refined = refined.replace(/\b(no|never|wrong)\b/gi, 'perhaps not quite');
+  const patterns = {
+    indirect: [
+      { pattern: /\b(no|never|wrong)\b/gi, alternatives: ['that might be difficult', 'perhaps not quite', 'that is a challenge'] },
+      { pattern: /\b(must|should|have to)\b/gi, alternatives: ['perhaps we could', 'it might be helpful to', 'may I suggest'] },
+      { pattern: /\b(i want|i need)\b/gi, alternatives: ['I would appreciate it if we could', 'it would be helpful if'] }
+    ],
+    direct: [
+      { pattern: /it seems like maybe we could/gi, alternatives: ['we should', 'I recommend'] },
+      { pattern: /perhaps it might be better to/gi, alternatives: ['it is better to', 'let\'s'] }
+    ]
+  };
+
+  const getRandom = (alts) => alts[Math.floor(Math.random() * alts.length)];
+
+  if (style.directness === 'indirect') {
+    patterns.indirect.forEach(({ pattern, alternatives }) => {
+      if (Math.random() > 0.3) refined = refined.replace(pattern, () => getRandom(alternatives));
+    });
+    // Add polite preamble for very short responses in indirect cultures
+    if (refined.length < 50 && !refined.toLowerCase().includes('respect')) {
+      const preambles = ['With respect, ', 'Perhaps, ', 'I was thinking, '];
+      refined = getRandom(preambles) + refined.charAt(0).toLowerCase() + refined.slice(1);
+    }
+  } else if (style.directness === 'direct' || style.directness === 'very-direct') {
+    patterns.direct.forEach(({ pattern, alternatives }) => {
+      if (Math.random() > 0.3) refined = refined.replace(pattern, () => getRandom(alternatives));
+    });
   }
-  
+
   return refined;
 };
 
