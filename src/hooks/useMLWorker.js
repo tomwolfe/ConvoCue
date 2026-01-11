@@ -293,7 +293,8 @@ export const useMLWorker = () => {  const [state, dispatch] = useReducer(workerR
                 const confidenceThreshold = settingsRef.current.intentDetection?.confidenceThreshold ?? 0.5;
 
                 // Use enhanced detection with conversation context
-                const enhancedResult = detectIntentWithConversationContext(cleanText, 5); // Use last 5 turns for context
+                // Use summarization for longer context windows to preserve important early turns
+                const enhancedResult = detectIntentWithConversationContext(cleanText, 10, true); // Use last 10 turns with summarization
                 const { primaryIntent, allIntents } = enhancedResult;
 
                 // Use the primary intent from enhanced detection if confidence is sufficient
