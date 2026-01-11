@@ -6,8 +6,8 @@ import { MLPipeline } from '../worker/MLPipeline';
 import { WorkerMessenger } from '../worker/Messenger';
 import { enhanceResponse } from '../utils/responseEnhancement';
 import { detectIntentWithContext } from '../utils/intentRecognition';
-import { analyzeEmotion } from '../utils/emotionAnalysis'; // Assuming this exists
-import { generateCoachingInsights } from '../utils/coachingInsights'; // Assuming this exists
+import { analyzeEmotion } from '../utils/emotion'; // Assuming this exists
+import { parseSummaryResponse, createStructuredSummaryPrompt } from '../utils/summaryParser';
 
 const messenger = WorkerMessenger.getInstance();
 
@@ -16,7 +16,7 @@ const messenger = WorkerMessenger.getInstance();
  */
 export const handleGenerateSummary = async (data) => {
   const { conversationHistory, options = {}, taskId } = data;
-  
+
   try {
     // Validate inputs
     if (!conversationHistory || !Array.isArray(conversationHistory) || conversationHistory.length === 0) {
@@ -44,45 +44,14 @@ export const handleGenerateSummary = async (data) => {
       .map(turn => `${turn.role || 'user'}: ${turn.content || turn.text || ''}`)
       .join('\n');
 
-    // Construct the summary prompt
-    let prompt = `Please provide a concise summary of the following conversation:\n\n${formattedHistory}\n\n`;
-    
-    // Add specific instructions based on options
-    const { 
-      includeThemes = true, 
-      includeActionItems = true, 
-      includeSentiment = true, 
-      summaryLength = 'medium' 
-    } = options;
-
-    if (includeThemes) {
-      prompt += "Identify the main themes discussed. ";
-    }
-    
-    if (includeActionItems) {
-      prompt += "List any action items or commitments mentioned. ";
-    }
-    
-    if (includeSentiment) {
-      prompt += "Describe the overall sentiment of the conversation. ";
-    }
-
-    switch(summaryLength) {
-      case 'short':
-        prompt += "Keep the summary brief (2-3 sentences).";
-        break;
-      case 'long':
-        prompt += "Provide a detailed summary with specific examples.";
-        break;
-      default: // medium
-        prompt += "Provide a moderate-length summary (3-5 sentences).";
-    }
+    // Use the structured prompt to get better formatted responses for parsing
+    const prompt = createStructuredSummaryPrompt(formattedHistory, options);
 
     // Prepare the message for the LLM
     const messages = [
       {
         role: "system",
-        content: "You are an expert conversation analyst. Provide accurate, concise summaries of conversations. Focus on extracting key themes, action items, and sentiment."
+        content: "You are an expert conversation analyst. Provide accurate, concise summaries of conversations. Focus on extracting key themes, action items, and sentiment. Format your response with clear headings like 'Themes:', 'Action Items:', and 'Sentiment:' to make it easy to parse."
       },
       {
         role: "user",
@@ -92,23 +61,24 @@ export const handleGenerateSummary = async (data) => {
 
     // Generate the summary using the LLM
     const output = await llm(messages, {
-      max_new_tokens: 200,
+      max_new_tokens: 300, // Increased to allow for structured response
       temperature: 0.5,
       do_sample: true
     });
 
     const summaryText = output[0].generated_text;
 
-    // Send the summary back to the main thread
+    // Parse the response to extract structured information
+    const parsedSummary = parseSummaryResponse(summaryText, options);
+
+    // Send the structured summary back to the main thread
     messenger.postMessage({
       type: 'summary_result',
       summary: {
         summary: summaryText,
-        // For now, we'll return empty arrays - in a more sophisticated implementation
-        // we would parse the summary text to extract themes, action items, etc.
-        themes: [],
-        actionItems: [],
-        sentiment: 'neutral', // Would be extracted from the summary in a more sophisticated implementation
+        themes: parsedSummary.themes || [],
+        actionItems: parsedSummary.actionItems || [],
+        sentiment: parsedSummary.sentiment || 'neutral',
         confidence: 0.8,
       },
       taskId
@@ -292,4 +262,11 @@ export const handleRetryLLMLoad = async (data) => {
 
 export const handleCleanup = async (data) => {
   // Implementation for cleaning up resources
+};
+
+export const handleTerminate = async (data, memoryInterval) => {
+  if (memoryInterval) clearInterval(memoryInterval);
+  // Cleanup resources if needed
+  // Close the worker
+  setTimeout(() => self.close(), 50);
 };

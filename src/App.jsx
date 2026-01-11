@@ -112,9 +112,6 @@ const App = () => {
    */
   const isReadyForUse = mlState === ML_STATES.READY || mlState === ML_STATES.TEXT_ONLY_MODE || mlState === ML_STATES.STT_READY;
 
-  // Get the worker reference from the hook
-  const mlWorker = useMLWorker();
-
   useEffect(() => {
     if (isDyslexicFriendly) {
       document.body.classList.add('dyslexic-mode');

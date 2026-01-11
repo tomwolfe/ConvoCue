@@ -110,15 +110,15 @@ const ConversationSummary = ({ conversationTurns, isVisible, onClose, workerRef 
             <div className="summary-stats">
               <div className="stat-item">
                 <TrendingUp size={16} />
-                <span>{summary.stats.sentiment.charAt(0).toUpperCase() + summary.stats.sentiment.slice(1)}</span>
+                <span>{summary.sentiment ? summary.sentiment.charAt(0).toUpperCase() + summary.sentiment.slice(1) : 'Neutral'}</span>
               </div>
               <div className="stat-item">
                 <Calendar size={16} />
-                <span>{summary.stats.themesCount} Themes</span>
+                <span>{summary.themes ? summary.themes.length : 0} Themes</span>
               </div>
               <div className="stat-item">
                 <CheckCircle size={16} />
-                <span>{summary.stats.actionItemsCount} Actions</span>
+                <span>{summary.actionItems ? summary.actionItems.length : 0} Actions</span>
               </div>
             </div>
 
