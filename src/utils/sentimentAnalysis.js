@@ -245,3 +245,105 @@ export const analyzeSentimentWithConfidence = (text) => {
     confidence: Math.round(confidence * 100) / 100
   };
 };
+
+/**
+ * Analyzes sentiment across an entire conversation history
+ * @param {Array<Object>} conversationHistory - Array of conversation messages with content and role
+ * @returns {Object} - Overall sentiment analysis for the conversation
+ */
+export const analyzeConversationSentiment = (conversationHistory) => {
+  if (!conversationHistory || !Array.isArray(conversationHistory) || conversationHistory.length === 0) {
+    return {
+      overallSentiment: 'neutral',
+      sentimentScore: 0,
+      participantSentiments: {}
+    };
+  }
+
+  let totalScore = 0;
+  let positiveCount = 0;
+  let negativeCount = 0;
+  let neutralCount = 0;
+
+  const participantSentiments = {};
+
+  // Analyze each message in the conversation
+  conversationHistory.forEach((message, index) => {
+    const content = typeof message === 'string' ? message : (message.content || '');
+    const role = (typeof message !== 'string' && message.role) ? message.role : 'unknown';
+
+    if (content) {
+      const sentimentResult = analyzeSentimentWithConfidence(content);
+      const sentiment = sentimentResult.sentiment;
+
+      // Assign numerical values to sentiments for scoring
+      let score = 0;
+      if (sentiment === 'positive') {
+        score = sentimentResult.confidence;
+        positiveCount++;
+      } else if (sentiment === 'negative') {
+        score = -sentimentResult.confidence;
+        negativeCount++;
+      } else {
+        score = 0;
+        neutralCount++;
+      }
+
+      totalScore += score;
+
+      // Track participant-specific sentiments
+      if (role && role !== 'unknown') {
+        if (!participantSentiments[role]) {
+          participantSentiments[role] = {
+            sentimentCount: 0,
+            totalScore: 0,
+            sentiments: { positive: 0, negative: 0, neutral: 0 }
+          };
+        }
+
+        participantSentiments[role].sentimentCount++;
+        participantSentiments[role].totalScore += score;
+        participantSentiments[role].sentiments[sentiment]++;
+      }
+    }
+  });
+
+  // Calculate average sentiment score
+  const avgScore = conversationHistory.length > 0 ? totalScore / conversationHistory.length : 0;
+
+  // Determine overall sentiment based on average score
+  let overallSentiment;
+  if (avgScore > 0.1) {
+    overallSentiment = 'positive';
+  } else if (avgScore < -0.1) {
+    overallSentiment = 'negative';
+  } else {
+    overallSentiment = 'neutral';
+  }
+
+  // Normalize participant sentiments
+  Object.keys(participantSentiments).forEach(role => {
+    const participant = participantSentiments[role];
+    participant.avgScore = participant.totalScore / participant.sentimentCount;
+
+    if (participant.avgScore > 0.1) {
+      participant.overallSentiment = 'positive';
+    } else if (participant.avgScore < -0.1) {
+      participant.overallSentiment = 'negative';
+    } else {
+      participant.overallSentiment = 'neutral';
+    }
+  });
+
+  return {
+    overallSentiment,
+    sentimentScore: parseFloat(avgScore.toFixed(3)),
+    participantSentiments,
+    statistics: {
+      totalMessages: conversationHistory.length,
+      positiveMessages: positiveCount,
+      negativeMessages: negativeCount,
+      neutralMessages: neutralCount
+    }
+  };
+};
