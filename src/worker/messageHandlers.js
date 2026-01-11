@@ -12,6 +12,7 @@ import { createProgressiveLoadingStrategy, deviceCaps } from '../utils/performan
 import { provideContextualLanguageFeedback } from '../utils/languageLearning';
 import { coordinateFeaturesInResponse, resolveFeatureConflicts } from '../utils/featureCoordination';
 import { calculateSessionTone } from '../utils/personalization';
+import { secureLocalStorageGet, secureLocalStorageSet } from '../utils/encryption';
 import { TextStreamer } from '@huggingface/transformers';
 
 import { MLPipeline } from './MLPipeline';
@@ -187,7 +188,7 @@ export const handleLLM = async (data) => {
 
         // Proactive De-escalation: Notify UI immediately to handle pacing/visuals
         // instead of blocking the entire worker thread.
-        if (sessionTone.suggestedDelay > 0 || sessionTone.isDeEscalating || sessionTone.shouldOverride) {
+        if (sessionTone.suggestedDelay > 0 || sessionTone.isDeEscalating || sessionTone.shouldOverride || sessionTone.isDisengaged || sessionTone.isVeryCalm) {
             messenger.postMessage({
                 type: 'mirroring_status',
                 sessionTone,
@@ -342,6 +343,11 @@ export const handleLLM = async (data) => {
         const coordinatedResponse = coordinateFeaturesInResponse(response, {
             relationship: relationshipInsights, anxiety: anxietyInsights, professional: professionalInsights, meeting: meetingInsights, language: languageLearningInsights
         }, persona, sessionTone);
+
+        // Store session tone in history for future tips
+        const sessionToneHistory = await secureLocalStorageGet('convocue_session_tone_history', []);
+        const updatedHistory = [sessionTone, ...sessionToneHistory.slice(0, 9)]; // Keep last 10 entries
+        await secureLocalStorageSet('convocue_session_tone_history', updatedHistory);
 
         // Await sentiment only for the result metadata, not blocking LLM start
         conversationSentiment = await sentimentPromise;

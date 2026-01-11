@@ -197,24 +197,37 @@ export const validateInsightsConsistency = (insights) => {
 export const coordinateFeaturesInResponse = (response, insights, persona, sessionTone = {}) => {
   // Resolve conflicts between insights
   const resolvedInsights = resolveFeatureConflicts(insights, persona);
-  
+
   // Validate consistency
   const warnings = validateInsightsConsistency(resolvedInsights);
-  
+
   // If there are warnings, add a note to the response
   if (warnings.length > 0) {
     response += `\n\nNote: Multiple guidance systems provided input. Balancing cultural sensitivity with other recommendations.`;
   }
 
   // Proactive De-escalation: Ensure grounding phrase is present
-  // The review suggests incorporating a gentle phrase to act as an emotional anchor.
+  // The review suggests incorporating varied grounding phrases to prevent repetition.
   if (sessionTone.isDeEscalating || sessionTone.shouldOverride) {
-    const groundingPhrase = "I'm here with you.";
-    const hasGrounding = response.includes("I'm here with you") || response.includes("I'm here.");
+    // Use varied grounding phrases to prevent robotic repetition
+    const groundingPhrases = [
+      "I'm here with you.",
+      "I'm here for you.",
+      "I'm listening.",
+      "I'm with you on this.",
+      "I understand what you're going through.",
+      "You're not alone in this."
+    ];
+
+    // Select a random grounding phrase
+    const groundingPhrase = groundingPhrases[Math.floor(Math.random() * groundingPhrases.length)];
+
+    // Check if any grounding phrase is already present
+    const hasGrounding = groundingPhrases.some(phrase => response.includes(phrase));
     if (!hasGrounding) {
        response = `${groundingPhrase} ${response}`;
     }
   }
-  
+
   return response;
 };

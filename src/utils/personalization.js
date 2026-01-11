@@ -171,19 +171,20 @@ export const calculateSessionTone = (text, metadata, emotionData, baselines = DE
   const paceRatio = pace / safeBasePace;
   const volumeRatio = volume / safeBaseVolume;
   
-  // High-arousal emotions add to intensity, but with reduced weight to minimize misclassification impact
+  // High-arousal emotions add to intensity, but with significantly reduced weight to minimize misclassification impact
   // Check if emotion data is reliable (has confidence score) or if emotion is uncertain
   const hasReliableEmotion = emotionData && emotionData.emotion && emotionData.confidence !== undefined;
   const isHighArousal = hasReliableEmotion
     ? ['anger', 'fear', 'surprise', 'joy'].includes(emotionData.emotion.toLowerCase())
     : ['anger', 'fear', 'surprise', 'joy'].includes(emotionData.emotion?.toLowerCase()); // fallback for when no confidence data
 
-  // Reduce emotion weight when confidence is low or absent, prioritize pace and volume as more reliable metrics
-  const emotionWeight = hasReliableEmotion && emotionData.confidence > 0.7 ? 0.2 : 0.05;
-  const emotionScore = isHighArousal ? 1.4 : 1.0;
+  // Further reduce emotion weight to minimize impact of misclassification
+  // Only use emotion data when confidence is very high (>0.8) to ensure reliability
+  const emotionWeight = hasReliableEmotion && emotionData.confidence > 0.8 ? 0.15 : 0.02;
+  const emotionScore = isHighArousal ? 1.3 : 1.0;
 
-  // Weighted Urgency Score - prioritizing pace and volume over emotion data
-  const urgencyScore = (paceRatio * 0.5) + (volumeRatio * 0.3) + (emotionScore * emotionWeight);
+  // Weighted Urgency Score - heavily prioritizing pace and volume over emotion data
+  const urgencyScore = (paceRatio * 0.6) + (volumeRatio * 0.35) + (emotionScore * emotionWeight);
   
   // Configurable Thresholds based on sensitivity setting
   const sensitivity = settings.mirroringSensitivity || 'medium';
@@ -249,11 +250,22 @@ export const calculateSessionTone = (text, metadata, emotionData, baselines = DE
                         urgencyScore <= CALMING_THRESHOLD && 
                         !shouldOverride;
 
+  // Detect disengagement/withdrawal: very low pace and volume combined with neutral emotion
+  // This addresses the "too calm" detection mentioned in the review
+  const isDisengaged = paceRatio < 0.3 && volumeRatio < 0.3 &&
+                       (!emotionData || emotionData.emotion === 'neutral' || emotionData.emotion === 'sadness');
+  const isVeryCalm = paceRatio < 0.4 && volumeRatio < 0.4 &&
+                     (!emotionData || ['neutral', 'calm'].includes(emotionData.emotion));
+
   let mirroringInstruction = "";
   if (shouldOverride) {
     mirroringInstruction = "[MIRROR: CALMING] I'm here. Let's take a breath. (Respond with a slow, steady pace and calming tone, even if the user is urgent).";
   } else if (isDeEscalating) {
     mirroringInstruction = "[MIRROR: DE-ESCALATE] I'm here with you. (Respond briefly, but maintain a steady, grounding presence. Use slightly longer pauses or '...' between thoughts. Do not match the user's high intensity; act as a calm anchor).";
+  } else if (isDisengaged) {
+    mirroringInstruction = "[MIRROR: MOTIVATIONAL] User appears disengaged. Respond with gentle encouragement and slightly increased energy to re-engage. Ask open-ended questions to invite participation.";
+  } else if (isVeryCalm) {
+    mirroringInstruction = "[MIRROR: ENGAGING] User is very calm. Respond with warm, encouraging tone to maintain engagement. Consider asking thoughtful questions.";
   } else if (isUrgent) {
     mirroringInstruction = "[MIRROR: HIGH-PACE] Respond with extreme brevity (1-5 words). Focus only on immediate tactical needs.";
   } else if (isReflective) {
@@ -269,6 +281,8 @@ export const calculateSessionTone = (text, metadata, emotionData, baselines = DE
     isUrgent,
     isDeEscalating,
     shouldOverride,
+    isDisengaged,
+    isVeryCalm,
     mirroringInstruction,
     suggestedDelay: isDeEscalating ? 1500 : (shouldOverride ? 2000 : 0)
   };
@@ -342,6 +356,13 @@ export const getPersonalizedGrowthTips = async () => {
 
   if (negativeFeedbackCount > positiveFeedbackCount && negativeFeedbackCount > 2) {
     tips.push("The AI's tone adaptation might not match your preferences. Consider adjusting the Mirroring Sensitivity in Settings.");
+  }
+
+  // Add tip about motivational mode if disengagement is frequently detected
+  const sessionToneHistory = await secureLocalStorageGet('convocue_session_tone_history', []);
+  const disengagedCount = sessionToneHistory.filter(t => t.isDisengaged).length;
+  if (disengagedCount > 3) {
+    tips.push("The AI has noticed you seem disengaged at times. Try speaking with slightly more energy, or adjust the Mirroring Sensitivity to encourage more engaging responses.");
   }
 
   return tips;
