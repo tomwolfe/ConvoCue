@@ -146,14 +146,24 @@ export const getCommunicationProfileSummary = async () => {
 /**
  * Calculates real-time session tone based on recent interactions.
  * This is used for "Mirroring" where the AI matches the user's pace and intensity.
- * 
+ *
  * @param {string} text - The current user transcript
  * @param {Object} metadata - Metadata containing duration and RMS (volume)
  * @param {Object} emotionData - Emotional analysis results
  * @param {Object} baselines - User-specific pace/volume baselines
  * @param {Object} settings - User settings including mirroring sensitivity
  * @param {number} consecutiveUrgentTurns - Number of consecutive turns with high urgency
- * @returns {Object} Session tone metrics
+ * @returns {Object} Session tone metrics with properties:
+ *   - pace: Words per second
+ *   - volume: RMS volume level
+ *   - urgencyScore: Calculated urgency score based on pace, volume, and emotion
+ *   - isUrgent: Whether the current interaction is urgent
+ *   - isDeEscalating: Whether proactive de-escalation is needed (suggested delay: 1500ms)
+ *   - shouldOverride: Whether calming override is needed (suggested delay: 2000ms)
+ *   - isDisengaged: Whether user appears disengaged
+ *   - isVeryCalm: Whether user is in a calm state
+ *   - mirroringInstruction: Instructions for AI on how to mirror user's tone
+ *   - suggestedDelay: Delay in milliseconds (1500ms for de-escalation, 2000ms for calming override, 0 otherwise) to create natural, human-like pauses in AI responses
  */
 export const calculateSessionTone = (text, metadata, emotionData, baselines = DEFAULT_BASELINES, settings = {}, consecutiveUrgentTurns = 0) => {
   const words = text.trim().split(/\s+/).filter(w => w.length > 0);
@@ -178,12 +188,15 @@ export const calculateSessionTone = (text, metadata, emotionData, baselines = DE
     ? ['anger', 'fear', 'surprise', 'joy'].includes(emotionData.emotion.toLowerCase())
     : ['anger', 'fear', 'surprise', 'joy'].includes(emotionData.emotion?.toLowerCase()); // fallback for when no confidence data
 
-  // Further reduce emotion weight to minimize impact of misclassification
-  // Only use emotion data when confidence is very high (>0.8) to ensure reliability
+  // Emotion weight safety measures:
+  // - 0.15 for high confidence emotion detection (>0.8) - allows some emotional influence
+  // - 0.02 for low confidence emotion detection - minimal emotional influence to prevent misclassification errors
+  // These conservative weights ensure pace and volume remain the primary drivers of tone detection
   const emotionWeight = hasReliableEmotion && emotionData.confidence > 0.8 ? 0.15 : 0.02;
   const emotionScore = isHighArousal ? 1.3 : 1.0;
 
-  // Weighted Urgency Score - heavily prioritizing pace and volume over emotion data
+  // Weighted Urgency Score - heavily prioritizing pace and volume over emotion data (safety measure)
+  // Pace contributes 60%, volume 35%, and emotion only 2-15% depending on confidence
   const urgencyScore = (paceRatio * 0.6) + (volumeRatio * 0.35) + (emotionScore * emotionWeight);
   
   // Configurable Thresholds based on sensitivity setting
@@ -284,6 +297,8 @@ export const calculateSessionTone = (text, metadata, emotionData, baselines = DE
     isDisengaged,
     isVeryCalm,
     mirroringInstruction,
+    // suggestedDelay creates natural, human-like pauses in AI responses:
+    // 1500ms for de-escalation, 2000ms for calming override, 0 otherwise
     suggestedDelay: isDeEscalating ? 1500 : (shouldOverride ? 2000 : 0)
   };
 };
@@ -323,9 +338,38 @@ export const recordMirroringFeedback = async (feedback, sessionTone, userSetting
 
     // If more than 60% of feedback is negative, consider adjusting sensitivity
     if (wrongFeedbackCount > 0 && (wrongFeedbackCount / (wrongFeedbackCount + rightFeedbackCount)) > 0.6) {
-      console.log("Consider adjusting mirroring sensitivity based on user feedback");
+      // Store the suggestion to lower sensitivity
+      const suggestion = {
+        timestamp: Date.now(),
+        suggestedSensitivity: 'medium',
+        reason: 'Based on user feedback, AI tone may not match preferences'
+      };
+      await secureLocalStorageSet('convocue_sensitivity_suggestion', suggestion);
     }
   }
+};
+
+/**
+ * Gets sensitivity adjustment suggestions based on user feedback
+ * @returns {Promise<Object|null>} Suggestion object with suggested sensitivity level and reason, or null if no suggestion
+ */
+export const getSensitivitySuggestion = async () => {
+  const suggestion = await secureLocalStorageGet('convocue_sensitivity_suggestion', null);
+
+  // Clear the suggestion if it's older than 24 hours to avoid persistent notifications
+  if (suggestion && Date.now() - suggestion.timestamp > 24 * 60 * 60 * 1000) {
+    await secureLocalStorageSet('convocue_sensitivity_suggestion', null);
+    return null;
+  }
+
+  return suggestion;
+};
+
+/**
+ * Clears any existing sensitivity suggestions
+ */
+export const clearSensitivitySuggestion = async () => {
+  await secureLocalStorageSet('convocue_sensitivity_suggestion', null);
 };
 
 /**

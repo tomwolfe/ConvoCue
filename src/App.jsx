@@ -13,6 +13,7 @@ import { AppConfig } from './config';
 import { checkAssets } from './utils/diagnostics';
 import { secureLocalStorageGet, secureLocalStorageSet } from './utils/encryption';
 import { handleSessionEnd } from './utils/privacyHardening';
+import { eventBus, EVENTS } from './utils/eventBus';
 
 import './App.css';
 
@@ -486,6 +487,12 @@ const App = () => {
             }}
             onFullReset={handleFullReset}
             sessionTone={sessionTone}
+            onUpdateSetting={(setting, value) => {
+              // Update the setting in the preferences
+              const newSettings = { ...settings, [setting]: value };
+              // Dispatch the event to update settings globally
+              eventBus.emit(EVENTS.SETTINGS_CHANGED, newSettings);
+            }}
           />
         )}
       </div>

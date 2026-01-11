@@ -14,7 +14,86 @@ import { trackCueDisplayed } from '../utils/engagementTracking';
 import { parseSemanticTags, TAG_METADATA } from '../utils/intentUtils';
 import performanceMonitor from '../utils/performance';
 import TagIcon from './VAD/TagIcon';
-import { recordMirroringFeedback } from '../utils/personalization';
+import { recordMirroringFeedback, getSensitivitySuggestion, clearSensitivitySuggestion } from '../utils/personalization';
+
+// Sensitivity Suggestion Notification Component
+const SensitivitySuggestionNotification = ({ suggestion, onAccept, onDismiss }) => {
+  if (!suggestion) return null;
+
+  return (
+    <div className="suggestion-notification" style={{
+      position: 'fixed',
+      top: '20px',
+      right: '20px',
+      backgroundColor: '#fff',
+      border: '1px solid #e2e8f0',
+      borderRadius: '8px',
+      padding: '12px',
+      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+      zIndex: 1000,
+      maxWidth: '300px',
+      fontSize: '14px'
+    }}>
+      <div className="notification-content">
+        <div className="notification-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Info size={16} color="#3b82f6" />
+            <strong>Suggestion</strong>
+          </div>
+          <button
+            onClick={onDismiss}
+            style={{
+              background: 'none',
+              border: 'none',
+              fontSize: '18px',
+              cursor: 'pointer',
+              color: '#64748b',
+              padding: '0'
+            }}
+            aria-label="Dismiss notification"
+          >
+            ×
+          </button>
+        </div>
+        <p style={{ margin: '8px 0', color: '#334155' }}>
+          Based on your feedback, we noticed the AI's tone might not match your preferences. Would you like to try lowering the Mirroring Sensitivity?
+        </p>
+        <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+          <button
+            onClick={onAccept}
+            style={{
+              flex: 1,
+              padding: '6px 12px',
+              backgroundColor: '#3b82f6',
+              color: 'white',
+              border: '1px solid #3b82f6',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '13px'
+            }}
+          >
+            Yes, Lower It
+          </button>
+          <button
+            onClick={onDismiss}
+            style={{
+              flex: 1,
+              padding: '6px 12px',
+              backgroundColor: '#f1f5f9',
+              color: '#475569',
+              border: '1px solid #cbd5e1',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '13px'
+            }}
+          >
+            Later
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const GlanceWidget = ({ suggestion, emotionData, isProcessing, detectedIntent, settings, persona, sessionTone }) => {
   const [feedbackGiven, setFeedbackGiven] = useState(false);
@@ -158,6 +237,31 @@ const GlanceWidget = ({ suggestion, emotionData, isProcessing, detectedIntent, s
     >
       <p className="glance-suggestion" title={tooltipText}>{displaySuggestion}</p>
       <div className="glance-indicators" aria-live="polite">
+        {/* Visual indicators for de-escalation and calming override states */}
+        {sessionTone && (
+          <>
+            {sessionTone.shouldOverride && (
+              <div
+                className="glance-badge glance-badge--calming-override"
+                title="Calming Override: AI is using a slow, steady, calming tone regardless of user urgency"
+                aria-label="Calming Override Active"
+              >
+                <Zap size={14} color="#8B5CF6" />
+                <span>Calming</span>
+              </div>
+            )}
+            {sessionTone.isDeEscalating && !sessionTone.shouldOverride && (
+              <div
+                className="glance-badge glance-badge--de-escalation"
+                title="De-escalation: AI is maintaining a steady, grounding presence"
+                aria-label="De-escalation Active"
+              >
+                <Activity size={14} color="#10B981" />
+                <span>De-escalating</span>
+              </div>
+            )}
+          </>
+        )}
         {/* Live Intent Indicator (Subtle Mode) */}
         {isProcessing && detectedIntent && TAG_METADATA[detectedIntent] &&
          settings.enabledIntents?.includes(detectedIntent) && (
@@ -339,9 +443,53 @@ const VADContent = ({
   llmFunctional,
   mlState,
   onFullReset,
-  sessionTone
+  sessionTone,
+  onUpdateSetting
 }) => {
   const [availablePersonas, setAvailablePersonas] = useState(AppConfig.models.personas);
+  const [sensitivitySuggestion, setSensitivitySuggestion] = useState(null);
+  const [showSuggestionNotification, setShowSuggestionNotification] = useState(false);
+
+  // Check for sensitivity suggestions on component mount and periodically
+  useEffect(() => {
+    const checkSensitivitySuggestion = async () => {
+      const suggestion = await getSensitivitySuggestion();
+      setSensitivitySuggestion(suggestion);
+      setShowSuggestionNotification(!!suggestion);
+    };
+
+    checkSensitivitySuggestion();
+
+    // Set up periodic check every 30 seconds
+    const intervalId = setInterval(checkSensitivitySuggestion, 30000);
+
+    return () => clearInterval(intervalId);
+  }, []);
+
+  const handleAcceptSuggestion = async () => {
+    // Update the user's settings to reflect the suggested sensitivity
+    if (sensitivitySuggestion && onUpdateSetting) {
+      // Call the parent component's function to update settings
+      try {
+        // We'll trigger a callback to update settings in the parent component
+        onUpdateSetting('mirroringSensitivity', sensitivitySuggestion.suggestedSensitivity);
+      } catch (error) {
+        console.error('Error applying sensitivity suggestion:', error);
+      }
+    }
+
+    // Clear the suggestion and hide notification
+    await clearSensitivitySuggestion();
+    setShowSuggestionNotification(false);
+    setSensitivitySuggestion(null);
+  };
+
+  const handleDismissSuggestion = async () => {
+    // Clear the suggestion and hide notification
+    await clearSensitivitySuggestion();
+    setShowSuggestionNotification(false);
+    setSensitivitySuggestion(null);
+  };
 
   useEffect(() => {
     const loadPersonas = async () => {
@@ -642,6 +790,13 @@ const VADContent = ({
           </button>
         </div>
       )}
+
+      {/* Sensitivity Suggestion Notification */}
+      <SensitivitySuggestionNotification
+        suggestion={sensitivitySuggestion}
+        onAccept={handleAcceptSuggestion}
+        onDismiss={handleDismissSuggestion}
+      />
     </main>
   );
 };

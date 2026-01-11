@@ -1915,6 +1915,8 @@ input:checked + .slider:before {
 .glance-badge.strategic { color: #1d4ed8; background: rgba(29, 78, 216, 0.1); }
 .glance-badge.empathy { color: #db2777; background: rgba(219, 39, 119, 0.1); }
 .glance-badge.question { color: #7c3aed; background: rgba(124, 58, 237, 0.1); }
+.glance-badge--calming-override { color: #8B5CF6; background: rgba(139, 92, 246, 0.15); border: 1px solid rgba(139, 92, 246, 0.3); }
+.glance-badge--de-escalation { color: #10B981; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); }
 
 /* Glance Widget Explanation Tooltip */
 .glance-explanation-tooltip {
