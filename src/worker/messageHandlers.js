@@ -185,9 +185,14 @@ export const handleLLM = async (data) => {
             WorkerState.consecutiveUrgentTurns = 0;
         }
 
-        // Proactive De-escalation: Physical delay before starting response
-        if (sessionTone.suggestedDelay > 0) {
-            await new Promise(resolve => setTimeout(resolve, sessionTone.suggestedDelay));
+        // Proactive De-escalation: Notify UI immediately to handle pacing/visuals
+        // instead of blocking the entire worker thread.
+        if (sessionTone.suggestedDelay > 0 || sessionTone.isDeEscalating || sessionTone.shouldOverride) {
+            messenger.postMessage({
+                type: 'mirroring_status',
+                sessionTone,
+                taskId
+            });
         }
 
         const intents = detectMultipleIntents(sanitizedText, 0.4);

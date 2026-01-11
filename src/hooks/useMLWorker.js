@@ -33,7 +33,8 @@ const initialState = {
   processingStep: 'none',
   error: null,
   persona: 'anxiety', // Default to 'anxiety' (Social Anxiety) as mentioned in tutorial
-  culturalContext: 'general'
+  culturalContext: 'general',
+  sessionTone: null
 };
 // ... rest of the file ...
 
@@ -52,6 +53,8 @@ function workerReducer(state, action) {
         progress: action.progress ?? state.progress,
         isLowMemory: action.isLowMemory ?? state.isLowMemory
       };
+    case 'SET_SESSION_TONE':
+      return { ...state, sessionTone: action.sessionTone };
     case 'SET_READY':
       return { 
         ...state, 
@@ -268,12 +271,18 @@ export const useMLWorker = () => {  const [state, dispatch] = useReducer(workerR
               setIsRetryingState(false);
               setIsRetryingLLMState(false);
               break;
+            case 'mirroring_status':
+              dispatch({ type: 'SET_SESSION_TONE', sessionTone: event.data.sessionTone });
+              break;
             case 'stt_result': {
               if (!text?.trim()) {
                 dispatch({ type: 'RESET_PROCESSING' });
                 break;
               }
               const cleanText = text.trim();
+
+              // Clear old session tone for the new turn
+              dispatch({ type: 'SET_SESSION_TONE', sessionTone: null });
 
               // Immediate Intent Recognition for subtle feedback
               let intent = null;
