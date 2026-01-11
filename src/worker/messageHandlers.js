@@ -7,6 +7,7 @@ import { WorkerMessenger } from '../worker/Messenger';
 import { detectIntentWithContext } from '../utils/intentRecognition';
 import { parseSummaryResponse, createStructuredSummaryPrompt } from '../utils/summaryParser';
 import { trackParserSuccess, trackSummaryParsingResult } from '../utils/telemetry';
+import { AppConfig } from '../config';
 
 const messenger = WorkerMessenger.getInstance();
 
@@ -162,8 +163,12 @@ export const handleSTT = async (data) => {
       throw new Error('Audio data is in an unsupported format');
     }
 
-    // Perform speech-to-text
-    const result = await stt({ input: processedAudioData });
+    // Perform speech-to-text with proper options
+    const result = await stt(processedAudioData, {
+      chunk_length_s: AppConfig.models.stt.chunk_length_s,
+      stride_length_s: AppConfig.models.stt.stride_length_s,
+      return_timestamps: false,
+    });
 
     // Detect intent from the transcribed text
     const intentResult = detectIntentWithContext(result.text);
