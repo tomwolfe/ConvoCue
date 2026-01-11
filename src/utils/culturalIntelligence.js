@@ -134,7 +134,8 @@ const CULTURAL_GREETINGS = {
   'ja': { label: 'japan', greetings: ['konnichiwa', 'ohayou', 'konichiwa'] },
   'th': { label: 'thailand', greetings: ['sawatdee', 'sawasdee'] },
   'ak': { label: 'ghana', greetings: ['akwaaba'] },
-  'fr': { label: 'france', greetings: ['bonjour', 'salut'] }
+  'fr': { label: 'france', greetings: ['bonjour', 'salut'] },
+  'hi': { label: 'india', greetings: ['namaste', 'namastey'] }
 };
 
 const FORMALITY_MARKERS = ['sir', 'madam', 'mr.', 'ms.', 'dr.', 'professor', 'please', 'excuse me'];
@@ -174,45 +175,33 @@ const analyzeCulturalIndicators = (text) => {
 };
 
 /**
- * Enhanced Cultural Context Detection
+ * Detects cultural greetings in text
  */
-export const analyzeCulturalContext = (text, currentCulturalContext = 'general', _conversationHistory = [], relationshipContext = {}) => {
-  if (!text || isCulturalOptOut()) {
-    return { 
-      primaryCulture: currentCulturalContext, 
-      confidence: 0, 
-      detectedCultures: [],
-      recommendations: [],
-      sensitivityPhrases: [],
-      situationalContext: getSituationalContext('', []),
-      disclaimer: "This is general cultural guidance based on detected patterns. Individual preferences may vary significantly.",
-      warning: "Cultural patterns are broad generalizations. Individual preferences and context should take priority."
-    };
-  }
-
-  const lowerText = text.toLowerCase();
+const detectGreetings = (lowerText, decisionLog) => {
   const detected = [];
-  const indicators = analyzeCulturalIndicators(lowerText);
-  const intents = detectMultipleIntents(text, 0.3);
-  
-  const decisionLog = {
-    timestamp: new Date().toISOString(),
-    evidence: [],
-    scores: {}
-  };
-
-  // 1. Check for specific greetings (High confidence)
   for (const [, data] of Object.entries(CULTURAL_GREETINGS)) {
     if (data.greetings.some(g => lowerText.includes(g))) {
       detected.push({ culture: data.label, confidence: 0.9, type: 'greeting' });
       decisionLog.evidence.push(`Detected greeting for ${data.label}`);
     }
   }
+  return detected;
+};
 
-  // 2. Check for keywords and patterns (Medium confidence)
+/**
+ * Scores regional cultural patterns based on keywords and communication style
+ */
+const scorePatterns = (lowerText, currentCulturalContext, indicators, intents, decisionLog) => {
+  const detected = [];
+  const biasAdjustments = getUserCulturalBiasAdjustments();
+
   for (const [region, style] of Object.entries(REGIONAL_STYLES)) {
     let score = 0;
     const matchedKeywords = [];
+    
+    // Apply user bias adjustments to the base scoring
+    const bias = biasAdjustments[region] || 0;
+    
     style.keywords?.forEach(k => { 
       if (lowerText.includes(k.toLowerCase())) {
         score += 0.2; 
@@ -244,7 +233,8 @@ export const analyzeCulturalContext = (text, currentCulturalContext = 'general',
       }
     });
 
-    // Slight bias toward current context
+    // Apply bias and context weight
+    score += (bias * 0.5);
     if (currentCulturalContext === region) {
       score += 0.1;
     }
@@ -259,30 +249,75 @@ export const analyzeCulturalContext = (text, currentCulturalContext = 'general',
       decisionLog.evidence.push(`Detected ${region} patterns: ${matchedKeywords.join(', ')}`);
     }
   }
+  return detected;
+};
 
-  // 3. Check for specific country names
+/**
+ * Detects explicit country mentions
+ */
+const detectExplicitCountries = (lowerText, decisionLog) => {
+  const detected = [];
   for (const [country] of Object.entries(COUNTRY_DATA)) {
     if (lowerText.includes(country)) {
       detected.push({ culture: country, confidence: 0.85, type: 'explicit' });
       decisionLog.evidence.push(`Explicit mention of country: ${country}`);
     }
   }
+  return detected;
+};
+
+/**
+ * Resolves the primary culture from all detected candidates
+ */
+const resolvePrimaryCulture = (detected, currentCulturalContext) => {
+  if (detected.length === 0) return { primaryCulture: currentCulturalContext, confidence: 0 };
 
   detected.sort((a, b) => b.confidence - a.confidence);
   
-  // Decide whether to override current context
-  let primaryCulture = currentCulturalContext;
-  let confidence = 0;
+  const best = detected[0];
+  const threshold = currentCulturalContext === 'general' ? 0.3 : 0.75;
   
-  if (detected.length > 0) {
-    const best = detected[0];
-    const threshold = currentCulturalContext === 'general' ? 0.3 : 0.75;
-    
-    if (best.confidence >= threshold) {
-      primaryCulture = best.culture;
-      confidence = best.confidence;
-    }
+  if (best.confidence >= threshold) {
+    return { primaryCulture: best.culture, confidence: best.confidence };
   }
+  
+  return { primaryCulture: currentCulturalContext, confidence: 0 };
+};
+
+/**
+ * Enhanced Cultural Context Detection
+ */
+export const analyzeCulturalContext = (text, currentCulturalContext = 'general', _conversationHistory = [], relationshipContext = {}) => {
+  if (!text || isCulturalOptOut()) {
+    return { 
+      primaryCulture: currentCulturalContext, 
+      confidence: 0, 
+      detectedCultures: [],
+      recommendations: [],
+      sensitivityPhrases: [],
+      situationalContext: getSituationalContext('', []),
+      disclaimer: "This is general cultural guidance based on detected patterns. Individual preferences may vary significantly.",
+      warning: "Cultural patterns are broad generalizations. Individual preferences and context should take priority."
+    };
+  }
+
+  const lowerText = text.toLowerCase();
+  const indicators = analyzeCulturalIndicators(lowerText);
+  const intents = detectMultipleIntents(text, 0.3);
+  
+  const decisionLog = {
+    timestamp: new Date().toISOString(),
+    evidence: [],
+    scores: {}
+  };
+
+  const detected = [
+    ...detectGreetings(lowerText, decisionLog),
+    ...scorePatterns(lowerText, currentCulturalContext, indicators, intents, decisionLog),
+    ...detectExplicitCountries(lowerText, decisionLog)
+  ];
+
+  const { primaryCulture, confidence } = resolvePrimaryCulture(detected, currentCulturalContext);
 
   const communicationStyle = getCommunicationStyleForCulture(primaryCulture);
   const situationalContext = getSituationalContext(text, intents);
@@ -308,6 +343,7 @@ export const analyzeCulturalContext = (text, currentCulturalContext = 'general',
 
   return mergeCulturalContext(result);
 };
+
 
 /**
  * Gets cultural dimensions for a specific culture

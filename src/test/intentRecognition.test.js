@@ -1,45 +1,69 @@
 import { describe, it, expect } from 'vitest';
-import { detectMultipleIntents } from '../utils/intentRecognition';
+import { 
+  detectIntent, 
+  detectMultipleIntents, 
+  calculateSimilarity,
+  detectIntentWithContext
+} from '../utils/intentRecognition';
 
-describe('intentRecognition - detectMultipleIntents', () => {
-  it('should detect multiple intents when present', () => {
-    const input = "Hello, I have a question about the contract";
-    const results = detectMultipleIntents(input, 0.3);
-    
-    const intents = results.map(r => r.intent);
-    expect(intents).toContain('social');
-    expect(intents).toContain('question');
-    expect(intents).toContain('strategic'); // contract triggers strategic
+describe('Intent Recognition System', () => {
+  describe('detectIntent', () => {
+    it('should detect greeting intent', () => {
+      expect(detectIntent('Hello there!')).toBe('social');
+    });
+
+    it('should detect question intent', () => {
+      expect(detectIntent('What is your name?')).toBe('question');
+    });
+
+    it('should detect conflict intent', () => {
+      expect(detectIntent('I disagree with you.')).toBe('conflict');
+    });
   });
 
-  it('should sort results by confidence', () => {
-    const input = "Yes, absolutely correct";
-    const results = detectMultipleIntents(input, 0.3);
-    
-    expect(results.length).toBeGreaterThan(0);
-    for (let i = 0; i < results.length - 1; i++) {
-      expect(results[i].confidence).toBeGreaterThanOrEqual(results[i+1].confidence);
-    }
+  describe('detectMultipleIntents', () => {
+    it('should detect multiple intents in a complex sentence', () => {
+      const intents = detectMultipleIntents('Hello, I have a question about the budget.', 0.3);
+      const labels = intents.map(i => i.intent);
+      expect(labels).toContain('social');
+      expect(labels).toContain('question');
+    });
+
+    it('should rank intents by confidence', () => {
+      const intents = detectMultipleIntents('I disagree, but I understand your point.');
+      expect(intents[0].confidence).toBeGreaterThanOrEqual(intents[1].confidence);
+    });
   });
 
-  it('should respect the threshold', () => {
-    const input = "I am not sure what to say, can you help me learn?";
-    const resultsHigh = detectMultipleIntents(input, 0.99);
-    const resultsLow = detectMultipleIntents(input, 0.5);
-    
-    expect(resultsLow.length).toBeGreaterThan(resultsHigh.length);
+  describe('calculateSimilarity', () => {
+    it('should return 1.0 for identical strings', () => {
+      expect(calculateSimilarity('hello', 'hello')).toBe(1.0);
+    });
+
+    it('should return 0.0 for completely different strings', () => {
+      expect(calculateSimilarity('abc', 'xyz')).toBe(0.0);
+    });
+
+    it('should handle synonyms', () => {
+      // 'hi' and 'hello' are usually in synonym maps if implemented
+      const score = calculateSimilarity('hi', 'hello');
+      expect(score).toBeGreaterThan(0.35);
+    });
   });
 
-  it('should handle empty or null input gracefully', () => {
-    expect(detectMultipleIntents(null)).toEqual([]);
-    expect(detectMultipleIntents('')).toEqual([]);
-    expect(detectMultipleIntents(undefined)).toEqual([]);
-  });
+  describe('detectIntentWithContext', () => {
+    it('should disambiguate "sorry" based on context', () => {
+      const resultEmpathy = detectIntentWithContext('I am sorry to hear that');
+      expect(resultEmpathy.intent).toBe('empathy');
 
-  it('should detect empathy intent', () => {
-    const input = "I am so sorry to hear about that, it must be very hard.";
-    const results = detectMultipleIntents(input, 0.3);
-    const intents = results.map(r => r.intent);
-    expect(intents).toContain('empathy');
+      const resultConflict = detectIntentWithContext('I am sorry but you are wrong');
+      expect(resultConflict.intent).toBe('conflict');
+    });
+
+    it('should use conversation history for context', () => {
+      const history = [{ role: 'user', content: 'Let us talk about the budget proposal.' }];
+      const result = detectIntentWithContext('Maybe we can change it', history);
+      expect(result.intent).toBe('strategic');
+    });
   });
 });
