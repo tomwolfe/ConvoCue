@@ -1,8 +1,8 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
-import { 
-  Trash2, Copy, Check, RefreshCw, ThumbsUp, ThumbsDown, 
-  Flag, User, Users, AlertTriangle, Zap, Target, 
-  MessageCircle, Heart, X, ChevronLeft, ChevronRight, Info 
+import {
+  Trash2, Copy, Check, RefreshCw, ThumbsUp, ThumbsDown,
+  Flag, User, Users, AlertTriangle, Zap, Target,
+  MessageCircle, Heart, X, ChevronLeft, ChevronRight, Info
 } from 'lucide-react';
 import { AppConfig } from '../../config';
 import { CoachingConfig } from '../../config/coaching';
@@ -14,6 +14,7 @@ import { secureLocalStorageGet, secureLocalStorageSet } from '../../utils/encryp
 import InsightCard from './InsightCard';
 import CoachingDisclaimer from './CoachingDisclaimer';
 import TagIcon from './TagIcon';
+import EnhancedFeedback from '../EnhancedFeedback';
 
 const DisplayArea = ({
   transcript,
@@ -291,20 +292,13 @@ const DisplayArea = ({
           </p>
           {!showMinimalUI && suggestion && isPersonalizationEnabled && (
             <div className="suggestion-feedback">
-               <button
-                  className="feedback-btn"
-                  onClick={() => submitFeedback(suggestion, 'like', persona, culturalContext, transcript, transcript)}
-                  title="This cue was helpful"
-                >
-                  <ThumbsUp size={14} />
-                </button>
-                <button
-                  className="feedback-btn"
-                  onClick={() => submitFeedback(suggestion, 'dislike', persona, culturalContext, transcript, transcript)}
-                  title="This cue was not helpful"
-                >
-                  <ThumbsDown size={14} />
-                </button>
+              <EnhancedFeedback
+                suggestion={suggestion}
+                persona={persona}
+                culturalContext={culturalContext}
+                transcript={transcript}
+                originalInput={transcript}
+              />
             </div>
           )}
         </div>
