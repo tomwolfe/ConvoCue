@@ -8,9 +8,14 @@ import { trackInteraction } from './engagementTracking';
 /**
  * Submit feedback for a suggestion
  *
+ * Feedback Type Mapping:
+ * - Simple inline buttons: 'like', 'dislike', 'report'
+ * - Detailed modal options: 'very_helpful', 'somewhat_helpful', 'not_helpful', 'misleading', 'inappropriate'
+ * - All feedback types are stored and processed consistently in the backend
+ *
  * @param {Object} options - Feedback data object
  * @param {string} options.suggestion - The suggestion that was provided
- * @param {string} options.feedbackType - The type of feedback ('like', 'dislike', 'report')
+ * @param {string} options.feedbackType - The type of feedback ('like', 'dislike', 'report', 'very_helpful', 'somewhat_helpful', 'not_helpful', 'misleading', 'inappropriate')
  * @param {string} options.persona - The persona used for the suggestion
  * @param {string} options.culturalContext - The cultural context used
  * @param {string} options.transcript - The original transcript

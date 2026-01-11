@@ -29,7 +29,7 @@ describe('EnhancedFeedback', () => {
 
   it('renders inline feedback buttons', () => {
     render(<EnhancedFeedback {...defaultProps} />);
-    
+
     expect(screen.getByTitle('This suggestion was helpful')).toBeInTheDocument();
     expect(screen.getByTitle('This suggestion was not helpful')).toBeInTheDocument();
     expect(screen.getByTitle('Provide detailed feedback')).toBeInTheDocument();

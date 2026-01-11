@@ -6,12 +6,25 @@ import { secureLocalStorageGet, secureLocalStorageSet } from '../utils/encryptio
 /**
  * Enhanced Feedback Component
  * Provides a more comprehensive feedback system for user suggestions
+ *
+ * Feedback Type Mapping:
+ * - Simple inline buttons: 'like'/'dislike'
+ * - Detailed modal options: 'very_helpful', 'somewhat_helpful', 'not_helpful', 'misleading', 'inappropriate'
+ * - All feedback types are stored and processed consistently in the backend
+ *
+ * @param {string} suggestion - The suggestion that was provided to the user
+ * @param {string} persona - The persona used for the suggestion
+ * @param {string} culturalContext - The cultural context used for the suggestion
+ * @param {string} transcript - The transcript of the conversation/interaction
+ * @param {string} originalInput - The original user input that led to the suggestion (may be same as transcript in some contexts)
+ * @param {Function} onSuccess - Callback function called when feedback is submitted successfully
+ * @param {Function} onError - Callback function called when feedback submission fails
  */
-const EnhancedFeedback = ({ 
-  suggestion, 
-  persona, 
-  culturalContext, 
-  transcript, 
+const EnhancedFeedback = ({
+  suggestion,
+  persona,
+  culturalContext,
+  transcript,
   originalInput,
   onSuccess = () => {},
   onError = () => {}
@@ -22,6 +35,7 @@ const EnhancedFeedback = ({
   const [rating, setRating] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [showAlreadySubmittedMessage, setShowAlreadySubmittedMessage] = useState(false);
 
   // Ref for modal header to manage focus
   const modalHeaderRef = useRef(null);
@@ -47,13 +61,17 @@ const EnhancedFeedback = ({
   const handleFeedbackSelect = async (type) => {
     const alreadySubmitted = await checkIfAlreadySubmitted();
     if (alreadySubmitted) {
-      // If already submitted, just close the modal
-      setShowFeedbackModal(false);
+      // Show a message to the user instead of silently closing
+      setShowAlreadySubmittedMessage(true);
+      // Hide the message after 3 seconds
+      setTimeout(() => {
+        setShowAlreadySubmittedMessage(false);
+      }, 3000);
       return;
     }
 
     setFeedbackType(type);
-    
+
     // For simple thumbs up/down, submit immediately
     if (type === 'like' || type === 'dislike') {
       handleSubmit(type, '');
@@ -137,8 +155,13 @@ const EnhancedFeedback = ({
   if (!showFeedbackModal && !submitted) {
     return (
       <div className="enhanced-feedback-inline">
+        {showAlreadySubmittedMessage && (
+          <div className="enhanced-feedback-already-submitted">
+            <p>You've already provided feedback on this suggestion within the last 24 hours.</p>
+          </div>
+        )}
         <button
-          className="feedback-btn feedback-btn--sm feedback-btn--like"
+          className="enhanced-feedback-btn enhanced-feedback-btn--like"
           onClick={() => handleFeedbackSelect('like')}
           title="This suggestion was helpful"
           aria-label="Like this suggestion"
@@ -146,7 +169,7 @@ const EnhancedFeedback = ({
           <ThumbsUp size={16} />
         </button>
         <button
-          className="feedback-btn feedback-btn--sm feedback-btn--dislike"
+          className="enhanced-feedback-btn enhanced-feedback-btn--dislike"
           onClick={() => handleFeedbackSelect('dislike')}
           title="This suggestion was not helpful"
           aria-label="Dislike this suggestion"
@@ -154,7 +177,7 @@ const EnhancedFeedback = ({
           <ThumbsDown size={16} />
         </button>
         <button
-          className="feedback-btn feedback-btn--sm feedback-btn--detailed"
+          className="enhanced-feedback-btn enhanced-feedback-btn--detailed"
           onClick={() => handleFeedbackSelect('detailed')}
           title="Provide detailed feedback"
           aria-label="Provide detailed feedback"
@@ -170,79 +193,79 @@ const EnhancedFeedback = ({
     return (
       <div className="enhanced-feedback-modal-overlay">
         <div className="enhanced-feedback-modal">
-          <div className="modal-header" ref={modalHeaderRef} tabIndex="-1">
+          <div className="enhanced-feedback-modal-header" ref={modalHeaderRef} tabIndex="-1">
             <h3>How was this suggestion?</h3>
             <button
-              className="close-btn"
+              className="enhanced-feedback-close-btn"
               onClick={handleCancel}
               aria-label="Close feedback form"
             >
               <X size={20} />
             </button>
           </div>
-          
-          <div className="modal-body">
-            <div className="suggestion-preview">
+
+          <div className="enhanced-feedback-modal-body">
+            <div className="enhanced-feedback-suggestion-preview">
               <p>"{suggestion}"</p>
             </div>
-            
-            <div className="rating-section">
+
+            <div className="enhanced-feedback-rating-section">
               <h4>Rate your experience</h4>
-              <div className="star-rating">
+              <div className="enhanced-feedback-star-rating">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <button
                     key={star}
-                    className={`star-btn ${rating >= star ? 'active' : ''}`}
+                    className={`enhanced-feedback-star-btn ${rating >= star ? 'active' : ''}`}
                     onClick={() => setRating(star)}
                     aria-label={`Rate ${star} stars`}
                   >
-                    <Star 
-                      size={24} 
-                      fill={rating >= star ? "#fbbf24" : "transparent"} 
-                      color={rating >= star ? "#fbbf24" : "#d1d5db"} 
+                    <Star
+                      size={24}
+                      fill={rating >= star ? "#fbbf24" : "transparent"}
+                      color={rating >= star ? "#fbbf24" : "#d1d5db"}
                     />
                   </button>
                 ))}
               </div>
             </div>
-            
-            <div className="feedback-type-selection">
+
+            <div className="enhanced-feedback-type-selection">
               <h4>What kind of feedback?</h4>
-              <div className="feedback-type-buttons">
+              <div className="enhanced-feedback-type-buttons">
                 <button
-                  className={`feedback-type-btn ${feedbackType === 'very_helpful' ? 'selected' : ''}`}
+                  className={`enhanced-feedback-type-btn ${feedbackType === 'very_helpful' ? 'selected' : ''}`}
                   onClick={() => setFeedbackType('very_helpful')}
                 >
                   Very Helpful
                 </button>
                 <button
-                  className={`feedback-type-btn ${feedbackType === 'somewhat_helpful' ? 'selected' : ''}`}
+                  className={`enhanced-feedback-type-btn ${feedbackType === 'somewhat_helpful' ? 'selected' : ''}`}
                   onClick={() => setFeedbackType('somewhat_helpful')}
                 >
                   Somewhat Helpful
                 </button>
                 <button
-                  className={`feedback-type-btn ${feedbackType === 'not_helpful' ? 'selected' : ''}`}
+                  className={`enhanced-feedback-type-btn ${feedbackType === 'not_helpful' ? 'selected' : ''}`}
                   onClick={() => setFeedbackType('not_helpful')}
                 >
                   Not Helpful
                 </button>
                 <button
-                  className={`feedback-type-btn ${feedbackType === 'misleading' ? 'selected' : ''}`}
+                  className={`enhanced-feedback-type-btn ${feedbackType === 'misleading' ? 'selected' : ''}`}
                   onClick={() => setFeedbackType('misleading')}
                 >
                   Misleading
                 </button>
                 <button
-                  className={`feedback-type-btn ${feedbackType === 'inappropriate' ? 'selected' : ''}`}
+                  className={`enhanced-feedback-type-btn ${feedbackType === 'inappropriate' ? 'selected' : ''}`}
                   onClick={() => setFeedbackType('inappropriate')}
                 >
                   Inappropriate
                 </button>
               </div>
             </div>
-            
-            <div className="detailed-feedback-section">
+
+            <div className="enhanced-feedback-detailed-section">
               <h4>Tell us more (optional)</h4>
               <textarea
                 value={detailedFeedback}
@@ -252,17 +275,17 @@ const EnhancedFeedback = ({
               />
             </div>
           </div>
-          
-          <div className="modal-footer">
-            <button 
-              className="btn btn-secondary" 
+
+          <div className="enhanced-feedback-modal-footer">
+            <button
+              className="enhanced-feedback-btn-base enhanced-feedback-btn-secondary"
               onClick={handleCancel}
               disabled={isSubmitting}
             >
               Cancel
             </button>
-            <button 
-              className="btn btn-primary" 
+            <button
+              className="enhanced-feedback-btn-base enhanced-feedback-btn-primary"
               onClick={() => handleSubmit()}
               disabled={isSubmitting || !feedbackType}
             >
