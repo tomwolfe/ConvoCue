@@ -53,6 +53,7 @@ const processMessage = async (event) => {
             'load': handlers.handleLoad,
             'stt': handlers.handleSTT,
             'llm': handlers.handleLLM,
+            'generate_summary': handlers.handleGenerateSummary,
             'prewarm_llm': handlers.handlePrewarmLLM,
             'prewarm_system_prompt': handlers.handlePrewarmSystemPrompt,
             'retry_stt_load': handlers.handleRetrySTTLoad,

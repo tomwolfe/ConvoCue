@@ -647,6 +647,7 @@ export const useMLWorker = () => {  const [state, dispatch] = useReducer(workerR
     isRetryingLLM, // Add the LLM retrying state to the returned object
     sttFunctional: state.sttFunctional,
     llmFunctional: state.llmFunctional,
+    workerRef: worker, // Expose the worker reference
     prewarmLLM: () => {
       if (!worker.current) return;
       worker.current.postMessage({ type: 'prewarm_llm' });

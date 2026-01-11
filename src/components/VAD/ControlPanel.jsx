@@ -1,5 +1,5 @@
 import React from 'react';
-import { Mic, Heart } from 'lucide-react';
+import { Mic, Heart, FileText } from 'lucide-react';
 import { ML_STATES } from '../../worker/MLStateMachine';
 
 const ControlPanel = ({
@@ -10,12 +10,13 @@ const ControlPanel = ({
   handleManualTrigger,
   toggleVAD,
   isCompactMode,
-  mlState
+  mlState,
+  onShowSummary
 }) => {
   // Determine button states based on FSM state
   const isReadyForVoice = mlState === ML_STATES.READY;
   const isPartialFunctionality = mlState === ML_STATES.TEXT_ONLY_MODE;
-  
+
   const manualBtnDisabled = !isReadyForVoice || isVADMode || vadLoading || (vadErrored && !vadError);
   const continuousBtnDisabled = (!isReadyForVoice && !isVADMode) || vadLoading || (vadErrored && !vadError);
 
@@ -48,6 +49,20 @@ const ControlPanel = ({
         </div>
         {!isCompactMode && <span>Continuous</span>}
       </button>
+
+      {onShowSummary && (
+        <button
+          className={`btn-control summary-btn ${isCompactMode ? 'compact' : ''}`}
+          onClick={onShowSummary}
+          title="View Conversation Summary"
+          aria-label="View Conversation Summary"
+        >
+          <div className="icon-circle">
+            <FileText size={isCompactMode ? 20 : 28} />
+          </div>
+          {!isCompactMode && <span>Summary</span>}
+        </button>
+      )}
     </div>
   );
 };

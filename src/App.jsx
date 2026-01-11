@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Mic, Loader2, Volume2, AlertCircle, Activity, ThumbsUp, ThumbsDown, BookOpen, Settings as SettingsIcon, Layout as LayoutIcon, ChevronDown, EyeOff, Type, ShieldAlert, Zap, Info } from 'lucide-react';
+import { Mic, Loader2, Volume2, AlertCircle, Activity, ThumbsUp, ThumbsDown, BookOpen, Settings as SettingsIcon, Layout as LayoutIcon, ChevronDown, EyeOff, Type, ShieldAlert, Zap, Info, FileText } from 'lucide-react';
 import { Analytics } from '@vercel/analytics/react';
 import { useMLWorker } from './hooks/useMLWorker';
 import VADContent from './components/VADContent';
@@ -14,6 +14,7 @@ import { checkAssets } from './utils/diagnostics';
 import { secureLocalStorageGet, secureLocalStorageSet } from './utils/encryption';
 import { handleSessionEnd } from './utils/privacyHardening';
 import { eventBus, EVENTS } from './utils/eventBus';
+import ConversationSummary from './components/ConversationSummary';
 
 import './App.css';
 
@@ -30,6 +31,7 @@ const App = () => {
   const [showPersonaCustomization, setShowPersonaCustomization] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showViewMenu, setShowViewMenu] = useState(false);
+  const [showConversationSummary, setShowConversationSummary] = useState(false);
   const [availablePersonas, setAvailablePersonas] = useState(AppConfig.models.personas);
 
   useEffect(() => {
@@ -56,6 +58,8 @@ const App = () => {
     };
     checkTutorial();
   }, []);
+  const mlWorker = useMLWorker();
+
   const {
     status,
     progress,
@@ -94,19 +98,22 @@ const App = () => {
     lastSwitchReason,
     undoPersonaSwitch,
     sessionTone
-  } = useMLWorker();
+  } = mlWorker;
 
   const [micPermissionError, setMicPermissionError] = useState(null);
 
   /**
    * Primary readiness state derived from the ML State Machine (FSM).
-   * 
+   *
    * CRITICAL ARCHITECTURAL SHIFT: This supersedes the legacy 'isReady' flag from useMLWorker.
    * By deriving readiness from the FSM states (READY, TEXT_ONLY_MODE, or STT_READY),
-   * we ensure the UI accurately reflects functional capabilities (e.g., allowing 
+   * we ensure the UI accurately reflects functional capabilities (e.g., allowing
    * text-only use even if voice fails).
    */
   const isReadyForUse = mlState === ML_STATES.READY || mlState === ML_STATES.TEXT_ONLY_MODE || mlState === ML_STATES.STT_READY;
+
+  // Get the worker reference from the hook
+  const mlWorker = useMLWorker();
 
   useEffect(() => {
     if (isDyslexicFriendly) {
@@ -323,6 +330,14 @@ const App = () => {
               >
                 <SettingsIcon size={18} />
               </button>
+              <button
+                className="btn-settings"
+                onClick={() => setShowConversationSummary(true)}
+                aria-label="Conversation Summary"
+                title="View Conversation Summary"
+              >
+                <FileText size={18} />
+              </button>
             </div>
           </div>
           <p className="subtitle">Real-time social validation</p>
@@ -480,6 +495,7 @@ const App = () => {
             sttFunctional={sttFunctional}
             llmFunctional={llmFunctional}
             mlState={mlState}
+            workerRef={mlWorker.workerRef}
             onReset={() => {
               setHasInteracted(false);
               setMicPermissionError(null);

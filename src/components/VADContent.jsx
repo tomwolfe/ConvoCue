@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useMicVAD } from '@ricky0123/vad-react';
-import { Loader2, AlertCircle, RefreshCw, Zap, ShieldAlert, Info, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { Loader2, AlertCircle, RefreshCw, Zap, ShieldAlert, Info, ThumbsUp, ThumbsDown, FileText } from 'lucide-react';
 import { AppConfig } from '../config';
 import { ML_STATES } from '../worker/MLStateMachine';
 import { processConversationTurn } from '../conversationManager';
@@ -8,6 +8,7 @@ import PersonaSelector from './VAD/PersonaSelector';
 import DisplayArea from './VAD/DisplayArea';
 import ControlPanel from './VAD/ControlPanel';
 import SocialSuccessScore from './SocialSuccessScore';
+import ConversationSummary from './ConversationSummary';
 import { getMergedPersonas } from '../utils/preferences';
 import { submitSubtleModeFeedback } from '../utils/feedback';
 import { trackCueDisplayed } from '../utils/engagementTracking';
@@ -442,6 +443,7 @@ const VADContent = ({
   sttFunctional,
   llmFunctional,
   mlState,
+  workerRef,
   onFullReset,
   sessionTone,
   onUpdateSetting
@@ -449,6 +451,7 @@ const VADContent = ({
   const [availablePersonas, setAvailablePersonas] = useState(AppConfig.models.personas);
   const [sensitivitySuggestion, setSensitivitySuggestion] = useState(null);
   const [showSuggestionNotification, setShowSuggestionNotification] = useState(false);
+  const [showConversationSummary, setShowConversationSummary] = useState(false);
 
   // Check for sensitivity suggestions on component mount and periodically
   useEffect(() => {
@@ -739,6 +742,7 @@ const VADContent = ({
           toggleVAD={toggleVAD}
           isCompactMode={isCompactMode}
           mlState={mlState}
+          onShowSummary={() => setShowConversationSummary(true)}
         />
       )}
 
@@ -797,6 +801,16 @@ const VADContent = ({
         onAccept={handleAcceptSuggestion}
         onDismiss={handleDismissSuggestion}
       />
+
+      {/* Conversation Summary Modal */}
+      {showConversationSummary && (
+        <ConversationSummary
+          conversationTurns={conversationTurns}
+          isVisible={showConversationSummary}
+          onClose={() => setShowConversationSummary(false)}
+          workerRef={workerRef}
+        />
+      )}
     </main>
   );
 };
