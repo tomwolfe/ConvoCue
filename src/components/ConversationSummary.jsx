@@ -29,13 +29,16 @@ const ConversationSummary = ({ conversationTurns, isVisible, onClose }) => {
     setError(null);
 
     try {
+      // Check if the worker is available before attempting to use it
+      const workerRef = mlWorker.workerRef?.current || null;
+
       const summaryData = await generateConversationSummary(conversationTurns, {
         maxTurns: 20,
         includeThemes: true,
         includeActionItems: true,
         includeSentiment: true,
         summaryLength: 'medium'
-      }, mlWorker.workerRef);
+      }, workerRef);
 
       setSummary(summaryData);
     } catch (err) {
@@ -44,7 +47,7 @@ const ConversationSummary = ({ conversationTurns, isVisible, onClose }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [conversationTurns, mlWorker.workerRef]);
+  }, [conversationTurns, mlWorker]);
 
   const handleRegenerate = () => {
     generateSummary();

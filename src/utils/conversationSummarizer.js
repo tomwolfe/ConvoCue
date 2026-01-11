@@ -48,7 +48,7 @@ export const generateConversationSummary = async (conversationHistory, options =
 
 
   // If a worker is provided, use it for summary generation
-  if (workerRef && workerRef.current) {
+  if (workerRef && typeof workerRef === 'object' && workerRef.current) {
     try {
       const result = await requestSummaryFromWorker(workerRef.current, limitedHistory, {
         includeThemes,
@@ -187,6 +187,12 @@ const determineBasicSentiment = (conversationHistory) => {
  */
 export const requestSummaryFromWorker = (worker, conversationHistory, options = {}) => {
   return new Promise((resolve, reject) => {
+    // Check if worker is properly initialized
+    if (!worker || typeof worker.postMessage !== 'function') {
+      reject(new Error('Worker is not properly initialized'));
+      return;
+    }
+
     const taskId = `summary_${Date.now()}`;
 
     // Set up a temporary listener for the summary result
