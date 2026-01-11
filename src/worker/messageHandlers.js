@@ -7,8 +7,8 @@ import { analyzeConversationSentiment } from '../utils/sentimentAnalysis';
 import { analyzeRelationshipCoaching } from '../utils/relationshipCoaching';
 import { analyzeAnxietyCoaching } from '../utils/anxietyCoaching';
 import { analyzeProfessionalCoaching, analyzeMeetingCoaching } from '../utils/professionalCoaching';
-import { estimateConversationSize, logPerformanceMetric, monitorAndOptimizeHistory } from '../utils/performanceMonitoring';
-import { getOptimalModelConfig, createProgressiveLoadingStrategy, deviceCaps, checkMemoryAdequacy } from '../utils/performanceOptimizer';
+import { estimateConversationSize, monitorAndOptimizeHistory } from '../utils/performanceMonitoring';
+import { createProgressiveLoadingStrategy, deviceCaps } from '../utils/performanceOptimizer';
 import { provideContextualLanguageFeedback } from '../utils/languageLearning';
 import { coordinateFeaturesInResponse, resolveFeatureConflicts } from '../utils/featureCoordination';
 import { TextStreamer } from '@huggingface/transformers';
@@ -70,7 +70,7 @@ export const handleLoad = async (data) => {
 };
 
 export const handleSTT = async (data) => {
-    const { audio, taskId, settings: _settings, preferences } = data;
+    const { audio, taskId, settings: _settings } = data;
     const pipelineManager = await MLPipeline.getInstance();
     const settings = _settings || { enableSpeakerDetection: true, privacyMode: false };
 
@@ -327,7 +327,7 @@ export const handleLLM = async (data) => {
     }
 };
 
-export const handlePrewarmLLM = async (data) => {
+export const handlePrewarmLLM = async (_data) => {
     const pipelineManager = await MLPipeline.getInstance();
     await pipelineManager.loadLLM();
 };

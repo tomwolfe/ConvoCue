@@ -58,7 +58,6 @@ const App = () => {
   const {
     status,
     progress,
-    isReady: legacyIsReady, // Legacy flag, kept for backward compatibility if needed
     isLowMemory,
     mlState,
     error,

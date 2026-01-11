@@ -4,14 +4,11 @@
  */
 
 import {
-  detectEnhancedCulturalContext,
-  generateCulturallyAppropriateResponses,
-  getCulturalCommunicationTips,
-  analyzeCulturalAppropriateness,
-  detectMultilingualElements
+  detectEnhancedCulturalContext
 } from './src/utils/culturalIntelligence.js';
 import { resolveFeatureConflicts, validateInsightsConsistency } from './src/utils/featureCoordination.js';
 import { analyzeProfessionalCoaching } from './src/utils/professionalCoaching.js';
+import { analyzeLanguageLearningText, provideContextualLanguageFeedback } from './src/utils/languageLearning.js';
 
 console.log('=== ConvoCue Enhanced Features Demo ===\n');
 

@@ -162,7 +162,7 @@ const analyzeCulturalIndicators = (text) => {
 /**
  * Detects cultural context from text and history
  */
-export const analyzeCulturalContext = (text, currentCulture = 'general', history = [], relationshipContext = {}) => {
+export const analyzeCulturalContext = (text, currentCulture = 'general', _history = [], relationshipContext = {}) => {
   if (!text || isCulturalOptOut()) {
     return {
       primaryCulture: currentCulture,
@@ -229,7 +229,7 @@ export const analyzeCulturalContext = (text, currentCulture = 'general', history
   }
 
   // Greetings from JSON database
-  Object.entries(culturalContextDatabase.greetings || {}).forEach(([region, cultures]) => {
+  Object.entries(culturalContextDatabase.greetings || {}).forEach(([_, cultures]) => {
     Object.entries(cultures).forEach(([culture, greetings]) => {
       const cultureLower = culture.toLowerCase();
       // Only count specific greetings, not generic ones like "Hello" or "How are you?"

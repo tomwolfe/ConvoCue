@@ -481,15 +481,16 @@ export const useMLWorker = () => {  const [state, dispatch] = useReducer(workerR
 
   useEffect(() => {
     // IMPORTANT: The Web Worker initialization must happen exactly once on mount
-    // or when explicitly reset. We use initWorker() which contains internal 
-    // cleanup logic (terminating old workers). 
-    // 
-    // The 'react-hooks/set-state-in-effect' warning (if enabled) is bypassed here 
-    // because initializing the worker and its associated state is a fundamental 
-    // lifecycle requirement for this application. We've ensured that initWorker 
-    // is stable (via useCallback) and its dependencies are also stable, 
+    // or when explicitly reset. We use initWorker() which contains internal
+    // cleanup logic (terminating old workers).
+    //
+    // The 'react-hooks/set-state-in-effect' warning is bypassed here
+    // because initializing the worker and its associated state is a fundamental
+    // lifecycle requirement for this application. We've ensured that initWorker
+    // is stable (via useCallback) and its dependencies are also stable,
     // preventing infinite loops.
     if (!isInitialized.current) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       initWorker();
       isInitialized.current = true;
     }

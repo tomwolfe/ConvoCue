@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { 
-  analyzeCulturalContext, 
-  CULTURAL_DIMENSIONS, 
-  REGIONAL_STYLES, 
+import {
+  analyzeCulturalContext,
+  CULTURAL_DIMENSIONS,
+  REGIONAL_STYLES,
   COUNTRY_DATA,
   getCommunicationStyleForCulture,
   validateCulturalAppropriateness,
@@ -13,7 +13,6 @@ import {
   detectCulturalContext,
   detectEnhancedCulturalContext
 } from '../utils/culturalIntelligence';
-import * as culturalFeedback from '../utils/culturalFeedback';
 
 vi.mock('../utils/culturalFeedback', () => ({
   getUserCulturalBiasAdjustments: vi.fn(() => ({})),

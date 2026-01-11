@@ -3,10 +3,15 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import React from 'react';
 import SocialNudgeHUD from './SocialNudgeHUD';
 import { useMLWorker } from '../hooks/useMLWorker';
+import { provideIntentHaptics } from '../utils/haptics';
+import { trackSystemEvent } from '../utils/systemAnalytics';
 
 vi.mock('../hooks/useMLWorker');
 vi.mock('../utils/haptics', () => ({
   provideIntentHaptics: vi.fn()
+}));
+vi.mock('../utils/systemAnalytics', () => ({
+  trackSystemEvent: vi.fn()
 }));
 
 describe('SocialNudgeHUD', () => {
@@ -25,6 +30,7 @@ describe('SocialNudgeHUD', () => {
     render(<SocialNudgeHUD />);
     expect(screen.getByText('Pause & Listen')).toBeDefined();
     expect(screen.getByText(/Talk Ratio: 70%/)).toBeDefined();
+    expect(provideIntentHaptics).toHaveBeenCalledWith('CONFLICT');
   });
 
   it('renders "Great Flow" when interaction is balanced', () => {
@@ -37,18 +43,28 @@ describe('SocialNudgeHUD', () => {
 
     render(<SocialNudgeHUD />);
     expect(screen.getByText('Great Flow')).toBeDefined();
+    // Intensity 0 should NOT trigger haptics
+    expect(provideIntentHaptics).not.toHaveBeenCalled();
   });
 
-  it('renders "Clarify Intent" when misunderstanding is detected', () => {
+  it('logs failure when haptics fail', () => {
     useMLWorker.mockReturnValue({
-      engagement: { talkRatio: 0.5, totalTurns: 2 },
-      detectedIntent: 'MISUNDERSTANDING',
+      engagement: { talkRatio: 0.7, totalTurns: 5 },
+      detectedIntent: null,
       isProcessing: true,
       settings: { hapticsEnabled: true }
     });
 
+    provideIntentHaptics.mockImplementationOnce(() => {
+      throw new Error('Not supported');
+    });
+
     render(<SocialNudgeHUD />);
-    expect(screen.getByText('Clarify Intent')).toBeDefined();
+    
+    expect(trackSystemEvent).toHaveBeenCalledWith('haptics_failure', expect.objectContaining({
+      nudgeId: 'CONFLICT',
+      error: 'Not supported'
+    }));
   });
 
   it('is hidden when not processing and no turns', () => {

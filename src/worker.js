@@ -1,6 +1,6 @@
 import { AppConfig } from './config';
 import { MLPipeline } from './worker/MLPipeline';
-import { WorkerState, updatePerformanceMode } from './worker/state';
+import { WorkerState } from './worker/state';
 import { yieldToMain } from './worker/utils';
 import { WorkerMessenger } from './worker/Messenger';
 import * as handlers from './worker/messageHandlers';
