@@ -82,7 +82,13 @@ export const resetCulturalProfile = () => {
 };
 
 /**
- * Merges detected cultural context with user preferences
+ * Merges detected cultural context with user preferences.
+ * 
+ * ROBUSTNESS NOTE: This is a pure function that returns a new object. 
+ * It does not mutate the input 'detectedContext' or the global 'userCulturalProfile'.
+ * It serves as the final filter in the cultural intelligence pipeline, ensuring 
+ * that explicit user settings (if any) take precedence over detected regional patterns.
+ * 
  * @param {Object} detectedContext - Automatically detected cultural context
  * @returns {Object} Merged cultural context prioritizing user preferences
  */
