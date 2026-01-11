@@ -185,6 +185,11 @@ export const handleLLM = async (data) => {
             WorkerState.consecutiveUrgentTurns = 0;
         }
 
+        // Proactive De-escalation: Physical delay before starting response
+        if (sessionTone.suggestedDelay > 0) {
+            await new Promise(resolve => setTimeout(resolve, sessionTone.suggestedDelay));
+        }
+
         const intents = detectMultipleIntents(sanitizedText, 0.4);
 
         const isPowerSavingMode = WorkerState.performanceStats.mode === 'minimal';
@@ -331,7 +336,7 @@ export const handleLLM = async (data) => {
 
         const coordinatedResponse = coordinateFeaturesInResponse(response, {
             relationship: relationshipInsights, anxiety: anxietyInsights, professional: professionalInsights, meeting: meetingInsights, language: languageLearningInsights
-        }, persona);
+        }, persona, sessionTone);
 
         // Await sentiment only for the result metadata, not blocking LLM start
         conversationSentiment = await sentimentPromise;
@@ -356,7 +361,8 @@ export const handleLLM = async (data) => {
                     sentimentAnalysisTime,
                     totalTime: performance.now() - startTime,
                     historySize: estimateConversationSize(conversationHistory)
-                }
+                },
+                sessionTone // Pass mirroring/de-escalation info to UI
             },
             taskId
         });

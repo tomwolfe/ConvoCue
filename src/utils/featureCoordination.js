@@ -191,9 +191,10 @@ export const validateInsightsConsistency = (insights) => {
  * @param {string} response - Original response
  * @param {Object} insights - All feature insights
  * @param {string} persona - Current persona
+ * @param {Object} sessionTone - Current session tone metrics (mirroring)
  * @returns {string} Coordinated response
  */
-export const coordinateFeaturesInResponse = (response, insights, persona) => {
+export const coordinateFeaturesInResponse = (response, insights, persona, sessionTone = {}) => {
   // Resolve conflicts between insights
   const resolvedInsights = resolveFeatureConflicts(insights, persona);
   
@@ -203,6 +204,16 @@ export const coordinateFeaturesInResponse = (response, insights, persona) => {
   // If there are warnings, add a note to the response
   if (warnings.length > 0) {
     response += `\n\nNote: Multiple guidance systems provided input. Balancing cultural sensitivity with other recommendations.`;
+  }
+
+  // Proactive De-escalation: Ensure grounding phrase is present
+  // The review suggests incorporating a gentle phrase to act as an emotional anchor.
+  if (sessionTone.isDeEscalating || sessionTone.shouldOverride) {
+    const groundingPhrase = "I'm here with you.";
+    const hasGrounding = response.includes("I'm here with you") || response.includes("I'm here.");
+    if (!hasGrounding) {
+       response = `${groundingPhrase} ${response}`;
+    }
   }
   
   return response;

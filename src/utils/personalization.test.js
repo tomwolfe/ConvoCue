@@ -127,6 +127,21 @@ describe('personalization utility', () => {
       expect(highResult.isUrgent).toBe(true);
     });
 
+    it('triggers de-escalation for High sensitivity before full override', () => {
+      const text = "I'm starting to feel really overwhelmed and fast!";
+      const metadata = { duration: 2, rms: 0.04 }; // Pace = 4.5, Vol = 2x baseline
+      const emotionData = { emotion: 'fear' };
+      // urgencyScore will be approx 1.5 - 2.0 (above 1.2 high threshold, below 2.5 calming)
+
+      const result = calculateSessionTone(text, metadata, emotionData, defaultBaselines, { mirroringSensitivity: 'high' }, 0);
+      
+      expect(result.isDeEscalating).toBe(true);
+      expect(result.shouldOverride).toBe(false);
+      expect(result.mirroringInstruction).toContain('DE-ESCALATE');
+      expect(result.mirroringInstruction).toContain("I'm here with you");
+      expect(result.suggestedDelay).toBe(1500);
+    });
+
     it('triggers calming override after persistent high urgency', () => {
       const text = "EXCESSIVE URGENCY AND LOUD VOLUME!";
       const metadata = { duration: 2, rms: 0.1 }; // Very loud

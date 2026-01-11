@@ -218,9 +218,18 @@ export const calculateSessionTone = (text, metadata, emotionData, baselines = DE
   const isExtremelyUrgent = urgencyScore > EXTREME_URGENCY_THRESHOLD;
   const shouldOverride = isExtremelyUrgent || (urgencyScore > CALMING_THRESHOLD && consecutiveUrgentTurns >= MAX_URGENT_TURNS - 1);
 
+  // Proactive De-escalation Layer for High Sensitivity
+  // Triggers when urgency is rising but hasn't hit the full calming override threshold yet.
+  const isDeEscalating = sensitivity === 'high' && 
+                        urgencyScore > activeThresholds.urgent && 
+                        urgencyScore <= CALMING_THRESHOLD && 
+                        !shouldOverride;
+
   let mirroringInstruction = "";
   if (shouldOverride) {
     mirroringInstruction = "[MIRROR: CALMING] I'm here. Let's take a breath. (Respond with a slow, steady pace and calming tone, even if the user is urgent).";
+  } else if (isDeEscalating) {
+    mirroringInstruction = "[MIRROR: DE-ESCALATE] I'm here with you. (Respond briefly, but maintain a steady, grounding presence. Use slightly longer pauses or '...' between thoughts. Do not match the user's high intensity; act as a calm anchor).";
   } else if (isUrgent) {
     mirroringInstruction = "[MIRROR: HIGH-PACE] Respond with extreme brevity (1-5 words). Focus only on immediate tactical needs.";
   } else if (isReflective) {
@@ -234,8 +243,10 @@ export const calculateSessionTone = (text, metadata, emotionData, baselines = DE
     volume,
     urgencyScore,
     isUrgent,
+    isDeEscalating,
     shouldOverride,
-    mirroringInstruction
+    mirroringInstruction,
+    suggestedDelay: isDeEscalating ? 1500 : (shouldOverride ? 2000 : 0)
   };
 };
 
