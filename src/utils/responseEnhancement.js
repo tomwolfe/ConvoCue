@@ -1,8 +1,8 @@
 import { secureLocalStorageGet } from './encryption';
 import {
   getCommunicationStyleForCulture
-} from './culturalContext';
-import { generateIntentBasedCue } from './intentRecognition';
+} from './culturalIntelligence';
+import { generateIntentBasedCue } from './intentUtils';
 import { validateSocialSuggestion, promoteEmpathy } from './socialEthics';
 
 // Modular Persona Enhancers

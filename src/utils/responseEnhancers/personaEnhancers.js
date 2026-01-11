@@ -1,7 +1,7 @@
 /**
  * Specialized Persona Enhancers for response guidance
  */
-import { getNaturalPhrasing } from '../culturalContext';
+import { getNaturalPhrasing } from '../culturalIntelligence';
 import { analyzeRelationshipCoaching } from '../relationshipCoaching';
 import { analyzeAnxietyCoaching } from '../anxietyCoaching';
 

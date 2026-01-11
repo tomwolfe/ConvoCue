@@ -1,5 +1,5 @@
 import { AppConfig } from '../config';
-import { getCulturalPromptTips, getLanguageLearningPromptTips, getProfessionalPromptTips, getSocialNuanceTips, getHighStakesTips } from '../utils/culturalContext';
+import { getCulturalPromptTips, getLanguageLearningPromptTips, getProfessionalPromptTips, getSocialNuanceTips, getHighStakesTips } from '../utils/culturalIntelligence';
 import { analyzeLanguageLearningText } from '../utils/languageLearning';
 import { generateRelationshipCoachingPrompt } from '../utils/relationshipCoaching';
 import { generateAnxietyCoachingPrompt } from '../utils/anxietyCoaching';

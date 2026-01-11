@@ -7,8 +7,8 @@ import {
   detectEnhancedCulturalContext,
   detectMultilingualElements,
   generateCulturallyAppropriateResponses,
-  analyzeCulturalAppropriateness
-} from '../src/utils/enhancedCulturalContext.js';
+  validateCulturalAppropriateness
+} from '../src/utils/culturalIntelligence.js';
 
 describe('Enhanced Cultural Context Detection', () => {
   test('should detect cultural context with appropriate disclaimers', () => {
@@ -38,12 +38,12 @@ describe('Enhanced Cultural Context Detection', () => {
     expect(responses.some(response => response.includes('general cultural guidelines'))).toBe(true);
   });
 
-  test('should analyze cultural appropriateness with disclaimers', () => {
-    const analysis = analyzeCulturalAppropriateness("You should do this now", "east-asian");
-    
-    expect(analysis).toHaveProperty('disclaimer');
-    expect(analysis.disclaimer).toContain('general cultural patterns');
-    expect(analysis.suggestions).toContain('Consider softer language like "perhaps" or "you might consider" (general guidance)');
+  test('should analyze cultural appropriateness with suggestions', () => {
+    const analysis = validateCulturalAppropriateness("You should do this now", { communicationStyle: { directness: 'indirect', formality: 'high' } });
+
+    expect(analysis).toHaveProperty('isValid');
+    expect(analysis.issues).toContain('Direct imperative language detected');
+    expect(analysis.suggestions).toContain('Consider softer language like "perhaps" or "you might consider"');
   });
 
   test('should handle general context appropriately', () => {

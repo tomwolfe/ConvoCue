@@ -275,7 +275,7 @@ export const analyzeCulturalContext = (text, currentCulture = 'general', history
     communicationStyle,
     culturalDimensions,
     characteristics: communicationStyle, // Alias for compatibility
-    recommendations: generateRecommendations(communicationStyle),
+    recommendations: generateRecommendations(communicationStyle, primaryCulture),
     sensitivityPhrases: getSensitivityPhrases(primaryCulture),
     relationshipDynamics: relationshipContext,
     situationalContext: getSituationalContext(text, intents),
@@ -295,7 +295,7 @@ export const analyzeCulturalContext = (text, currentCulture = 'general', history
 const getCulturalDimensions = (culture) => {
   const dimensions = {};
   const target = COUNTRY_DATA[culture.toLowerCase()]?.region || culture.toLowerCase();
-  
+
   // Try to find in CULTURAL_DIMENSIONS
   Object.entries(CULTURAL_DIMENSIONS).forEach(([dimension, values]) => {
     Object.entries(values).forEach(([level, cultures]) => {
@@ -304,39 +304,57 @@ const getCulturalDimensions = (culture) => {
       }
     });
   });
-  
+
   // Fallback to database dimensions if still empty
-  if (Object.keys(dimensions).length === 0) {
-    const dbDims = culturalContextDatabase.dimensions?.[culture] || 
+  if (Object.keys(dimensions).length === 0 && culturalContextDatabase.dimensions) {
+    const dbDims = culturalContextDatabase.dimensions?.[culture] ||
                    culturalContextDatabase.dimensions?.[culture.charAt(0).toUpperCase() + culture.slice(1)];
-    if (dbDims) return dbDims;
+    if (dbDims) {
+      return { ...dimensions, ...dbDims }; // Merge with any dimensions already found
+    }
   }
-  
+
   return dimensions;
 };
 
 /**
  * Generates recommendations based on communication style
  */
-const generateRecommendations = (style) => {
+const generateRecommendations = (style, culture = null) => {
   const recommendations = [];
   const biasAdjustments = getUserCulturalBiasAdjustments();
-  
+
   const shouldIncludeCategory = (category) => {
     const adjustment = biasAdjustments[category] || 0;
     return (0.5 + adjustment) > 0.3;
   };
 
   if (style.directness === 'indirect' && shouldIncludeCategory('directness')) {
-    recommendations.push({ category: 'directness', suggestion: 'Use more indirect language to avoid confrontation', priority: 'high' });
+    recommendations.push({
+      category: 'directness',
+      suggestion: `Use more indirect language to avoid confrontation (common in ${culture || 'this culture'} with high-context communication)`,
+      priority: 'high'
+    });
   } else if ((style.directness === 'direct' || style.directness === 'very-direct') && shouldIncludeCategory('directness')) {
-    recommendations.push({ category: 'directness', suggestion: 'Be clear and direct in your communication', priority: 'high' });
+    recommendations.push({
+      category: 'directness',
+      suggestion: `Be clear and direct in your communication (typical in ${culture || 'this culture'} with low-context communication)`,
+      priority: 'high'
+    });
   }
   if (style.formality === 'high' && shouldIncludeCategory('formality')) {
-    recommendations.push({ category: 'formality', suggestion: 'Maintain formal language and titles', priority: 'medium' });
+    recommendations.push({
+      category: 'formality',
+      suggestion: `Maintain formal language and titles (important in ${culture || 'this culture'})`,
+      priority: 'medium'
+    });
   }
   if (style.faceSaving && shouldIncludeCategory('face-saving')) {
-    recommendations.push({ category: 'face-saving', suggestion: 'Frame suggestions to preserve dignity and respect', priority: 'high' });
+    recommendations.push({
+      category: 'face-saving',
+      suggestion: `Frame suggestions to preserve dignity and respect (crucial in ${culture || 'this culture'})`,
+      priority: 'high'
+    });
   }
   return recommendations;
 };
@@ -442,3 +460,4 @@ export const detectMultilingualElements = (text) => {
 
 export const detectCulturalContext = analyzeCulturalContext;
 export const detectEnhancedCulturalContext = analyzeCulturalContext;
+export { getCulturalDimensions };
