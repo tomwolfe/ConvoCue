@@ -135,14 +135,14 @@ describe('EnhancedFeedback', () => {
     fireEvent.click(submitBtn);
     
     await waitFor(() => {
-      expect(submitFeedback).toHaveBeenCalledWith(
-        'This is a test suggestion',
-        'very_helpful',
-        'anxiety',
-        'general',
-        'Test transcript',
-        'Test input'
-      );
+      expect(submitFeedback).toHaveBeenCalledWith({
+        suggestion: 'This is a test suggestion',
+        feedbackType: 'very_helpful',
+        persona: 'anxiety',
+        culturalContext: 'general',
+        transcript: 'Test transcript',
+        originalInput: 'Test input'
+      });
     });
   });
 
@@ -179,14 +179,14 @@ describe('EnhancedFeedback', () => {
     fireEvent.click(likeBtn);
     
     await waitFor(() => {
-      expect(submitFeedback).toHaveBeenCalledWith(
-        'This is a test suggestion',
-        'like',
-        'anxiety',
-        'general',
-        'Test transcript',
-        'Test input'
-      );
+      expect(submitFeedback).toHaveBeenCalledWith({
+        suggestion: 'This is a test suggestion',
+        feedbackType: 'like',
+        persona: 'anxiety',
+        culturalContext: 'general',
+        transcript: 'Test transcript',
+        originalInput: 'Test input'
+      });
     });
   });
 
@@ -199,14 +199,14 @@ describe('EnhancedFeedback', () => {
     fireEvent.click(dislikeBtn);
     
     await waitFor(() => {
-      expect(submitFeedback).toHaveBeenCalledWith(
-        'This is a test suggestion',
-        'dislike',
-        'anxiety',
-        'general',
-        'Test transcript',
-        'Test input'
-      );
+      expect(submitFeedback).toHaveBeenCalledWith({
+        suggestion: 'This is a test suggestion',
+        feedbackType: 'dislike',
+        persona: 'anxiety',
+        culturalContext: 'general',
+        transcript: 'Test transcript',
+        originalInput: 'Test input'
+      });
     });
   });
 });

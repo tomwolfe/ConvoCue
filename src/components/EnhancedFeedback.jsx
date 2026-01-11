@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ThumbsUp, ThumbsDown, Star, MessageCircle, X, CheckCircle } from 'lucide-react';
 import { submitFeedback } from '../utils/feedback';
 import { secureLocalStorageGet, secureLocalStorageSet } from '../utils/encryption';
@@ -23,15 +23,26 @@ const EnhancedFeedback = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
+  // Ref for modal header to manage focus
+  const modalHeaderRef = useRef(null);
+
   // Check if feedback has already been submitted for this suggestion
   const checkIfAlreadySubmitted = async () => {
     const feedbackHistory = await secureLocalStorageGet('convocue_feedback', []);
-    return feedbackHistory.some(f => 
-      f.suggestion === suggestion && 
+    return feedbackHistory.some(f =>
+      f.suggestion === suggestion &&
       f.transcript === transcript &&
       f.timestamp > Date.now() - 24 * 60 * 60 * 1000 // Within last 24 hours
     );
   };
+
+  // Manage focus when modal opens/closes
+  useEffect(() => {
+    if (showFeedbackModal && modalHeaderRef.current) {
+      // Focus the modal header when modal opens
+      modalHeaderRef.current.focus();
+    }
+  }, [showFeedbackModal]);
 
   const handleFeedbackSelect = async (type) => {
     const alreadySubmitted = await checkIfAlreadySubmitted();
@@ -71,17 +82,18 @@ const EnhancedFeedback = ({
         timestamp: Date.now()
       };
 
-      // Submit feedback
-      await submitFeedback(
+      // Submit feedback - pass the feedback data as a single object
+      await submitFeedback({
         suggestion,
-        type,
+        feedbackType: type,
         persona,
         culturalContext,
         transcript,
         originalInput
-      );
+      });
 
       // Store detailed feedback separately if provided
+      // Purpose: For client-side analytics and offline review of detailed feedback
       if (text || userRating > 0) {
         const detailedFeedbackHistory = await secureLocalStorageGet('convocue_detailed_feedback', []);
         detailedFeedbackHistory.push({
@@ -158,10 +170,10 @@ const EnhancedFeedback = ({
     return (
       <div className="enhanced-feedback-modal-overlay">
         <div className="enhanced-feedback-modal">
-          <div className="modal-header">
+          <div className="modal-header" ref={modalHeaderRef} tabIndex="-1">
             <h3>How was this suggestion?</h3>
-            <button 
-              className="close-btn" 
+            <button
+              className="close-btn"
               onClick={handleCancel}
               aria-label="Close feedback form"
             >

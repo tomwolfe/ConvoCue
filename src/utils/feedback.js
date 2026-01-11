@@ -8,14 +8,15 @@ import { trackInteraction } from './engagementTracking';
 /**
  * Submit feedback for a suggestion
  *
- * @param {string} suggestion - The suggestion that was provided
- * @param {string} feedbackType - The type of feedback ('like', 'dislike', 'report')
- * @param {string} persona - The persona used for the suggestion
- * @param {string} culturalContext - The cultural context used
- * @param {string} transcript - The original transcript
- * @param {string} originalInput - The original user input that led to the suggestion
+ * @param {Object} options - Feedback data object
+ * @param {string} options.suggestion - The suggestion that was provided
+ * @param {string} options.feedbackType - The type of feedback ('like', 'dislike', 'report')
+ * @param {string} options.persona - The persona used for the suggestion
+ * @param {string} options.culturalContext - The cultural context used
+ * @param {string} options.transcript - The original transcript
+ * @param {string} options.originalInput - The original user input that led to the suggestion
  */
-export const submitFeedback = async (suggestion, feedbackType, persona, culturalContext, transcript, originalInput = '') => {
+export const submitFeedback = async ({ suggestion, feedbackType, persona, culturalContext, transcript, originalInput = '' }) => {
   // Track interaction for abandonment metrics
   trackInteraction('suggestion', persona);
 

@@ -56,11 +56,18 @@ describe('Feedback Utilities', () => {
 
   describe('submitFeedback', () => {
     it('stores feedback in localStorage securely', async () => {
-      await submitFeedback('Great suggestion!', 'like', 'anxiety', 'general', 'How are you?', 'How are you?');
-      
+      await submitFeedback({
+        suggestion: 'Great suggestion!',
+        feedbackType: 'like',
+        persona: 'anxiety',
+        culturalContext: 'general',
+        transcript: 'How are you?',
+        originalInput: 'How are you?'
+      });
+
       const encryptedData = localStorage.getItem('convocue_feedback');
       expect(encryptedData).not.toBeNull();
-      
+
       const stored = await decryptData(encryptedData);
       expect(stored).toHaveLength(1);
       expect(stored[0]).toMatchObject({
@@ -76,9 +83,16 @@ describe('Feedback Utilities', () => {
     it('maintains only last 100 feedback entries', async () => {
       // Add 105 feedback entries
       for (let i = 0; i < 105; i++) {
-        await submitFeedback(`Suggestion ${i}`, 'like', 'anxiety', 'general', `Transcript ${i}`, `Transcript ${i}`);
+        await submitFeedback({
+          suggestion: `Suggestion ${i}`,
+          feedbackType: 'like',
+          persona: 'anxiety',
+          culturalContext: 'general',
+          transcript: `Transcript ${i}`,
+          originalInput: `Transcript ${i}`
+        });
       }
-      
+
       const encryptedData = localStorage.getItem('convocue_feedback');
       const stored = await decryptData(encryptedData);
       expect(stored).toHaveLength(100);
@@ -101,13 +115,13 @@ describe('Feedback Utilities', () => {
     });
 
     it('calculates correct stats for mixed feedback', async () => {
-      await submitFeedback('Good', 'like', 'anxiety', 'general', 'Test', 'Test');
-      await submitFeedback('Bad', 'dislike', 'professional', 'general', 'Test', 'Test');
-      await submitFeedback('Report', 'report', 'anxiety', 'east_asian', 'Test', 'Test');
-      await submitFeedback('Also good', 'like', 'anxiety', 'general', 'Test', 'Test');
-      
+      await submitFeedback({ suggestion: 'Good', feedbackType: 'like', persona: 'anxiety', culturalContext: 'general', transcript: 'Test', originalInput: 'Test' });
+      await submitFeedback({ suggestion: 'Bad', feedbackType: 'dislike', persona: 'professional', culturalContext: 'general', transcript: 'Test', originalInput: 'Test' });
+      await submitFeedback({ suggestion: 'Report', feedbackType: 'report', persona: 'anxiety', culturalContext: 'east_asian', transcript: 'Test', originalInput: 'Test' });
+      await submitFeedback({ suggestion: 'Also good', feedbackType: 'like', persona: 'anxiety', culturalContext: 'general', transcript: 'Test', originalInput: 'Test' });
+
       const stats = await getFeedbackStats();
-      
+
       expect(stats.totalFeedback).toBe(4);
       expect(stats.likes).toBe(2);
       expect(stats.dislikes).toBe(1);
@@ -125,14 +139,14 @@ describe('Feedback Utilities', () => {
 
     it('returns persona with most positive feedback', async () => {
       // Add some positive feedback for anxiety persona
-      await submitFeedback('Good', 'like', 'anxiety', 'general', 'Test', 'Test');
-      await submitFeedback('Also good', 'like', 'anxiety', 'general', 'Test', 'Test');
-      await submitFeedback('Another good', 'like', 'anxiety', 'general', 'Test', 'Test');
+      await submitFeedback({ suggestion: 'Good', feedbackType: 'like', persona: 'anxiety', culturalContext: 'general', transcript: 'Test', originalInput: 'Test' });
+      await submitFeedback({ suggestion: 'Also good', feedbackType: 'like', persona: 'anxiety', culturalContext: 'general', transcript: 'Test', originalInput: 'Test' });
+      await submitFeedback({ suggestion: 'Another good', feedbackType: 'like', persona: 'anxiety', culturalContext: 'general', transcript: 'Test', originalInput: 'Test' });
 
       // Add some negative feedback for professional persona
-      await submitFeedback('Bad', 'dislike', 'professional', 'general', 'Test', 'Test');
-      await submitFeedback('Worse', 'dislike', 'professional', 'general', 'Test', 'Test');
-      
+      await submitFeedback({ suggestion: 'Bad', feedbackType: 'dislike', persona: 'professional', culturalContext: 'general', transcript: 'Test', originalInput: 'Test' });
+      await submitFeedback({ suggestion: 'Worse', feedbackType: 'dislike', persona: 'professional', culturalContext: 'general', transcript: 'Test', originalInput: 'Test' });
+
       const preferred = await getPreferredPersonaFromFeedback();
       expect(preferred).toBe('anxiety');
     });
@@ -154,12 +168,12 @@ describe('Feedback Utilities', () => {
 
     it('returns phrases from frequently disliked suggestions', async () => {
       // Add suggestions with the word "terrible" that receive dislike feedback
-      await submitFeedback('This is terrible advice', 'dislike', 'anxiety', 'general', 'Test', 'Test');
-      await submitFeedback('That was terrible input', 'dislike', 'anxiety', 'general', 'Test', 'Test');
-      await submitFeedback('Something terrible happened', 'dislike', 'anxiety', 'general', 'Test', 'Test');
+      await submitFeedback({ suggestion: 'This is terrible advice', feedbackType: 'dislike', persona: 'anxiety', culturalContext: 'general', transcript: 'Test', originalInput: 'Test' });
+      await submitFeedback({ suggestion: 'That was terrible input', feedbackType: 'dislike', persona: 'anxiety', culturalContext: 'general', transcript: 'Test', originalInput: 'Test' });
+      await submitFeedback({ suggestion: 'Something terrible happened', feedbackType: 'dislike', persona: 'anxiety', culturalContext: 'general', transcript: 'Test', originalInput: 'Test' });
       // Add one with "terrible" that gets liked (should not count)
-      await submitFeedback('Not terrible at all', 'like', 'anxiety', 'general', 'Test', 'Test');
-      
+      await submitFeedback({ suggestion: 'Not terrible at all', feedbackType: 'like', persona: 'anxiety', culturalContext: 'general', transcript: 'Test', originalInput: 'Test' });
+
       const disliked = await getDislikedPhrases();
       expect(disliked).toContain('terrible');
     });
@@ -167,7 +181,7 @@ describe('Feedback Utilities', () => {
 
   describe('clearFeedbackData', () => {
     it('removes all feedback data from localStorage', async () => {
-      await submitFeedback('Test', 'like', 'anxiety', 'general', 'Test', 'Test');
+      await submitFeedback({ suggestion: 'Test', feedbackType: 'like', persona: 'anxiety', culturalContext: 'general', transcript: 'Test', originalInput: 'Test' });
       const encryptedData = localStorage.getItem('convocue_feedback');
       expect(encryptedData).not.toBeNull();
 
