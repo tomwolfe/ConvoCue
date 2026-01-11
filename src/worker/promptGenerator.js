@@ -95,23 +95,18 @@ export const generateCoachingPrompt = (persona, relationshipInsights, anxietyIns
  */
 
 /**
- * Combines various context segments into a final system prompt for the LLM.
+ * Combines static context segments into a final base system prompt for the LLM.
+ * This part is intended to be cached across turns.
  * @param {SystemPromptConfig} config - Configuration for prompt generation
- * @returns {string} The complete system prompt
+ * @returns {string} The base system prompt
  */
 export const generateSystemPrompt = (config) => {
     const {
-        persona,
         personaConfig,
         effectiveCulturalContext,
         communicationProfile,
         detectedCulturalContext,
-        sanitizedText,
         isPowerSavingMode,
-        isSubtleMode,
-        preferences,
-        relationshipInsights,
-        anxietyInsights,
         settings
     } = config;
 
@@ -121,30 +116,52 @@ export const generateSystemPrompt = (config) => {
 
     contextInstruction += generateCulturalPrompt(effectiveCulturalContext, detectedCulturalContext, settings, isPowerSavingMode);
 
+    return `${personaConfig.prompt} ${contextInstruction}`;
+};
+
+/**
+ * Generates dynamic, turn-specific context to be appended to the base prompt.
+ * @param {SystemPromptConfig} config - Configuration for dynamic prompt generation
+ * @returns {string} The dynamic prompt segment
+ */
+export const generateTurnSpecificContext = (config) => {
+    const {
+        persona,
+        sanitizedText,
+        isSubtleMode,
+        preferences,
+        relationshipInsights,
+        anxietyInsights,
+        effectiveCulturalContext,
+        settings
+    } = config;
+
+    let turnContext = "";
+
     const socialTips = getSocialNuanceTips(sanitizedText);
-    if (socialTips) contextInstruction += `Social Tips: ${socialTips} `;
+    if (socialTips) turnContext += `Social Tips: ${socialTips} `;
 
     if (persona === 'meeting' || persona === 'professional') {
         const highStakesCategory = sanitizedText.toLowerCase().includes('negotiate') || sanitizedText.toLowerCase().includes('price')
             ? 'negotiation'
             : 'leadership';
-        contextInstruction += getHighStakesTips(highStakesCategory);
-        contextInstruction += getProfessionalPromptTips(persona === 'meeting' ? 'business' : 'academic');
+        turnContext += getHighStakesTips(highStakesCategory);
+        turnContext += getProfessionalPromptTips(persona === 'meeting' ? 'business' : 'academic');
     }
 
     if (persona === 'languagelearning') {
-        contextInstruction += generateLanguageLearningPrompt(effectiveCulturalContext, sanitizedText, settings);
+        turnContext += generateLanguageLearningPrompt(effectiveCulturalContext, sanitizedText, settings);
     }
 
-    contextInstruction += generateCoachingPrompt(persona, relationshipInsights, anxietyInsights);
+    turnContext += generateCoachingPrompt(persona, relationshipInsights, anxietyInsights);
 
     if (isSubtleMode) {
-        contextInstruction += "SUBTLE MODE ACTIVE: Provide ONLY extremely brief, context-aware Quick Cues (1-5 words). No full sentences. ";
+        turnContext += "SUBTLE MODE ACTIVE: Provide ONLY extremely brief, context-aware Quick Cues (1-5 words). No full sentences. ";
     } else if (preferences) {
-        contextInstruction += `Preference: ${preferences.preferredLength} length. `;
+        turnContext += `Preference: ${preferences.preferredLength} length. `;
     }
 
-    contextInstruction += "IMPORTANT: Always include semantic tags in square brackets for specific cues: [conflict], [action item], [strategic], [social tip], [language tip], [empathy]. ";
+    turnContext += "IMPORTANT: Always include semantic tags in square brackets for specific cues: [conflict], [action item], [strategic], [social tip], [language tip], [empathy]. ";
 
-    return `${personaConfig.prompt} ${contextInstruction} Respond naturally.`;
+    return `${turnContext} Respond naturally.`.trim();
 };

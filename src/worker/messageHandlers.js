@@ -17,7 +17,7 @@ import { MLPipeline } from './MLPipeline';
 import { ML_TRANSITIONS } from './MLStateMachine';
 import { WorkerState, updatePerformanceMode, initConversationTurnManager, HIGH_STAKES_THRESHOLD_TURNS } from './state';
 import { sanitizeText, throttledProgress, validateCoachingInsights } from './utils';
-import { generateSystemPrompt } from './promptGenerator';
+import { generateSystemPrompt, generateTurnSpecificContext } from './promptGenerator';
 import { WorkerMessenger } from './Messenger';
 
 const messenger = WorkerMessenger.getInstance();
@@ -214,19 +214,23 @@ export const handleLLM = async (data) => {
         }
 
         const isSubtleMode = _settings?.isSubtleMode || preferences?.isSubtleMode;
-        const promptKey = `${persona}-${culturalContext}-${preferences?.preferredLength}-${isSubtleMode ? 'subtle' : 'normal'}-${communicationProfile ? communicationProfile.length : 0}`;
+        
+        // Caching: Base prompt depends on persona, culture, and static profile
+        // Turn-specific context (social tips, coaching) is appended separately
+        const promptKey = `${persona}-${culturalContext}-${communicationProfile ? communicationProfile.length : 0}`;
 
         if (WorkerState.cachedSystemPrompt.key !== promptKey) {
             WorkerState.cachedSystemPrompt = {
                 key: promptKey,
                 content: generateSystemPrompt({
                     persona, personaConfig, effectiveCulturalContext, communicationProfile,
-                    detectedCulturalContext, sanitizedText, isPowerSavingMode, isSubtleMode,
-                    preferences, relationshipInsights, anxietyInsights, settings
+                    detectedCulturalContext, isPowerSavingMode, settings
                 })
             };
         }
 
+        // Performance Optimization: Defer sentiment analysis until after LLM starts
+        // We use the last known sentiment for the prompt to save critical path time
         const sentimentPromise = (WorkerState.performanceStats.mode !== 'minimal' && settings.enableSentimentAnalysis !== false && !settings.privacyMode)
             ? Promise.resolve().then(() => {
                 const sStartTime = performance.now();
@@ -237,16 +241,23 @@ export const handleLLM = async (data) => {
             })
             : Promise.resolve(WorkerState.lastSentiment || { overallSentiment: 'neutral', emotionalTrend: 'stable' });
 
-        let dynamicContext = "";
-        if (metadata && !settings.privacyMode) {
-            if (metadata.rms > 0.01 && (sanitizedText.split(/\s+/).length / (metadata.duration || 1)) > 3) dynamicContext += "User sounds urgent. ";
-            if (metadata?.turnInfo?.isLikelyNewSpeaker) dynamicContext += "Another person may be speaking now. ";
-        }
-        if (!settings.privacyMode && emotionData.emotion !== 'neutral') dynamicContext += `Emotion: ${emotionData.emotion}. `;
+        // Build Turn-Specific Context (Fresh every turn)
+        const turnSpecificContext = generateTurnSpecificContext({
+            persona, sanitizedText, isSubtleMode, preferences,
+            relationshipInsights, anxietyInsights, effectiveCulturalContext, settings
+        });
 
-        conversationSentiment = await sentimentPromise;
-        if (!settings.privacyMode && conversationSentiment.overallSentiment !== 'neutral') {
-            dynamicContext += `Overall conversation sentiment: ${conversationSentiment.overallSentiment}. Trend: ${conversationSentiment.emotionalTrend}. `;
+        let dynamicContext = turnSpecificContext;
+        if (metadata && !settings.privacyMode) {
+            if (metadata.rms > 0.01 && (sanitizedText.split(/\s+/).length / (metadata.duration || 1)) > 3) dynamicContext += " User sounds urgent.";
+            if (metadata?.turnInfo?.isLikelyNewSpeaker) dynamicContext += " Another person may be speaking now.";
+        }
+        if (!settings.privacyMode && emotionData.emotion !== 'neutral') dynamicContext += ` Emotion: ${emotionData.emotion}.`;
+
+        // Use last known sentiment immediately to avoid blocking TTFT
+        const conversationSentimentForPrompt = WorkerState.lastSentiment || { overallSentiment: 'neutral', emotionalTrend: 'stable' };
+        if (!settings.privacyMode && conversationSentimentForPrompt.overallSentiment !== 'neutral') {
+            dynamicContext += ` Overall conversation sentiment: ${conversationSentimentForPrompt.overallSentiment}. Trend: ${conversationSentimentForPrompt.emotionalTrend}.`;
         }
 
         const conversationHistory = monitorAndOptimizeHistory((history || []).map(m => ({ role: m.role || 'user', content: m.content })));
@@ -284,6 +295,9 @@ export const handleLLM = async (data) => {
             relationship: relationshipInsights, anxiety: anxietyInsights, professional: professionalInsights, meeting: meetingInsights, language: languageLearningInsights
         }, persona);
 
+        // Await sentiment only for the result metadata, not blocking LLM start
+        conversationSentiment = await sentimentPromise;
+
         messenger.postMessage({
             type: 'llm_result',
             text: sanitizeText(coordinatedResponse.trim()),
@@ -319,17 +333,16 @@ export const handlePrewarmLLM = async (data) => {
 };
 
 export const handlePrewarmSystemPrompt = async (data) => {
-    const { persona, culturalContext, preferences, communicationProfile, settings } = data;
+    const { persona, culturalContext, communicationProfile, settings } = data;
     const personaConfig = AppConfig.models.personas[persona] || AppConfig.models.personas.anxiety;
-    const isSubtleMode = settings?.isSubtleMode || preferences?.isSubtleMode;
-    const promptKey = `${persona}-${culturalContext}-${preferences?.preferredLength}-${isSubtleMode ? 'subtle' : 'normal'}-${communicationProfile ? communicationProfile.length : 0}`;
+    const promptKey = `${persona}-${culturalContext}-${communicationProfile ? communicationProfile.length : 0}`;
 
     WorkerState.cachedSystemPrompt = {
         key: promptKey,
         content: generateSystemPrompt({
             persona, personaConfig, effectiveCulturalContext: culturalContext, communicationProfile,
-            detectedCulturalContext: null, sanitizedText: "", isPowerSavingMode: WorkerState.performanceStats.mode === 'minimal',
-            isSubtleMode, preferences, relationshipInsights: null, anxietyInsights: null, settings
+            detectedCulturalContext: null, isPowerSavingMode: WorkerState.performanceStats.mode === 'minimal',
+            settings
         })
     };
 };

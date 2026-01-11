@@ -26,8 +26,8 @@ export const WorkerState = {
     highStakesCounter: 0,
     cachedSystemPrompt: { key: null, content: null },
     lastLLMCallTime: 0,
-    lastSentiment: null,
-    sentimentPromise: null, // Track ongoing sentiment analysis promise
+    lastSentiment: { overallSentiment: 'neutral', emotionalTrend: 'stable' },
+    sentimentPromise: null, 
     performanceStats: {
         audioProcessingTimes: [],
         llmProcessingTimes: [],
