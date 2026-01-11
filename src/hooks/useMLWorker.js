@@ -4,7 +4,7 @@ import { generateUniqueId } from '../utils/idGenerator';
 import { enhanceResponse } from '../utils/responseEnhancement';
 import { useConversation } from './useConversation';
 import { useAppPreferences } from './useAppPreferences';
-import { getCommunicationProfileSummary } from '../utils/personalization';
+import { getCommunicationProfileSummary, getMirroringBaselines, updateMirroringBaselines } from '../utils/personalization';
 import { provideHapticFeedback, provideIntentHaptics } from '../utils/haptics';
 import { detectIntentHighPerformance } from '../utils/intentRecognition';
 import { getInsightCategoryScores } from '../utils/feedback';
@@ -343,6 +343,17 @@ export const useMLWorker = () => {  const [state, dispatch] = useReducer(workerR
 
               dispatch({ type: 'STT_RESULT', text: cleanText, intent });
 
+              // Update Mirroring Baselines
+              const { rms, duration } = metadata || {};
+              const wordCount = cleanText.split(/\s+/).filter(w => w.length > 0).length;
+              const pace = duration > 0 ? wordCount / duration : 0;
+              
+              if (pace > 0) {
+                await updateMirroringBaselines(pace, rms || 0);
+              }
+              
+              const mirroringBaselines = await getMirroringBaselines();
+
               // Trigger LLM if:
               // 1. Not too short OR
               // 2. Contains a meaningful conversational cue (even if short) OR
@@ -369,6 +380,7 @@ export const useMLWorker = () => {  const [state, dispatch] = useReducer(workerR
                       communicationProfile,
                       insightCategoryScores,
                       metadata,
+                      mirroringBaselines, // Pass dynamic baselines
                       preferences: prefsCache.current,
                       settings: settingsRef.current,
                       taskId: generateUniqueId('llm')
@@ -536,6 +548,8 @@ export const useMLWorker = () => {  const [state, dispatch] = useReducer(workerR
         ? await getCommunicationProfileSummary()
         : "";
 
+    const mirroringBaselines = await getMirroringBaselines();
+
     worker.current.postMessage({
       type: 'llm',
       text: state.transcript,
@@ -543,6 +557,7 @@ export const useMLWorker = () => {  const [state, dispatch] = useReducer(workerR
       persona: state.persona,
       culturalContext: state.culturalContext,
       communicationProfile,
+      mirroringBaselines,
       preferences: preferences,
       settings: settingsRef.current,
       taskId: generateUniqueId('refresh')

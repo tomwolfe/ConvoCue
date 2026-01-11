@@ -117,10 +117,21 @@ export const handleSTT = async (data) => {
             : { turn: { speaker: 'user' }, isLikelyNewSpeaker: false };
 
         updatePerformanceMode(audioProcessingTime, 'audio');
+        
+        // Calculate audio metrics for mirroring baselines
+        const rms = Math.sqrt(audioData.reduce((acc, val) => acc + val * val, 0) / audioData.length);
+        const sampleRate = 16000; // Standard for Whisper/Silero
+        const duration = audioData.length / sampleRate;
+
         messenger.postMessage({
             type: 'stt_result',
             text: sanitizedText,
-            metadata: { turnInfo, performance: { audioProcessingTime, mode: WorkerState.performanceStats.mode } },
+            metadata: { 
+                turnInfo, 
+                rms, 
+                duration,
+                performance: { audioProcessingTime, mode: WorkerState.performanceStats.mode } 
+            },
             taskId
         });
     } catch (processingError) {
@@ -131,7 +142,8 @@ export const handleSTT = async (data) => {
 export const handleLLM = async (data) => {
     const { 
         taskId, text: _text, persona, history, communicationProfile, 
-        insightCategoryScores, culturalContext, metadata, preferences, settings: _settings 
+        insightCategoryScores, culturalContext, metadata, preferences, settings: _settings,
+        mirroringBaselines
     } = data;
     
     const pipelineManager = await MLPipeline.getInstance();
@@ -155,7 +167,7 @@ export const handleLLM = async (data) => {
         const personaConfig = AppConfig.models.personas[persona] || AppConfig.models.personas.anxiety;
         const sanitizedText = _text.trim().substring(0, AppConfig.system.maxTranscriptLength);
         const emotionData = analyzeEmotion(sanitizedText);
-        const sessionTone = calculateSessionTone(sanitizedText, metadata, emotionData);
+        const sessionTone = calculateSessionTone(sanitizedText, metadata, emotionData, mirroringBaselines);
         const intents = detectMultipleIntents(sanitizedText, 0.4);
 
         const isPowerSavingMode = WorkerState.performanceStats.mode === 'minimal';
