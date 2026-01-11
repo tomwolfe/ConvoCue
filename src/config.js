@@ -163,6 +163,11 @@ export const AppConfig = {
     },
 
     // Maximum token count for conversation history
-    maxTokenCount: 4000
+    maxTokenCount: 4000,
+
+    // ML Pipeline configurations
+    mlPipeline: {
+      maxRetries: 3  // Maximum number of retry attempts for model loading
+    }
   }
 };

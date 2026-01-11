@@ -38,7 +38,7 @@ export class MLPipeline {
     static inactivityTimer = null;
     static sttConfig = null;
     static llmConfig = null;
-    static stateMachine = new MLStateMachine();
+    static stateMachine = new MLStateMachine(AppConfig.system.mlPipeline.maxRetries);
     static sttLoadingPromise = null;
     static llmLoadingPromise = null;
 

@@ -263,7 +263,7 @@ export class MLStateMachine {
     this.state = ML_STATES.UNINITIALIZED;
     this.context = {
       retryCount: 0,
-      maxRetries: this.context.maxRetries,
+      maxRetries: this.context.maxRetries, // Preserve the maxRetries value
       errors: []
     };
     this.transitions = [];
