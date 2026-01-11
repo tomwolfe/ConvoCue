@@ -1,5 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getCommunicationProfileSummary, _resetCommunicationProfileCache, calculateSessionTone, getMirroringBaselines, updateMirroringBaselines } from './personalization';
+import { 
+  getCommunicationProfileSummary, 
+  _resetCommunicationProfileCache, 
+  calculateSessionTone, 
+  getMirroringBaselines, 
+  updateMirroringBaselines,
+  resetMirroringBaselines
+} from './personalization';
 import { analyzeFeedbackTrends, calculateSocialSuccessScore } from './feedbackAnalytics';
 import { secureLocalStorageGet, secureLocalStorageSet } from './encryption';
 
@@ -157,6 +164,29 @@ describe('personalization utility', () => {
       // Threshold is 1.6, so this shouldn't be urgent yet, but it's higher than balanced.
       expect(result.urgencyScore).toBeGreaterThan(1.0);
     });
+
+    it('handles privacy mode by returning no mirroring instruction', () => {
+      const text = "FAST LOUD AND ANGRY!";
+      const metadata = { duration: 1, rms: 0.1 };
+      const emotionData = { emotion: 'anger' };
+      
+      const result = calculateSessionTone(text, metadata, emotionData, defaultBaselines, { privacyMode: true });
+      expect(result.mirroringInstruction).toBe("");
+      expect(result.isUrgent).toBe(false);
+    });
+
+    it('refines reflective detection to avoid misclassifying silence/thinking pauses', () => {
+      // Very slow pace (less than 0.3)
+      const text = "Wait... let me think.";
+      const metadata = { duration: 15, rms: 0.01 }; // Pace = 4/15 = 0.26
+      const emotionData = { emotion: 'neutral' };
+      
+      const result = calculateSessionTone(text, metadata, emotionData, defaultBaselines);
+      // paceRatio = 0.26 / 2.5 = 0.1 (well below reflective threshold 0.6)
+      // but pace < 0.3 means it should NOT be reflective (just slow/silent)
+      expect(result.mirroringInstruction).toContain('BALANCED');
+      expect(result.mirroringInstruction).not.toContain('REFLECTIVE');
+    });
   });
 
   describe('mirroring baseline persistence', () => {
@@ -174,6 +204,33 @@ describe('personalization utility', () => {
           pace: 3.0,
           volume: 0.015,
           count: 2
+        })
+      );
+    });
+
+    it('ignores volume updates below noise floor', async () => {
+      secureLocalStorageGet.mockResolvedValue({ pace: 2.0, volume: 0.01, count: 1 });
+      
+      await updateMirroringBaselines(4.0, 0.0001); // Very quiet (noise floor is 0.002)
+      
+      expect(secureLocalStorageSet).toHaveBeenCalledWith(
+        'convocue_mirroring_baselines',
+        expect.objectContaining({
+          pace: 3.0,
+          volume: 0.01, // Unchanged
+          count: 2
+        })
+      );
+    });
+
+    it('resets mirroring baselines', async () => {
+      await resetMirroringBaselines();
+      expect(secureLocalStorageSet).toHaveBeenCalledWith(
+        'convocue_mirroring_baselines',
+        expect.objectContaining({
+          pace: 2.5,
+          volume: 0.02,
+          count: 0
         })
       );
     });

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Info, ChevronDown, ChevronUp } from 'lucide-react';
 import { resetPersonalizationData, resetCoachingFeedback } from '../utils/feedback';
+import { resetMirroringBaselines } from '../utils/personalization';
 import { secureLocalStorageGet, secureLocalStorageSet } from '../utils/encryption';
 import { getSocialSuccessWeights, saveSocialSuccessWeights } from '../utils/feedbackAnalytics';
 import { eventBus, EVENTS } from '../utils/eventBus';
@@ -175,6 +176,13 @@ const Settings = ({ isOpen, onClose }) => {
     }
   };
 
+  const handleResetMirroring = async () => {
+    if (window.confirm('Reset mirroring calibration? This will clear the AI\'s understanding of your natural speaking pace and volume.')) {
+      await resetMirroringBaselines();
+      alert('Mirroring calibration has been reset.');
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -277,6 +285,12 @@ const Settings = ({ isOpen, onClose }) => {
                   <option value="medium">Medium (Adaptive)</option>
                   <option value="high">High (Energetic Match)</option>
                 </select>
+                <button 
+                  className="btn btn-outline btn-xs mt-2"
+                  onClick={handleResetMirroring}
+                >
+                  Re-calibrate Mirroring
+                </button>
               </div>
 
               <div className="setting-item">
@@ -513,7 +527,7 @@ const Settings = ({ isOpen, onClose }) => {
                 <div className="setting-info">
                   <h3>Privacy Mode</h3>
                   <p>Minimal data collection, focus on absolute privacy</p>
-                  <p className="setting-help-text">Disables advanced AI features like Auto-Persona and Sentiment analysis.</p>
+                  <p className="setting-help-text">Disables advanced AI features like Auto-Persona, Sentiment analysis, and Mirroring adaptation.</p>
                 </div>
                 <label className="toggle-switch">
                   <input
@@ -764,6 +778,7 @@ const Settings = ({ isOpen, onClose }) => {
                 <li><strong>Feedback History:</strong> Your "likes" and "dislikes" on suggestions.</li>
                 <li><strong>Conversation Sentiment:</strong> The general tone of your interactions (stored as anonymous metadata).</li>
                 <li><strong>Engagement:</strong> How often you use and interact with the app.</li>
+                <li><strong>Mirroring Baselines:</strong> Your average speaking pace and volume to help the AI match your energy level (stored locally).</li>
               </ul>
               <p>All data is <strong>encrypted</strong> and stored <strong>only on your device</strong>. Disabling SSS stops further collection, and "Clear Analytics History" deletes all stored score data.</p>
             </div>

@@ -45,6 +45,7 @@ const PrivacyConsent = ({ onConsentGiven }) => {
           <li>Voice characteristics for speaker identification</li>
           <li>Conversation transcripts for context analysis</li>
           <li>Real-time intent detection for adaptive coaching</li>
+          <li>Speaking pace and volume patterns (Mirroring)</li>
           <li>Feedback data to improve suggestions</li>
           <li>Response preferences to customize experience</li>
         </ul>

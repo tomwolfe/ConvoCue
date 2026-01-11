@@ -32,6 +32,13 @@ export const getMirroringBaselines = async () => {
 };
 
 /**
+ * Resets mirroring baselines to defaults.
+ */
+export const resetMirroringBaselines = async () => {
+  await secureLocalStorageSet(MIRRORING_BASELINES_KEY, { ...DEFAULT_BASELINES });
+};
+
+/**
  * Updates mirroring baselines using an Exponential Moving Average (EMA).
  * 
  * @param {number} currentPace - Pace of the current interaction
@@ -39,6 +46,11 @@ export const getMirroringBaselines = async () => {
  */
 export const updateMirroringBaselines = async (currentPace, currentVolume) => {
   if (currentPace <= 0) return;
+
+  // Noise floor check: ignore very quiet samples (likely background noise or far mic)
+  // 0.002 is a conservative threshold for meaningful speech
+  const NOISE_FLOOR = 0.002;
+  const isMeaningfulVolume = currentVolume > NOISE_FLOOR;
 
   const baselines = await getMirroringBaselines();
   
@@ -48,10 +60,14 @@ export const updateMirroringBaselines = async (currentPace, currentVolume) => {
   // Use simple average for first 3 samples to establish a baseline floor, then EMA
   if (baselines.count < 3) {
     baselines.pace = (baselines.pace * baselines.count + currentPace) / (baselines.count + 1);
-    baselines.volume = (baselines.volume * baselines.count + currentVolume) / (baselines.count + 1);
+    if (isMeaningfulVolume) {
+      baselines.volume = (baselines.volume * baselines.count + currentVolume) / (baselines.count + 1);
+    }
   } else {
     baselines.pace = (alpha * currentPace) + (1 - alpha) * baselines.pace;
-    baselines.volume = (alpha * currentVolume) + (1 - alpha) * baselines.volume;
+    if (isMeaningfulVolume) {
+      baselines.volume = (alpha * currentVolume) + (1 - alpha) * baselines.volume;
+    }
   }
   
   baselines.count += 1;
@@ -171,8 +187,27 @@ export const calculateSessionTone = (text, metadata, emotionData, baselines = DE
   };
   const activeThresholds = thresholds[sensitivity] || thresholds.medium;
 
+  // Respect Privacy Mode: Return balanced metrics without instructions
+  if (settings.privacyMode) {
+    return {
+      pace,
+      volume,
+      urgencyScore,
+      isUrgent: false,
+      shouldOverride: false,
+      mirroringInstruction: ""
+    };
+  }
+
   const isUrgent = urgencyScore > activeThresholds.urgent;
-  const isReflective = paceRatio < activeThresholds.reflective && wordCount > 3;
+  
+  // Refined Reflective Detection:
+  // Must have a slow pace BUT also a reasonable density of words to avoid 
+  // misclassifying silence or single-word thinking pauses as "reflective coaching" moments.
+  const isTooSlowForReflective = pace < 0.3; // Less than 1 word every 3 seconds is likely just pausing
+  const isReflective = paceRatio < activeThresholds.reflective && 
+                      wordCount > 3 && 
+                      !isTooSlowForReflective;
 
   // Calming Override Logic: Dynamic based on severity
   // Extreme urgency triggers immediately; moderate urgency requires persistence.
