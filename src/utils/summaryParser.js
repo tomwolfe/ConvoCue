@@ -109,18 +109,6 @@ export const parseSummaryResponse = (response, options) => {
   }
 
   if (options.includeSentiment) {
-    // Determine sentiment based on keywords in the response
-    const positiveKeywords = [
-      'positive', 'good', 'great', 'excellent', 'happy', 'satisfied', 'pleased',
-      'successful', 'beneficial', 'constructive', 'optimistic', 'encouraging',
-      'uplifting', 'hopeful', 'confident', 'impressed', 'pleased', 'satisfied'
-    ];
-    const negativeKeywords = [
-      'negative', 'bad', 'poor', 'terrible', 'sad', 'frustrated', 'angry',
-      'problem', 'issue', 'concern', 'difficult', 'challenging', 'worry',
-      'concerned', 'disappointed', 'frustrated', 'upset', 'tense', 'stressful'
-    ];
-
     // Use advanced sentiment analysis
     const sentimentAnalysis = analyzeSentimentWithConfidence(response);
     result.sentiment = sentimentAnalysis.sentiment;

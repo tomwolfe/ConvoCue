@@ -3,7 +3,6 @@ import {
   getCommunicationProfileSummary,
   _resetCommunicationProfileCache,
   calculateSessionTone,
-  getMirroringBaselines,
   updateMirroringBaselines,
   resetMirroringBaselines,
   recordMirroringFeedback
@@ -146,7 +145,6 @@ describe('personalization utility', () => {
 
     it('triggers calming override after persistent high urgency', () => {
       const text = "EXCESSIVE URGENCY AND LOUD VOLUME!";
-      const metadata = { duration: 1, rms: 0.15 }; // Very loud
       const emotionData = { emotion: 'anger', confidence: 0.9 };
 
       const metadataExtreme = { duration: 0.5, rms: 0.2 }; // Extremely loud and fast

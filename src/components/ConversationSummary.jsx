@@ -3,10 +3,9 @@
  * Displays a summary of the conversation history with key themes, action items, and sentiment
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { FileText, Calendar, TrendingUp, CheckCircle, AlertCircle, Clock, Download, Copy, Info } from 'lucide-react';
-import { generateConversationSummary, generateSummaryCard } from '../utils/conversationSummarizer';
-import { useConversation } from '../hooks/useConversation';
+import { generateConversationSummary } from '../utils/conversationSummarizer';
 import { useMLWorker } from '../hooks/useMLWorker';
 
 const ConversationSummary = ({ conversationTurns, isVisible, onClose }) => {
@@ -23,9 +22,9 @@ const ConversationSummary = ({ conversationTurns, isVisible, onClose }) => {
     if (isVisible && conversationTurns && conversationTurns.length > 0) {
       generateSummary();
     }
-  }, [isVisible, conversationTurns]);
+  }, [isVisible, conversationTurns, generateSummary]);
 
-  const generateSummary = async () => {
+  const generateSummary = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
@@ -45,7 +44,7 @@ const ConversationSummary = ({ conversationTurns, isVisible, onClose }) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [conversationTurns, mlWorker.workerRef]);
 
   const handleRegenerate = () => {
     generateSummary();

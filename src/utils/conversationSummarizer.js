@@ -39,15 +39,6 @@ export const generateConversationSummary = async (conversationHistory, options =
     };
   }
 
-  // Prepare summary result with long history warning
-  const summaryResult = {
-    summary: "",
-    themes: [],
-    actionItems: [],
-    sentiment: "neutral",
-    confidence: 0,
-    showLongHistoryWarning
-  };
 
   // If a worker is provided, use it for summary generation
   if (workerRef && workerRef.current) {

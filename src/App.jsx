@@ -31,7 +31,6 @@ const App = () => {
   const [showPersonaCustomization, setShowPersonaCustomization] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showViewMenu, setShowViewMenu] = useState(false);
-  const [showConversationSummary, setShowConversationSummary] = useState(false);
   const [availablePersonas, setAvailablePersonas] = useState(AppConfig.models.personas);
 
   useEffect(() => {
@@ -327,14 +326,6 @@ const App = () => {
               >
                 <SettingsIcon size={18} />
               </button>
-              <button
-                className="btn-settings"
-                onClick={() => setShowConversationSummary(true)}
-                aria-label="Conversation Summary"
-                title="View Conversation Summary"
-              >
-                <FileText size={18} />
-              </button>
             </div>
           </div>
           <p className="subtitle">Real-time social validation</p>
@@ -492,7 +483,6 @@ const App = () => {
             sttFunctional={sttFunctional}
             llmFunctional={llmFunctional}
             mlState={mlState}
-            workerRef={mlWorker.workerRef}
             onReset={() => {
               setHasInteracted(false);
               setMicPermissionError(null);

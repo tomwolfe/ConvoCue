@@ -2,7 +2,7 @@
  * Unit tests for the conversation summarization feature
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { generateConversationSummary, generateSummaryCard } from '../src/utils/conversationSummarizer';
 
 // Mock the AppConfig import

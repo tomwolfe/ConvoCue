@@ -443,14 +443,12 @@ const VADContent = ({
   sttFunctional,
   llmFunctional,
   mlState,
-  workerRef,
   onFullReset,
   sessionTone,
   onUpdateSetting
 }) => {
   const [availablePersonas, setAvailablePersonas] = useState(AppConfig.models.personas);
   const [sensitivitySuggestion, setSensitivitySuggestion] = useState(null);
-  const [showSuggestionNotification, setShowSuggestionNotification] = useState(false);
   const [showConversationSummary, setShowConversationSummary] = useState(false);
 
   // Check for sensitivity suggestions on component mount and periodically
@@ -458,7 +456,6 @@ const VADContent = ({
     const checkSensitivitySuggestion = async () => {
       const suggestion = await getSensitivitySuggestion();
       setSensitivitySuggestion(suggestion);
-      setShowSuggestionNotification(!!suggestion);
     };
 
     checkSensitivitySuggestion();
@@ -483,14 +480,12 @@ const VADContent = ({
 
     // Clear the suggestion and hide notification
     await clearSensitivitySuggestion();
-    setShowSuggestionNotification(false);
     setSensitivitySuggestion(null);
   };
 
   const handleDismissSuggestion = async () => {
     // Clear the suggestion and hide notification
     await clearSensitivitySuggestion();
-    setShowSuggestionNotification(false);
     setSensitivitySuggestion(null);
   };
 
