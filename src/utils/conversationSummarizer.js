@@ -110,14 +110,6 @@ const generateBasicSummary = (conversationHistory, options, showLongHistoryWarni
   // Extract all content from the conversation
   const allContent = conversationHistory.map(turn => turn.content || '').join(' ');
 
-  // Generate a basic summary
-  let summary = allContent.substring(0, summaryLength === 'short' ? 100 :
-                                    summaryLength === 'long' ? 300 : 200);
-
-  if (allContent.length > summary.length) {
-    summary += '...';
-  }
-
   // Extract themes if requested
   const themes = includeThemes ? extractBasicThemes(conversationHistory) : [];
 
@@ -126,6 +118,32 @@ const generateBasicSummary = (conversationHistory, options, showLongHistoryWarni
 
   // Determine sentiment if requested
   const sentiment = includeSentiment ? determineBasicSentiment(conversationHistory) : 'neutral';
+
+  // Generate a more structured summary using extracted themes and action items
+  let summary = "";
+  if (themes.length > 0 || actionItems.length > 0) {
+    summary = "Summary: ";
+
+    if (themes.length > 0) {
+      summary += `Themes: ${themes.join(', ')}; `;
+    }
+
+    if (actionItems.length > 0) {
+      summary += `Action Items: ${actionItems.join(', ')}; `;
+    }
+
+    if (includeSentiment) {
+      summary += `Sentiment: ${sentiment}.`;
+    }
+  } else {
+    // Fallback to simple truncation if no structured elements could be extracted
+    summary = allContent.substring(0, summaryLength === 'short' ? 100 :
+                                  summaryLength === 'long' ? 300 : 200);
+
+    if (allContent.length > summary.length) {
+      summary += '...';
+    }
+  }
 
   return {
     summary: summary || "Conversation summary could not be generated.",
@@ -192,6 +210,9 @@ const determineBasicSentiment = (conversationHistory) => {
   return result.overallSentiment;
 };
 
+// Map to store active promises for each worker
+const activePromisesMap = new WeakMap();
+
 /**
  * Function to request summary generation through the worker system
  * This would be called from the main thread to coordinate with the worker
@@ -204,27 +225,37 @@ export const requestSummaryFromWorker = (worker, conversationHistory, options = 
       return;
     }
 
-    const taskId = `summary_${Date.now()}`;
+    const taskId = `summary_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    // Set up a temporary listener for the summary result
-    const handleMessage = (event) => {
-      // Ensure event.data exists and has the expected properties
-      if (!event.data) {
-        worker.removeEventListener('message', handleMessage);
-        reject(new Error('Invalid message received from worker'));
-        return;
-      }
+    // Get or initialize the active promises map for this worker
+    let activePromises = activePromisesMap.get(worker);
+    if (!activePromises) {
+      activePromises = new Map();
+      activePromisesMap.set(worker, activePromises);
 
-      if (event.data.taskId === taskId && event.data.type === 'summary_result') {
-        worker.removeEventListener('message', handleMessage);
-        resolve(event.data.summary);
-      } else if (event.data.taskId === taskId && event.data.type === 'error') {
-        worker.removeEventListener('message', handleMessage);
-        reject(new Error(event.data.error));
-      }
-    };
+      // Set up a single persistent listener for this worker
+      worker.addEventListener('message', (event) => {
+        if (!event.data || !event.data.taskId) {
+          return; // Ignore messages without taskId
+        }
 
-    worker.addEventListener('message', handleMessage);
+        const promiseCallbacks = activePromises.get(event.data.taskId);
+        if (!promiseCallbacks) {
+          return; // No pending promise for this taskId
+        }
+
+        if (event.data.type === 'summary_result') {
+          promiseCallbacks.resolve(event.data.summary);
+          activePromises.delete(event.data.taskId);
+        } else if (event.data.type === 'error') {
+          promiseCallbacks.reject(new Error(event.data.error));
+          activePromises.delete(event.data.taskId);
+        }
+      });
+    }
+
+    // Store the resolve/reject callbacks for this taskId
+    activePromises.set(taskId, { resolve, reject });
 
     // Send the summary request to the worker
     worker.postMessage({

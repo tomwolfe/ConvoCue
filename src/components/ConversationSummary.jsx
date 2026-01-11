@@ -138,7 +138,7 @@ const ConversationSummary = ({ conversationTurns, isVisible, onClose }) => {
             {summary.parsingSuccessful === false && (
               <div className="summary-warning">
                 <AlertCircle size={16} color="#f59e0b" />
-                <span>Structured parsing failed. Showing raw summary.</span>
+                <span>We couldn't perfectly organize the summary. Here's the full text instead.</span>
               </div>
             )}
 
