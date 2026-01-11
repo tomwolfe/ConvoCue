@@ -5,9 +5,11 @@
 
 import {
   detectEnhancedCulturalContext,
-  analyzeLanguageLearningText,
-  provideContextualLanguageFeedback
-} from './src/utils/enhancedCulturalContext.js';
+  generateCulturallyAppropriateResponses,
+  getCulturalCommunicationTips,
+  analyzeCulturalAppropriateness,
+  detectMultilingualElements
+} from './src/utils/culturalIntelligence.js';
 import { resolveFeatureConflicts, validateInsightsConsistency } from './src/utils/featureCoordination.js';
 import { analyzeProfessionalCoaching } from './src/utils/professionalCoaching.js';
 

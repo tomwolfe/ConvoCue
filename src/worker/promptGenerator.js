@@ -15,7 +15,7 @@ import { generateAnxietyCoachingPrompt } from '../utils/anxietyCoaching';
 export const generateCulturalPrompt = (effectiveCulturalContext, detectedCulturalContext, settings, isPowerSavingMode) => {
     if (!effectiveCulturalContext || effectiveCulturalContext === 'general') return '';
 
-    let prompt = getCulturalPromptTips(effectiveCulturalContext);
+    let prompt = getCulturalPromptTips(effectiveCulturalContext, detectedCulturalContext);
     const isAdvancedCulturalGuidanceEnabled = settings?.enableAdvancedCulturalGuidance !== false;
 
     if (!isPowerSavingMode && isAdvancedCulturalGuidanceEnabled && detectedCulturalContext?.recommendations) {

@@ -481,10 +481,14 @@ export const getTimeConceptForCulture = (culture) => {
 /**
  * Get prompt-ready tips for a specific culture
  */
-export const getCulturalPromptTips = (culture) => {
+export const getCulturalPromptTips = (culture, culturalAnalysis = null) => {
   if (!culture || culture === 'general') return '';
 
-  const style = getCommunicationStyleForCulture(culture);
+  // Use values from culturalAnalysis if provided and matches the target culture
+  const style = (culturalAnalysis && culturalAnalysis.primaryCulture === culture)
+    ? culturalAnalysis.communicationStyle
+    : getCommunicationStyleForCulture(culture);
+
   const styleKey = style.context || (style.directness === 'indirect' ? 'high-context' : 'low-context');
   const styleData = culturalContextDatabase.communicationStyles[styleKey];
   const tips = styleData ? styleData.tips.slice(0, 3) : [];
@@ -497,6 +501,13 @@ export const getCulturalPromptTips = (culture) => {
   let promptTips = `Cultural Context (${culture}): `;
   promptTips += `Communication Style: ${styleData?.description || styleKey}. `;
   if (tips.length > 0) promptTips += `Key Tips: ${tips.join(', ')}. `;
+  
+  // Add specific recommendations from analysis if available
+  if (culturalAnalysis && culturalAnalysis.recommendations && culturalAnalysis.recommendations.length > 0) {
+    const specificTips = culturalAnalysis.recommendations.map(r => r.suggestion).slice(0, 2);
+    promptTips += `Specific Guidance: ${specificTips.join(' ')} `;
+  }
+
   promptTips += `Formality: ${preferences.formality}. `;
   promptTips += `Time Concept: ${concept}. `;
   promptTips += `Native Greeting: ${greeting}. `;
@@ -650,6 +661,32 @@ export const getNaturalPhrasing = (language, input) => {
   if (!phrases || !input) return null;
   const lowerInput = input.toLowerCase();
   return phrases.find(p => lowerInput.includes(p.literal.toLowerCase())) || null;
+};
+
+/**
+ * Analyzes text for cultural appropriateness
+ */
+export const analyzeCulturalAppropriateness = (text, targetCulture) => {
+  const analysis = {
+    communicationStyle: getCommunicationStyleForCulture(targetCulture)
+  };
+  const result = validateCulturalAppropriateness(text, analysis);
+  return {
+    ...result,
+    score: result.isValid ? 1.0 : 0.5,
+    disclaimer: "This analysis is based on general cultural patterns. Individual preferences may vary significantly."
+  };
+};
+
+/**
+ * Get cultural communication tips
+ */
+export const getCulturalCommunicationTips = (culture) => {
+  const style = getCommunicationStyleForCulture(culture);
+  return [
+    `In ${culture} culture, communication tends to be ${style.directness} and ${style.formality}.`,
+    "Always verify with individual preferences."
+  ];
 };
 
 export const detectCulturalContext = analyzeCulturalContext;

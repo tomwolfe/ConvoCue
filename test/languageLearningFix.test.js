@@ -8,7 +8,7 @@ import {
   provideContextualLanguageFeedback,
   providePronunciationFeedback
 } from '../src/utils/languageLearning.js';
-import { detectEnhancedCulturalContext } from '../src/utils/enhancedCulturalContext.js';
+import { detectEnhancedCulturalContext } from '../src/utils/culturalIntelligence.js';
 import { CulturalLanguageConfig } from '../src/config/culturalLanguageConfig.js';
 
 describe('Language Learning and Cultural Context Separation Tests', () => {
