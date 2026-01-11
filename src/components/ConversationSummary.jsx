@@ -22,7 +22,7 @@ const ConversationSummary = ({ conversationTurns, isVisible, onClose }) => {
     if (isVisible && conversationTurns && conversationTurns.length > 0) {
       generateSummary();
     }
-  }, [isVisible, conversationTurns, generateSummary]);
+  }, [isVisible, conversationTurns]);
 
   const generateSummary = useCallback(async () => {
     setIsLoading(true);
@@ -32,13 +32,16 @@ const ConversationSummary = ({ conversationTurns, isVisible, onClose }) => {
       // Check if the worker is available before attempting to use it
       const workerRef = mlWorker.workerRef?.current || null;
 
+      // Only use the worker if it's properly initialized
+      const workerToUse = workerRef && typeof workerRef.postMessage === 'function' ? workerRef : null;
+
       const summaryData = await generateConversationSummary(conversationTurns, {
         maxTurns: 20,
         includeThemes: true,
         includeActionItems: true,
         includeSentiment: true,
         summaryLength: 'medium'
-      }, workerRef);
+      }, workerToUse);
 
       setSummary(summaryData);
     } catch (err) {
@@ -47,7 +50,7 @@ const ConversationSummary = ({ conversationTurns, isVisible, onClose }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [conversationTurns, mlWorker]);
+  }, [conversationTurns, mlWorker.workerRef]);
 
   const handleRegenerate = () => {
     generateSummary();

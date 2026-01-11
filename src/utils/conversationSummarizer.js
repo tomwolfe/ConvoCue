@@ -50,6 +50,17 @@ export const generateConversationSummary = async (conversationHistory, options =
   // If a worker is provided, use it for summary generation
   if (workerRef && typeof workerRef === 'object' && workerRef.current) {
     try {
+      // Ensure the worker is properly initialized before using it
+      if (typeof workerRef.current.postMessage !== 'function') {
+        console.warn("Worker is not properly initialized, falling back to basic summary");
+        return generateBasicSummary(limitedHistory, {
+          includeThemes,
+          includeActionItems,
+          includeSentiment,
+          summaryLength
+        }, showLongHistoryWarning);
+      }
+
       const result = await requestSummaryFromWorker(workerRef.current, limitedHistory, {
         includeThemes,
         includeActionItems,
@@ -197,6 +208,13 @@ export const requestSummaryFromWorker = (worker, conversationHistory, options = 
 
     // Set up a temporary listener for the summary result
     const handleMessage = (event) => {
+      // Ensure event.data exists and has the expected properties
+      if (!event.data) {
+        worker.removeEventListener('message', handleMessage);
+        reject(new Error('Invalid message received from worker'));
+        return;
+      }
+
       if (event.data.taskId === taskId && event.data.type === 'summary_result') {
         worker.removeEventListener('message', handleMessage);
         resolve(event.data.summary);
