@@ -14,6 +14,7 @@ import { coordinateFeaturesInResponse, resolveFeatureConflicts } from '../utils/
 import { calculateSessionTone } from '../utils/personalization';
 import { secureLocalStorageGet, secureLocalStorageSet } from '../utils/encryption';
 import { TextStreamer } from '@huggingface/transformers';
+import { detectIntentWithFullContext } from '../utils/enhancedIntentRecognition';
 
 import { MLPipeline } from './MLPipeline';
 import { ML_TRANSITIONS } from './MLStateMachine';
@@ -196,7 +197,9 @@ export const handleLLM = async (data) => {
             });
         }
 
-        const intents = detectMultipleIntents(sanitizedText, 0.4);
+        // Use enhanced intent detection with conversation context
+        const enhancedIntentResult = detectIntentWithFullContext(sanitizedText, history || [], { enableMultiIntent: true });
+        const intents = enhancedIntentResult.allIntents || detectMultipleIntents(sanitizedText, 0.4);
 
         const isPowerSavingMode = WorkerState.performanceStats.mode === 'minimal';
         const shouldRunDeepAnalysis = !isPowerSavingMode;

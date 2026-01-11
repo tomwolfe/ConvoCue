@@ -7,6 +7,7 @@ import { useAppPreferences } from './useAppPreferences';
 import { getCommunicationProfileSummary, getMirroringBaselines, updateMirroringBaselines } from '../utils/personalization';
 import { provideHapticFeedback, provideIntentHaptics } from '../utils/haptics';
 import { detectIntentHighPerformance } from '../utils/intentRecognition';
+import { detectIntentWithConversationContext } from '../utils/enhancedIntentRecognition';
 import { getInsightCategoryScores } from '../utils/feedback';
 import performanceMonitor from '../utils/performance';
 import { calculateEngagement } from '../utils/engagement';
@@ -287,10 +288,22 @@ export const useMLWorker = () => {  const [state, dispatch] = useReducer(workerR
               // Immediate Intent Recognition for subtle feedback
               let intent = null;
               if (!stateRef.current.isLowMemory) {
-                // Use high-performance detection for real-time processing
+                // Use enhanced context-aware detection for better accuracy
+                // Fall back to high-performance detection if context detection is too slow
                 const confidenceThreshold = settingsRef.current.intentDetection?.confidenceThreshold ?? 0.5;
-                const { intent: rawIntent, confidence } = detectIntentHighPerformance(cleanText, confidenceThreshold);
-                intent = rawIntent;
+
+                // Use enhanced detection with conversation context
+                const enhancedResult = detectIntentWithConversationContext(cleanText, 5); // Use last 5 turns for context
+                const { primaryIntent, allIntents } = enhancedResult;
+
+                // Use the primary intent from enhanced detection if confidence is sufficient
+                if (primaryIntent && primaryIntent.confidence > confidenceThreshold) {
+                  intent = primaryIntent.intent;
+                } else {
+                  // Fall back to high-performance detection for real-time processing
+                  const { intent: rawIntent, confidence } = detectIntentHighPerformance(cleanText, confidenceThreshold);
+                  intent = rawIntent;
+                }
 
                 // Sticky Intent Logic: Keep the badge visible for configurable duration
                 // to prevent flickering, and debounce switches between different intents
@@ -300,7 +313,7 @@ export const useMLWorker = () => {  const [state, dispatch] = useReducer(workerR
                 const debounceWindow = settingsRef.current.intentDetection?.debounceWindowMs ?? 800;
                 const stickyDuration = settingsRef.current.intentDetection?.stickyDurationMs ?? 2000;
 
-                if (intent && confidence > confidenceThreshold) {
+                if (intent && enhancedResult.primaryIntent?.confidence > confidenceThreshold) {
                   // Only switch to a DIFFERENT intent if enough time has passed (debounce)
                   if (!currentSticky || intent === currentSticky || (now - lastIntentSwitchTimeRef.current > debounceWindow)) {
                     if (intent !== currentSticky) {
@@ -317,14 +330,18 @@ export const useMLWorker = () => {  const [state, dispatch] = useReducer(workerR
                   stickyIntentRef.current = { intent: null, timestamp: 0 };
                 }
 
-                if (rawIntent && confidence > confidenceThreshold) {
-                  const cooldown = rawIntent === lastHapticIntentRef.current ? 3000 : 1000;
+                // Use the confidence from enhanced detection if available, otherwise from high-performance
+                const effectiveConfidence = enhancedResult.primaryIntent?.confidence ||
+                                           detectIntentHighPerformance(cleanText, confidenceThreshold).confidence;
+
+                if (intent && effectiveConfidence > confidenceThreshold) {
+                  const cooldown = intent === lastHapticIntentRef.current ? 3000 : 1000;
 
                   if (now - lastHapticTimeRef.current > cooldown) {
                     // Trigger immediate haptics based on intent before LLM finishes
-                    provideIntentHaptics(rawIntent);
+                    provideIntentHaptics(intent);
                     lastHapticTimeRef.current = now;
-                    lastHapticIntentRef.current = rawIntent;
+                    lastHapticIntentRef.current = intent;
 
                     // Instant Cue for UI
                     const instantCueMap = {
@@ -335,7 +352,7 @@ export const useMLWorker = () => {  const [state, dispatch] = useReducer(workerR
                       'professional': 'Stay objective...',
                       'action_item': 'Note the task...'
                     };
-                    const instantCue = instantCueMap[rawIntent];
+                    const instantCue = instantCueMap[intent];
                     if (instantCue) {
                       dispatch({ type: 'SET_SUGGESTION', text: `[Analyzing] ${instantCue}` });
                     }
