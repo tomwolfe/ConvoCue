@@ -10,6 +10,7 @@
 
 import { detectIntentWithContext, detectMultipleIntents, ALL_INTENTS } from './intentRecognition';
 import { getConversationManager, getConversationHistory } from '../conversationManager';
+import { logIntentDetectionMetricsEnhanced } from './trainingDataCollector';
 
 // Enhanced intent patterns with context clues
 const CONTEXT_PATTERNS = {
@@ -832,35 +833,8 @@ export const detectIntentWithConversationContext = (input, contextTurns = 5, use
  * @param {number} processingTime - Time taken for processing
  */
 export const logIntentDetectionMetrics = (input, result, processingTime) => {
-  // In a real implementation, this would send metrics to an analytics service
-  // For now, we'll just store them locally for potential retrieval
-  const metricEntry = {
-    timestamp: Date.now(),
-    inputLength: input.length,
-    processingTime,
-    primaryIntent: result.primaryIntent?.intent || null,
-    primaryConfidence: result.primaryIntent?.confidence || 0,
-    numIntents: result.allIntents?.length || 0,
-    contextUsed: !!result.contextAnalysis,
-    sentimentTrend: result.contextAnalysis?.sentimentTrend,
-    culturalContext: result.contextAnalysis?.culturalContext,
-    conversationStage: result.contextAnalysis?.conversationStage
-  };
-
-  // Store metrics in localStorage or send to analytics service
-  if (typeof window !== 'undefined' && window.localStorage) {
-    try {
-      const existingMetrics = JSON.parse(localStorage.getItem('intentDetectionMetrics') || '[]');
-      existingMetrics.push(metricEntry);
-      // Keep only the last 1000 entries to prevent storage overflow
-      const recentMetrics = existingMetrics.slice(-1000);
-      localStorage.setItem('intentDetectionMetrics', JSON.stringify(recentMetrics));
-    } catch (e) {
-      console.warn('Could not store intent detection metrics:', e);
-    }
-  }
-
-  return metricEntry;
+  // Use the enhanced logging function that also collects training data
+  return logIntentDetectionMetricsEnhanced(input, result, processingTime);
 };
 
 // Export all functions for use

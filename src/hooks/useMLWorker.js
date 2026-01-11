@@ -7,7 +7,7 @@ import { useAppPreferences } from './useAppPreferences';
 import { getCommunicationProfileSummary, getMirroringBaselines, updateMirroringBaselines } from '../utils/personalization';
 import { provideHapticFeedback, provideIntentHaptics } from '../utils/haptics';
 import { detectIntentHighPerformance } from '../utils/intentRecognition';
-import { detectIntentWithConversationContext } from '../utils/enhancedIntentRecognition';
+import { getIntentRecognitionEngine } from '../utils/intentRecognitionEngine';
 import { getInsightCategoryScores } from '../utils/feedback';
 import performanceMonitor from '../utils/performance';
 import { calculateEngagement } from '../utils/engagement';
@@ -291,16 +291,31 @@ export const useMLWorker = () => {  const [state, dispatch] = useReducer(workerR
                 // Use enhanced context-aware detection for better accuracy
                 // Fall back to high-performance detection if context detection is too slow
                 const confidenceThreshold = settingsRef.current.intentDetection?.confidenceThreshold ?? 0.5;
+                let enhancedResult = null;
 
-                // Use enhanced detection with conversation context
-                // Use summarization for longer context windows to preserve important early turns
-                const enhancedResult = detectIntentWithConversationContext(cleanText, 10, true); // Use last 10 turns with summarization
-                const { primaryIntent, allIntents } = enhancedResult;
+                try {
+                  // Use the new intent recognition engine with configurable approach
+                  const intentEngine = getIntentRecognitionEngine({
+                    useML: false, // Start with heuristic approach, can be switched later
+                    fallbackEnabled: true,
+                    confidenceThreshold
+                  });
 
-                // Use the primary intent from enhanced detection if confidence is sufficient
-                if (primaryIntent && primaryIntent.confidence > confidenceThreshold) {
-                  intent = primaryIntent.intent;
-                } else {
+                  // Use enhanced detection with conversation context
+                  // Use summarization for longer context windows to preserve important early turns
+                  enhancedResult = await intentEngine.detectIntentWithConversationContext(cleanText, 10, true); // Use last 10 turns with summarization
+                  const { primaryIntent, allIntents } = enhancedResult;
+
+                  // Use the primary intent from enhanced detection if confidence is sufficient
+                  if (primaryIntent && primaryIntent.confidence > confidenceThreshold) {
+                    intent = primaryIntent.intent;
+                  } else {
+                    // Fall back to high-performance detection for real-time processing
+                    const { intent: rawIntent, confidence } = detectIntentHighPerformance(cleanText, confidenceThreshold);
+                    intent = rawIntent;
+                  }
+                } catch (error) {
+                  console.error('Intent recognition failed, falling back to high-performance:', error);
                   // Fall back to high-performance detection for real-time processing
                   const { intent: rawIntent, confidence } = detectIntentHighPerformance(cleanText, confidenceThreshold);
                   intent = rawIntent;

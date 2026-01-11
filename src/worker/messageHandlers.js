@@ -14,7 +14,7 @@ import { coordinateFeaturesInResponse, resolveFeatureConflicts } from '../utils/
 import { calculateSessionTone } from '../utils/personalization';
 import { secureLocalStorageGet, secureLocalStorageSet } from '../utils/encryption';
 import { TextStreamer } from '@huggingface/transformers';
-import { detectIntentWithFullContext } from '../utils/enhancedIntentRecognition';
+import { getIntentRecognitionEngine } from '../utils/intentRecognitionEngine';
 
 import { MLPipeline } from './MLPipeline';
 import { ML_TRANSITIONS } from './MLStateMachine';
@@ -198,7 +198,12 @@ export const handleLLM = async (data) => {
         }
 
         // Use enhanced intent detection with conversation context
-        const enhancedIntentResult = detectIntentWithFullContext(sanitizedText, history || [], { enableMultiIntent: true });
+        const intentEngine = getIntentRecognitionEngine({
+          useML: false, // Start with heuristic approach, can be switched later
+          fallbackEnabled: true,
+          enableMultiIntent: true
+        });
+        const enhancedIntentResult = await intentEngine.detectIntentWithFullContext(sanitizedText, history || [], { enableMultiIntent: true });
         const intents = enhancedIntentResult.allIntents || detectMultipleIntents(sanitizedText, 0.4);
 
         const isPowerSavingMode = WorkerState.performanceStats.mode === 'minimal';
