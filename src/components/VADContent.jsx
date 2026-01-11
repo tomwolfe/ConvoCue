@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useMicVAD } from '@ricky0123/vad-react';
 import { Loader2, AlertCircle, RefreshCw, Zap, ShieldAlert, Info, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { AppConfig } from '../config';
@@ -33,7 +33,7 @@ const GlanceWidget = ({ suggestion, emotionData, isProcessing, detectedIntent, s
     }
   }, [suggestion, lastTrackedSuggestion, persona]);
 
-  const { cleanText: displaySuggestion, tags } = React.useMemo(() => {
+  const { cleanText: displaySuggestion, tags } = useMemo(() => {
     if (!suggestion) return { cleanText: isProcessing ? 'Thinking...' : 'Listening...', tags: [] };
     return parseSemanticTags(suggestion);
   }, [suggestion, isProcessing]);

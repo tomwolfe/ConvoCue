@@ -1,4 +1,4 @@
-import { useReducer, useEffect, useRef, useCallback, useState } from 'react';
+import { useReducer, useEffect, useRef, useCallback, useState, useMemo } from 'react';
 import { AppConfig } from '../config';
 import { generateUniqueId } from '../utils/idGenerator';
 import { enhanceResponse } from '../utils/responseEnhancement';
