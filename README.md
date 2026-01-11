@@ -82,6 +82,20 @@ ConvoCue is a privacy-first, on-device AI conversation assistant that provides r
     - **Low Memory Mode**: Automatic optimization for devices with limited resources.
     - **Progressive Loading**: Models load progressively to reduce initial wait times.
     - **Aggressive Caching**: Intelligent caching to reduce redundant processing.
+- **Enhanced Cultural and Language Learning Features**:
+    - **Cultural Context Detection**: Weighted scoring system for seven distinct cultural regions with multilingual element detection.
+    - **Language Learning Engine**: Grammar correction with detailed explanations, pronunciation feedback, and vocabulary enhancement.
+    - **Feature Coordination System**: Conflict resolution between cultural, language, and professional coaching features.
+    - **Cultural Appropriateness Analysis**: Actionable warnings and integration with user cultural profiles.
+- **ML State Machine (FSM)**:
+    - **State Management**: Comprehensive lifecycle management for STT and LLM models with states like UNINITIALIZED, LOADING_STT, LOADING_LLM, READY, STT_READY, ERROR, RETRYING_STT, RETRYING_LLM, LOW_MEMORY, and TEXT_ONLY_MODE.
+    - **Error Recovery**: Robust retry mechanisms and graceful degradation to text-only mode when voice features fail.
+    - **Race Condition Protection**: Sequential message processing and loading promise guards to ensure atomic transitions.
+    - **Memory Pressure Handling**: Proactive model disposal and recovery strategies for low-memory situations.
+- **Unified Design System**:
+    - **Standardized Components**: Consistent UI elements including `.btn-toggle-icon`, `.feedback-btn`, `.btn-action-sm`, and `.btn-close-sm` for predictable user experience.
+    - **Accessibility First**: Built-in ARIA support, keyboard navigation, and consistent interactive states across all components.
+    - **Responsive Design**: Optimized layouts for both desktop and mobile experiences with compact and subtle modes.
 
 ## Use Cases
 
@@ -109,6 +123,8 @@ ConvoCue leverages a modern, decoupled architecture to ensure high performance a
 - **Performance Monitoring**: Built-in tools for tracking latency, memory usage, and processing times.
 - **Cultural Intelligence**: Multi-dimensional analysis based on Hofstede's cultural dimensions.
 - **Intent Recognition**: Sophisticated NLP system with pattern matching and similarity algorithms.
+- **State Management**: Finite State Machine (FSM) for robust model loading and error handling.
+- **Design System**: Unified component strategy for consistent UI/UX across all interactive elements.
 
 ## Documentation
 
@@ -120,6 +136,10 @@ For more detailed technical insights, see the `docs/` directory:
 - [Coaching Insights System](./docs/coaching-insights.md)
 - [Cultural Intelligence System](./docs/cultural_intelligence_system.md)
 - [Intent Taxonomy](./docs/intent_taxonomy.md)
+- [ML State Machine](./docs/fsm_state_diagram.md)
+- [Design System](./docs/design-system.md)
+- [Enhanced Cultural and Language Learning Features](./docs/enhanced_features.md)
+- [Action Plan 2026](./docs/action-plan-2026.md)
 
 ## Getting Started
 
