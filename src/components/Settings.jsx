@@ -262,15 +262,20 @@ const Settings = ({ isOpen, onClose }) => {
                 <div className="setting-info">
                   <h3>Mirroring Sensitivity</h3>
                   <p>How the AI matches your pace and volume</p>
+                  <p className="setting-help-text">
+                    Low: AI responds with a calm, steady tone to help you de-escalate. 
+                    Medium: AI adapts to your energy level. 
+                    High: AI closely matches your pace and intensity.
+                  </p>
                 </div>
                 <select
                   className="setting-select"
                   value={settings.mirroringSensitivity || 'medium'}
                   onChange={(e) => handleSettingChange('mirroringSensitivity', e.target.value)}
                 >
-                  <option value="low">Low (Stable)</option>
-                  <option value="medium">Medium (Balanced)</option>
-                  <option value="high">High (Reactive)</option>
+                  <option value="low">Low (Calm & Grounded)</option>
+                  <option value="medium">Medium (Adaptive)</option>
+                  <option value="high">High (Energetic Match)</option>
                 </select>
               </div>
 

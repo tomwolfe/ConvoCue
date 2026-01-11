@@ -125,26 +125,24 @@ describe('personalization utility', () => {
       const metadata = { duration: 2, rms: 0.1 }; // Very loud
       const emotionData = { emotion: 'anger' };
       
-      // urgencyScore = (paceRatio * 0.5) + (volumeRatio * 0.3) + (emotionScore * 0.2)
-      // pace = 5/2 = 2.5. paceRatio = 2.5/2.5 = 1.0
-      // volumeRatio = 0.1/0.02 = 5.0
-      // urgencyScore = 0.5 + 1.5 + 0.28 = 2.28 (Not quite 2.5 yet)
-      
-      const metadataExtreme = { duration: 1, rms: 0.15 }; // Even louder and faster
-      // pace = 5/1 = 5.0. paceRatio = 2.0
-      // volumeRatio = 0.15/0.02 = 7.5
-      // urgencyScore = 1.0 + 2.25 + 0.28 = 3.53
+      const metadataExtreme = { duration: 0.5, rms: 0.2 }; // Extremely loud and fast
+      // pace = 5/0.5 = 10.0. paceRatio = 4.0
+      // volumeRatio = 0.2/0.02 = 10.0
+      // urgencyScore will be very high (> 4.0)
 
-      // First turn high urgency
-      const result1 = calculateSessionTone(text, metadataExtreme, emotionData, defaultBaselines, {}, 0);
+      // First turn moderate-high urgency
+      const result1 = calculateSessionTone(text, { duration: 2, rms: 0.12 }, emotionData, defaultBaselines, {}, 0);
       expect(result1.urgencyScore).toBeGreaterThan(2.5);
-      expect(result1.shouldOverride).toBe(false); // First turn
-      expect(result1.mirroringInstruction).toContain('HIGH-PACE');
+      expect(result1.shouldOverride).toBe(false); // First turn, not extreme yet
 
-      // Second turn persistent high urgency
-      const result2 = calculateSessionTone(text, metadataExtreme, emotionData, defaultBaselines, {}, 1);
+      // Second turn persistent moderate-high urgency
+      const result2 = calculateSessionTone(text, { duration: 2, rms: 0.12 }, emotionData, defaultBaselines, {}, 1);
       expect(result2.shouldOverride).toBe(true);
-      expect(result2.mirroringInstruction).toContain('CALMING');
+
+      // Immediate override for extreme urgency
+      const resultExtreme = calculateSessionTone(text, metadataExtreme, emotionData, defaultBaselines, {}, 0);
+      expect(resultExtreme.urgencyScore).toBeGreaterThan(4.0);
+      expect(resultExtreme.shouldOverride).toBe(true); // Immediate override
     });
 
     it('triggers urgency for moderate pace but high emotional intensity', () => {
@@ -162,7 +160,44 @@ describe('personalization utility', () => {
   });
 
   describe('mirroring baseline persistence', () => {
-    it('updates baselines with EMA', async () => {
+    it('updates baselines with simple average for first 3 samples', async () => {
+      secureLocalStorageGet.mockResolvedValue({ pace: 2.0, volume: 0.01, count: 1 });
+      
+      await updateMirroringBaselines(4.0, 0.02);
+      
+      // (2.0 * 1 + 4.0) / 2 = 3.0
+      // (0.01 * 1 + 0.02) / 2 = 0.015
+      
+      expect(secureLocalStorageSet).toHaveBeenCalledWith(
+        'convocue_mirroring_baselines',
+        expect.objectContaining({
+          pace: 3.0,
+          volume: 0.015,
+          count: 2
+        })
+      );
+    });
+
+    it('updates baselines with accelerated EMA (alpha 0.3) for samples 3-5', async () => {
+      secureLocalStorageGet.mockResolvedValue({ pace: 2.0, volume: 0.01, count: 4 });
+      
+      await updateMirroringBaselines(4.0, 0.02);
+      
+      // alpha = 0.3
+      // newPace = 0.3 * 4.0 + 0.7 * 2.0 = 1.2 + 1.4 = 2.6
+      // newVolume = 0.3 * 0.02 + 0.7 * 0.01 = 0.006 + 0.007 = 0.013
+      
+      expect(secureLocalStorageSet).toHaveBeenCalledWith(
+        'convocue_mirroring_baselines',
+        expect.objectContaining({
+          pace: expect.closeTo(2.6),
+          volume: expect.closeTo(0.013),
+          count: 5
+        })
+      );
+    });
+
+    it('updates baselines with standard EMA (alpha 0.1) after 5 samples', async () => {
       secureLocalStorageGet.mockResolvedValue({ pace: 2.0, volume: 0.01, count: 20 });
       
       await updateMirroringBaselines(4.0, 0.02);

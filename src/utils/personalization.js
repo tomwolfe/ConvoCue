@@ -41,10 +41,12 @@ export const updateMirroringBaselines = async (currentPace, currentVolume) => {
   if (currentPace <= 0) return;
 
   const baselines = await getMirroringBaselines();
-  const alpha = 0.1; // Smoothing factor
+  
+  // Accelerated learning for first 5 samples (alpha 0.3), then standard smoothing (0.1)
+  const alpha = baselines.count < 5 ? 0.3 : 0.1;
 
-  // Use simple average for first few samples, then EMA
-  if (baselines.count < 10) {
+  // Use simple average for first 3 samples to establish a baseline floor, then EMA
+  if (baselines.count < 3) {
     baselines.pace = (baselines.pace * baselines.count + currentPace) / (baselines.count + 1);
     baselines.volume = (baselines.volume * baselines.count + currentVolume) / (baselines.count + 1);
   } else {
@@ -172,10 +174,14 @@ export const calculateSessionTone = (text, metadata, emotionData, baselines = DE
   const isUrgent = urgencyScore > activeThresholds.urgent;
   const isReflective = paceRatio < activeThresholds.reflective && wordCount > 3;
 
-  // Calming Override Logic
+  // Calming Override Logic: Dynamic based on severity
+  // Extreme urgency triggers immediately; moderate urgency requires persistence.
   const CALMING_THRESHOLD = 2.5;
+  const EXTREME_URGENCY_THRESHOLD = 4.0;
   const MAX_URGENT_TURNS = 2;
-  const shouldOverride = urgencyScore > CALMING_THRESHOLD && consecutiveUrgentTurns >= MAX_URGENT_TURNS - 1;
+  
+  const isExtremelyUrgent = urgencyScore > EXTREME_URGENCY_THRESHOLD;
+  const shouldOverride = isExtremelyUrgent || (urgencyScore > CALMING_THRESHOLD && consecutiveUrgentTurns >= MAX_URGENT_TURNS - 1);
 
   let mirroringInstruction = "";
   if (shouldOverride) {
