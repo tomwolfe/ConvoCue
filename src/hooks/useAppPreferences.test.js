@@ -37,6 +37,7 @@ describe('useAppPreferences', () => {
     });
 
     expect(result.current.settings.enablePersonalization).toBe(true);
+    expect(result.current.settings.mirroringSensitivity).toBe('medium');
   });
 
   it('should update settings when event is received', async () => {

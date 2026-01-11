@@ -11,6 +11,7 @@ import { ConversationTurnManager } from '../utils/speakerDetection';
  * @typedef {Object} WorkerState
  * @property {ConversationTurnManager|null} conversationTurnManager - Manager for speaker turns
  * @property {number} highStakesCounter - Counter for turns in high-stakes situations
+ * @property {number} consecutiveUrgentTurns - Counter for consecutive high-urgency turns for mirroring override
  * @property {{key: string|null, content: string|null}} cachedSystemPrompt - Cached system prompt to avoid regeneration
  * @property {number} lastLLMCallTime - Timestamp of the last LLM call
  * @property {any} lastSentiment - Last detected sentiment
@@ -24,6 +25,7 @@ import { ConversationTurnManager } from '../utils/speakerDetection';
 export const WorkerState = {
     conversationTurnManager: null,
     highStakesCounter: 0,
+    consecutiveUrgentTurns: 0,
     cachedSystemPrompt: { key: null, content: null },
     lastLLMCallTime: 0,
     lastSentiment: { overallSentiment: 'neutral', emotionalTrend: 'stable' },

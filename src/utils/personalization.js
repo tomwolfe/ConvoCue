@@ -133,9 +133,11 @@ export const getCommunicationProfileSummary = async () => {
  * @param {Object} metadata - Metadata containing duration and RMS (volume)
  * @param {Object} emotionData - Emotional analysis results
  * @param {Object} baselines - User-specific pace/volume baselines
+ * @param {Object} settings - User settings including mirroring sensitivity
+ * @param {number} consecutiveUrgentTurns - Number of consecutive turns with high urgency
  * @returns {Object} Session tone metrics
  */
-export const calculateSessionTone = (text, metadata, emotionData, baselines = DEFAULT_BASELINES) => {
+export const calculateSessionTone = (text, metadata, emotionData, baselines = DEFAULT_BASELINES, settings = {}, consecutiveUrgentTurns = 0) => {
   const words = text.trim().split(/\s+/).filter(w => w.length > 0);
   const wordCount = words.length;
   
@@ -155,16 +157,30 @@ export const calculateSessionTone = (text, metadata, emotionData, baselines = DE
   const isHighArousal = ['anger', 'fear', 'surprise', 'joy'].includes(emotionData.emotion);
   const emotionScore = isHighArousal ? 1.4 : 1.0;
 
-  // Weighted Urgency Score (80/20 robustness improvement)
-  // Pace is most indicative of urgency in conversation, followed by volume
+  // Weighted Urgency Score
   const urgencyScore = (paceRatio * 0.5) + (volumeRatio * 0.3) + (emotionScore * 0.2);
   
-  // Thresholds for instructions
-  const isUrgent = urgencyScore > 1.6; // High deviation from baseline
-  const isReflective = paceRatio < 0.6 && wordCount > 3;
+  // Configurable Thresholds based on sensitivity setting
+  const sensitivity = settings.mirroringSensitivity || 'medium';
+  const thresholds = {
+    low: { urgent: 2.2, reflective: 0.4 },
+    medium: { urgent: 1.6, reflective: 0.6 },
+    high: { urgent: 1.2, reflective: 0.8 }
+  };
+  const activeThresholds = thresholds[sensitivity] || thresholds.medium;
+
+  const isUrgent = urgencyScore > activeThresholds.urgent;
+  const isReflective = paceRatio < activeThresholds.reflective && wordCount > 3;
+
+  // Calming Override Logic
+  const CALMING_THRESHOLD = 2.5;
+  const MAX_URGENT_TURNS = 2;
+  const shouldOverride = urgencyScore > CALMING_THRESHOLD && consecutiveUrgentTurns >= MAX_URGENT_TURNS - 1;
 
   let mirroringInstruction = "";
-  if (isUrgent) {
+  if (shouldOverride) {
+    mirroringInstruction = "[MIRROR: CALMING] I'm here. Let's take a breath. (Respond with a slow, steady pace and calming tone, even if the user is urgent).";
+  } else if (isUrgent) {
     mirroringInstruction = "[MIRROR: HIGH-PACE] Respond with extreme brevity (1-5 words). Focus only on immediate tactical needs.";
   } else if (isReflective) {
     mirroringInstruction = "[MIRROR: REFLECTIVE] Use a slower, more empathetic pace. Provide nuanced coaching (10-15 words).";
@@ -177,6 +193,7 @@ export const calculateSessionTone = (text, metadata, emotionData, baselines = DE
     volume,
     urgencyScore,
     isUrgent,
+    shouldOverride,
     mirroringInstruction
   };
 };

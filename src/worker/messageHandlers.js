@@ -167,7 +167,24 @@ export const handleLLM = async (data) => {
         const personaConfig = AppConfig.models.personas[persona] || AppConfig.models.personas.anxiety;
         const sanitizedText = _text.trim().substring(0, AppConfig.system.maxTranscriptLength);
         const emotionData = analyzeEmotion(sanitizedText);
-        const sessionTone = calculateSessionTone(sanitizedText, metadata, emotionData, mirroringBaselines);
+        const sessionTone = calculateSessionTone(
+            sanitizedText, 
+            metadata, 
+            emotionData, 
+            mirroringBaselines, 
+            settings,
+            WorkerState.consecutiveUrgentTurns
+        );
+
+        // Update urgency counter
+        if (sessionTone.shouldOverride) {
+            WorkerState.consecutiveUrgentTurns = 0; // Reset after calming override
+        } else if (sessionTone.isUrgent || sessionTone.urgencyScore > 2.0) {
+            WorkerState.consecutiveUrgentTurns++;
+        } else {
+            WorkerState.consecutiveUrgentTurns = 0;
+        }
+
         const intents = detectMultipleIntents(sanitizedText, 0.4);
 
         const isPowerSavingMode = WorkerState.performanceStats.mode === 'minimal';

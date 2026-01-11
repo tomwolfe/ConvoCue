@@ -18,6 +18,7 @@ export const useAppPreferences = (initialDispatch) => {
     privacyMode: false,
     isSubtleMode: false,
     showAnalytics: true,
+    mirroringSensitivity: 'medium',
     intentDetection: {
       confidenceThreshold: 0.5,
       debounceWindowMs: 800,
@@ -47,6 +48,7 @@ export const useAppPreferences = (initialDispatch) => {
           privacyMode: false,
           isSubtleMode: false,
           showAnalytics: true,
+          mirroringSensitivity: 'medium',
           intentDetection: {
             confidenceThreshold: 0.5,
             debounceWindowMs: 800,

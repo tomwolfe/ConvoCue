@@ -100,6 +100,53 @@ describe('personalization utility', () => {
       expect(result.mirroringInstruction).toContain('BALANCED');
     });
 
+    it('respects mirroring sensitivity settings', () => {
+      const text = "Moderate pace sentence.";
+      const metadata = { duration: 4, rms: 0.04 }; // Pace = 1.0, Volume = 2x baseline
+      const emotionData = { emotion: 'neutral' };
+      // paceRatio = 1.0/2.5 = 0.4
+      // volumeRatio = 0.04/0.02 = 2.0
+      // urgencyScore = (0.4 * 0.5) + (2.0 * 0.3) + (1.0 * 0.2) = 0.2 + 0.6 + 0.2 = 1.0
+
+      // Low sensitivity (urgent threshold 2.2)
+      const lowResult = calculateSessionTone(text, metadata, emotionData, defaultBaselines, { mirroringSensitivity: 'low' });
+      expect(lowResult.isUrgent).toBe(false);
+
+      // High sensitivity (urgent threshold 1.2)
+      // If we increase volume a bit more
+      const metadataHigh = { duration: 4, rms: 0.06 }; // Volume = 3x baseline
+      // urgencyScore = 0.2 + 0.9 + 0.2 = 1.3
+      const highResult = calculateSessionTone(text, metadataHigh, emotionData, defaultBaselines, { mirroringSensitivity: 'high' });
+      expect(highResult.isUrgent).toBe(true);
+    });
+
+    it('triggers calming override after persistent high urgency', () => {
+      const text = "EXCESSIVE URGENCY AND LOUD VOLUME!";
+      const metadata = { duration: 2, rms: 0.1 }; // Very loud
+      const emotionData = { emotion: 'anger' };
+      
+      // urgencyScore = (paceRatio * 0.5) + (volumeRatio * 0.3) + (emotionScore * 0.2)
+      // pace = 5/2 = 2.5. paceRatio = 2.5/2.5 = 1.0
+      // volumeRatio = 0.1/0.02 = 5.0
+      // urgencyScore = 0.5 + 1.5 + 0.28 = 2.28 (Not quite 2.5 yet)
+      
+      const metadataExtreme = { duration: 1, rms: 0.15 }; // Even louder and faster
+      // pace = 5/1 = 5.0. paceRatio = 2.0
+      // volumeRatio = 0.15/0.02 = 7.5
+      // urgencyScore = 1.0 + 2.25 + 0.28 = 3.53
+
+      // First turn high urgency
+      const result1 = calculateSessionTone(text, metadataExtreme, emotionData, defaultBaselines, {}, 0);
+      expect(result1.urgencyScore).toBeGreaterThan(2.5);
+      expect(result1.shouldOverride).toBe(false); // First turn
+      expect(result1.mirroringInstruction).toContain('HIGH-PACE');
+
+      // Second turn persistent high urgency
+      const result2 = calculateSessionTone(text, metadataExtreme, emotionData, defaultBaselines, {}, 1);
+      expect(result2.shouldOverride).toBe(true);
+      expect(result2.mirroringInstruction).toContain('CALMING');
+    });
+
     it('triggers urgency for moderate pace but high emotional intensity', () => {
       const text = "I am very scared right now.";
       const metadata = { duration: 2, rms: 0.04 }; // Volume is 2x baseline

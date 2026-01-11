@@ -26,6 +26,7 @@ const Settings = ({ isOpen, onClose }) => {
     privacyMode: false,
     isSubtleMode: false,
     showAnalytics: true,
+    mirroringSensitivity: 'medium',
     intentDetection: {
       confidenceThreshold: 0.5,
       debounceWindowMs: 800,
@@ -256,6 +257,22 @@ const Settings = ({ isOpen, onClose }) => {
                   </select>
                 </div>
               )}
+
+              <div className="setting-item">
+                <div className="setting-info">
+                  <h3>Mirroring Sensitivity</h3>
+                  <p>How the AI matches your pace and volume</p>
+                </div>
+                <select
+                  className="setting-select"
+                  value={settings.mirroringSensitivity || 'medium'}
+                  onChange={(e) => handleSettingChange('mirroringSensitivity', e.target.value)}
+                >
+                  <option value="low">Low (Stable)</option>
+                  <option value="medium">Medium (Balanced)</option>
+                  <option value="high">High (Reactive)</option>
+                </select>
+              </div>
 
               <div className="setting-item">
                 <div className="setting-info">
