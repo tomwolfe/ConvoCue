@@ -61,7 +61,7 @@ export const analyzeConversationContext = (conversationHistory = []) => {
     acc[turn.role] = (acc[turn.role] || 0) + 1;
     return acc;
   }, {});
-  
+
   const dominantSpeaker = Object.entries(speakerCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
 
   // Analyze topic trends (extract key terms from conversation)
@@ -80,12 +80,14 @@ export const analyzeConversationContext = (conversationHistory = []) => {
   // Analyze emotional intensity
   const emotionalIntensity = analyzeEmotionalIntensity(conversationHistory);
 
+  const culturalContextResult = inferCulturalContext(conversationHistory);
   return {
     dominantSpeaker,
     topicTrends,
     sentimentTrend,
     conversationStage,
-    culturalContext: inferCulturalContext(conversationHistory),
+    culturalContext: culturalContextResult.context,
+    culturalContextConfidence: culturalContextResult.confidence,
     emotionalIntensity
   };
 };
@@ -125,19 +127,32 @@ const extractTopicTrends = (text) => {
  * @returns {string} Overall sentiment trend
  */
 const analyzeSentimentTrend = (conversationHistory) => {
-  // Enhanced sentiment analysis with negation handling and context awareness
+  // Enhanced sentiment analysis with negation handling, sarcasm detection, and mixed emotion handling
   const positiveKeywords = ['good', 'great', 'excellent', 'amazing', 'wonderful', 'love', 'like', 'happy', 'pleased', 'satisfied', 'perfect', 'awesome', 'fantastic'];
   const negativeKeywords = ['bad', 'terrible', 'awful', 'horrible', 'hate', 'dislike', 'angry', 'frustrated', 'annoyed', 'disappointed', 'worst', 'sucks', 'disgusting'];
   const negationWords = ['not', 'no', 'never', 'nothing', 'nowhere', 'neither', 'nor', 'none', 'nobody', 'nothing', 'don\'t', 'doesn\'t', 'didn\'t', 'won\'t', 'wouldn\'t', 'couldn\'t', 'shouldn\'t', 'can\'t', 'cannot'];
   const intensifiers = ['very', 'extremely', 'incredibly', 'highly', 'absolutely', 'totally', 'completely', 'really', 'quite', 'so', 'such'];
-  const sarcasmMarkers = ['oh', 'right', 'sure', 'yeah', 'yep', 'great', 'fantastic', 'wonderful']; // Context-dependent sarcasm indicators
+  const sarcasmMarkers = ['oh', 'right', 'sure', 'yeah', 'yep', 'great', 'fantastic', 'wonderful', 'brilliant', 'lovely', 'super']; // Context-dependent sarcasm indicators
 
   let sentimentScore = 0;
   let totalWords = 0;
+  const turnSentiments = []; // Track sentiment per turn for mixed emotion detection
 
   conversationHistory.forEach(turn => {
-    const content = (turn.content || '').toLowerCase();
-    const words = content.split(/\s+/);
+    const content = (turn.content || '');
+    const lowerContent = content.toLowerCase();
+    const words = lowerContent.split(/\s+/);
+
+    let turnScore = 0;
+    let sarcasmDetected = false;
+
+    // Check for sarcasm patterns
+    if (lowerContent.includes('oh great') || lowerContent.includes('oh wonderful') ||
+        lowerContent.includes('right,') || lowerContent.includes('sure,') ||
+        (lowerContent.includes('yeah') && lowerContent.includes('right')) ||
+        (lowerContent.includes('great') && (lowerContent.includes('problem') || lowerContent.includes('issue') || lowerContent.includes('error')))) {
+      sarcasmDetected = true;
+    }
 
     for (let i = 0; i < words.length; i++) {
       const word = words[i].replace(/[^\w\s]/g, '');
@@ -161,23 +176,57 @@ const analyzeSentimentTrend = (conversationHistory) => {
         context.includes(negation)
       );
 
+      // Check for sarcasm markers near sentiment words
+      const hasSarcasmMarker = sarcasmMarkers.some(marker =>
+        context.includes(marker) && Math.abs(words.indexOf(marker) - i) <= 2
+      );
+
       // Check for positive keywords
       if (positiveKeywords.includes(word)) {
         let wordScore = hasNegation ? -1 : 1;
+
+        // If sarcasm is detected and this is a positive word, reverse the sentiment
+        if (sarcasmDetected || hasSarcasmMarker) {
+          wordScore = -wordScore;
+        }
+
         wordScore *= hasIntensifier ? 1.5 : 1;
-        sentimentScore += wordScore;
+        turnScore += wordScore;
       }
       // Check for negative keywords
       else if (negativeKeywords.includes(word)) {
         let wordScore = hasNegation ? 1 : -1;
+
+        // If sarcasm is detected and this is a negative word, reverse the sentiment
+        if (sarcasmDetected || hasSarcasmMarker) {
+          wordScore = -wordScore;
+        }
+
         wordScore *= hasIntensifier ? 1.5 : 1;
-        sentimentScore += wordScore;
+        turnScore += wordScore;
       }
     }
+
+    // Normalize turn score by word count in turn
+    const turnWordCount = words.filter(w => w.trim() !== '').length;
+    const normalizedTurnScore = turnWordCount > 0 ? turnScore / turnWordCount : 0;
+    turnSentiments.push(normalizedTurnScore);
   });
 
-  // Normalize the sentiment score based on total words
+  // Calculate overall sentiment
   const normalizedScore = totalWords > 0 ? sentimentScore / totalWords : 0;
+
+  // Check for mixed emotions (significant variation in turn sentiments)
+  if (turnSentiments.length > 1) {
+    const maxSentiment = Math.max(...turnSentiments);
+    const minSentiment = Math.min(...turnSentiments);
+    const sentimentRange = maxSentiment - minSentiment;
+
+    // If there's a wide range of sentiments, it's a mixed emotional conversation
+    if (sentimentRange > 0.8) {
+      return 'mixed';
+    }
+  }
 
   // Determine sentiment based on normalized score
   if (normalizedScore > 0.1) return 'positive';
@@ -193,17 +242,17 @@ const analyzeSentimentTrend = (conversationHistory) => {
 const analyzeEmotionalIntensity = (conversationHistory) => {
   const highIntensityMarkers = ['!', '?', 'very', 'extremely', 'incredibly', 'absolutely', 'definitely', 'totally', 'completely'];
   const moderateIntensityMarkers = ['quite', 'pretty', 'rather', 'fairly', 'somewhat'];
-  
+
   let highIntensityCount = 0;
   let moderateIntensityCount = 0;
 
   conversationHistory.forEach(turn => {
     const content = (turn.content || '').toLowerCase();
-    
+
     highIntensityMarkers.forEach(marker => {
       if (content.includes(marker)) highIntensityCount++;
     });
-    
+
     moderateIntensityMarkers.forEach(marker => {
       if (content.includes(marker)) moderateIntensityCount++;
     });
@@ -220,27 +269,35 @@ const analyzeEmotionalIntensity = (conversationHistory) => {
  * @returns {string|null} Inferred cultural context
  */
 const inferCulturalContext = (conversationHistory) => {
-  // Enhanced cultural context detection with more nuanced patterns
+  // Enhanced cultural context detection with more nuanced patterns and sophisticated NLP
   const culturalPatterns = {
     'formal': {
-      keywords: ['sir', 'ma\'am', 'please', 'thank you', 'excuse me', 'pardon me', 'regards', 'dear', 'respected', 'esteemed', 'honorable'],
-      phrases: ['i would like to', 'if you would be so kind', 'i was wondering if', 'i respectfully', 'with due respect'],
-      formalityIndicators: ['title', 'last_name_usage', 'proper_salutations']
+      keywords: ['sir', 'ma\'am', 'please', 'thank you', 'excuse me', 'pardon me', 'regards', 'dear', 'respected', 'esteemed', 'honorable', 'mr.', 'ms.', 'dr.', 'professor'],
+      phrases: ['i would like to', 'if you would be so kind', 'i was wondering if', 'i respectfully', 'with due respect', 'i humbly request', 'it would be appreciated'],
+      formalityIndicators: ['title', 'last_name_usage', 'proper_salutations'],
+      // Detect formality through sentence structure and politeness markers
+      formalityRegex: /\b(?:would|could|might|may|please|i would appreciate|if you would be so kind)\b/gi
     },
     'business': {
-      keywords: ['meeting', 'project', 'deadline', 'budget', 'contract', 'negotiation', 'proposal', 'quarterly', 'revenue', 'strategy', 'objective', 'agenda'],
-      phrases: ['per our discussion', 'as per the agreement', 'let\'s circle back', 'synergize', 'moving forward', 'at your earliest convenience'],
-      formalityIndicators: ['professional_jargon', 'structured_format']
+      keywords: ['meeting', 'project', 'deadline', 'budget', 'contract', 'negotiation', 'proposal', 'quarterly', 'revenue', 'strategy', 'objective', 'agenda', 'presentation', 'report', 'analysis', 'stakeholder', 'deliverable'],
+      phrases: ['per our discussion', 'as per the agreement', 'let\'s circle back', 'synergize', 'moving forward', 'at your earliest convenience', 'touch base', 'circle back', 'drill down'],
+      formalityIndicators: ['professional_jargon', 'structured_format'],
+      // Detect business context through jargon and professional terminology
+      businessRegex: /\b(?:roi|kpi|synergy|bandwidth|leverage|deep dive|action item|follow up|escalate|align|sync|calendar|quarter|fiscal|bottom line)\b/gi
     },
     'casual_professional': {
-      keywords: ['team', 'collaborate', 'feedback', 'thoughts', 'input', 'brainstorm', 'chill', 'cool', 'awesome', 'sweet'],
-      phrases: ['sounds good', 'let me know', 'what do you think', 'check this out', 'got it', 'no worries'],
-      formalityIndicators: ['first_name_usage', 'friendly_tone']
+      keywords: ['team', 'collaborate', 'feedback', 'thoughts', 'input', 'brainstorm', 'chill', 'cool', 'awesome', 'sweet', 'guys', 'folks'],
+      phrases: ['sounds good', 'let me know', 'what do you think', 'check this out', 'got it', 'no worries', 'thanks team', 'appreciate it'],
+      formalityIndicators: ['first_name_usage', 'friendly_tone'],
+      // Detect casual-professional through mixed formality levels
+      casualProfessionalRegex: /\b(?:team|awesome|cool|chill|sounds good|got it|no worries|thanks guys)\b/gi
     },
     'casual': {
-      keywords: ['weekend', 'movie', 'food', 'coffee', 'fun', 'party', 'game', 'dude', 'bro', 'chill', 'hang out'],
-      phrases: ['what\'s up', 'how\'s it going', 'catch me up', 'tell me about it', 'for sure', 'no way', 'cool beans'],
-      formalityIndicators: ['slang', 'informal_greetings']
+      keywords: ['weekend', 'movie', 'food', 'coffee', 'fun', 'party', 'game', 'dude', 'bro', 'chill', 'hang out', 'hey', 'hi', 'sup', 'yo'],
+      phrases: ['what\'s up', 'how\'s it going', 'catch me up', 'tell me about it', 'for sure', 'no way', 'cool beans', 'see ya', 'later'],
+      formalityIndicators: ['slang', 'informal_greetings'],
+      // Detect casual context through slang and informal expressions
+      casualRegex: /\b(?:dude|bro|chill|hang out|gonna|wanna|lemme|ain\'t|y\'all|ya|sup|hey|ok\b|cool|fun|party|game|movie|food|beer|wine|coffee|weekend)\b/gi
     }
   };
 
@@ -251,17 +308,36 @@ const inferCulturalContext = (conversationHistory) => {
 
     // Score based on keywords
     conversationHistory.forEach(turn => {
-      const content = (turn.content || '').toLowerCase();
+      const content = (turn.content || '');
+      const lowerContent = content.toLowerCase();
 
       // Keyword matching
       pattern.keywords.forEach(keyword => {
-        if (content.includes(keyword)) score++;
+        if (lowerContent.includes(keyword)) score++;
       });
 
       // Phrase matching
       pattern.phrases.forEach(phrase => {
-        if (content.includes(phrase)) score += 1.5; // Phrases get higher weight
+        if (lowerContent.includes(phrase)) score += 1.5; // Phrases get higher weight
       });
+
+      // Regex pattern matching
+      if (pattern.formalityRegex) {
+        const matches = content.match(pattern.formalityRegex);
+        if (matches) score += matches.length * 0.5;
+      }
+      if (pattern.businessRegex) {
+        const matches = content.match(pattern.businessRegex);
+        if (matches) score += matches.length * 0.5;
+      }
+      if (pattern.casualProfessionalRegex) {
+        const matches = content.match(pattern.casualProfessionalRegex);
+        if (matches) score += matches.length * 0.5;
+      }
+      if (pattern.casualRegex) {
+        const matches = content.match(pattern.casualRegex);
+        if (matches) score += matches.length * 0.5;
+      }
     });
 
     culturalScores[context] = score;
@@ -271,8 +347,23 @@ const inferCulturalContext = (conversationHistory) => {
   const sortedContexts = Object.entries(culturalScores).sort((a, b) => b[1] - a[1]);
   const maxContext = sortedContexts[0];
 
-  // Return the context if it has a meaningful score, otherwise return null
-  return maxContext && maxContext[1] > 0 ? maxContext[0] : null;
+  // Apply additional heuristics to refine the decision
+  if (maxContext && maxContext[1] > 0) {
+    const topScore = maxContext[1];
+    const secondBest = sortedContexts[1] ? sortedContexts[1][1] : 0;
+
+    // If the difference between top and second best is small, it might be a mixed context
+    // In such cases, we might want to return a more nuanced result or default to a safer option
+    if (topScore > 0 && (topScore - secondBest) < 1) {
+      // Mixed context detected - return the one with higher score but with lower confidence
+      return { context: maxContext[0], confidence: 'medium' };
+    }
+
+    // Return the context if it has a meaningful score, otherwise return null
+    return { context: maxContext[0], confidence: topScore > 2 ? 'high' : 'medium' };
+  }
+
+  return { context: null, confidence: 'low' };
 };
 
 /**
@@ -302,75 +393,37 @@ export const detectIntentWithFullContext = (input, conversationHistory = [], opt
   if (enableMultiIntent) {
     const multiIntents = detectMultipleIntents(input, threshold);
 
-    // Apply context weights to multiple intents using a unified approach
+    // Apply context as a tie-breaker/filter rather than a multiplier
     const contextualIntents = multiIntents.map(intentObj => {
-      let weightedConfidence = intentObj.confidence;
-      let totalBoost = 0; // Track total boost to prevent over-adjustment
-
-      // Apply all context adjustments consistently
-      if (enableSentimentAdjustment) {
-        const sentimentBoost = applySentimentAdjustment(weightedConfidence, contextAnalysis.sentimentTrend, input, intentObj.intent) - weightedConfidence;
-        if (Math.abs(sentimentBoost) > 0.01) { // Only apply if there's a meaningful change
-          const cappedBoost = Math.max(-0.15, Math.min(0.15, sentimentBoost)); // Cap individual boosts
-          weightedConfidence += cappedBoost;
-          totalBoost += Math.abs(cappedBoost);
-        }
+      // Calculate context relevance score for this intent
+      const contextRelevance = calculateContextRelevance(
+        intentObj.intent, 
+        contextAnalysis, 
+        input
+      );
+      
+      // Only adjust confidence if the context is highly relevant to this intent
+      let adjustedConfidence = intentObj.confidence;
+      
+      // Use context as a tie-breaker when base confidence is similar between intents
+      // Instead of blindly adding boosts, we'll use context to differentiate between close intents
+      if (contextRelevance > 0.7) {
+        // Only slightly boost confidence if context strongly supports this intent
+        adjustedConfidence = Math.min(1.0, intentObj.confidence + 0.05);
+      } else if (contextRelevance < 0.3) {
+        // Slightly reduce confidence if context contradicts this intent
+        adjustedConfidence = Math.max(0.0, intentObj.confidence - 0.05);
       }
-
-      const culturalBoost = applyCulturalContextAdjustment(weightedConfidence, contextAnalysis.culturalContext, intentObj.intent) - weightedConfidence;
-      if (Math.abs(culturalBoost) > 0.01) {
-        const cappedBoost = Math.max(-0.1, Math.min(0.1, culturalBoost)); // Cap individual boosts
-        weightedConfidence += cappedBoost;
-        totalBoost += Math.abs(cappedBoost);
-      }
-
-      if (enableTemporalAdjustment) {
-        const temporalBoost = applyTemporalContextAdjustment(weightedConfidence, contextAnalysis.conversationStage, input, intentObj.intent) - weightedConfidence;
-        if (Math.abs(temporalBoost) > 0.01) {
-          const cappedBoost = Math.max(-0.1, Math.min(0.1, temporalBoost)); // Cap individual boosts
-          weightedConfidence += cappedBoost;
-          totalBoost += Math.abs(cappedBoost);
-        }
-      }
-
-      // Boost confidence based on conversation context
-      if (contextAnalysis.topicTrends.some(topic =>
-        intentObj.intent.toLowerCase().includes(topic) ||
-        topic.toLowerCase().includes(intentObj.intent.toLowerCase())
-      )) {
-        const topicBoost = weightedConfidence * 0.2 - weightedConfidence; // 20% increase
-        if (Math.abs(topicBoost) > 0.01) {
-          const cappedBoost = Math.max(-0.15, Math.min(0.15, topicBoost)); // Cap individual boosts
-          weightedConfidence = Math.min(1.0, weightedConfidence + cappedBoost);
-          totalBoost += Math.abs(cappedBoost);
-        }
-      }
-
-      // Adjust based on emotional intensity
-      if (contextAnalysis.emotionalIntensity === 'high' && ['conflict', 'empathy', 'strategic'].includes(intentObj.intent)) {
-        const emotionBoost = weightedConfidence * 0.15 - weightedConfidence; // 15% increase
-        if (Math.abs(emotionBoost) > 0.01) {
-          const cappedBoost = Math.max(-0.15, Math.min(0.15, emotionBoost)); // Cap individual boosts
-          weightedConfidence = Math.min(1.0, weightedConfidence + cappedBoost);
-          totalBoost += Math.abs(cappedBoost);
-        }
-      }
-
-      // Prevent over-adjustment by limiting total boost
-      if (totalBoost > 0.3) { // Limit total adjustment to 30%
-        // Scale down all adjustments proportionally
-        const scaleFactor = 0.3 / totalBoost;
-        weightedConfidence = intentObj.confidence + (weightedConfidence - intentObj.confidence) * scaleFactor;
-      }
-
+      
       return {
         ...intentObj,
-        confidence: Math.min(1.0, weightedConfidence), // Ensure confidence doesn't exceed 1.0
+        confidence: adjustedConfidence,
+        contextRelevance, // Include context relevance score for transparency
         contextWeight: calculateContextWeight(intentObj.intent, contextAnalysis)
       };
     });
 
-    // Sort by weighted confidence
+    // Sort by adjusted confidence (with context considerations)
     contextualIntents.sort((a, b) => b.confidence - a.confidence);
 
     const endTime = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
@@ -389,53 +442,31 @@ export const detectIntentWithFullContext = (input, conversationHistory = [], opt
     return result;
   }
 
-  // Apply context adjustments to single intent result with over-adjustment prevention
+  // For single intent detection, use context as a tie-breaker when needed
+  // Only apply context adjustments when base confidence is low or when there are competing intents
   let adjustedResult = { ...baseResult };
-  let totalBoost = 0; // Track total boost to prevent over-adjustment
-
-  // Adjust confidence based on conversation context
-  if (enableSentimentAdjustment) {
-    const originalConfidence = adjustedResult.confidence;
-    const newConfidence = applySentimentAdjustment(originalConfidence, contextAnalysis.sentimentTrend, input, adjustedResult.intent);
-    const boost = newConfidence - originalConfidence;
-    if (Math.abs(boost) > 0.01) {
-      const cappedBoost = Math.max(-0.15, Math.min(0.15, boost)); // Cap individual boosts
-      adjustedResult.confidence = originalConfidence + cappedBoost;
-      totalBoost += Math.abs(cappedBoost);
+  
+  // Get competing intents to see if context should be used as a tie-breaker
+  const competingIntents = detectMultipleIntents(input, 0.1) // Lower threshold to find potential competitors
+    .filter(intent => intent.intent !== baseResult.intent)
+    .filter(intent => Math.abs(intent.confidence - baseResult.confidence) < 0.15); // Close confidence scores
+  
+  if (competingIntents.length > 0 || baseResult.confidence < 0.6) {
+    // Use context to break ties when confidence is low or when competing intents exist
+    const contextRelevance = calculateContextRelevance(
+      baseResult.intent, 
+      contextAnalysis, 
+      input
+    );
+    
+    if (contextRelevance > 0.7) {
+      // Boost confidence if context strongly supports this intent
+      adjustedResult.confidence = Math.min(1.0, baseResult.confidence + 0.1);
+    } else if (contextRelevance < 0.3) {
+      // Reduce confidence if context contradicts this intent
+      adjustedResult.confidence = Math.max(0.0, baseResult.confidence - 0.1);
     }
   }
-
-  // Apply cultural context adjustments
-  const originalConfidenceAfterSentiment = adjustedResult.confidence;
-  const culturalAdjustedConfidence = applyCulturalContextAdjustment(originalConfidenceAfterSentiment, contextAnalysis.culturalContext, adjustedResult.intent);
-  const culturalBoost = culturalAdjustedConfidence - originalConfidenceAfterSentiment;
-  if (Math.abs(culturalBoost) > 0.01) {
-    const cappedBoost = Math.max(-0.1, Math.min(0.1, culturalBoost)); // Cap individual boosts
-    adjustedResult.confidence = originalConfidenceAfterSentiment + cappedBoost;
-    totalBoost += Math.abs(cappedBoost);
-  }
-
-  // Apply temporal context adjustments
-  if (enableTemporalAdjustment) {
-    const originalConfidenceAfterCultural = adjustedResult.confidence;
-    const temporalAdjustedConfidence = applyTemporalContextAdjustment(originalConfidenceAfterCultural, contextAnalysis.conversationStage, input, adjustedResult.intent);
-    const temporalBoost = temporalAdjustedConfidence - originalConfidenceAfterCultural;
-    if (Math.abs(temporalBoost) > 0.01) {
-      const cappedBoost = Math.max(-0.1, Math.min(0.1, temporalBoost)); // Cap individual boosts
-      adjustedResult.confidence = originalConfidenceAfterCultural + cappedBoost;
-      totalBoost += Math.abs(cappedBoost);
-    }
-  }
-
-  // Prevent over-adjustment by limiting total boost
-  if (totalBoost > 0.3) { // Limit total adjustment to 30%
-    // Scale down all adjustments proportionally
-    const scaleFactor = 0.3 / totalBoost;
-    adjustedResult.confidence = baseResult.confidence + (adjustedResult.confidence - baseResult.confidence) * scaleFactor;
-  }
-
-  // Ensure confidence doesn't exceed 1.0
-  adjustedResult.confidence = Math.min(1.0, adjustedResult.confidence);
 
   const endTime = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
   const processingTime = endTime - startTime;
@@ -454,6 +485,66 @@ export const detectIntentWithFullContext = (input, conversationHistory = [], opt
 };
 
 /**
+ * Calculates how relevant the context is to a specific intent
+ * @param {string} intent - Intent name
+ * @param {Object} contextAnalysis - Context analysis results
+ * @param {string} input - Input text
+ * @returns {number} Context relevance score (0-1)
+ */
+const calculateContextRelevance = (intent, contextAnalysis, input) => {
+  let relevanceScore = 0;
+  let maxPossibleScore = 0;
+
+  // Check sentiment relevance
+  if (contextAnalysis.sentimentTrend === 'negative' && ['empathy', 'conflict'].includes(intent)) {
+    relevanceScore += 0.25;
+  } else if (contextAnalysis.sentimentTrend === 'positive' && ['social', 'agreement'].includes(intent)) {
+    relevanceScore += 0.25;
+  } else if (contextAnalysis.sentimentTrend === 'mixed' && ['clarification', 'question', 'exploration'].includes(intent)) {
+    // Mixed sentiment often requires clarification or exploration intents
+    relevanceScore += 0.25;
+  }
+  maxPossibleScore += 0.25;
+
+  // Check cultural context relevance
+  if (contextAnalysis.culturalContext === 'business' && ['strategic', 'negotiation', 'action', 'execution'].includes(intent)) {
+    // Adjust score based on cultural context detection confidence
+    const confidenceMultiplier = contextAnalysis.culturalContextConfidence === 'high' ? 1.0 :
+                                contextAnalysis.culturalContextConfidence === 'medium' ? 0.7 : 0.3;
+    relevanceScore += 0.25 * confidenceMultiplier;
+  } else if (contextAnalysis.culturalContext === 'formal' && ['strategic', 'language', 'clarity'].includes(intent)) {
+    const confidenceMultiplier = contextAnalysis.culturalContextConfidence === 'high' ? 1.0 :
+                                contextAnalysis.culturalContextConfidence === 'medium' ? 0.7 : 0.3;
+    relevanceScore += 0.25 * confidenceMultiplier;
+  } else if (contextAnalysis.culturalContext === 'casual_professional' && ['social', 'empathy', 'agreement'].includes(intent)) {
+    const confidenceMultiplier = contextAnalysis.culturalContextConfidence === 'high' ? 1.0 :
+                                contextAnalysis.culturalContextConfidence === 'medium' ? 0.7 : 0.3;
+    relevanceScore += 0.25 * confidenceMultiplier;
+  }
+  maxPossibleScore += 0.25;
+
+  // Check temporal context relevance
+  if (contextAnalysis.conversationStage === 'opening' && ['social', 'question'].includes(intent)) {
+    relevanceScore += 0.25;
+  } else if (contextAnalysis.conversationStage === 'closing' && ['action', 'execution'].includes(intent)) {
+    relevanceScore += 0.25;
+  }
+  maxPossibleScore += 0.25;
+
+  // Check topic relevance
+  if (contextAnalysis.topicTrends.some(topic =>
+    intent.toLowerCase().includes(topic) ||
+    topic.toLowerCase().includes(intent.toLowerCase())
+  )) {
+    relevanceScore += 0.25;
+  }
+  maxPossibleScore += 0.25;
+
+  // Normalize the score
+  return maxPossibleScore > 0 ? relevanceScore / maxPossibleScore : 0;
+};
+
+/**
  * Adjusts intent confidence based on sentiment context
  * @param {number} confidence - Original confidence score
  * @param {string} sentimentTrend - Overall conversation sentiment
@@ -462,6 +553,18 @@ export const detectIntentWithFullContext = (input, conversationHistory = [], opt
  * @returns {number} Adjusted confidence score
  */
 const applySentimentAdjustment = (confidence, sentimentTrend, input, intent) => {
+  // Handle mixed emotions differently
+  if (sentimentTrend === 'mixed') {
+    // For mixed emotions, boost intents that help clarify or explore
+    if (['clarification', 'question', 'exploration'].includes(intent)) {
+      return Math.min(1.0, confidence + 0.12);
+    }
+    // Reduce confidence for intents that require clear sentiment
+    if (['empathy', 'conflict', 'agreement'].includes(intent)) {
+      return Math.max(0.0, confidence - 0.05);
+    }
+  }
+
   // Boost empathy intent when sentiment is negative
   if (sentimentTrend === 'negative' && input.toLowerCase().includes('sorry') && intent === 'empathy') {
     return Math.min(1.0, confidence + 0.15);
@@ -502,26 +605,33 @@ const adjustIntentBySentiment = (intentResult, sentimentTrend, input) => {
  * @param {number} confidence - Original confidence score
  * @param {string} culturalContext - Inferred cultural context
  * @param {string} intent - Intent name
+ * @param {string} culturalContextConfidence - Confidence level of cultural context detection
  * @returns {number} Adjusted confidence score
  */
-const applyCulturalContextAdjustment = (confidence, culturalContext, intent) => {
+const applyCulturalContextAdjustment = (confidence, culturalContext, intent, culturalContextConfidence = 'medium') => {
   if (!culturalContext) return confidence;
+
+  // Adjust the boost based on the confidence of cultural context detection
+  let boostMultiplier = 1.0;
+  if (culturalContextConfidence === 'high') boostMultiplier = 1.0;
+  else if (culturalContextConfidence === 'medium') boostMultiplier = 0.7;
+  else boostMultiplier = 0.3; // low confidence
 
   // In formal contexts, boost strategic and language intents
   if (culturalContext === 'formal' && ['strategic', 'language', 'clarity'].includes(intent)) {
-    return Math.min(1.0, confidence + 0.05);
+    return Math.min(1.0, confidence + (0.05 * boostMultiplier));
   }
 
   // In business contexts, boost strategic, negotiation, and action intents
   if (culturalContext === 'business' &&
       ['strategic', 'negotiation', 'action', 'execution'].includes(intent)) {
-    return Math.min(1.0, confidence + 0.07);
+    return Math.min(1.0, confidence + (0.07 * boostMultiplier));
   }
 
   // In casual professional contexts, boost social and empathy intents
   if (culturalContext === 'casual_professional' &&
       ['social', 'empathy', 'agreement'].includes(intent)) {
-    return Math.min(1.0, confidence + 0.06);
+    return Math.min(1.0, confidence + (0.06 * boostMultiplier));
   }
 
   return confidence;
@@ -664,12 +774,37 @@ export const getSummarizedConversationHistory = (conversationHistory, maxTurns =
     return conversationHistory;
   }
 
-  // For longer conversations, return the most recent turns plus key earlier turns
+  // For longer conversations, use a more intelligent summarization approach
   // This preserves important early context while maintaining performance
-  const recentTurns = conversationHistory.slice(-Math.floor(maxTurns / 2));
-  const keyEarlyTurns = conversationHistory.slice(0, maxTurns - recentTurns.length);
+  const firstTurns = conversationHistory.slice(0, Math.floor(maxTurns / 4));
+  const middleTurns = conversationHistory.slice(Math.floor(conversationHistory.length / 2) - Math.floor(maxTurns / 4), 
+                                               Math.floor(conversationHistory.length / 2) + Math.floor(maxTurns / 4));
+  const lastTurns = conversationHistory.slice(-Math.floor(maxTurns / 2));
 
-  return [...keyEarlyTurns, ...recentTurns];
+  // Combine and deduplicate while preserving order
+  const combined = [...firstTurns, ...middleTurns, ...lastTurns];
+  const seenContent = new Set();
+  const uniqueCombined = [];
+
+  for (const turn of combined) {
+    const contentKey = `${turn.role}:${turn.content.substring(0, 50)}`;
+    if (!seenContent.has(contentKey)) {
+      seenContent.add(contentKey);
+      uniqueCombined.push(turn);
+    }
+  }
+
+  // If still too long, trim from the middle
+  if (uniqueCombined.length > maxTurns) {
+    const excess = uniqueCombined.length - maxTurns;
+    const removeFromMiddle = Math.floor(excess / 2);
+    return [
+      ...uniqueCombined.slice(0, Math.floor(maxTurns / 2)),
+      ...uniqueCombined.slice(uniqueCombined.length - Math.floor(maxTurns / 2))
+    ];
+  }
+
+  return uniqueCombined;
 };
 
 /**
