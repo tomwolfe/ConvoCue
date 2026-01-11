@@ -64,10 +64,10 @@ describe('MLStateMachine', () => {
       expect(stateMachine.getState()).toBe(ML_STATES.UNINITIALIZED);
     });
 
-    it('should transition from ERROR to TEXT_ONLY_MODE via FALLBACK_SUCCESS if LLM functional', () => {
+    it('should transition from ERROR to TEXT_ONLY_MODE via DEGRADE_TO_TEXT_ONLY if LLM functional', () => {
       stateMachine.state = ML_STATES.ERROR;
       stateMachine.context.llmFunctional = true;
-      stateMachine.transition(ML_TRANSITIONS.FALLBACK_SUCCESS);
+      stateMachine.transition(ML_TRANSITIONS.DEGRADE_TO_TEXT_ONLY);
       expect(stateMachine.getState()).toBe(ML_STATES.TEXT_ONLY_MODE);
     });
   });

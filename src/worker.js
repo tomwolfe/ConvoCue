@@ -49,14 +49,18 @@ messenger.postMessage = (message) => {
 // Listen for memory pressure events if the API is available
 let memoryInterval = null;
 if (self.scheduler && self.scheduler.yield) {
-    // For browsers that support the scheduler API
-    // This is a more advanced approach to handle memory pressure
-} else if ('memory' in self.performance) {
-    // Set up periodic memory monitoring
+    // For browsers that support the scheduler API (Chrome, Edge)
+    // We prioritize yielding to the main thread to keep the UI responsive
+} else {
+    // Fallback for Safari/Firefox: scheduler API is not yet standard
+}
+
+if ('memory' in self.performance) {
+    // Set up periodic memory monitoring using the non-standard performance.memory API (Chromium only)
     memoryInterval = setInterval(() => {
         const mem = self.performance.memory;
         if (mem && mem.usagePercent > AppConfig.system.memory.modelUnloadThreshold) {
-            // Handle memory pressure proactively
+            // Handle memory pressure proactively by disposing models
             MLPipeline.handleMemoryPressure();
         }
     }, 5000); // Check every 5 seconds

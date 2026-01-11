@@ -96,7 +96,14 @@ const App = () => {
 
   const [micPermissionError, setMicPermissionError] = useState(null);
 
-  // Derived readiness state from ML FSM
+  /**
+   * Primary readiness state derived from the ML State Machine (FSM).
+   * 
+   * CRITICAL ARCHITECTURAL SHIFT: This supersedes the legacy 'isReady' flag from useMLWorker.
+   * By deriving readiness from the FSM states (READY, TEXT_ONLY_MODE, or STT_READY),
+   * we ensure the UI accurately reflects functional capabilities (e.g., allowing 
+   * text-only use even if voice fails).
+   */
   const isReadyForUse = mlState === ML_STATES.READY || mlState === ML_STATES.TEXT_ONLY_MODE || mlState === ML_STATES.STT_READY;
 
   useEffect(() => {

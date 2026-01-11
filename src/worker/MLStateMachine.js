@@ -32,7 +32,7 @@ export const ML_TRANSITIONS = {
   RETRY_LLM: 'retry_llm',
   RESET: 'reset',
   MEMORY_PRESSURE: 'memory_pressure',
-  FALLBACK_SUCCESS: 'fallback_success'
+  DEGRADE_TO_TEXT_ONLY: 'degrade_to_text_only'
 };
 
 /**
@@ -72,7 +72,7 @@ const TRANSITION_TABLE = {
     [ML_TRANSITIONS.RESET]: ML_STATES.UNINITIALIZED,
     [ML_TRANSITIONS.RETRY_STT]: ML_STATES.RETRYING_STT,
     [ML_TRANSITIONS.RETRY_LLM]: ML_STATES.RETRYING_LLM,
-    [ML_TRANSITIONS.FALLBACK_SUCCESS]: ML_STATES.TEXT_ONLY_MODE,
+    [ML_TRANSITIONS.DEGRADE_TO_TEXT_ONLY]: ML_STATES.TEXT_ONLY_MODE,
   },
   [ML_STATES.RETRYING_STT]: {
     [ML_TRANSITIONS.STT_LOADED]: ML_STATES.READY,
@@ -116,7 +116,7 @@ export class MLStateMachine {
       [ML_TRANSITIONS.STT_LOADED]: [ML_STATES.READY],
       [ML_TRANSITIONS.LLM_LOADED]: [ML_STATES.READY],
       [ML_TRANSITIONS.MEMORY_PRESSURE]: [ML_STATES.LOW_MEMORY],
-      [ML_TRANSITIONS.FALLBACK_SUCCESS]: [ML_STATES.TEXT_ONLY_MODE],
+      [ML_TRANSITIONS.DEGRADE_TO_TEXT_ONLY]: [ML_STATES.TEXT_ONLY_MODE],
       [ML_TRANSITIONS.RESET]: [ML_STATES.UNINITIALIZED]
     };
 
@@ -168,7 +168,7 @@ export class MLStateMachine {
         this.context.llmFunctional = false;
       }
     }
-    if (transition === ML_TRANSITIONS.FALLBACK_SUCCESS) {
+    if (transition === ML_TRANSITIONS.DEGRADE_TO_TEXT_ONLY) {
       // If we fallback after STT error, mark it as non-functional
       if (prevState === ML_STATES.ERROR && this.context.errors.length > 0) {
         const lastError = this.context.errors[this.context.errors.length - 1];

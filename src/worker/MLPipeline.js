@@ -139,14 +139,13 @@ export class MLPipeline {
                             // Transition to STT loaded state
                             MLPipeline.transitionState(ML_TRANSITIONS.STT_LOADED);
                         } catch (minimalError) {
-                                                        // Transition to error state
-                                                        MLPipeline.transitionState(ML_TRANSITIONS.LOAD_ERROR, { error: minimalError.message });
-                            
-                                                        // Transition to TEXT_ONLY_MODE since we allow graceful degradation
-                                                        MLPipeline.transitionState(ML_TRANSITIONS.FALLBACK_SUCCESS);
-                            
-                                                        // Explicitly set to null to ensure consistent state
-                            MLPipeline.stt = null;
+                                                                                    // Transition to error state
+                                                                                    MLPipeline.transitionState(ML_TRANSITIONS.LOAD_ERROR, { error: minimalError.message });
+                                                                                    
+                                                                                    // Transition to TEXT_ONLY_MODE since we allow graceful degradation
+                                                                                    MLPipeline.transitionState(ML_TRANSITIONS.DEGRADE_TO_TEXT_ONLY);
+                                                                                    
+                                                                                    // Explicitly set to null to ensure consistent state                            MLPipeline.stt = null;
 
                             // Return early to prevent further processing
                             return;
@@ -283,14 +282,13 @@ export class MLPipeline {
                                 isFallbackFailed: true
                             });
 
-                            // Transition to error state
-                            MLPipeline.transitionState(ML_TRANSITIONS.LOAD_ERROR, { error: minimalError.message });
-
-                            // Transition to TEXT_ONLY_MODE since we allow graceful degradation
-                            MLPipeline.transitionState(ML_TRANSITIONS.FALLBACK_SUCCESS);
-
-                            // Explicitly set to null to ensure consistent state
-                            MLPipeline.llm = null;
+                                                        // Transition to error state
+                                                        MLPipeline.transitionState(ML_TRANSITIONS.LOAD_ERROR, { error: minimalError.message });
+                                                        
+                                                        // Transition to TEXT_ONLY_MODE since we allow graceful degradation
+                                                        MLPipeline.transitionState(ML_TRANSITIONS.DEGRADE_TO_TEXT_ONLY);
+                                                        
+                                                        // Explicitly set to null to ensure consistent state                            MLPipeline.llm = null;
 
                             // Return early to prevent further processing
                             return;
@@ -447,11 +445,6 @@ export class MLPipeline {
 
         // Dispose of all models to free memory
         await MLPipeline.disposeAll();
-
-        // Force garbage collection if available (in supporting environments)
-        if (self.gc) {
-            self.gc();
-        }
 
         // Post a message to notify the main thread about memory pressure handling
         messenger.postMessage({
