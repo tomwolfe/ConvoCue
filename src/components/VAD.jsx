@@ -8,6 +8,7 @@ const VAD = ({ onSpeechEnd, isReady, status, progressiveReadiness }) => {
     const [showDetailedHelp, setShowDetailedHelp] = React.useState(false);
     const [retryCount, setRetryCount] = React.useState(0);
     const [isRequestingPermission, setIsRequestingPermission] = React.useState(false);
+    const [showPrivacyNotice, setShowPrivacyNotice] = React.useState(false);
 
     const vad = useMicVAD({
         startOnLoad: false,
@@ -165,6 +166,15 @@ const VAD = ({ onSpeechEnd, isReady, status, progressiveReadiness }) => {
                 )}
                 {!vadError && !permissionDenied && <span>{status}</span>}
             </div>
+
+            {/* Privacy Notice for first-time users */}
+            {!permissionDenied && !vad.listening && retryCount === 0 && (
+                <div className="privacy-notice" onClick={() => setShowPrivacyNotice(true)}>
+                    <div className="privacy-icon">🔒</div>
+                    <span>100% Private • On-device processing</span>
+                </div>
+            )}
+
             {permissionDenied && (
                 <div className="permission-help">
                     <button className="btn-permission-help" onClick={requestPermission}>
@@ -212,6 +222,55 @@ const VAD = ({ onSpeechEnd, isReady, status, progressiveReadiness }) => {
                     </div>
                 </div>
             )}
+
+            {/* Privacy modal */}
+            {showPrivacyNotice && (
+                <div className="privacy-modal-overlay" onClick={() => setShowPrivacyNotice(false)}>
+                    <div className="privacy-modal" onClick={e => e.stopPropagation()}>
+                        <div className="privacy-modal-header">
+                            <div className="privacy-modal-icon">🔒</div>
+                            <h3>Privacy First</h3>
+                        </div>
+
+                        <div className="privacy-modal-content">
+                            <p>ConvoCue 2 processes everything <strong>locally on your device</strong>.</p>
+
+                            <div className="privacy-features">
+                                <div className="privacy-feature">
+                                    <div className="feature-icon">✅</div>
+                                    <div className="feature-text">
+                                        <h4>No Data Collection</h4>
+                                        <p>We never store or transmit your conversations</p>
+                                    </div>
+                                </div>
+
+                                <div className="privacy-feature">
+                                    <div className="feature-icon">✅</div>
+                                    <div className="feature-text">
+                                        <h4>On-Device Processing</h4>
+                                        <p>All AI runs directly in your browser</p>
+                                    </div>
+                                </div>
+
+                                <div className="privacy-feature">
+                                    <div className="feature-icon">✅</div>
+                                    <div className="feature-text">
+                                        <h4>Secure by Design</h4>
+                                        <p>Your conversations stay private and secure</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <p>Your microphone access enables real-time conversation analysis to provide helpful suggestions. You maintain full control over your data.</p>
+                        </div>
+
+                        <button className="btn-close-privacy" onClick={() => setShowPrivacyNotice(false)}>
+                            Got it! Start using ConvoCue
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {vad.listening && (
                 <div className="audio-visualizer-simple">
                     <div className="wave-animation"></div>

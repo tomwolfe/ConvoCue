@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { detectIntent, shouldGenerateSuggestion } from './core/intentEngine';
+import { detectIntent, shouldGenerateSuggestion, getPrecomputedSuggestion } from './core/intentEngine';
 import { AppConfig, BRIDGE_PHRASES } from './core/config';
 import { useSocialBattery } from './hooks/useSocialBattery';
 import { useTranscript } from './hooks/useTranscript';
@@ -98,6 +98,9 @@ export const useML = () => {
         setSummaryError(null);
     }, []);
 
+    // Cache for frequently used suggestions to reduce LLM calls
+    const suggestionCache = useRef(new Map());
+
     const processText = useCallback((text) => {
         const intent = detectIntent(text);
         const needsSuggestion = shouldGenerateSuggestion(text);
@@ -121,6 +124,24 @@ export const useML = () => {
         if (!shouldShowSuggestion || currentSpeaker === 'me') {
             setIsProcessing(false);
             setSuggestion('');
+            return;
+        }
+
+        // Check for precomputed suggestions first (fastest response)
+        const precomputed = getPrecomputedSuggestion(text);
+        if (precomputed) {
+            setSuggestion(precomputed.suggestion);
+            setIsProcessing(false);
+            return;
+        }
+
+        // Check cache first to reduce LLM calls
+        const cacheKey = `${intent}_${persona}_${currentBattery > AppConfig.minBatteryThreshold ? 'normal' : 'exhausted'}`;
+        const cachedSuggestion = suggestionCache.current.get(cacheKey);
+
+        if (cachedSuggestion && Date.now() - cachedSuggestion.timestamp < 30000) { // 30s cache
+            setSuggestion(cachedSuggestion.text);
+            setIsProcessing(false);
             return;
         }
 
@@ -165,6 +186,32 @@ export const useML = () => {
         }
     }, [persona, deduct, addEntry, currentSpeaker]);
 
+    // Handle LLM results and cache them
+    const handleLlmResult = useCallback((sug, taskId) => {
+        // Clear the timeout for this task ID
+        if (taskId && llmTimeoutsRef.current.has(taskId)) {
+            clearTimeout(llmTimeoutsRef.current.get(taskId));
+            llmTimeoutsRef.current.delete(taskId);
+        }
+
+        // Cache the suggestion for future use
+        const intent = detectedIntent;
+        const cacheKey = `${intent}_${persona}_${battery > AppConfig.minBatteryThreshold ? 'normal' : 'exhausted'}`;
+        suggestionCache.current.set(cacheKey, {
+            text: sug,
+            timestamp: Date.now()
+        });
+
+        // Limit cache size to prevent memory issues
+        if (suggestionCache.current.size > 50) {
+            const firstKey = suggestionCache.current.keys().next().value;
+            suggestionCache.current.delete(firstKey);
+        }
+
+        setSuggestion(sug);
+        setIsProcessing(false);
+    }, [detectedIntent, persona, battery]);
+
     const dismissSuggestion = useCallback(() => {
         setSuggestion('');
         setIsProcessing(false);
@@ -197,6 +244,17 @@ export const useML = () => {
                     console.warn(`Failed to pre-fetch ${file}:`, error);
                 });
         });
+
+        // Initialize service worker for better caching if available
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js')
+                .then(registration => {
+                    console.log('SW registered: ', registration);
+                })
+                .catch(registrationError => {
+                    console.log('SW registration failed: ', registrationError);
+                });
+        }
     }, []);
 
     // Improved model loading status with progressive enhancement
@@ -270,13 +328,7 @@ export const useML = () => {
                     if (loadTime !== undefined) setLlmLoadTime(loadTime);
                     break;
                 case 'llm_result':
-                    // Clear the timeout for this task ID
-                    if (taskId && llmTimeoutsRef.current.has(taskId)) {
-                        clearTimeout(llmTimeoutsRef.current.get(taskId));
-                        llmTimeoutsRef.current.delete(taskId);
-                    }
-                    setSuggestion(sug);
-                    setIsProcessing(false);
+                    handleLlmResult(sug, taskId);
                     break;
                 case 'summary_result':
                     setSessionSummary(summary);

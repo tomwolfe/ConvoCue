@@ -180,22 +180,58 @@ const BACKCHANNEL_PHRASES = new Set([
     'interesting', 'yep', 'nope', 'hi', 'hello', 'hey'
 ]);
 
+// Precomputed common conversation patterns to speed up response
+const COMMON_PATTERNS = new Map([
+    // Social patterns
+    [/how are you/i, { intent: 'social', suggestion: "I'm doing well, thank you! How about yourself?" }],
+    [/how was your weekend/i, { intent: 'social', suggestion: "It was relaxing, thanks! How about yours?" }],
+    [/what did you do/i, { intent: 'social', suggestion: "Oh, I mostly just relaxed at home. What about you?" }],
+    [/tell me about/i, { intent: 'social', suggestion: "That's interesting! Tell me more about that." }],
+
+    // Professional patterns
+    [/project status/i, { intent: 'professional', suggestion: "We're on track to meet the deadline. Any concerns?" }],
+    [/timeline/i, { intent: 'professional', suggestion: "Based on our current progress, we should finish by..." }],
+    [/budget/i, { intent: 'professional', suggestion: "The budget is within acceptable limits for now." }],
+
+    // Empathy patterns
+    [/had a bad day/i, { intent: 'empathy', suggestion: "I'm sorry to hear that. What happened?" }],
+    [/feeling overwhelmed/i, { intent: 'empathy', suggestion: "That sounds really challenging. How can I support you?" }],
+    [/don't know what to do/i, { intent: 'empathy', suggestion: "It's okay to feel uncertain. Let's think through this together." }],
+
+    // Conflict patterns
+    [/don't agree/i, { intent: 'conflict', suggestion: "I see where you're coming from. Can we find common ground?" }],
+    [/this won't work/i, { intent: 'conflict', suggestion: "I understand your concern. What would work better for you?" }],
+    [/problem with/i, { intent: 'conflict', suggestion: "Thanks for bringing this up. How should we address it?" }]
+]);
+
 export const shouldGenerateSuggestion = (text) => {
     if (!text) return false;
     const clean = text.toLowerCase().trim().replace(/[?.!,]/g, '');
-    
+
     // Always generate for questions
     if (text.includes('?')) return true;
-    
+
     // Don't generate for very short filler
     if (clean.length < 3) return false;
-    
+
     // Don't generate if it's just a backchannel word
     if (BACKCHANNEL_PHRASES.has(clean)) return false;
-    
+
     // Don't generate for very short sentences (e.g. "I know.") unless they are 3+ words
     const words = clean.split(/\s+/);
     if (words.length < 3 && BACKCHANNEL_PHRASES.has(words[0])) return false;
 
     return true;
+};
+
+export const getPrecomputedSuggestion = (text) => {
+    if (!text) return null;
+
+    for (const [pattern, result] of COMMON_PATTERNS) {
+        if (pattern.test(text)) {
+            return result;
+        }
+    }
+
+    return null;
 };

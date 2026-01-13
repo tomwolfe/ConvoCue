@@ -279,6 +279,17 @@ const App = () => {
                                     </div>
                                 </div>
                                 <p>ConvoCue analyzes your conversation and suggests the right response at the right time!</p>
+
+                                {/* Add loading tips */}
+                                <div className="loading-enhancement-tips">
+                                    <h5>What's happening during loading?</h5>
+                                    <ul>
+                                        <li>Downloading Whisper Tiny for speech recognition</li>
+                                        <li>Loading SmolLM2 for AI suggestions</li>
+                                        <li>Initializing audio processing engine</li>
+                                        <li>Setting up privacy-first processing</li>
+                                    </ul>
+                                </div>
                             </div>
                         </div>
                     </div>
