@@ -1,0 +1,35 @@
+{
+  "headers": [
+    {
+      "source": "/(.*).wasm",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/wasm"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/ort-wasm-simd-threaded.wasm",
+      "destination": "/ort-wasm-simd-threaded.wasm"
+    },
+    {
+      "source": "/ort-wasm-simd-threaded.mjs",
+      "destination": "/ort-wasm-simd-threaded.mjs"
+    },
+    {
+      "source": "/ort-wasm-simd-threaded.jsep.wasm",
+      "destination": "/ort-wasm-simd-threaded.jsep.wasm"
+    },
+    {
+      "source": "/ort-wasm-simd-threaded.jsep.mjs",
+      "destination": "/ort-wasm-simd-threaded.jsep.mjs"
+    }
+  ]
+}

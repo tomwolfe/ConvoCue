@@ -3,11 +3,13 @@ import { pipeline, env } from '@huggingface/transformers';
 env.allowLocalModels = false;
 env.useBrowserCache = true;
 
+// Use absolute paths with origin to avoid 404s on some deployment platforms
+const origin = self.location.origin;
 env.backends.onnx.wasm.wasmPaths = {
-    "ort-wasm-simd-threaded.wasm": "/ort-wasm-simd-threaded.wasm",
-    "ort-wasm-simd-threaded.mjs": "/ort-wasm-simd-threaded.mjs",
-    "ort-wasm-simd-threaded.jsep.wasm": "/ort-wasm-simd-threaded.jsep.wasm",
-    "ort-wasm-simd-threaded.jsep.mjs": "/ort-wasm-simd-threaded.jsep.mjs",
+    "ort-wasm-simd-threaded.wasm": `${origin}/ort-wasm-simd-threaded.wasm`,
+    "ort-wasm-simd-threaded.mjs": `${origin}/ort-wasm-simd-threaded.mjs`,
+    "ort-wasm-simd-threaded.jsep.wasm": `${origin}/ort-wasm-simd-threaded.jsep.wasm`,
+    "ort-wasm-simd-threaded.jsep.mjs": `${origin}/ort-wasm-simd-threaded.jsep.mjs`,
 };
 
 let sttPipeline = null;
