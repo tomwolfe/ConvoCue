@@ -34,6 +34,8 @@ export const useML = () => {
     const [llmProgress, setLlmProgress] = useState(0);
     const [sttLoadTime, setSttLoadTime] = useState(null);
     const [llmLoadTime, setLlmLoadTime] = useState(null);
+    const [sttStage, setSttStage] = useState('initializing');
+    const [llmStage, setLlmStage] = useState('initializing');
 
     const audioBufferRef = useRef([]);
     const flushTimeoutRef = useRef(null);
@@ -98,14 +100,21 @@ export const useML = () => {
         setSummaryError(null);
     }, []);
 
-    // Cache for frequently used suggestions to reduce LLM calls
+    // Enhanced cache for frequently used suggestions to reduce LLM calls
     const suggestionCache = useRef(new Map());
+    const intentHistory = useRef([]); // Track recent intents for context
 
     const processText = useCallback((text) => {
         const intent = detectIntent(text);
         const needsSuggestion = shouldGenerateSuggestion(text);
 
         setDetectedIntent(intent);
+
+        // Update intent history for context
+        intentHistory.current.push({ intent, timestamp: Date.now() });
+        if (intentHistory.current.length > 5) {
+            intentHistory.current.shift(); // Keep only last 5 intents
+        }
 
         const currentBattery = deduct(text, intent, persona);
         addEntry(text, currentSpeaker, intent);
@@ -135,11 +144,17 @@ export const useML = () => {
             return;
         }
 
-        // Check cache first to reduce LLM calls
-        const cacheKey = `${intent}_${persona}_${currentBattery > AppConfig.minBatteryThreshold ? 'normal' : 'exhausted'}`;
+        // Enhanced cache key with recent intent context
+        const recentIntents = intentHistory.current
+            .filter(item => Date.now() - item.timestamp < 30000) // Last 30 seconds
+            .map(item => item.intent)
+            .slice(-3) // Last 3 intents
+            .join('_');
+
+        const cacheKey = `${intent}_${recentIntents}_${persona}_${currentBattery > AppConfig.minBatteryThreshold ? 'normal' : 'exhausted'}`;
         const cachedSuggestion = suggestionCache.current.get(cacheKey);
 
-        if (cachedSuggestion && Date.now() - cachedSuggestion.timestamp < 30000) { // 30s cache
+        if (cachedSuggestion && Date.now() - cachedSuggestion.timestamp < 45000) { // Extended cache to 45s
             setSuggestion(cachedSuggestion.text);
             setIsProcessing(false);
             return;
@@ -155,7 +170,8 @@ export const useML = () => {
             intent: intent.toUpperCase(),
             battery: Math.round(currentBattery),
             persona: personaConfig.label,
-            isExhausted: currentBattery < AppConfig.minBatteryThreshold
+            isExhausted: currentBattery < AppConfig.minBatteryThreshold,
+            recentIntents: recentIntents // Pass recent intent context to LLM
         };
 
         const instruction = contextData.isExhausted
@@ -194,16 +210,32 @@ export const useML = () => {
             llmTimeoutsRef.current.delete(taskId);
         }
 
-        // Cache the suggestion for future use
+        // Enhanced caching with recent intent context
         const intent = detectedIntent;
-        const cacheKey = `${intent}_${persona}_${battery > AppConfig.minBatteryThreshold ? 'normal' : 'exhausted'}`;
+        const recentIntents = intentHistory.current
+            .filter(item => Date.now() - item.timestamp < 30000) // Last 30 seconds
+            .map(item => item.intent)
+            .slice(-3) // Last 3 intents
+            .join('_');
+
+        const cacheKey = `${intent}_${recentIntents}_${persona}_${battery > AppConfig.minBatteryThreshold ? 'normal' : 'exhausted'}`;
         suggestionCache.current.set(cacheKey, {
             text: sug,
             timestamp: Date.now()
         });
 
+        // Also cache without recent intents for broader matching
+        const basicCacheKey = `${intent}_${persona}_${battery > AppConfig.minBatteryThreshold ? 'normal' : 'exhausted'}`;
+        if (!suggestionCache.current.has(basicCacheKey)) {
+            suggestionCache.current.set(basicCacheKey, {
+                text: sug,
+                timestamp: Date.now()
+            });
+        }
+
         // Limit cache size to prevent memory issues
-        if (suggestionCache.current.size > 50) {
+        if (suggestionCache.current.size > 75) { // Increased cache size
+            // Remove oldest entries first
             const firstKey = suggestionCache.current.keys().next().value;
             suggestionCache.current.delete(firstKey);
         }
@@ -277,15 +309,15 @@ export const useML = () => {
     const getDetailedModelLoadStatus = () => {
         if (!sttReady && !llmReady) {
             if (sttProgress < 100 && llmProgress < 100) {
-                return `Loading AI models (${Math.round((sttProgress + llmProgress) / 2)}%)...`;
+                return `Loading AI models (${Math.round((sttProgress + llmProgress) / 2)}%)... STT: ${sttStage}, LLM: ${llmStage}`;
             } else if (sttProgress < 100) {
-                return `Finishing speech-to-text model (${Math.round(sttProgress)}%)...`;
+                return `Finishing speech-to-text model (${Math.round(sttProgress)}%) - ${sttStage}`;
             } else if (llmProgress < 100) {
-                return `Finishing language model (${Math.round(llmProgress)}%)...`;
+                return `Finishing language model (${Math.round(llmProgress)}%) - ${llmStage}`;
             }
         }
-        if (!sttReady) return `Loading speech-to-text model (${Math.round(sttProgress)}%)...`;
-        if (!llmReady) return `Loading language model (${Math.round(llmProgress)}%)...`;
+        if (!sttReady) return `Loading speech-to-text model (${Math.round(sttProgress)}%) - ${sttStage}`;
+        if (!llmReady) return `Loading language model (${Math.round(llmProgress)}%) - ${llmStage}`;
         return 'All models loaded and ready!';
     };
 
@@ -303,9 +335,12 @@ export const useML = () => {
         llmWorkerRef.current = llmWorker;
 
         sttWorker.onmessage = (event) => {
-            const { type, text, progress, status: stat, error, taskId, loadTime } = event.data;
+            const { type, text, progress, status: stat, error, taskId, loadTime, stage } = event.data;
             switch (type) {
-                case 'progress': setSttProgress(progress); break;
+                case 'progress':
+                    setSttProgress(progress);
+                    if (stage) setSttStage(stage);
+                    break;
                 case 'ready':
                     setSttReady(true);
                     if (loadTime !== undefined) setSttLoadTime(loadTime);
@@ -318,11 +353,14 @@ export const useML = () => {
         };
 
         llmWorker.onmessage = (event) => {
-            const { type, suggestion: sug, summary, progress, error, taskId, loadTime } = event.data;
+            const { type, suggestion: sug, summary, progress, error, taskId, loadTime, stage } = event.data;
             if (taskId && taskId < lastTaskId.current && (type === 'llm_result' || type === 'summary_result' || type === 'error')) return;
 
             switch (type) {
-                case 'progress': setLlmProgress(progress); break;
+                case 'progress':
+                    setLlmProgress(progress);
+                    if (stage) setLlmStage(stage);
+                    break;
                 case 'ready':
                     setLlmReady(true);
                     if (loadTime !== undefined) setLlmLoadTime(loadTime);

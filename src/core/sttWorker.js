@@ -50,6 +50,14 @@ self.onmessage = async (event) => {
                                     }
 
                                     self.postMessage({ type: 'progress', progress: calculatedProgress, taskId });
+                                } else if (p.status === 'downloading') {
+                                    // Send more detailed progress for different stages
+                                    self.postMessage({
+                                        type: 'progress',
+                                        progress: p.progress || 0,
+                                        stage: p.file?.filename || 'model',
+                                        taskId
+                                    });
                                 }
                             }
                         });

@@ -48,6 +48,14 @@ self.onmessage = async (event) => {
                                     }
 
                                     self.postMessage({ type: 'progress', progress: calculatedProgress, taskId });
+                                } else if (p.status === 'downloading') {
+                                    // Send more detailed progress for different stages
+                                    self.postMessage({
+                                        type: 'progress',
+                                        progress: p.progress || 0,
+                                        stage: p.file?.filename || 'model',
+                                        taskId
+                                    });
                                 }
                             }
                         });
@@ -95,14 +103,15 @@ self.onmessage = async (event) => {
                 const { messages, context, instruction } = data;
 
                 // Enhanced prompt with more specific contextual cues
-                const systemPrompt = `Role:${context.persona}. Intent:${context.intent}. Battery:${context.battery}%. Goal:${instruction}. Context: Provide a relevant, concise suggestion based on the conversation history.`;
+                const recentIntentsStr = context.recentIntents ? ` Recent intents: ${context.recentIntents}.` : '';
+                const systemPrompt = `Role:${context.persona}. Intent:${context.intent}.${recentIntentsStr} Battery:${context.battery}%. Goal:${instruction}. Context: Provide a relevant, concise suggestion based on the conversation history.`;
 
                 // Enhanced prompt with more specific instructions and context
                 const fullPrompt = `\`\`system\n${systemPrompt}\nRules:
 - Provide ONE suggestion as 3-5 keyword chips
 - NO full sentences, NO preamble
 - Format: "Keyword1 Keyword2 Keyword3"
-- Consider the conversation context and intent
+- Consider the conversation context, intent, and recent conversation flow
 - Be contextually relevant and actionable
 - If exhausted, suggest exit strategies\`\`\n` +
                     messages.map(m => `\`\`user\n${m.content}\`\``).join('\n') +

@@ -238,7 +238,7 @@ const App = () => {
                             <div className="progress-item">
                                 <div className="progress-labels">
                                     <span>Speech Recognition</span>
-                                    <span>{Math.round(sttProgress)}%</span>
+                                    <span>{Math.round(sttProgress)}% {sttStage && `(${sttStage})`}</span>
                                 </div>
                                 <div className="progress-bar mini">
                                     <div className="progress-fill" style={{ width: `${sttProgress}%`, backgroundColor: '#3b82f6' }}></div>
@@ -247,7 +247,7 @@ const App = () => {
                             <div className="progress-item">
                                 <div className="progress-labels">
                                     <span>AI Assistant</span>
-                                    <span>{Math.round(llmProgress)}%</span>
+                                    <span>{Math.round(llmProgress)}% {llmStage && `(${llmStage})`}</span>
                                 </div>
                                 <div className="progress-bar mini">
                                     <div className="progress-fill" style={{ width: `${llmProgress}%`, backgroundColor: '#8b5cf6' }}></div>

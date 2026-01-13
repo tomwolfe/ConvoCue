@@ -90,6 +90,11 @@ const SuggestionHUD = ({ suggestion, intent, onDismiss, isProcessing, battery, i
                         </div>
                     ))
                 )}
+                {isProcessing && (
+                    <div className="processing-hint">
+                        <span>💡 Tip: The AI is learning from your conversation to provide better suggestions</span>
+                    </div>
+                )}
             </div>
 
             <div className={`quick-actions-container ${isExhausted ? 'priority-exhaustion' : ''}`}>

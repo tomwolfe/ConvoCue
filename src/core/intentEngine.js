@@ -37,77 +37,9 @@ const NUANCE_PATTERNS = [
 export const detectIntent = (text) => {
     if (!text || text.trim().length < 3) return 'general';
 
-    // Quick early exit for common cases to improve performance
     const textLower = text.toLowerCase();
-    if (text.includes('?')) {
-        // Questions often indicate social intent, boost it
-        const scores = {
-            social: 0.8,
-            professional: 0,
-            conflict: 0,
-            empathy: 0,
-            positive: 0
-        };
 
-        // Check pre-compiled patterns
-        for (const { intent, regex, weight } of COMPILED_PATTERNS) {
-            const matches = text.match(regex);
-            if (matches) {
-                matches.forEach(match => {
-                    const multiplier = match.includes(' ') ? 1.5 : 1;
-                    scores[intent] += weight * multiplier;
-                });
-            }
-        }
-
-        // Apply nuance adjustments
-        for (const { regex, multiplier, ...adjustments } of NUANCE_PATTERNS) {
-            const matches = text.match(regex);
-            if (matches) {
-                let localMultiplier = 1.0;
-                if (multiplier) localMultiplier = multiplier;
-
-                matches.forEach(() => {
-                    for (const [intent, adjustment] of Object.entries(adjustments)) {
-                        if (scores[intent] !== undefined) {
-                            scores[intent] += adjustment;
-                        }
-                    }
-                });
-
-                if (multiplier) {
-                    for (const [intent, score] of Object.entries(scores)) {
-                        scores[intent] = score * localMultiplier;
-                    }
-                }
-            }
-        }
-
-        // If text contains both positive and conflict indicators, adjust scores
-        if (scores.positive > 0 && scores.conflict > 0) {
-            scores.positive *= 0.7; // Reduce positive score if there's conflict
-            scores.conflict *= 0.8; // Reduce conflict score if there's positivity
-        }
-
-        // Boost empathy if text contains personal pronouns with emotional context
-        if (textLower.includes('i feel') || textLower.includes('i think') || textLower.includes('i believe')) {
-            scores.empathy += 1.0;
-        }
-
-        let bestIntent = 'general';
-        let maxScore = 0.7; // Slightly lower threshold for better sensitivity
-
-        for (const [intent, score] of Object.entries(scores)) {
-            if (score > maxScore) {
-                maxScore = score;
-                bestIntent = intent;
-            }
-        }
-
-        return bestIntent;
-    }
-
-    // For non-questions, use the original algorithm
+    // Enhanced scoring with context awareness
     const scores = {
         social: 0,
         professional: 0,
@@ -116,24 +48,34 @@ export const detectIntent = (text) => {
         positive: 0
     };
 
-    let globalMultiplier = 1.0;
+    // Track match details for better context
+    const matchDetails = {
+        social: [],
+        professional: [],
+        conflict: [],
+        empathy: [],
+        positive: []
+    };
 
-    // Check pre-compiled patterns
+    // Check pre-compiled patterns and record match details
     for (const { intent, regex, weight } of COMPILED_PATTERNS) {
         const matches = text.match(regex);
         if (matches) {
             matches.forEach(match => {
                 const multiplier = match.includes(' ') ? 1.5 : 1;
                 scores[intent] += weight * multiplier;
+                matchDetails[intent].push({ match: match.toLowerCase(), weight: weight * multiplier });
             });
         }
     }
 
-    // Apply nuance adjustments
+    // Apply nuance adjustments with more sophisticated logic
     for (const { regex, multiplier, ...adjustments } of NUANCE_PATTERNS) {
         const matches = text.match(regex);
         if (matches) {
-            if (multiplier) globalMultiplier *= multiplier;
+            let localMultiplier = 1.0;
+            if (multiplier) localMultiplier = multiplier;
+
             matches.forEach(() => {
                 for (const [intent, adjustment] of Object.entries(adjustments)) {
                     if (scores[intent] !== undefined) {
@@ -141,32 +83,86 @@ export const detectIntent = (text) => {
                     }
                 }
             });
+
+            if (multiplier) {
+                for (const [intent, score] of Object.entries(scores)) {
+                    scores[intent] = score * localMultiplier;
+                }
+            }
         }
     }
 
-    // If text contains both positive and conflict indicators, adjust scores
-    if (scores.positive > 0 && scores.conflict > 0) {
-        scores.positive *= 0.7; // Reduce positive score if there's conflict
-        scores.conflict *= 0.8; // Reduce conflict score if there's positivity
+    // Enhanced context detection
+    // Detect if this is a question and adjust scoring accordingly
+    if (text.includes('?')) {
+        // Questions often indicate social intent, but also could be professional
+        if (scores.professional > scores.social * 0.8) {
+            scores.professional += 0.5;
+        } else {
+            scores.social += 0.8;
+        }
     }
 
     // Boost empathy if text contains personal pronouns with emotional context
     if (textLower.includes('i feel') || textLower.includes('i think') || textLower.includes('i believe')) {
-        scores.empathy += 1.0;
+        scores.empathy += 1.5; // Increased from 1.0
     }
 
-    // Boost social if text contains questions
-    if (text.includes('?')) {
-        scores.social += 0.8;
+    // Enhanced negation handling
+    if (/(don't|do not|doesn't|does not|no|not|never).*\b(disagree|wrong|problem|issue|mistake|fail|upset|mad|bad|terrible|awful)\b/.test(textLower)) {
+        scores.conflict -= 2.0; // Strongly reduce conflict if negated
+        scores.positive += 1.0; // Increase positive if conflict is negated
     }
 
+    // Contextual adjustment: if multiple intents have high scores, apply tie-breaking rules
+    const highScoringIntents = Object.entries(scores)
+        .filter(([intent, score]) => score > 0.5)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 2); // Get top 2 intents
+
+    // If two intents are close in score, apply context-based tiebreaker
+    if (highScoringIntents.length >= 2) {
+        const [first, second] = highScoringIntents;
+        const scoreDiff = first[1] - second[1];
+
+        // If scores are very close, apply context rules
+        if (scoreDiff < 0.5) {
+            // If empathy and conflict are close, empathy wins if emotional words present
+            if ((first[0] === 'empathy' && second[0] === 'conflict') ||
+                (first[0] === 'conflict' && second[0] === 'empathy')) {
+
+                if (/(sad|depressed|anxious|worried|scared|afraid|upset|angry|frustrated|stressed)/.test(textLower)) {
+                    scores.empathy += 0.5;
+                }
+            }
+
+            // If social and professional are close, check for business terms
+            if ((first[0] === 'social' && second[0] === 'professional') ||
+                (first[0] === 'professional' && second[0] === 'social')) {
+
+                if (/(project|meeting|work|job|company|client|boss|team|deadline|report)/.test(textLower)) {
+                    scores.professional += 0.5;
+                } else {
+                    scores.social += 0.5;
+                }
+            }
+        }
+    }
+
+    // Apply final adjustments based on conversation context
+    // If positive and conflict are both high, reduce both to favor other intents
+    if (scores.positive > 1.0 && scores.conflict > 1.0) {
+        scores.positive *= 0.6;
+        scores.conflict *= 0.6;
+    }
+
+    // Determine the best intent with improved threshold logic
     let bestIntent = 'general';
-    let maxScore = 0.7; // Slightly lower threshold for better sensitivity
+    let maxScore = 0.5; // Slightly lowered threshold for better sensitivity
 
     for (const [intent, score] of Object.entries(scores)) {
-        const finalScore = score * globalMultiplier;
-        if (finalScore > maxScore) {
-            maxScore = finalScore;
+        if (score > maxScore) {
+            maxScore = score;
             bestIntent = intent;
         }
     }
@@ -180,28 +176,41 @@ const BACKCHANNEL_PHRASES = new Set([
     'interesting', 'yep', 'nope', 'hi', 'hello', 'hey'
 ]);
 
-// Precomputed common conversation patterns to speed up response
+// Expanded precomputed common conversation patterns to speed up response
 const COMMON_PATTERNS = new Map([
     // Social patterns
     [/how are you/i, { intent: 'social', suggestion: "I'm doing well, thank you! How about yourself?" }],
     [/how was your weekend/i, { intent: 'social', suggestion: "It was relaxing, thanks! How about yours?" }],
     [/what did you do/i, { intent: 'social', suggestion: "Oh, I mostly just relaxed at home. What about you?" }],
     [/tell me about/i, { intent: 'social', suggestion: "That's interesting! Tell me more about that." }],
+    [/what do you think/i, { intent: 'social', suggestion: "That's a great point. I think..." }],
+    [/what's up/i, { intent: 'social', suggestion: "Not much, just taking it easy. How about you?" }],
+    [/good to see you/i, { intent: 'social', suggestion: "Yes, it's been too long! How have you been?" }],
+    [/long time no see/i, { intent: 'social', suggestion: "I know, right? Time flies! What have you been up to?" }],
 
     // Professional patterns
     [/project status/i, { intent: 'professional', suggestion: "We're on track to meet the deadline. Any concerns?" }],
     [/timeline/i, { intent: 'professional', suggestion: "Based on our current progress, we should finish by..." }],
     [/budget/i, { intent: 'professional', suggestion: "The budget is within acceptable limits for now." }],
+    [/meeting agenda/i, { intent: 'professional', suggestion: "Let's cover the key points first, then discuss next steps." }],
+    [/next steps/i, { intent: 'professional', suggestion: "The priority is to finalize the proposal by Friday." }],
+    [/deadline/i, { intent: 'professional', suggestion: "We're aiming to complete this by the end of the week." }],
 
     // Empathy patterns
     [/had a bad day/i, { intent: 'empathy', suggestion: "I'm sorry to hear that. What happened?" }],
     [/feeling overwhelmed/i, { intent: 'empathy', suggestion: "That sounds really challenging. How can I support you?" }],
     [/don't know what to do/i, { intent: 'empathy', suggestion: "It's okay to feel uncertain. Let's think through this together." }],
+    [/really stressed/i, { intent: 'empathy', suggestion: "I can hear that you're under pressure. What would be most helpful right now?" }],
+    [/going through a tough time/i, { intent: 'empathy', suggestion: "I'm here for you. Do you want to talk about what's going on?" }],
+    [/don't feel heard/i, { intent: 'empathy', suggestion: "I hear that you're feeling unheard. Can we try that again?" }],
 
     // Conflict patterns
     [/don't agree/i, { intent: 'conflict', suggestion: "I see where you're coming from. Can we find common ground?" }],
     [/this won't work/i, { intent: 'conflict', suggestion: "I understand your concern. What would work better for you?" }],
-    [/problem with/i, { intent: 'conflict', suggestion: "Thanks for bringing this up. How should we address it?" }]
+    [/problem with/i, { intent: 'conflict', suggestion: "Thanks for bringing this up. How should we address it?" }],
+    [/not sure about that/i, { intent: 'conflict', suggestion: "I appreciate your perspective. Let's explore both options." }],
+    [/that's not fair/i, { intent: 'conflict', suggestion: "I hear your concern. How can we make this more equitable?" }],
+    [/feeling frustrated/i, { intent: 'conflict', suggestion: "I understand your frustration. What solution would work best for you?" }]
 ]);
 
 export const shouldGenerateSuggestion = (text) => {

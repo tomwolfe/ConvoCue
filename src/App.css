@@ -1344,6 +1344,17 @@ footer {
     animation: pulse 2s infinite;
 }
 
+.processing-hint {
+    margin-top: 0.75rem;
+    padding: 0.5rem;
+    background: rgba(245, 158, 11, 0.1);
+    border-radius: 8px;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    text-align: center;
+    border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
 .no-suggestion-placeholder {
     display: flex;
     flex-direction: column;
