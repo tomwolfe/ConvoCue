@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import { useML } from './useML';
 import VAD from './components/VAD';
 import SuggestionHUD from './components/SuggestionHUD';
@@ -202,6 +203,7 @@ const App = () => {
                     </div>
                 </div>
             )}
+            <Analytics />
         </div>
     );
 };
