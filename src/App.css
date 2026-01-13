@@ -2385,3 +2385,80 @@ footer {
     background: rgba(16, 185, 129, 0.2);
     border-color: rgba(16, 185, 129, 0.3);
 }
+
+/* Enhanced Insights Dashboard Styles */
+.balance-stats {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.balance-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    min-width: 150px;
+    background: rgba(255, 255, 255, 0.02);
+    padding: 15px;
+    border-radius: 8px;
+    text-align: center;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.balance-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 50%;
+}
+
+.balance-info {
+    flex: 1;
+}
+
+.balance-label {
+    font-weight: bold;
+    color: var(--text);
+    margin-bottom: 5px;
+    font-size: 0.8rem;
+}
+
+.balance-value {
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: var(--primary);
+    margin-bottom: 5px;
+}
+
+.balance-count {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.balance-chart {
+    margin-top: 20px;
+}
+
+.insight-item.priority-high {
+    border-left-color: var(--accent-red);
+    background: rgba(239, 68, 68, 0.05);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.insight-item.priority-medium {
+    border-left-color: var(--accent-orange);
+    background: rgba(245, 158, 11, 0.05);
+    border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.insight-item.priority-low {
+    border-left-color: var(--accent-green);
+    background: rgba(16, 185, 129, 0.05);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
