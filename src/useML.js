@@ -7,6 +7,7 @@ export const useML = () => {
     const [progress, setProgress] = useState(0);
     const [transcript, setTranscript] = useState('');
     const [suggestion, setSuggestion] = useState('');
+    const [isProcessing, setIsProcessing] = useState(false);
     const [detectedIntent, setDetectedIntent] = useState('general');
     const [persona, setPersona] = useState(AppConfig.defaultPersona);
     const [isReady, setIsReady] = useState(false);
@@ -22,12 +23,15 @@ export const useML = () => {
     const handleNewTextStable = useCallback((text) => {
         const intent = detectIntent(text);
         setDetectedIntent(intent);
+        setIsProcessing(true);
         
         const wordCount = text.trim().split(/\s+/).length;
-        const deduction = Math.min(15, Math.max(2, wordCount * AppConfig.batteryDeductionRate));
+        const baseDeduction = wordCount * AppConfig.batteryDeduction.baseRate;
+        const multiplier = AppConfig.batteryDeduction.multipliers[intent] || 1.0;
+        const totalDeduction = Math.min(15, Math.max(2, baseDeduction * multiplier));
         
         setBattery(prev => {
-            const newVal = Math.max(0, prev - deduction);
+            const newVal = Math.max(0, prev - totalDeduction);
             batteryRef.current = newVal;
             return newVal;
         });
@@ -39,7 +43,7 @@ export const useML = () => {
         const contextInjection = `\n[Context: Intent=${intent.toUpperCase()}, Battery=${Math.round(batteryRef.current)}%]`;
         
         if (batteryRef.current < AppConfig.minBatteryThreshold) {
-            personaPrompt = "The user is socially exhausted. Suggest a polite exit strategy or a very brief, low-energy response. Keep it under 10 words.";
+            personaPrompt = AppConfig.personas[persona].prompt + "\n[URGENT: User is socially exhausted. Prioritize exit strategies or minimal energy responses.]";
         }
 
         if (workerRef.current) {
@@ -54,7 +58,10 @@ export const useML = () => {
     }, [persona]);
 
     const resetBattery = useCallback(() => setBattery(100), []);
-    const dismissSuggestion = useCallback(() => setSuggestion(''), []);
+    const dismissSuggestion = useCallback(() => {
+        setSuggestion('');
+        setIsProcessing(false);
+    }, []);
 
     useEffect(() => {
         handleNewTextRef.current = handleNewTextStable;
@@ -82,10 +89,12 @@ export const useML = () => {
                     break;
                 case 'llm_result':
                     setSuggestion(sug);
+                    setIsProcessing(false);
                     break;
                 case 'error':
                     console.error('Worker error:', error);
                     setStatus('Error');
+                    setIsProcessing(false);
                     break;
             }
         };
@@ -105,6 +114,6 @@ export const useML = () => {
     return {
         status, progress, transcript, suggestion, detectedIntent, 
         persona, setPersona, isReady, battery, resetBattery, 
-        dismissSuggestion, processAudio
+        dismissSuggestion, processAudio, isProcessing
     };
 };

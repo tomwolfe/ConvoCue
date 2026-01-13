@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, MessageSquare, AlertCircle, Briefcase, Heart, X } from 'lucide-react';
+import { Sparkles, MessageSquare, AlertCircle, Briefcase, Heart, X, Loader2 } from 'lucide-react';
 
 const INTENT_UI = {
     social: { icon: <MessageSquare size={16} />, color: '#3b82f6', label: 'Social' },
@@ -9,8 +9,20 @@ const INTENT_UI = {
     general: { icon: <Sparkles size={16} />, color: '#8b5cf6', label: 'General' }
 };
 
-const SuggestionHUD = ({ suggestion, intent, onDismiss }) => {
+const SuggestionHUD = ({ suggestion, intent, onDismiss, isProcessing }) => {
     const ui = INTENT_UI[intent] || INTENT_UI.general;
+
+    if (isProcessing && !suggestion) return (
+        <div className="suggestion-hud processing">
+            <div className="intent-badge" style={{ backgroundColor: ui.color, opacity: 0.7 }}>
+                <Loader2 size={16} className="animate-spin" />
+                <span>Thinking...</span>
+            </div>
+            <div className="suggestion-box" style={{ opacity: 0.5 }}>
+                Analyzing cues and orchestrating persona...
+            </div>
+        </div>
+    );
 
     if (!suggestion) return (
         <div className="suggestion-hud empty">
@@ -24,8 +36,8 @@ const SuggestionHUD = ({ suggestion, intent, onDismiss }) => {
         <div className="suggestion-hud">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div className="intent-badge" style={{ backgroundColor: ui.color }}>
-                    {ui.icon}
-                    <span>{ui.label}</span>
+                    {isProcessing ? <Loader2 size={16} className="animate-spin" /> : ui.icon}
+                    <span>{ui.label} {isProcessing && '(Updating...)'}</span>
                 </div>
                 <button 
                     onClick={onDismiss}

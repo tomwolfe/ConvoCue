@@ -17,7 +17,8 @@ const App = () => {
         battery,
         resetBattery,
         dismissSuggestion,
-        processAudio 
+        processAudio,
+        isProcessing
     } = useML();
 
     return (
@@ -50,6 +51,7 @@ const App = () => {
                     suggestion={suggestion} 
                     intent={detectedIntent} 
                     onDismiss={dismissSuggestion} 
+                    isProcessing={isProcessing}
                 />
                 
                 <div className="transcript-area">

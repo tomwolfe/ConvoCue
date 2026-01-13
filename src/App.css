@@ -221,16 +221,16 @@ footer {
     justify-content: center;
 }
 
-.wave-animation {
-    width: 120px;
-    height: 4px;
-    background: var(--primary);
-    border-radius: 2px;
-    animation: wave-pulse 1.5s infinite ease-in-out;
+.animate-spin {
+    animation: spin 1s linear infinite;
 }
 
-@keyframes wave-pulse {
-    0% { transform: scaleX(0.3); opacity: 0.4; }
-    50% { transform: scaleX(1); opacity: 1; }
-    100% { transform: scaleX(0.3); opacity: 0.4; }
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.suggestion-hud.processing {
+    border-color: rgba(99, 102, 241, 0.3);
+    background: linear-gradient(to bottom right, var(--card), rgba(99, 102, 241, 0.05));
 }
