@@ -1,6 +1,6 @@
 import React from 'react';
 import { useMicVAD } from '@ricky0123/vad-react';
-import { Mic, MicOff, Loader2, AlertTriangle, RotateCcw, Settings, Chrome, Firefox, Apple } from 'lucide-react';
+import { Mic, MicOff, Loader2, AlertTriangle, RotateCcw, Settings, Chrome, Globe, Apple } from 'lucide-react';
 
 const VAD = ({ onSpeechEnd, isReady, status }) => {
     const [vadError, setVadError] = React.useState(null);
@@ -71,7 +71,7 @@ const VAD = ({ onSpeechEnd, isReady, status }) => {
             };
         } else if (userAgent.includes('firefox')) {
             return {
-                icon: <Firefox size={16} />,
+                icon: <Globe size={16} />,
                 name: 'Firefox',
                 steps: [
                     'Click the shield icon 🛡️ in the address bar',
