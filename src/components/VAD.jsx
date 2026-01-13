@@ -1,10 +1,12 @@
 import React from 'react';
 import { useMicVAD } from '@ricky0123/vad-react';
-import { Mic, MicOff, Loader2, AlertTriangle, RotateCcw } from 'lucide-react';
+import { Mic, MicOff, Loader2, AlertTriangle, RotateCcw, Settings, Chrome, Firefox, Apple } from 'lucide-react';
 
 const VAD = ({ onSpeechEnd, isReady, status }) => {
     const [vadError, setVadError] = React.useState(null);
     const [permissionDenied, setPermissionDenied] = React.useState(false);
+    const [showDetailedHelp, setShowDetailedHelp] = React.useState(false);
+
     const vad = useMicVAD({
         startOnLoad: false,
         onSpeechEnd: (audio) => {
@@ -54,6 +56,54 @@ const VAD = ({ onSpeechEnd, isReady, status }) => {
             });
     };
 
+    const getBrowserInstructions = () => {
+        const userAgent = navigator.userAgent.toLowerCase();
+
+        if (userAgent.includes('chrome')) {
+            return {
+                icon: <Chrome size={16} />,
+                name: 'Chrome',
+                steps: [
+                    'Click the lock icon 🔒 in the address bar',
+                    'Find "Microphone" and click "Allow"',
+                    'Refresh the page'
+                ]
+            };
+        } else if (userAgent.includes('firefox')) {
+            return {
+                icon: <Firefox size={16} />,
+                name: 'Firefox',
+                steps: [
+                    'Click the shield icon 🛡️ in the address bar',
+                    'Find "Permissions" and allow microphone',
+                    'Refresh the page'
+                ]
+            };
+        } else if (userAgent.includes('safari')) {
+            return {
+                icon: <Apple size={16} />,
+                name: 'Safari',
+                steps: [
+                    'Go to Safari → Preferences → Websites → Camera & Microphone',
+                    'Find this website and set to "Allow"',
+                    'Refresh the page'
+                ]
+            };
+        } else {
+            return {
+                icon: <Settings size={16} />,
+                name: 'Browser',
+                steps: [
+                    'Click the lock icon 🔒 in the address bar',
+                    'Find microphone permissions and click "Allow"',
+                    'Refresh the page'
+                ]
+            };
+        }
+    };
+
+    const browserInfo = getBrowserInstructions();
+
     const toggleMic = () => {
         if (vad.listening) {
             vad.pause();
@@ -86,11 +136,47 @@ const VAD = ({ onSpeechEnd, isReady, status }) => {
                 <div className="permission-help">
                     <button className="btn-permission-help" onClick={requestPermission}>
                         <RotateCcw size={14} />
-                        <span>Request Permission</span>
+                        <span>Request Permission Again</span>
                     </button>
-                    <p className="permission-instructions">
-                        Click above or go to browser settings → Permissions → Microphone → Allow
-                    </p>
+
+                    <div className="permission-instructions">
+                        <div className="browser-info">
+                            <div className="browser-header">
+                                {browserInfo.icon}
+                                <span>For {browserInfo.name} users:</span>
+                            </div>
+                            <ol>
+                                {browserInfo.steps.map((step, idx) => (
+                                    <li key={idx}>{step}</li>
+                                ))}
+                            </ol>
+                        </div>
+
+                        <button
+                            className="show-detailed-help"
+                            onClick={() => setShowDetailedHelp(!showDetailedHelp)}
+                        >
+                            {showDetailedHelp ? 'Hide' : 'Show'} detailed instructions
+                        </button>
+
+                        {showDetailedHelp && (
+                            <div className="detailed-help">
+                                <h4>Why do I need to allow microphone access?</h4>
+                                <p>
+                                    ConvoCue 2 processes your conversations locally on your device to provide real-time suggestions.
+                                    No audio is sent to any server - everything happens privately on your computer.
+                                </p>
+
+                                <h4>Still having trouble?</h4>
+                                <ul>
+                                    <li>Check that your microphone is properly connected</li>
+                                    <li>Make sure no other apps are using your microphone</li>
+                                    <li>Try refreshing the page after allowing permission</li>
+                                    <li>Restart your browser if issues persist</li>
+                                </ul>
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
             {vad.listening && (

@@ -187,7 +187,15 @@ export const useML = () => {
 
     // Improved model loading status
     const getModelLoadStatus = () => {
-        if (!sttReady && !llmReady) return 'Loading AI models...';
+        if (!sttReady && !llmReady) {
+            if (sttProgress < 100 && llmProgress < 100) {
+                return 'Loading AI models...';
+            } else if (sttProgress < 100) {
+                return 'Finishing speech-to-text model...';
+            } else if (llmProgress < 100) {
+                return 'Finishing language model...';
+            }
+        }
         if (!sttReady) return 'Loading speech-to-text model...';
         if (!llmReady) return 'Loading language model...';
         return 'Ready';

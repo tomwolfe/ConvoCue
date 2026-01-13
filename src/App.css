@@ -598,8 +598,88 @@ footer {
     font-size: 0.7rem;
     color: var(--text-muted);
     margin: 0;
-    text-align: center;
+    text-align: left;
+    line-height: 1.4;
+    width: 100%;
+    padding-top: 0.5rem;
+}
+
+.browser-info {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.browser-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.browser-header span {
+    font-size: 0.75rem;
+}
+
+.permission-instructions ol {
+    margin: 0.5rem 0 0.5rem 0.75rem;
+    padding: 0;
+    font-size: 0.65rem;
+}
+
+.permission-instructions li {
+    margin-bottom: 0.25rem;
     line-height: 1.3;
+}
+
+.show-detailed-help {
+    background: none;
+    border: none;
+    color: var(--primary);
+    cursor: pointer;
+    font-size: 0.65rem;
+    padding: 0.25rem 0;
+    margin: 0.25rem 0;
+    text-align: left;
+    width: 100%;
+    font-weight: 600;
+}
+
+.show-detailed-help:hover {
+    text-decoration: underline;
+}
+
+.detailed-help {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    padding: 0.75rem;
+    margin-top: 0.5rem;
+    font-size: 0.65rem;
+}
+
+.detailed-help h4 {
+    margin: 0.5rem 0 0.25rem 0;
+    font-size: 0.7rem;
+    color: var(--text);
+}
+
+.detailed-help p,
+.detailed-help ul {
+    margin: 0.25rem 0;
+    line-height: 1.4;
+}
+
+.detailed-help ul {
+    padding-left: 1rem;
+}
+
+.detailed-help li {
+    margin-bottom: 0.25rem;
 }
 
 .error-container {
@@ -634,6 +714,22 @@ footer {
     margin-top: 0.5rem;
     font-size: 0.75rem;
     color: var(--text-muted);
+}
+
+.loading-tips {
+    text-align: center;
+    margin-top: 0.5rem;
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    padding: 0.5rem;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.loading-tips p {
+    margin: 0.25rem 0;
+    line-height: 1.4;
 }
 
 .progress-text {

@@ -21,9 +21,19 @@ export const useSocialBattery = () => {
             if (isPaused) return;
             const now = Date.now();
             const idleTime = (now - lastInteractionRef.current) / 1000;
-            
+
             if (idleTime > 30) { // After 30s of silence
-                setBattery(prev => Math.min(100, prev + 0.1)); // Very slow passive recharge
+                setBattery(prev => {
+                    const newVal = Math.min(100, prev + 0.5); // Increased passive recharge rate
+                    if (newVal > prev) {
+                        setLastDrain({
+                            amount: `+0.5`,
+                            reason: 'recovery'
+                        });
+                        setTimeout(() => setLastDrain(null), 3000);
+                    }
+                    return newVal;
+                });
             }
         }, 5000);
         return () => clearInterval(interval);
@@ -51,15 +61,20 @@ export const useSocialBattery = () => {
         // If intent is positive, we allow for a very small recharge or zero drain
         const isPositive = intent === 'positive';
         let totalDeduction = baseDeduction * multiplier * drainRate * sensitivity * momentumFactor;
-        
+
         if (isPositive) {
             totalDeduction = -0.5; // Fixed small recharge for positive sentiment
         } else {
             totalDeduction = Math.min(20, Math.max(0.5, totalDeduction));
         }
-        
+
+        // Add a minimum threshold to prevent tiny deductions that confuse users
+        if (Math.abs(totalDeduction) < 0.2 && !isPositive) {
+            totalDeduction = 0.2;
+        }
+
         setLastDrain({
-            amount: isPositive ? '+0.5' : `-${totalDeduction.toFixed(1)}`,
+            amount: isPositive ? `+${Math.abs(totalDeduction).toFixed(1)}` : `-${totalDeduction.toFixed(1)}`,
             reason: intent !== 'general' ? intent : ''
         });
 

@@ -225,6 +225,9 @@ const App = () => {
                         <div className="loading-status-text">
                             <span>{status}</span>
                         </div>
+                        <div className="loading-tips">
+                            <p>💡 Tip: The first load may take 1-2 minutes as models download. Future sessions will be faster!</p>
+                        </div>
                     </div>
                 )}
             </footer>
@@ -239,7 +242,7 @@ const App = () => {
                             <div className="step-icon"><Battery size={20} /></div>
                             <div className="step-content">
                                 <h4>Social Battery</h4>
-                                <p>Cues drain your battery based on intensity. Low battery triggers "Exhaustion" mode for easier exits.</p>
+                                <p>Cues drain your battery based on intensity. Low battery triggers "Exhaustion" mode for easier exits. Your battery recovers when conversations pause.</p>
                             </div>
                         </div>
 
