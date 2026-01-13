@@ -5,6 +5,7 @@ import VAD from './components/VAD';
 import SuggestionHUD from './components/SuggestionHUD';
 import SessionSummary from './components/SessionSummary';
 import SessionHistoryModal from './components/SessionHistoryModal';
+import InsightsModal from './components/InsightsModal';
 import { useSessionHistory } from './hooks/useSessionHistory';
 import { AppConfig } from './core/config';
 import {
@@ -20,7 +21,8 @@ import {
     ChevronRight,
     LogOut,
     Sparkles,
-    History
+    History,
+    BarChart3
 } from 'lucide-react';
 
 const ICON_MAP = {
@@ -96,6 +98,7 @@ const App = () => {
     const [showTutorial, setShowTutorial] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
     const [showSessionHistory, setShowSessionHistory] = useState(false);
+    const [showInsights, setShowInsights] = useState(false);
 
     return (
         <div className="app">
@@ -110,6 +113,14 @@ const App = () => {
                     </button>
                 </div>
                 <div className="header-right">
+                    <button
+                        className="btn-insights"
+                        onClick={() => setShowInsights(true)}
+                        title="View conversation insights"
+                    >
+                        <BarChart3 size={14} />
+                        <span>Insights</span>
+                    </button>
                     <button
                         className="btn-session-history"
                         onClick={() => setShowSessionHistory(true)}
@@ -217,6 +228,14 @@ const App = () => {
                         />
                     </div>
                 </div>
+            )}
+
+            {showInsights && (
+                <InsightsModal
+                    sessions={sessions}
+                    isOpen={showInsights}
+                    onClose={() => setShowInsights(false)}
+                />
             )}
 
             {showSettings && (
