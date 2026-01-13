@@ -37,6 +37,77 @@ const NUANCE_PATTERNS = [
 export const detectIntent = (text) => {
     if (!text || text.trim().length < 3) return 'general';
 
+    // Quick early exit for common cases to improve performance
+    const textLower = text.toLowerCase();
+    if (text.includes('?')) {
+        // Questions often indicate social intent, boost it
+        const scores = {
+            social: 0.8,
+            professional: 0,
+            conflict: 0,
+            empathy: 0,
+            positive: 0
+        };
+
+        // Check pre-compiled patterns
+        for (const { intent, regex, weight } of COMPILED_PATTERNS) {
+            const matches = text.match(regex);
+            if (matches) {
+                matches.forEach(match => {
+                    const multiplier = match.includes(' ') ? 1.5 : 1;
+                    scores[intent] += weight * multiplier;
+                });
+            }
+        }
+
+        // Apply nuance adjustments
+        for (const { regex, multiplier, ...adjustments } of NUANCE_PATTERNS) {
+            const matches = text.match(regex);
+            if (matches) {
+                let localMultiplier = 1.0;
+                if (multiplier) localMultiplier = multiplier;
+
+                matches.forEach(() => {
+                    for (const [intent, adjustment] of Object.entries(adjustments)) {
+                        if (scores[intent] !== undefined) {
+                            scores[intent] += adjustment;
+                        }
+                    }
+                });
+
+                if (multiplier) {
+                    for (const [intent, score] of Object.entries(scores)) {
+                        scores[intent] = score * localMultiplier;
+                    }
+                }
+            }
+        }
+
+        // If text contains both positive and conflict indicators, adjust scores
+        if (scores.positive > 0 && scores.conflict > 0) {
+            scores.positive *= 0.7; // Reduce positive score if there's conflict
+            scores.conflict *= 0.8; // Reduce conflict score if there's positivity
+        }
+
+        // Boost empathy if text contains personal pronouns with emotional context
+        if (textLower.includes('i feel') || textLower.includes('i think') || textLower.includes('i believe')) {
+            scores.empathy += 1.0;
+        }
+
+        let bestIntent = 'general';
+        let maxScore = 0.7; // Slightly lower threshold for better sensitivity
+
+        for (const [intent, score] of Object.entries(scores)) {
+            if (score > maxScore) {
+                maxScore = score;
+                bestIntent = intent;
+            }
+        }
+
+        return bestIntent;
+    }
+
+    // For non-questions, use the original algorithm
     const scores = {
         social: 0,
         professional: 0,
@@ -72,9 +143,6 @@ export const detectIntent = (text) => {
             });
         }
     }
-
-    // Add context-based adjustments based on conversation flow
-    const textLower = text.toLowerCase();
 
     // If text contains both positive and conflict indicators, adjust scores
     if (scores.positive > 0 && scores.conflict > 0) {

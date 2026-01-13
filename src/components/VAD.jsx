@@ -6,6 +6,8 @@ const VAD = ({ onSpeechEnd, isReady, status, progressiveReadiness }) => {
     const [vadError, setVadError] = React.useState(null);
     const [permissionDenied, setPermissionDenied] = React.useState(false);
     const [showDetailedHelp, setShowDetailedHelp] = React.useState(false);
+    const [retryCount, setRetryCount] = React.useState(0);
+    const [isRequestingPermission, setIsRequestingPermission] = React.useState(false);
 
     const vad = useMicVAD({
         startOnLoad: false,
@@ -41,21 +43,45 @@ const VAD = ({ onSpeechEnd, isReady, status, progressiveReadiness }) => {
         }
     }, [progressiveReadiness, vad.loading, vadError]);
 
-    const requestPermission = () => {
+    const requestPermission = async () => {
+        setIsRequestingPermission(true);
         setPermissionDenied(false);
         setVadError(null);
 
-        // Request microphone permission explicitly
-        navigator.mediaDevices.getUserMedia({ audio: true })
-            .then(stream => {
-                stream.getTracks().forEach(track => track.stop()); // Stop the stream immediately
-                // Restart VAD after getting permission
-                vad.start();
-            })
-            .catch(err => {
-                console.error('Permission request failed:', err);
-                setVadError('Microphone permission still denied. Please enable it in browser settings.');
-            });
+        try {
+            // Request microphone permission explicitly
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+            // Stop the stream immediately after getting permission
+            stream.getTracks().forEach(track => track.stop());
+
+            // Update retry count
+            setRetryCount(prev => prev + 1);
+
+            // Restart VAD after getting permission
+            vad.start();
+
+            // Clear any previous error states
+            setVadError(null);
+            setPermissionDenied(false);
+        } catch (err) {
+            console.error('Permission request failed:', err);
+            setVadError('Microphone permission still denied. Please enable it in browser settings.');
+            setPermissionDenied(true);
+        } finally {
+            setIsRequestingPermission(false);
+        }
+    };
+
+    // Auto-request permission if user clicks the mic button while denied
+    const handleMicClick = () => {
+        if (permissionDenied) {
+            requestPermission();
+        } else if (vad.listening) {
+            vad.pause();
+        } else {
+            vad.start();
+        }
     };
 
     const getBrowserInstructions = () => {
@@ -117,12 +143,17 @@ const VAD = ({ onSpeechEnd, isReady, status, progressiveReadiness }) => {
     return (
         <div className="vad-controls">
             <button
-                onClick={toggleMic}
-                disabled={(!isReady && progressiveReadiness !== 'partial') || permissionDenied}
+                onClick={handleMicClick}
+                disabled={(!isReady && progressiveReadiness !== 'partial') || isRequestingPermission}
                 className={`btn-mic ${vad.listening ? 'active' : ''} ${permissionDenied ? 'permission-denied' : ''}`}
             >
-                {vad.listening ? <Mic size={24} /> : <MicOff size={24} />}
-                <span>{vad.listening ? 'Listening...' : permissionDenied ? 'Permission Denied' : 'Start Listening'}</span>
+                {isRequestingPermission ? <Loader2 className="animate-spin" size={24} /> :
+                 vad.listening ? <Mic size={24} /> : <MicOff size={24} />}
+                <span>
+                    {isRequestingPermission ? 'Requesting permission...' :
+                     vad.listening ? 'Listening...' :
+                     permissionDenied ? 'Permission Denied' : 'Start Listening'}
+                </span>
             </button>
             <div className="status-indicator">
                 {(status.includes('Loading') || status.includes('models')) && <Loader2 className="animate-spin" size={16} />}

@@ -19,6 +19,7 @@ if (isWebGPUSupported) {
 
 let sttPipeline = null;
 let isModelLoading = false;
+let modelLoadStartTime = null;
 const STT_MODEL = 'onnx-community/whisper-tiny.en';
 
 self.onmessage = async (event) => {
@@ -29,20 +30,33 @@ self.onmessage = async (event) => {
             case 'load':
                 if (!sttPipeline && !isModelLoading) {
                     isModelLoading = true;
+                    modelLoadStartTime = Date.now();
+
                     try {
                         // Use WebGPU if supported, otherwise fallback to WASM
                         const device = isWebGPUSupported ? 'webgpu' : 'wasm';
 
+                        // Add more granular progress updates
                         sttPipeline = await pipeline('automatic-speech-recognition', STT_MODEL, {
                             device: device,
                             dtype: 'q4',
                             progress_callback: (p) => {
                                 if (p.status === 'progress') {
-                                    self.postMessage({ type: 'progress', progress: p.progress, taskId });
+                                    // Calculate estimated progress based on time if available
+                                    let calculatedProgress = p.progress;
+
+                                    if (p.file && p.file.downloadProgress !== undefined) {
+                                        calculatedProgress = p.file.downloadProgress;
+                                    }
+
+                                    self.postMessage({ type: 'progress', progress: calculatedProgress, taskId });
                                 }
                             }
                         });
-                        self.postMessage({ type: 'ready', taskId });
+
+                        // Send timing information for analytics
+                        const loadTime = Date.now() - modelLoadStartTime;
+                        self.postMessage({ type: 'ready', taskId, loadTime });
                     } catch (loadError) {
                         isModelLoading = false;
                         // If WebGPU fails, try falling back to WASM
@@ -53,11 +67,19 @@ self.onmessage = async (event) => {
                                     dtype: 'q4',
                                     progress_callback: (p) => {
                                         if (p.status === 'progress') {
-                                            self.postMessage({ type: 'progress', progress: p.progress, taskId });
+                                            let calculatedProgress = p.progress;
+
+                                            if (p.file && p.file.downloadProgress !== undefined) {
+                                                calculatedProgress = p.file.downloadProgress;
+                                            }
+
+                                            self.postMessage({ type: 'progress', progress: calculatedProgress, taskId });
                                         }
                                     }
                                 });
-                                self.postMessage({ type: 'ready', taskId });
+
+                                const loadTime = Date.now() - modelLoadStartTime;
+                                self.postMessage({ type: 'ready', taskId, loadTime });
                             } catch (fallbackError) {
                                 throw loadError; // Throw original error if fallback also fails
                             }

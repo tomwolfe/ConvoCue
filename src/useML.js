@@ -13,12 +13,12 @@ export const useML = () => {
     const [isSummarizing, setIsSummarizing] = useState(false);
     const [summaryError, setSummaryError] = useState(null);
     
-    const { 
+    const {
         battery, deduct, reset: resetBattery, batteryRef,
         sensitivity, setSensitivity, isPaused, togglePause, recharge, isExhausted, lastDrain
     } = useSocialBattery();
-    const { 
-        transcript, addEntry, currentSpeaker, toggleSpeaker, clearTranscript, 
+    const {
+        transcript, addEntry, currentSpeaker, toggleSpeaker, clearTranscript,
         shouldPulse, nudgeSpeaker, consecutiveCount
     } = useTranscript();
 
@@ -27,10 +27,13 @@ export const useML = () => {
     const messagesRef = useRef([]);
     const initialBatteryRef = useRef(100);
     const lastTaskId = useRef(0);
+    const llmTimeoutsRef = useRef(new Map()); // Store timeouts for LLM requests
     const [sttReady, setSttReady] = useState(false);
     const [llmReady, setLlmReady] = useState(false);
     const [sttProgress, setSttProgress] = useState(0);
     const [llmProgress, setLlmProgress] = useState(0);
+    const [sttLoadTime, setSttLoadTime] = useState(null);
+    const [llmLoadTime, setLlmLoadTime] = useState(null);
 
     const audioBufferRef = useRef([]);
     const flushTimeoutRef = useRef(null);
@@ -138,6 +141,17 @@ export const useML = () => {
             ? "URGENT: User is exhausted. Suggest a polite exit or minimal energy response."
             : personaConfig.prompt;
 
+        // Store the taskId and timeout ID together for proper cleanup
+        const timeoutId = setTimeout(() => {
+            // If LLM takes too long, show a more specific bridge phrase
+            if (isProcessing && (suggestion === BRIDGE_PHRASES[intent] || suggestion === BRIDGE_PHRASES.general)) {
+                setSuggestion(`Still thinking about ${intent}...`);
+            }
+        }, 3000); // 3 second timeout
+
+        // Store timeout ID for cleanup
+        llmTimeoutsRef.current.set(taskId, timeoutId);
+
         if (llmWorkerRef.current) {
             llmWorkerRef.current.postMessage({
                 type: 'llm',
@@ -201,6 +215,22 @@ export const useML = () => {
         return 'Ready';
     };
 
+    // Enhanced model loading status with more specific progress information
+    const getDetailedModelLoadStatus = () => {
+        if (!sttReady && !llmReady) {
+            if (sttProgress < 100 && llmProgress < 100) {
+                return `Loading AI models (${Math.round((sttProgress + llmProgress) / 2)}%)...`;
+            } else if (sttProgress < 100) {
+                return `Finishing speech-to-text model (${Math.round(sttProgress)}%)...`;
+            } else if (llmProgress < 100) {
+                return `Finishing language model (${Math.round(llmProgress)}%)...`;
+            }
+        }
+        if (!sttReady) return `Loading speech-to-text model (${Math.round(sttProgress)}%)...`;
+        if (!llmReady) return `Loading language model (${Math.round(llmProgress)}%)...`;
+        return 'All models loaded and ready!';
+    };
+
     // Progressive readiness: STT ready = basic functionality, both ready = full functionality
     const getProgressiveReadiness = () => {
         if (sttReady && llmReady) return 'full';
@@ -215,10 +245,13 @@ export const useML = () => {
         llmWorkerRef.current = llmWorker;
 
         sttWorker.onmessage = (event) => {
-            const { type, text, progress, status: stat, error, taskId } = event.data;
+            const { type, text, progress, status: stat, error, taskId, loadTime } = event.data;
             switch (type) {
                 case 'progress': setSttProgress(progress); break;
-                case 'ready': setSttReady(true); break;
+                case 'ready':
+                    setSttReady(true);
+                    if (loadTime !== undefined) setSttLoadTime(loadTime);
+                    break;
                 case 'stt_result':
                     if (text) processTextRef.current(text);
                     break;
@@ -227,13 +260,21 @@ export const useML = () => {
         };
 
         llmWorker.onmessage = (event) => {
-            const { type, suggestion: sug, summary, progress, error, taskId } = event.data;
+            const { type, suggestion: sug, summary, progress, error, taskId, loadTime } = event.data;
             if (taskId && taskId < lastTaskId.current && (type === 'llm_result' || type === 'summary_result' || type === 'error')) return;
 
             switch (type) {
                 case 'progress': setLlmProgress(progress); break;
-                case 'ready': setLlmReady(true); break;
+                case 'ready':
+                    setLlmReady(true);
+                    if (loadTime !== undefined) setLlmLoadTime(loadTime);
+                    break;
                 case 'llm_result':
+                    // Clear the timeout for this task ID
+                    if (taskId && llmTimeoutsRef.current.has(taskId)) {
+                        clearTimeout(llmTimeoutsRef.current.get(taskId));
+                        llmTimeoutsRef.current.delete(taskId);
+                    }
                     setSuggestion(sug);
                     setIsProcessing(false);
                     break;
@@ -243,6 +284,11 @@ export const useML = () => {
                     setSummaryError(null);
                     break;
                 case 'error':
+                    // Clear the timeout for this task ID
+                    if (taskId && llmTimeoutsRef.current.has(taskId)) {
+                        clearTimeout(llmTimeoutsRef.current.get(taskId));
+                        llmTimeoutsRef.current.delete(taskId);
+                    }
                     console.error('LLM Worker error:', error);
                     setIsProcessing(false);
                     setIsSummarizing(false);
@@ -257,13 +303,19 @@ export const useML = () => {
         return () => {
             sttWorker.terminate();
             llmWorker.terminate();
+
+            // Clear any remaining timeouts
+            for (const timeoutId of llmTimeoutsRef.current.values()) {
+                clearTimeout(timeoutId);
+            }
+            llmTimeoutsRef.current.clear();
         };
     }, []);
 
     const isReady = sttReady && llmReady;
     const progressiveReadiness = getProgressiveReadiness();
     const progress = (sttProgress + llmProgress) / 2;
-    const status = !isReady ? getModelLoadStatus() : isProcessing ? 'Processing...' : 'Ready';
+    const status = !isReady ? getDetailedModelLoadStatus() : isProcessing ? 'Processing...' : 'Ready';
 
     const processAudio = useCallback((audioData) => {
         if (!sttReady || !sttWorkerRef.current) return;
