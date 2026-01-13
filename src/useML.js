@@ -227,6 +227,16 @@ export const useML = () => {
 
     // Improved model loading status
     const getModelLoadStatus = () => {
+        // If both are fully loaded (progress at 100%), mark as ready regardless of ready state
+        // This handles timing issues where progress reaches 100% before ready message arrives
+        if (sttProgress >= 100 && llmProgress >= 100) {
+            if (!sttReady || !llmReady) {
+                // Both models are loaded but workers haven't sent ready message yet
+                // We can consider the app ready since models are loaded
+                return 'Almost ready...';
+            }
+        }
+
         if (!sttReady && !llmReady) {
             if (sttProgress < 100 && llmProgress < 100) {
                 return 'Loading AI models...';
@@ -300,7 +310,9 @@ export const useML = () => {
 
     const isReady = sttReady && llmReady;
     const progress = (sttProgress + llmProgress) / 2;
-    const status = !isReady ? getModelLoadStatus() : isProcessing ? 'Processing...' : 'Ready';
+    const modelLoadStatus = getModelLoadStatus();
+    // Treat "Almost ready..." as ready to allow the app to proceed
+    const status = modelLoadStatus === 'Almost ready...' ? 'Ready' : !isReady ? modelLoadStatus : isProcessing ? 'Processing...' : 'Ready';
 
     const processAudio = useCallback((audioData) => {
         if (!sttReady || !sttWorkerRef.current) return;
