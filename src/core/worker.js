@@ -3,7 +3,9 @@ import { pipeline, env } from '@huggingface/transformers';
 env.allowLocalModels = false;
 env.useBrowserCache = true;
 
+// Ensure wasmPaths has a trailing slash and point to root
 env.backends.onnx.wasm.wasmPaths = "/";
+env.backends.onnx.wasm.numThreads = 1; // Disable multi-threading for better compatibility if SharedArrayBuffer is not available
 
 let sttPipeline = null;
 let llmPipeline = null;
@@ -13,6 +15,7 @@ const LLM_MODEL = 'HuggingFaceTB/SmolLM2-135M-Instruct';
 
 self.onmessage = async (event) => {
     const { type, data, taskId } = event.data;
+    console.log(`[Worker] Received message: ${type}`);
 
     try {
         switch (type) {
@@ -64,8 +67,13 @@ async function loadModels(taskId) {
 
 async function handleSTT(audio, taskId) {
     if (!sttPipeline) throw new Error('STT model not loaded');
+    
+    // Validation
+    if (!audio || !(audio instanceof Float32Array)) {
+        console.error('[Worker] Invalid audio data received:', audio);
+        throw new Error('Invalid audio data: expected Float32Array');
+    }
 
-    const result = await sttPipeline(audio, {
         chunk_length_s: 30,
         stride_length_s: 5,
         language: 'english',

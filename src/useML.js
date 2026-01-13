@@ -53,10 +53,16 @@ export const useML = () => {
         setIsProcessing(false);
     }, []);
 
+    const processTextRef = useRef(processText);
     useEffect(() => {
-        workerRef.current = new Worker(new URL('./core/worker.js', import.meta.url), { type: 'module' });
+        processTextRef.current = processText;
+    }, [processText]);
 
-        workerRef.current.onmessage = (event) => {
+    useEffect(() => {
+        const worker = new Worker(new URL('./core/worker.js', import.meta.url), { type: 'module' });
+        workerRef.current = worker;
+
+        const handleMessage = (event) => {
             const { type, text, suggestion: sug, progress: prog, status: stat, error } = event.data;
 
             switch (type) {
@@ -69,7 +75,7 @@ export const useML = () => {
                     break;
                 case 'stt_result':
                     if (text) {
-                        processText(text);
+                        processTextRef.current(text);
                     }
                     break;
                 case 'llm_result':
@@ -78,18 +84,20 @@ export const useML = () => {
                     break;
                 case 'error':
                     console.error('Worker error:', error);
-                    setStatus('Error');
+                    setStatus(`Error: ${error}`);
                     setIsProcessing(false);
                     break;
             }
         };
 
-        workerRef.current.postMessage({ type: 'load' });
+        worker.onmessage = handleMessage;
+        worker.postMessage({ type: 'load' });
 
         return () => {
-            if (workerRef.current) workerRef.current.terminate();
+            worker.terminate();
+            workerRef.current = null;
         };
-    }, [processText]);
+    }, []); // Empty dependency array means this only runs once on mount
 
     const processAudio = useCallback((audioData) => {
         if (!isReady || !workerRef.current) return;

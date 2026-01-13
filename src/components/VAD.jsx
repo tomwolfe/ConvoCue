@@ -3,16 +3,22 @@ import { useMicVAD } from '@ricky0123/vad-react';
 import { Mic, MicOff, Loader2 } from 'lucide-react';
 
 const VAD = ({ onSpeechEnd, isReady, status }) => {
+    const [vadError, setVadError] = React.useState(null);
     const vad = useMicVAD({
         startOnLoad: false,
         onSpeechEnd: (audio) => {
             onSpeechEnd(new Float32Array(audio));
+        },
+        onError: (err) => {
+            console.error('VAD Error:', err);
+            setVadError(err.message || 'Microphone error');
         },
         workletURL: "/vad.worklet.bundle.min.js",
         modelURL: "/silero_vad_v5.onnx",
         model: "v5",
         onnxWASMPaths: "/",
     });
+
 
     const toggleMic = () => {
         if (vad.listening) {
@@ -33,8 +39,8 @@ const VAD = ({ onSpeechEnd, isReady, status }) => {
                 <span>{vad.listening ? 'Listening...' : 'Start Listening'}</span>
             </button>
             <div className="status-indicator">
-                {status === 'Loading Models...' && <Loader2 className="animate-spin" size={16} />}
-                <span>{status}</span>
+                {(status === 'Loading Models...' || status === 'Processing...') && <Loader2 className="animate-spin" size={16} />}
+                <span className={vadError ? 'text-error' : ''}>{vadError || status}</span>
             </div>
             {vad.listening && (
                 <div className="audio-visualizer-simple">
