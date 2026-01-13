@@ -35,7 +35,7 @@ self.onmessage = async (event) => {
                 // Optimized 80/20 prompt: Minimal tokens, high clarity
                 const systemPrompt = `Role:${context.persona}. Intent:${context.intent}. Battery:${context.battery}%. Goal:${instruction}`;
 
-                const fullPrompt = `<|im_start|>system\n${systemPrompt}. Rule: ONE suggestion, <15 words, NO preamble.<|im_end|>\n` + 
+                const fullPrompt = `<|im_start|>system\n${systemPrompt}. Rule: ONE suggestion as 3-5 keyword chips, NO full sentences, NO preamble. Format: "Keyword1 Keyword2 Keyword3".<|im_end|>\n` +
                     messages.map(m => `<|im_start|>user\n${m.content}<|im_end|>`).join('\n') +
                     '\n<|im_start|>assistant\n';
 

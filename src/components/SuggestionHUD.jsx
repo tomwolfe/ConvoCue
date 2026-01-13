@@ -57,7 +57,15 @@ const SuggestionHUD = ({ suggestion, intent, onDismiss, isProcessing, battery, i
             </div>
             
             <div className={`suggestion-box ${isProcessing ? 'is-processing' : ''}`}>
-                {suggestion || (isProcessing ? "Orchestrating persona response..." : "Suggestions will appear here based on your conversation.")}
+                {suggestion ? (
+                    <div className="keyword-chips">
+                        {suggestion.split(' ').slice(0, 5).map((word, index) => (
+                            <span key={index} className="keyword-chip">{word}</span>
+                        ))}
+                    </div>
+                ) : (
+                    (isProcessing ? "Orchestrating persona response..." : "Suggestions will appear here based on your conversation.")
+                )}
             </div>
 
             <div className={`quick-actions-container ${isExhausted ? 'priority-exhaustion' : ''}`}>

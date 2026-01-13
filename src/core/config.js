@@ -131,6 +131,7 @@ export const AppConfig = {
         }
     },
     minBatteryThreshold: 20,
+    fatigueFilterThreshold: 40, // Battery level below which filtering becomes more aggressive
     agency: {
         sensitivityOptions: [
             { label: 'Low', value: 0.5 },

@@ -98,9 +98,9 @@ export const useML = () => {
     const processText = useCallback((text) => {
         const intent = detectIntent(text);
         const needsSuggestion = shouldGenerateSuggestion(text);
-        
+
         setDetectedIntent(intent);
-        
+
         const currentBattery = deduct(text, intent, persona);
         addEntry(text);
         nudgeSpeaker();
@@ -109,7 +109,13 @@ export const useML = () => {
         messagesRef.current.push({ role: 'user', content: `${speakerLabel}: ${text}` });
         if (messagesRef.current.length > 6) messagesRef.current.shift();
 
-        if (!needsSuggestion || currentSpeaker === 'me') {
+        // Fatigue-aware filtering: Increase threshold when battery is low
+        const batteryThreshold = AppConfig.fatigueFilterThreshold;
+        const isLowBattery = currentBattery < batteryThreshold;
+        const shouldShowSuggestion = needsSuggestion &&
+            (!isLowBattery || (isLowBattery && Math.random() < currentBattery / 100)); // Probability scales with battery level
+
+        if (!shouldShowSuggestion || currentSpeaker === 'me') {
             setIsProcessing(false);
             setSuggestion('');
             return;
@@ -128,7 +134,7 @@ export const useML = () => {
             isExhausted: currentBattery < AppConfig.minBatteryThreshold
         };
 
-        const instruction = contextData.isExhausted 
+        const instruction = contextData.isExhausted
             ? "URGENT: User is exhausted. Suggest a polite exit or minimal energy response."
             : personaConfig.prompt;
 
@@ -155,6 +161,29 @@ export const useML = () => {
         processTextRef.current = processText;
     }, [processText]);
 
+    // Eager fetch model files to prime browser cache
+    useEffect(() => {
+        const modelFiles = [
+            '/ort-wasm-simd-threaded.jsep.mjs',
+            '/ort-wasm-simd-threaded.jsep.wasm',
+            '/ort-wasm-simd-threaded.mjs',
+            '/ort-wasm-simd-threaded.wasm',
+            '/silero_vad_v5.onnx'
+        ];
+
+        modelFiles.forEach(file => {
+            fetch(file)
+                .then(response => {
+                    if (response.ok) {
+                        console.log(`Pre-fetched ${file}`);
+                    }
+                })
+                .catch(error => {
+                    console.warn(`Failed to pre-fetch ${file}:`, error);
+                });
+        });
+    }, []);
+
     useEffect(() => {
         const sttWorker = new Worker(new URL('./core/sttWorker.js', import.meta.url), { type: 'module' });
         const llmWorker = new Worker(new URL('./core/llmWorker.js', import.meta.url), { type: 'module' });
@@ -166,8 +195,8 @@ export const useML = () => {
             switch (type) {
                 case 'progress': setSttProgress(progress); break;
                 case 'ready': setSttReady(true); break;
-                case 'stt_result': 
-                    if (text) processTextRef.current(text); 
+                case 'stt_result':
+                    if (text) processTextRef.current(text);
                     break;
                 case 'error': console.error('STT Worker error:', error); break;
             }
@@ -189,7 +218,7 @@ export const useML = () => {
                     setIsSummarizing(false);
                     setSummaryError(null);
                     break;
-                case 'error': 
+                case 'error':
                     console.error('LLM Worker error:', error);
                     setIsProcessing(false);
                     setIsSummarizing(false);
