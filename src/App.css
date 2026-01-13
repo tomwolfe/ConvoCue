@@ -757,6 +757,51 @@ footer {
     line-height: 1.4;
 }
 
+/* Interactive loading elements */
+.loading-interactive {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.loading-interactive h4 {
+    margin: 0 0 0.75rem 0;
+    font-size: 0.75rem;
+    color: var(--text);
+    font-weight: 600;
+}
+
+.sample-conversation {
+    margin-bottom: 0.75rem;
+}
+
+.conversation-line {
+    display: flex;
+    margin-bottom: 0.5rem;
+    font-size: 0.7rem;
+}
+
+.conversation-line .speaker {
+    font-weight: 700;
+    min-width: 50px;
+    color: var(--primary);
+}
+
+.conversation-line .text {
+    color: var(--text-muted);
+    flex-grow: 1;
+}
+
+.conversation-line:last-child {
+    margin-bottom: 0;
+}
+
+.conversation-line:last-child .speaker {
+    color: var(--accent-green);
+}
+
 .progress-text {
     font-size: 0.7rem;
     color: var(--text-muted);

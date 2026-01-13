@@ -22,12 +22,22 @@ export const useSocialBattery = () => {
             const now = Date.now();
             const idleTime = (now - lastInteractionRef.current) / 1000;
 
-            if (idleTime > 30) { // After 30s of silence
+            // Different recovery rates based on how long user has been idle
+            let recoveryRate = 0;
+            if (idleTime > 45) {
+                recoveryRate = 1.0; // Faster recovery after longer breaks
+            } else if (idleTime > 20) {
+                recoveryRate = 0.5; // Moderate recovery
+            } else if (idleTime > 10) {
+                recoveryRate = 0.2; // Slower recovery for shorter breaks
+            }
+
+            if (recoveryRate > 0) {
                 setBattery(prev => {
-                    const newVal = Math.min(100, prev + 0.5); // Increased passive recharge rate
+                    const newVal = Math.min(100, prev + recoveryRate);
                     if (newVal > prev) {
                         setLastDrain({
-                            amount: `+0.5`,
+                            amount: `+${recoveryRate.toFixed(1)}`,
                             reason: 'recovery'
                         });
                         setTimeout(() => setLastDrain(null), 3000);
@@ -41,31 +51,67 @@ export const useSocialBattery = () => {
 
     const deduct = useCallback((text, intent, personaKey = 'anxiety') => {
         if (isPaused) return batteryRef.current;
-        
+
         const now = Date.now();
         const timeSinceLast = (now - lastInteractionRef.current) / 1000;
         lastInteractionRef.current = now;
 
         const wordCount = text.trim().split(/\s+/).length;
-        // Use a slight dampening on word count to be more natural (logarithmic-ish)
-        const adjustedWordCount = Math.sqrt(wordCount) * 2; 
+
+        // More nuanced word count calculation based on conversation length and intensity
+        let adjustedWordCount;
+        if (wordCount <= 3) {
+            // Short phrases drain less
+            adjustedWordCount = Math.sqrt(wordCount) * 1.5;
+        } else if (wordCount <= 10) {
+            // Medium length drains normally
+            adjustedWordCount = Math.sqrt(wordCount) * 2;
+        } else {
+            // Longer responses drain more but with diminishing returns
+            adjustedWordCount = Math.sqrt(wordCount) * 2.5;
+        }
+
         const baseDeduction = adjustedWordCount * AppConfig.batteryDeduction.baseRate;
-        const multiplier = AppConfig.batteryDeduction.multipliers[intent] || 1.0;
-        
+
+        // More nuanced intent multipliers for realistic drain
+        const intentMultipliers = {
+            ...AppConfig.batteryDeduction.multipliers,
+            // Adjusted values for more realistic social battery drain
+            social: 0.6,      // Less drain for social conversation
+            professional: 1.0, // Normal drain for professional
+            conflict: 2.5,     // Higher drain for conflict
+            empathy: 0.8,      // Moderate drain for empathy
+            positive: 0.3,     // Very low drain for positive
+            general: 0.8       // Lower than before for general
+        };
+
+        const multiplier = intentMultipliers[intent] || 1.0;
+
         const personaConfig = AppConfig.personas[personaKey] || AppConfig.personas[AppConfig.defaultPersona];
         const drainRate = personaConfig.drainRate || 1.0;
-        
-        // Social Momentum: Rapid fire conversation drains 1.5x more
-        const momentumFactor = timeSinceLast < 5 ? 1.5 : 1.0;
-        
-        // If intent is positive, we allow for a very small recharge or zero drain
+
+        // Conversation flow factor: consider the length and intensity of the conversation
+        const conversationLengthFactor = Math.min(1.5, 1 + (transcript.length * 0.02)); // Longer conversations drain more
+
+        // Social Momentum: Rapid fire conversation drains more, but pauses help recover
+        let momentumFactor = 1.0;
+        if (timeSinceLast < 3) {
+            momentumFactor = 1.8; // Very rapid conversation
+        } else if (timeSinceLast < 5) {
+            momentumFactor = 1.5; // Rapid conversation
+        } else if (timeSinceLast > 15) {
+            momentumFactor = 0.8; // Longer pause helps
+        }
+
+        // If intent is positive, we allow for a small recharge or reduced drain
         const isPositive = intent === 'positive';
-        let totalDeduction = baseDeduction * multiplier * drainRate * sensitivity * momentumFactor;
+        let totalDeduction = baseDeduction * multiplier * drainRate * sensitivity * momentumFactor * conversationLengthFactor;
 
         if (isPositive) {
-            totalDeduction = -0.5; // Fixed small recharge for positive sentiment
+            totalDeduction = -0.3; // Small recharge for positive sentiment
         } else {
-            totalDeduction = Math.min(20, Math.max(0.5, totalDeduction));
+            // Cap deductions to make them feel more realistic
+            totalDeduction = Math.min(15, Math.max(0.3, totalDeduction));
         }
 
         // Add a minimum threshold to prevent tiny deductions that confuse users
@@ -86,9 +132,9 @@ export const useSocialBattery = () => {
             batteryRef.current = newVal;
             return newVal;
         });
-        
+
         return batteryRef.current;
-    }, [isPaused, sensitivity]);
+    }, [isPaused, sensitivity, transcript.length]); // Added transcript.length as dependency
 
     const reset = useCallback(() => setBattery(100), []);
     const togglePause = useCallback(() => setIsPaused(p => !p), []);

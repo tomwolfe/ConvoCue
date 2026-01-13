@@ -42,10 +42,17 @@ self.onmessage = async (event) => {
                 if (!llmPipeline) throw new Error('LLM model not loaded');
                 const { messages, context, instruction } = data;
 
-                // Optimized 80/20 prompt: Minimal tokens, high clarity
-                const systemPrompt = `Role:${context.persona}. Intent:${context.intent}. Battery:${context.battery}%. Goal:${instruction}`;
+                // Enhanced prompt with more specific contextual cues
+                const systemPrompt = `Role:${context.persona}. Intent:${context.intent}. Battery:${context.battery}%. Goal:${instruction}. Context: Provide a relevant, concise suggestion based on the conversation history.`;
 
-                const fullPrompt = `\`\`system\n${systemPrompt}. Rule: ONE suggestion as 3-5 keyword chips, NO full sentences, NO preamble. Format: "Keyword1 Keyword2 Keyword3".\`\`\n` +
+                // Enhanced prompt with more specific instructions and context
+                const fullPrompt = `\`\`system\n${systemPrompt}\nRules:
+- Provide ONE suggestion as 3-5 keyword chips
+- NO full sentences, NO preamble
+- Format: "Keyword1 Keyword2 Keyword3"
+- Consider the conversation context and intent
+- Be contextually relevant and actionable
+- If exhausted, suggest exit strategies\`\`\n` +
                     messages.map(m => `\`\`user\n${m.content}\`\``).join('\n') +
                     '\n\`\`assistant\n';
 
@@ -58,8 +65,53 @@ self.onmessage = async (event) => {
                 });
 
                 const suggestion = output[0].generated_text.trim();
-                self.postMessage({ type: 'llm_result', suggestion, taskId });
+
+                // Add confidence scoring to suggestions
+                const confidence = calculateSuggestionConfidence(suggestion, context);
+
+                self.postMessage({ type: 'llm_result', suggestion, taskId, confidence });
                 break;
+
+            // Add confidence calculation function
+            function calculateSuggestionConfidence(suggestion, context) {
+                if (!suggestion || suggestion.trim().length === 0) {
+                    return 0.1; // Very low confidence for empty suggestions
+                }
+
+                let confidence = 0.5; // Base confidence
+
+                // Length-based confidence (too short or too long reduces confidence)
+                const words = suggestion.trim().split(/\s+/);
+                if (words.length >= 2 && words.length <= 5) {
+                    confidence += 0.2; // Good length
+                } else if (words.length === 1) {
+                    confidence += 0.1; // Acceptable but not ideal
+                } else {
+                    confidence -= 0.2; // Too many words
+                }
+
+                // Check for relevance based on intent
+                const suggestionLower = suggestion.toLowerCase();
+                if (context.intent && suggestionLower.includes(context.intent)) {
+                    confidence += 0.15; // Higher confidence if intent is reflected
+                }
+
+                // Check for common filler words that reduce confidence
+                const fillerWords = ['um', 'uh', 'well', 'you know', 'like'];
+                if (fillerWords.some(word => suggestionLower.includes(word))) {
+                    confidence -= 0.2;
+                }
+
+                // Battery level affects confidence (lower battery might mean less reliable suggestions)
+                if (context.battery < 30) {
+                    confidence -= 0.1;
+                } else if (context.battery > 70) {
+                    confidence += 0.1;
+                }
+
+                // Clamp confidence between 0 and 1
+                return Math.max(0, Math.min(1, confidence));
+            }
 
             case 'summarize':
                 if (!llmPipeline) throw new Error('LLM model not loaded');

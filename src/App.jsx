@@ -204,10 +204,10 @@ const App = () => {
             </main>
 
             <footer>
-                <VAD 
-                    onSpeechEnd={processAudio} 
-                    isReady={isReady} 
-                    status={status} 
+                <VAD
+                    onSpeechEnd={processAudio}
+                    isReady={isReady}
+                    status={status}
                 />
                 {(status.includes('Loading') || status.includes('models')) && (
                     <div className="model-loading">
@@ -237,6 +237,26 @@ const App = () => {
                         <div className="loading-tips">
                             <p>💡 Tip: The first load may take 1-2 minutes as models download. Future sessions will be faster!</p>
                             <p>While you wait, here's how ConvoCue helps: <strong>It listens to your conversation and suggests the right thing to say next, helping you navigate social situations with confidence.</strong></p>
+
+                            {/* Interactive tutorial content during loading */}
+                            <div className="loading-interactive">
+                                <h4>While you wait, try this sample conversation:</h4>
+                                <div className="sample-conversation">
+                                    <div className="conversation-line">
+                                        <span className="speaker">Them:</span>
+                                        <span className="text">"How was your weekend?"</span>
+                                    </div>
+                                    <div className="conversation-line">
+                                        <span className="speaker">You:</span>
+                                        <span className="text">"It was great, thanks! How about yours?"</span>
+                                    </div>
+                                    <div className="conversation-line">
+                                        <span className="speaker">Suggestion:</span>
+                                        <span className="text">"Ask about their weekend"</span>
+                                    </div>
+                                </div>
+                                <p>ConvoCue analyzes your conversation and suggests the right response at the right time!</p>
+                            </div>
                         </div>
                     </div>
                 )}

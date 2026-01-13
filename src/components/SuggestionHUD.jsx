@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sparkles, MessageSquare, AlertCircle, Briefcase, Heart, X, Loader2, ClipboardCheck, Zap } from 'lucide-react';
+import { Sparkles, MessageSquare, AlertCircle, Briefcase, Heart, X, Loader2, ClipboardCheck, Zap, Battery } from 'lucide-react';
 import { QUICK_ACTIONS, AppConfig } from '../core/config';
 
 const INTENT_UI = {
