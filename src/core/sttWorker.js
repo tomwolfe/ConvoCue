@@ -30,6 +30,14 @@ self.onmessage = async (event) => {
                 break;
             case 'stt':
                 if (!sttPipeline) throw new Error('STT model not loaded');
+                
+                // 80/20: Skip processing if audio is < 0.4s (6400 samples at 16kHz)
+                // This avoids wasting cycles on coughs, door slams, or micro-noises.
+                if (data.length < 6400) {
+                    self.postMessage({ type: 'stt_result', text: '', taskId });
+                    return;
+                }
+
                 // Optimized for shorter conversational bursts (< 10s typically)
                 const result = await sttPipeline(data, {
                     chunk_length_s: 10,

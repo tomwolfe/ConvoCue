@@ -78,3 +78,29 @@ export const detectIntent = (text) => {
 
     return bestIntent;
 };
+
+const BACKCHANNEL_PHRASES = new Set([
+    'yeah', 'yes', 'no', 'okay', 'ok', 'right', 'cool', 'wow', 'uh-huh', 'mhmm', 
+    'got it', 'sure', 'thanks', 'thank you', 'maybe', 'possibly', 'i see',
+    'interesting', 'yep', 'nope', 'hi', 'hello', 'hey'
+]);
+
+export const shouldGenerateSuggestion = (text) => {
+    if (!text) return false;
+    const clean = text.toLowerCase().trim().replace(/[?.!,]/g, '');
+    
+    // Always generate for questions
+    if (text.includes('?')) return true;
+    
+    // Don't generate for very short filler
+    if (clean.length < 3) return false;
+    
+    // Don't generate if it's just a backchannel word
+    if (BACKCHANNEL_PHRASES.has(clean)) return false;
+    
+    // Don't generate for very short sentences (e.g. "I know.") unless they are 3+ words
+    const words = clean.split(/\s+/);
+    if (words.length < 3 && BACKCHANNEL_PHRASES.has(words[0])) return false;
+
+    return true;
+};

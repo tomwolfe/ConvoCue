@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { detectIntent } from './core/intentEngine';
+import { detectIntent, shouldGenerateSuggestion } from './core/intentEngine';
 import { AppConfig } from './core/config';
 import { useSocialBattery } from './hooks/useSocialBattery';
 import { useTranscript } from './hooks/useTranscript';
@@ -71,8 +71,9 @@ export const useML = () => {
 
     const processText = useCallback((text) => {
         const intent = detectIntent(text);
+        const needsSuggestion = shouldGenerateSuggestion(text);
+        
         setDetectedIntent(intent);
-        setIsProcessing(true);
         
         const currentBattery = deduct(text, intent, persona);
         addEntry(text);
@@ -82,6 +83,13 @@ export const useML = () => {
         messagesRef.current.push({ role: 'user', content: `${speakerLabel}: ${text}` });
         if (messagesRef.current.length > 10) messagesRef.current.shift();
 
+        if (!needsSuggestion) {
+            setIsProcessing(false);
+            setSuggestion('');
+            return;
+        }
+
+        setIsProcessing(true);
         const personaConfig = AppConfig.personas[persona];
         const taskId = ++lastTaskId.current;
 
