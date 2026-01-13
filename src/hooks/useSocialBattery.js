@@ -90,9 +90,6 @@ export const useSocialBattery = () => {
         const personaConfig = AppConfig.personas[personaKey] || AppConfig.personas[AppConfig.defaultPersona];
         const drainRate = personaConfig.drainRate || 1.0;
 
-        // Conversation flow factor: consider the length and intensity of the conversation
-        const conversationLengthFactor = Math.min(1.5, 1 + (transcript.length * 0.02)); // Longer conversations drain more
-
         // Social Momentum: Rapid fire conversation drains more, but pauses help recover
         let momentumFactor = 1.0;
         if (timeSinceLast < 3) {
@@ -105,7 +102,7 @@ export const useSocialBattery = () => {
 
         // If intent is positive, we allow for a small recharge or reduced drain
         const isPositive = intent === 'positive';
-        let totalDeduction = baseDeduction * multiplier * drainRate * sensitivity * momentumFactor * conversationLengthFactor;
+        let totalDeduction = baseDeduction * multiplier * drainRate * sensitivity * momentumFactor;
 
         if (isPositive) {
             totalDeduction = -0.3; // Small recharge for positive sentiment
@@ -134,7 +131,7 @@ export const useSocialBattery = () => {
         });
 
         return batteryRef.current;
-    }, [isPaused, sensitivity, transcript.length]); // Added transcript.length as dependency
+    }, [isPaused, sensitivity]); // Removed transcript.length as it's not available in this hook
 
     const reset = useCallback(() => setBattery(100), []);
     const togglePause = useCallback(() => setIsPaused(p => !p), []);

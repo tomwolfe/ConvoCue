@@ -220,17 +220,14 @@ export const useML = () => {
         };
 
         llmWorker.onmessage = (event) => {
-            const { type, suggestion: sug, summary, progress, error, taskId, confidence } = event.data;
+            const { type, suggestion: sug, summary, progress, error, taskId } = event.data;
             if (taskId && taskId < lastTaskId.current && (type === 'llm_result' || type === 'summary_result' || type === 'error')) return;
 
             switch (type) {
                 case 'progress': setLlmProgress(progress); break;
                 case 'ready': setLlmReady(true); break;
                 case 'llm_result':
-                    // Only update suggestion if confidence is above threshold
-                    if (!confidence || confidence > 0.3) {
-                        setSuggestion(sug);
-                    }
+                    setSuggestion(sug);
                     setIsProcessing(false);
                     break;
                 case 'summary_result':

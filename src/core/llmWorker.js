@@ -66,52 +66,8 @@ self.onmessage = async (event) => {
 
                 const suggestion = output[0].generated_text.trim();
 
-                // Add confidence scoring to suggestions
-                const confidence = calculateSuggestionConfidence(suggestion, context);
-
-                self.postMessage({ type: 'llm_result', suggestion, taskId, confidence });
+                self.postMessage({ type: 'llm_result', suggestion, taskId });
                 break;
-
-            // Add confidence calculation function
-            function calculateSuggestionConfidence(suggestion, context) {
-                if (!suggestion || suggestion.trim().length === 0) {
-                    return 0.1; // Very low confidence for empty suggestions
-                }
-
-                let confidence = 0.5; // Base confidence
-
-                // Length-based confidence (too short or too long reduces confidence)
-                const words = suggestion.trim().split(/\s+/);
-                if (words.length >= 2 && words.length <= 5) {
-                    confidence += 0.2; // Good length
-                } else if (words.length === 1) {
-                    confidence += 0.1; // Acceptable but not ideal
-                } else {
-                    confidence -= 0.2; // Too many words
-                }
-
-                // Check for relevance based on intent
-                const suggestionLower = suggestion.toLowerCase();
-                if (context.intent && suggestionLower.includes(context.intent)) {
-                    confidence += 0.15; // Higher confidence if intent is reflected
-                }
-
-                // Check for common filler words that reduce confidence
-                const fillerWords = ['um', 'uh', 'well', 'you know', 'like'];
-                if (fillerWords.some(word => suggestionLower.includes(word))) {
-                    confidence -= 0.2;
-                }
-
-                // Battery level affects confidence (lower battery might mean less reliable suggestions)
-                if (context.battery < 30) {
-                    confidence -= 0.1;
-                } else if (context.battery > 70) {
-                    confidence += 0.1;
-                }
-
-                // Clamp confidence between 0 and 1
-                return Math.max(0, Math.min(1, confidence));
-            }
 
             case 'summarize':
                 if (!llmPipeline) throw new Error('LLM model not loaded');
