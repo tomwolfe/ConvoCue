@@ -242,9 +242,12 @@ export const useML = () => {
     };
 
     useEffect(() => {
-        // Progressive loading: Initialize STT worker first for immediate functionality
+        // Initialize both workers, but STT takes priority for immediate functionality
         const sttWorker = new Worker(new URL('./core/sttWorker.js', import.meta.url), { type: 'module' });
+        const llmWorker = new Worker(new URL('./core/llmWorker.js', import.meta.url), { type: 'module' });
+
         sttWorkerRef.current = sttWorker;
+        llmWorkerRef.current = llmWorker;
 
         sttWorker.onmessage = (event) => {
             const { type, text, progress, status: stat, error, taskId } = event.data;
@@ -252,38 +255,6 @@ export const useML = () => {
                 case 'progress': setSttProgress(progress); break;
                 case 'ready':
                     setSttReady(true);
-                    // Once STT is ready, initialize LLM worker in background
-                    if (!llmWorkerRef.current) {
-                        const llmWorker = new Worker(new URL('./core/llmWorker.js', import.meta.url), { type: 'module' });
-                        llmWorkerRef.current = llmWorker;
-
-                        llmWorker.onmessage = (event) => {
-                            const { type, suggestion: sug, summary, progress, error, taskId } = event.data;
-                            if (taskId && taskId < lastTaskId.current && (type === 'llm_result' || type === 'summary_result' || type === 'error')) return;
-
-                            switch (type) {
-                                case 'progress': setLlmProgress(progress); break;
-                                case 'ready': setLlmReady(true); break;
-                                case 'llm_result':
-                                    setSuggestion(sug);
-                                    setIsProcessing(false);
-                                    break;
-                                case 'summary_result':
-                                    setSessionSummary(summary);
-                                    setIsSummarizing(false);
-                                    setSummaryError(null);
-                                    break;
-                                case 'error':
-                                    console.error('LLM Worker error:', error);
-                                    setIsProcessing(false);
-                                    setIsSummarizing(false);
-                                    setSummaryError(error);
-                                    break;
-                            }
-                        };
-
-                        llmWorker.postMessage({ type: 'load' });
-                    }
                     break;
                 case 'stt_result':
                     if (text) processTextRef.current(text);
@@ -292,14 +263,38 @@ export const useML = () => {
             }
         };
 
-        // Initialize STT worker first
+        llmWorker.onmessage = (event) => {
+            const { type, suggestion: sug, summary, progress, error, taskId } = event.data;
+            if (taskId && taskId < lastTaskId.current && (type === 'llm_result' || type === 'summary_result' || type === 'error')) return;
+
+            switch (type) {
+                case 'progress': setLlmProgress(progress); break;
+                case 'ready': setLlmReady(true); break;
+                case 'llm_result':
+                    setSuggestion(sug);
+                    setIsProcessing(false);
+                    break;
+                case 'summary_result':
+                    setSessionSummary(summary);
+                    setIsSummarizing(false);
+                    setSummaryError(null);
+                    break;
+                case 'error':
+                    console.error('LLM Worker error:', error);
+                    setIsProcessing(false);
+                    setIsSummarizing(false);
+                    setSummaryError(error);
+                    break;
+            }
+        };
+
+        // Initialize both workers
         sttWorker.postMessage({ type: 'load' });
+        llmWorker.postMessage({ type: 'load' });
 
         return () => {
             sttWorker.terminate();
-            if (llmWorkerRef.current) {
-                llmWorkerRef.current.terminate();
-            }
+            llmWorker.terminate();
         };
     }, []);
 
