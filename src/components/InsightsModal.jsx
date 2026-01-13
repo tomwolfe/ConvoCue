@@ -1,5 +1,5 @@
 import React from 'react';
-import InsightsDashboard from './InsightsDashboard';
+import EnhancedInsightsDashboard from './EnhancedInsightsDashboard';
 
 const InsightsModal = ({ sessions, isOpen, onClose }) => {
   if (!isOpen) return null;
@@ -12,7 +12,7 @@ const InsightsModal = ({ sessions, isOpen, onClose }) => {
           <button className="close-button" onClick={onClose}>×</button>
         </div>
         <div className="modal-content">
-          <InsightsDashboard sessions={sessions} />
+          <EnhancedInsightsDashboard sessions={sessions} onClose={onClose} />
         </div>
       </div>
     </div>
