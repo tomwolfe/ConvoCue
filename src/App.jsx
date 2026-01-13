@@ -114,19 +114,19 @@ const App = () => {
                 </div>
                 <div className="header-right">
                     <button
-                        className="btn-insights"
+                        className="btn-insights prominent-feature"
                         onClick={() => setShowInsights(true)}
                         title="View conversation insights"
                     >
-                        <BarChart3 size={14} />
+                        <BarChart3 size={16} />
                         <span>Insights</span>
                     </button>
                     <button
-                        className="btn-session-history"
+                        className="btn-session-history prominent-feature"
                         onClick={() => setShowSessionHistory(true)}
                         title="View session history"
                     >
-                        <History size={14} />
+                        <History size={16} />
                         <span>History</span>
                     </button>
                     <button
@@ -153,6 +153,14 @@ const App = () => {
                                     {lastDrain.amount}% {lastDrain.reason && <span className="drain-reason">{lastDrain.reason}</span>}
                                 </div>
                             )}
+                        </div>
+                        {/* Battery Visualization Icon - persistent visual reference */}
+                        <div className="battery-visualization-icon" title="Battery drain visualization">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M1 12C1 7.58172 4.58172 4 9 4H15C19.4183 4 23 7.58172 23 12C23 16.4183 19.4183 20 15 20H9C4.58172 20 1 16.4183 1 12Z" stroke="#94a3b8" strokeWidth="2"/>
+                                <path d="M12 8V12L15 15" stroke="#10b981" strokeWidth="2" strokeLinecap="round"/>
+                                <circle cx="12" cy="12" r="10" stroke="#f59e0b" strokeWidth="2" strokeDasharray="2 4"/>
+                            </svg>
                         </div>
                         {/* Battery Explanation Tooltip */}
                         <div className="battery-explanation-tooltip">
@@ -263,14 +271,25 @@ const App = () => {
 
             <div className="persona-nav">
                 {Object.entries(AppConfig.personas).map(([id, p]) => (
-                    <button 
-                        key={id} 
-                        className={`persona-pill ${persona === id ? 'active' : ''}`}
-                        onClick={() => setPersona(id)}
-                    >
-                        {ICON_MAP[p.icon]}
-                        <span>{p.label}</span>
-                    </button>
+                    <div key={id} className="persona-tooltip-wrapper">
+                        <button
+                            className={`persona-pill ${persona === id ? 'active' : ''}`}
+                            onClick={() => setPersona(id)}
+                        >
+                            {ICON_MAP[p.icon]}
+                            <span>{p.label}</span>
+                        </button>
+                        <div className="persona-tooltip">
+                            <div className="tooltip-content">
+                                <h4>{p.label}</h4>
+                                <p>{p.description || 'Provides tailored suggestions based on this persona.'}</p>
+                                <div className="tooltip-stats">
+                                    <span className="drain-rate">Drain Rate: {p.drainRate}x</span>
+                                    <span className="best-for">Best For: {p.bestFor || 'General use'}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 ))}
             </div>
 
@@ -279,7 +298,11 @@ const App = () => {
                     <div className="battery-warning-banner">
                         <div className="warning-content">
                             <Battery size={16} className="warning-icon" />
-                            <span>Your social battery is running low ({Math.round(battery)}%). Consider wrapping up the conversation soon.</span>
+                            {battery < 20 ? (
+                                <span>Your social battery is critically low ({Math.round(battery)}%). Switching to Exhausted Mode for easier exits.</span>
+                            ) : (
+                                <span>Your social battery is running low ({Math.round(battery)}%). Consider wrapping up the conversation soon.</span>
+                            )}
                         </div>
                     </div>
                 )}

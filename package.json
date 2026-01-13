@@ -9,18 +9,18 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@huggingface/transformers": "^3.8.1",
-    "@ricky0123/vad-react": "^0.0.36",
-    "@ricky0123/vad-web": "^0.0.30",
-    "@vercel/analytics": "^1.6.1",
-    "lucide-react": "^0.562.0",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "recharts": "^3.6.0"
+    "@huggingface/transformers": "~3.8.1",
+    "@ricky0123/vad-react": "~0.0.36",
+    "@ricky0123/vad-web": "~0.0.30",
+    "@vercel/analytics": "~1.6.1",
+    "lucide-react": "~0.562.0",
+    "react": "~19.2.0",
+    "react-dom": "~19.2.0",
+    "recharts": "~3.6.0"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "^5.1.1",
-    "vite": "^7.2.4",
-    "vite-plugin-node-polyfills": "^0.24.0"
+    "@vitejs/plugin-react": "~5.1.1",
+    "vite": "~7.2.4",
+    "vite-plugin-node-polyfills": "~0.24.0"
   }
 }

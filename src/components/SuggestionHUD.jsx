@@ -40,28 +40,22 @@ const SuggestionHUD = ({ suggestion, intent, onDismiss, isProcessing, battery, i
                         {isProcessing ? <Loader2 size={12} className="animate-spin" /> : ui.icon}
                         <span>{ui.label} {isProcessing && '(Updating...)'}</span>
                     </div>
-                    {isExhausted && (
-                        <div className="intent-badge exhausted-badge">
-                            <AlertCircle size={12} />
-                            <span>Exhausted Mode</span>
-                        </div>
-                    )}
                     {battery < 30 && !isExhausted && (
                         <div className="intent-badge" style={{ backgroundColor: '#f59e0b', marginBottom: 0 }}>
                             <Battery size={12} />
                             <span>Low Battery</span>
                         </div>
                     )}
-                    {battery < 30 && !isExhausted && (
-                        <div className="intent-badge battery-tip-badge">
-                            <Zap size={12} />
-                            <span>Take a break to recharge</span>
-                        </div>
-                    )}
                     {battery < 20 && !isExhausted && (
                         <div className="intent-badge battery-critical-badge">
                             <AlertCircle size={12} />
                             <span>Critical Battery</span>
+                        </div>
+                    )}
+                    {isExhausted && (
+                        <div className="intent-badge exhausted-badge">
+                            <AlertCircle size={12} />
+                            <span>Exhausted Mode</span>
                         </div>
                     )}
                 </div>
