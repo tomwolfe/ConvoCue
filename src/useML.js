@@ -5,13 +5,10 @@ import { useSocialBattery } from './hooks/useSocialBattery';
 import { useTranscript } from './hooks/useTranscript';
 
 export const useML = () => {
-    const [status, setStatus] = useState('Idle');
-    const [progress, setProgress] = useState(0);
     const [suggestion, setSuggestion] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
     const [detectedIntent, setDetectedIntent] = useState('general');
     const [persona, setPersona] = useState(AppConfig.defaultPersona);
-    const [isReady, setIsReady] = useState(false);
     
     const { 
         battery, deduct, reset: resetBattery, batteryRef,
@@ -19,8 +16,14 @@ export const useML = () => {
     } = useSocialBattery();
     const { transcript, addEntry, currentSpeaker, toggleSpeaker } = useTranscript();
 
-    const workerRef = useRef(null);
+    const sttWorkerRef = useRef(null);
+    const llmWorkerRef = useRef(null);
     const messagesRef = useRef([]);
+    const lastTaskId = useRef(0);
+    const [sttReady, setSttReady] = useState(false);
+    const [llmReady, setLlmReady] = useState(false);
+    const [sttProgress, setSttProgress] = useState(0);
+    const [llmProgress, setLlmProgress] = useState(0);
 
     const processText = useCallback((text) => {
         const intent = detectIntent(text);
@@ -34,31 +37,27 @@ export const useML = () => {
         if (messagesRef.current.length > 10) messagesRef.current.shift();
 
         const personaConfig = AppConfig.personas[persona];
-        let personaPrompt = personaConfig.prompt;
-        
-        // Add few-shot examples if available
-        if (personaConfig.examples) {
-            personaPrompt += "\n\nExamples of how you respond:";
-            personaConfig.examples.forEach(ex => {
-                personaPrompt += `\n[Context: ${ex.context}] User: "${ex.input}" -> Suggestion: "${ex.suggestion}"`;
-            });
-        }
+        const taskId = ++lastTaskId.current;
 
-        const contextInjection = `\n\n[Current Context: Intent=${intent.toUpperCase()}, Battery=${Math.round(currentBattery)}%]`;
-        
-        if (currentBattery < AppConfig.minBatteryThreshold) {
-            personaPrompt += "\n[URGENT: User is socially exhausted. Prioritize exit strategies, boundaries, or minimal energy responses.]";
-        }
+        const contextData = {
+            intent: intent.toUpperCase(),
+            battery: Math.round(currentBattery),
+            persona: personaConfig.label,
+            isExhausted: currentBattery < AppConfig.minBatteryThreshold
+        };
 
-        // Final Instruction
-        personaPrompt += "\n\nBased on the dialogue above and the current context, provide a single, punchy suggestion for the user's next response. Constraints: Actionable, under 15 words, NO preamble like 'Suggestion:' or 'How about'.";
+        const instruction = contextData.isExhausted 
+            ? "URGENT: User is exhausted. Suggest a polite exit or minimal energy response."
+            : personaConfig.prompt;
 
-        if (workerRef.current) {
-            workerRef.current.postMessage({
+        if (llmWorkerRef.current) {
+            llmWorkerRef.current.postMessage({
                 type: 'llm',
+                taskId,
                 data: {
                     messages: [...messagesRef.current],
-                    personaPrompt: personaPrompt + contextInjection
+                    context: contextData,
+                    instruction: instruction
                 }
             });
         }
@@ -75,50 +74,55 @@ export const useML = () => {
     }, [processText]);
 
     useEffect(() => {
-        const worker = new Worker(new URL('./core/worker.js', import.meta.url), { type: 'module' });
-        workerRef.current = worker;
+        const sttWorker = new Worker(new URL('./core/sttWorker.js', import.meta.url), { type: 'module' });
+        const llmWorker = new Worker(new URL('./core/llmWorker.js', import.meta.url), { type: 'module' });
+        sttWorkerRef.current = sttWorker;
+        llmWorkerRef.current = llmWorker;
 
-        const handleMessage = (event) => {
-            const { type, text, suggestion: sug, progress: prog, status: stat, error } = event.data;
+        sttWorker.onmessage = (event) => {
+            const { type, text, progress, status: stat, error, taskId } = event.data;
+            switch (type) {
+                case 'progress': setSttProgress(progress); break;
+                case 'ready': setSttReady(true); break;
+                case 'stt_result': 
+                    if (text) processTextRef.current(text); 
+                    break;
+                case 'error': console.error('STT Worker error:', error); break;
+            }
+        };
+
+        llmWorker.onmessage = (event) => {
+            const { type, suggestion: sug, progress, error, taskId } = event.data;
+            if (taskId && taskId < lastTaskId.current && type === 'llm_result') return;
 
             switch (type) {
-                case 'status': setStatus(stat); break;
-                case 'progress': setProgress(prog); break;
-                case 'ready':
-                    setStatus('Ready');
-                    setIsReady(true);
-                    setProgress(100);
-                    break;
-                case 'stt_result':
-                    if (text) {
-                        processTextRef.current(text);
-                    }
-                    break;
+                case 'progress': setLlmProgress(progress); break;
+                case 'ready': setLlmReady(true); break;
                 case 'llm_result':
                     setSuggestion(sug);
                     setIsProcessing(false);
                     break;
-                case 'error':
-                    console.error('Worker error:', error);
-                    setStatus(`Error: ${error}`);
-                    setIsProcessing(false);
-                    break;
+                case 'error': console.error('LLM Worker error:', error); break;
             }
         };
 
-        worker.onmessage = handleMessage;
-        worker.postMessage({ type: 'load' });
+        sttWorker.postMessage({ type: 'load' });
+        llmWorker.postMessage({ type: 'load' });
 
         return () => {
-            worker.terminate();
-            workerRef.current = null;
+            sttWorker.terminate();
+            llmWorker.terminate();
         };
-    }, []); // Empty dependency array means this only runs once on mount
+    }, []);
+
+    const isReady = sttReady && llmReady;
+    const progress = (sttProgress + llmProgress) / 2;
+    const status = !isReady ? 'Loading Models...' : isProcessing ? 'Processing...' : 'Ready';
 
     const processAudio = useCallback((audioData) => {
-        if (!isReady || !workerRef.current) return;
-        workerRef.current.postMessage({ type: 'stt', data: audioData });
-    }, [isReady]);
+        if (!sttReady || !sttWorkerRef.current) return;
+        sttWorkerRef.current.postMessage({ type: 'stt', data: audioData });
+    }, [sttReady]);
 
     return {
         status, progress, transcript, suggestion, detectedIntent, 

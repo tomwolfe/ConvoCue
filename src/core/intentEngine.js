@@ -17,10 +17,11 @@ const COMPILED_PATTERNS = Object.entries(INTENT_PATTERNS).map(([intent, config])
 });
 
 const NUANCE_PATTERNS = [
-    { regex: /\b(sorry but|sorry, but|i hear you but)\b/gi, conflict: 2.5, empathy: -1 },
-    { regex: /\b(not sure|maybe|perhaps)\b/gi, social: 0.5 },
-    // Negation check: if "don't disagree" or "no problem", reduce conflict
-    { regex: /\b(don't|do not|doesn't|does not|no|not)\s+\b(disagree|wrong|problem|issue|mistake)\b/gi, conflict: -3 }
+    { regex: /\b(sorry but|sorry, but|i hear you but|no offense but)\b/gi, conflict: 2.5, empathy: -1 },
+    { regex: /\b(not sure|maybe|perhaps|possibly)\b/gi, social: 0.5 },
+    // Negation check: if "don't disagree" or "no problem", reduce conflict significantly
+    { regex: /\b(don't|do not|doesn't|does not|no|not|never)\s+\b(disagree|wrong|problem|issue|mistake|fail|upset|mad)\b/gi, conflict: -4, empathy: 1 },
+    { regex: /\b(really|very|extremely|so|totally)\b/gi, multiplier: 1.3 } // Intensifiers
 ];
 
 export const detectIntent = (text) => {
@@ -33,12 +34,13 @@ export const detectIntent = (text) => {
         empathy: 0
     };
 
+    let globalMultiplier = 1.0;
+
     // Check pre-compiled patterns
     for (const { intent, regex, weight } of COMPILED_PATTERNS) {
         const matches = text.match(regex);
         if (matches) {
             matches.forEach(match => {
-                // Higher weight for multi-word phrase matches
                 const multiplier = match.includes(' ') ? 1.5 : 1;
                 scores[intent] += weight * multiplier;
             });
@@ -46,23 +48,27 @@ export const detectIntent = (text) => {
     }
 
     // Apply nuance adjustments
-    for (const { regex, ...adjustments } of NUANCE_PATTERNS) {
+    for (const { regex, multiplier, ...adjustments } of NUANCE_PATTERNS) {
         const matches = text.match(regex);
         if (matches) {
+            if (multiplier) globalMultiplier *= multiplier;
             matches.forEach(() => {
                 for (const [intent, adjustment] of Object.entries(adjustments)) {
-                    scores[intent] += adjustment;
+                    if (scores[intent] !== undefined) {
+                        scores[intent] += adjustment;
+                    }
                 }
             });
         }
     }
 
     let bestIntent = 'general';
-    let maxScore = 0.8; // Baseline threshold to avoid noise
+    let maxScore = 0.7; // Slightly lower threshold for better sensitivity
 
     for (const [intent, score] of Object.entries(scores)) {
-        if (score > maxScore) {
-            maxScore = score;
+        const finalScore = score * globalMultiplier;
+        if (finalScore > maxScore) {
+            maxScore = finalScore;
             bestIntent = intent;
         }
     }
