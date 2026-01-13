@@ -112,35 +112,37 @@ const App = () => {
 
     // Update goals when transcript changes
     useEffect(() => {
-        if (transcript.length > 0) {
+        if (transcript.length > 0 && activeGoals && activeGoals.length > 0) {
             // Update conversation count goals
             activeGoals.forEach(goal => {
-                if (goal.type === 'social' && goal.targetValue) {
-                    // For social goals, we'll consider each unique conversation as progress
-                    // For now, we'll increment once per session when transcript starts
-                    if (transcript.length === 1) {
-                        updateGoalProgress(goal.id, 1);
-                    }
-                } else if (goal.type === 'professional' && goal.targetValue) {
-                    // For professional goals, we'll increment based on professional intent detections
-                    const professionalEntries = transcript.filter(entry => entry.intent === 'professional');
-                    const newProgress = Math.min(professionalEntries.length, goal.targetValue);
-                    if (newProgress > goal.currentValue) {
-                        updateGoalProgress(goal.id, newProgress - goal.currentValue);
-                    }
-                } else if (goal.type === 'empathy' && goal.targetValue) {
-                    // For empathy goals, we'll increment based on empathy intent detections
-                    const empathyEntries = transcript.filter(entry => entry.intent === 'empathy');
-                    const newProgress = Math.min(empathyEntries.length, goal.targetValue);
-                    if (newProgress > goal.currentValue) {
-                        updateGoalProgress(goal.id, newProgress - goal.currentValue);
-                    }
-                } else if (goal.type === 'conflict' && goal.targetValue) {
-                    // For conflict goals, we'll increment based on conflict intent detections
-                    const conflictEntries = transcript.filter(entry => entry.intent === 'conflict');
-                    const newProgress = Math.min(conflictEntries.length, goal.targetValue);
-                    if (newProgress > goal.currentValue) {
-                        updateGoalProgress(goal.id, newProgress - goal.currentValue);
+                if (goal && goal.type && goal.targetValue) {
+                    if (goal.type === 'social') {
+                        // For social goals, we'll consider each unique conversation as progress
+                        // For now, we'll increment once per session when transcript starts
+                        if (transcript.length === 1) {
+                            updateGoalProgress(goal.id, 1);
+                        }
+                    } else if (goal.type === 'professional') {
+                        // For professional goals, we'll increment based on professional intent detections
+                        const professionalEntries = transcript.filter(entry => entry.intent === 'professional');
+                        const newProgress = Math.min(professionalEntries.length, goal.targetValue);
+                        if (newProgress > (goal.currentValue || 0)) {
+                            updateGoalProgress(goal.id, newProgress - (goal.currentValue || 0));
+                        }
+                    } else if (goal.type === 'empathy') {
+                        // For empathy goals, we'll increment based on empathy intent detections
+                        const empathyEntries = transcript.filter(entry => entry.intent === 'empathy');
+                        const newProgress = Math.min(empathyEntries.length, goal.targetValue);
+                        if (newProgress > (goal.currentValue || 0)) {
+                            updateGoalProgress(goal.id, newProgress - (goal.currentValue || 0));
+                        }
+                    } else if (goal.type === 'conflict') {
+                        // For conflict goals, we'll increment based on conflict intent detections
+                        const conflictEntries = transcript.filter(entry => entry.intent === 'conflict');
+                        const newProgress = Math.min(conflictEntries.length, goal.targetValue);
+                        if (newProgress > (goal.currentValue || 0)) {
+                            updateGoalProgress(goal.id, newProgress - (goal.currentValue || 0));
+                        }
                     }
                 }
             });
