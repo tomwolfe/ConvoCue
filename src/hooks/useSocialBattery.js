@@ -48,10 +48,18 @@ export const useSocialBattery = () => {
         // Social Momentum: Rapid fire conversation drains 1.5x more
         const momentumFactor = timeSinceLast < 5 ? 1.5 : 1.0;
         
-        const totalDeduction = Math.min(20, Math.max(1, baseDeduction * multiplier * drainRate * sensitivity * momentumFactor));
+        // If intent is positive, we allow for a very small recharge or zero drain
+        const isPositive = intent === 'positive';
+        let totalDeduction = baseDeduction * multiplier * drainRate * sensitivity * momentumFactor;
+        
+        if (isPositive) {
+            totalDeduction = -0.5; // Fixed small recharge for positive sentiment
+        } else {
+            totalDeduction = Math.min(20, Math.max(0.5, totalDeduction));
+        }
         
         setLastDrain({
-            amount: totalDeduction.toFixed(1),
+            amount: isPositive ? '+0.5' : `-${totalDeduction.toFixed(1)}`,
             reason: intent !== 'general' ? intent : ''
         });
 
@@ -59,7 +67,7 @@ export const useSocialBattery = () => {
         drainTimeoutRef.current = setTimeout(() => setLastDrain(null), 3000);
 
         setBattery(prev => {
-            const newVal = Math.max(0, prev - totalDeduction);
+            const newVal = Math.max(0, Math.min(100, prev - totalDeduction));
             batteryRef.current = newVal;
             return newVal;
         });

@@ -17,10 +17,12 @@ const COMPILED_PATTERNS = Object.entries(INTENT_PATTERNS).map(([intent, config])
 });
 
 const NUANCE_PATTERNS = [
-    { regex: /\b(sorry but|sorry, but|i hear you but|no offense but)\b/gi, conflict: 2.5, empathy: -1 },
+    { regex: /\b(sorry but|sorry, but|i hear you but|no offense but|actually|wrong|disagree)\b/gi, conflict: 2.5, empathy: -1 },
     { regex: /\b(not sure|maybe|perhaps|possibly)\b/gi, social: 0.5 },
+    // Positive/Recharge patterns
+    { regex: /\b(great|excellent|wonderful|love|happy|excited|good job|well done|thank you so much)\b/gi, positive: 2.0, empathy: 1.0 },
     // Negation check: if "don't disagree" or "no problem", reduce conflict significantly
-    { regex: /\b(don't|do not|doesn't|does not|no|not|never)\s+\b(disagree|wrong|problem|issue|mistake|fail|upset|mad)\b/gi, conflict: -4, empathy: 1 },
+    { regex: /\b(don't|do not|doesn't|does not|no|not|never)\s+\b(disagree|wrong|problem|issue|mistake|fail|upset|mad)\b/gi, conflict: -4, empathy: 1, positive: 1 },
     { regex: /\b(really|very|extremely|so|totally)\b/gi, multiplier: 1.3 } // Intensifiers
 ];
 
@@ -31,7 +33,8 @@ export const detectIntent = (text) => {
         social: 0,
         professional: 0,
         conflict: 0,
-        empathy: 0
+        empathy: 0,
+        positive: 0
     };
 
     let globalMultiplier = 1.0;

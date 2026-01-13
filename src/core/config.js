@@ -19,7 +19,7 @@ export const INTENT_PATTERNS = {
     conflict: {
         keywords: [
             'disagree', 'wrong', 'mistake', 'fail', 'issue', 'problem', 'not true', 
-            'but', 'actually', 'unacceptable', 'frustrated', 'no way', 'impossible',
+            'actually', 'unacceptable', 'frustrated', 'no way', 'impossible',
             'refuse', 'blame', 'error', 'delay', 'broken', 'unfair', 'uncomfortable',
             'nonsense', 'ridiculous', 'offended', 'annoyed', 'hate', 'stupid', 'stop'
         ],
@@ -33,6 +33,14 @@ export const INTENT_PATTERNS = {
             'supportive', 'kind', 'brave', 'tired', 'drained', 'burned out', 'rough'
         ],
         weight: 1.3
+    },
+    positive: {
+        keywords: [
+            'great', 'awesome', 'excellent', 'wonderful', 'cool', 'love', 'happy', 
+            'excited', 'good', 'perfect', 'nice', 'thanks', 'thank you', 'appreciate',
+            'fantastic', 'brilliant', 'glad', 'celebrate', 'success', 'win'
+        ],
+        weight: 0.8
     }
 };
 
@@ -48,7 +56,7 @@ export const PARETO_PERSONAS = {
         prompt: `You are a warm, supportive social coach for someone with social anxiety. 
         Focus: Provide low-pressure, validating cues that bridge silence or offer easy exits. 
         Style: Gentle, encouraging, minimal.
-        - If SOCIAL: Suggest a simple, open-ended question.
+        - If SOCIAL/POSITIVE: Suggest a simple, warm response or question.
         - If CONFLICT: Suggest a softening phrase to de-escalate.
         - If EXHAUSTED: Suggest a polite way to leave the conversation.`
     },
@@ -63,7 +71,7 @@ export const PARETO_PERSONAS = {
         prompt: `You are a high-level executive coach for a busy professional. 
         Focus: Project confidence, clarity, and strategic alignment. 
         Style: Concise, authoritative, direct.
-        - If PROFESSIONAL: Focus on 'next steps' or 'key takeaways'.
+        - If PROFESSIONAL/POSITIVE: Focus on 'next steps' or acknowledge success.
         - If CONFLICT: Use 'radical candor' - direct but deeply caring.
         - If EXHAUSTED: Suggest a concise way to wrap up the meeting.`
     },
@@ -78,7 +86,7 @@ export const PARETO_PERSONAS = {
         prompt: `You are an expert in Emotional Intelligence and deep connection. 
         Focus: Deepen connection, validation, and emotional labeling.
         Style: Empathetic, warm, reflective.
-        - If EMPATHY: Use 'I' statements or validate the other person's feeling.
+        - If EMPATHY/POSITIVE: Use 'I' statements or celebrate the emotional win.
         - If CONFLICT: Suggest active listening or a 'pause' for reflection.
         - If EXHAUSTED: Suggest a warm, authentic way to end the interaction.`
     },
@@ -93,7 +101,7 @@ export const PARETO_PERSONAS = {
         prompt: `You are a cross-cultural communication expert. 
         Focus: Navigate high/low context differences and save face.
         Style: Observant, diplomatic, clear.
-        - If SOCIAL: Suggest inclusive, clear language.
+        - If SOCIAL/POSITIVE: Suggest inclusive, clear language or appreciation.
         - If CONFLICT: Suggest 'saving face' techniques or indirect feedback.
         - If EXHAUSTED: Suggest a culturally appropriate exit.`
     }
@@ -109,6 +117,7 @@ export const AppConfig = {
             professional: 1.2,
             conflict: 2.0,
             empathy: 1.1,
+            positive: 0.5,
             general: 1.0
         }
     },

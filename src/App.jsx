@@ -47,6 +47,7 @@ const App = () => {
         currentSpeaker,
         toggleSpeaker,
         shouldPulse,
+        consecutiveCount,
         sensitivity, 
         setSensitivity, 
         isPaused, 
@@ -98,8 +99,8 @@ const App = () => {
                             }}></div>
                             {isPaused && <div className="battery-paused-overlay">PAUSED</div>}
                             {lastDrain && (
-                                <div className="drain-indicator animate-float-up">
-                                    -{lastDrain.amount}% {lastDrain.reason && <span className="drain-reason">{lastDrain.reason}</span>}
+                                <div className={`drain-indicator animate-float-up ${lastDrain.amount.startsWith('+') ? 'is-positive' : ''}`}>
+                                    {lastDrain.amount}% {lastDrain.reason && <span className="drain-reason">{lastDrain.reason}</span>}
                                 </div>
                             )}
                         </div>
@@ -172,6 +173,7 @@ const App = () => {
                         <button className={`btn-toggle-speaker ${shouldPulse ? 'nudge-pulse' : ''}`} onClick={toggleSpeaker}>
                             {currentSpeaker === 'me' ? <User size={14} /> : <Users size={14} />}
                             <span>Talking: {currentSpeaker === 'me' ? 'You' : 'Them'}</span>
+                            {consecutiveCount >= 3 && <div className="speaker-hint">Switch?</div>}
                         </button>
                     </div>
                     <div className="transcript-scroll">

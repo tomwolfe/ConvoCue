@@ -19,7 +19,7 @@ export const useML = () => {
     } = useSocialBattery();
     const { 
         transcript, addEntry, currentSpeaker, toggleSpeaker, clearTranscript, 
-        shouldPulse, nudgeSpeaker 
+        shouldPulse, nudgeSpeaker, consecutiveCount
     } = useTranscript();
 
     const sttWorkerRef = useRef(null);
@@ -185,7 +185,7 @@ export const useML = () => {
         persona, setPersona, isReady, battery, resetBattery, 
         dismissSuggestion, processAudio,
         isProcessing,
-        currentSpeaker, toggleSpeaker, shouldPulse,
+        currentSpeaker, toggleSpeaker, shouldPulse, consecutiveCount,
         sensitivity, setSensitivity, 
         isPaused, togglePause,
         recharge, isExhausted, lastDrain,

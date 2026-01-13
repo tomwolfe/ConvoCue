@@ -30,9 +30,11 @@ self.onmessage = async (event) => {
                 break;
             case 'stt':
                 if (!sttPipeline) throw new Error('STT model not loaded');
+                // Optimized for shorter conversational bursts (< 10s typically)
                 const result = await sttPipeline(data, {
-                    chunk_length_s: 15,
-                    stride_length_s: 2,
+                    chunk_length_s: 10,
+                    stride_length_s: 1,
+                    return_timestamps: false, // Don't need them, saves time
                 });
                 self.postMessage({ type: 'stt_result', text: result.text, taskId });
                 break;

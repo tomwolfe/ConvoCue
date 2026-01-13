@@ -7,6 +7,7 @@ const INTENT_UI = {
     professional: { icon: <Briefcase size={14} />, color: '#10b981', label: 'Professional' },
     conflict: { icon: <AlertCircle size={14} />, color: '#ef4444', label: 'Conflict' },
     empathy: { icon: <Heart size={14} />, color: '#ec4899', label: 'Empathy' },
+    positive: { icon: <Sparkles size={14} />, color: '#f59e0b', label: 'Positive' },
     general: { icon: <Sparkles size={14} />, color: '#8b5cf6', label: 'General' }
 };
 
