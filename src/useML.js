@@ -23,6 +23,23 @@ export const useML = (initialState = null) => {
     const themVolumeRef = useRef(0.05);
     const manualTogglesRef = useRef(0);
     const silenceTriggeredRef = useRef(false);
+
+    const fastLookupMap = useRef(new Map([
+        ['hello', { intent: 'social', suggestion: 'Hi there! How are you doing today?' }],
+        ['hi', { intent: 'social', suggestion: 'Hello! Nice to meet you.' }],
+        ['hey', { intent: 'social', suggestion: 'Hey! What\'s up?' }],
+        ['how are you', { intent: 'social', suggestion: 'I\'m doing well, thank you! How about yourself?' }],
+        ['how\'s it going', { intent: 'social', suggestion: 'Pretty good! How about with you?' }],
+        ['what\'s up', { intent: 'social', suggestion: 'Not much, just taking it easy. How about you?' }],
+        ['what are you up to', { intent: 'social', suggestion: 'Just relaxing. What about you?' }],
+        ['how was your weekend', { intent: 'social', suggestion: 'It was relaxing, thanks! How about yours?' }],
+        ['how is the project going', { intent: 'professional', suggestion: 'Making good progress. Any specific concerns?' }],
+        ['what are the next steps', { intent: 'professional', suggestion: 'The priority is finalizing the proposal by Friday.' }],
+        ['i had a rough day', { intent: 'empathy', suggestion: 'I\'m sorry to hear that. What happened?' }],
+        ['i\'m feeling overwhelmed', { intent: 'empathy', suggestion: 'That sounds really challenging. How can I support you?' }],
+        ['i don\'t agree', { intent: 'conflict', suggestion: 'I see where you\'re coming from. Can we find common ground?' }],
+        ['that won\'t work', { intent: 'conflict', suggestion: 'I understand your concern. What would work better for you?' }]
+    ]));
     
     // 2. State
     const [suggestion, setSuggestion] = useState('');
@@ -109,15 +126,7 @@ export const useML = (initialState = null) => {
         silenceTriggeredRef.current = false;
 
         const normalizedText = text.toLowerCase().trim();
-        
-        // Fast lookup for common greetings/questions
-        const fastLookupMap = new Map([
-            ['hello', { intent: 'social', suggestion: 'Hi there! How are you doing today?' }],
-            ['hi', { intent: 'social', suggestion: 'Hello! Nice to meet you.' }],
-            ['how are you', { intent: 'social', suggestion: 'I\'m doing well, thank you! How about yourself?' }]
-        ]);
-        
-        const fastLookupResult = fastLookupMap.get(normalizedText);
+        const fastLookupResult = fastLookupMap.current.get(normalizedText);
 
         let intent, needsSuggestion;
         if (fastLookupResult) {
@@ -221,7 +230,7 @@ export const useML = (initialState = null) => {
             const guessedSpeaker = distMe < distThem ? 'me' : 'them';
             
             if (guessedSpeaker !== currentSpeaker) {
-                if (manualTogglesRef.current < 3 || Math.random() < 0.3) {
+                if (manualTogglesRef.current < 3 || Math.random() < AppConfig.autoSpeakerSwitchProbability) {
                     toggleSpeaker();
                 }
             }
@@ -279,7 +288,52 @@ export const useML = (initialState = null) => {
         setIsProcessing(false);
     }, []);
 
-    // 5. Effects
+    // 5. Helpers
+    const getDeviceInfo = useCallback(() => {
+        const hardwareConcurrency = navigator.hardwareConcurrency || 2;
+        const memory = navigator.deviceMemory || 4;
+        const userAgent = navigator.userAgent.toLowerCase();
+        const isLowResource = hardwareConcurrency <= 2 || memory <= 4 ||
+                             userAgent.includes('mobile') || userAgent.includes('android');
+
+        return { hardwareConcurrency, memory, isLowResource, userAgent };
+    }, []);
+
+    const getDetailedModelLoadStatus = useCallback(() => {
+        const deviceInfo = getDeviceInfo();
+        const resourceIndicator = deviceInfo.isLowResource ? ' (low-resource optimized)' : '';
+
+        if (!sttReady && !llmReady) {
+            const avgProgress = Math.round((sttProgress + llmProgress) / 2);
+            return `Loading AI models (${avgProgress}%)${resourceIndicator} - STT: ${sttStage}, LLM: ${llmStage}`;
+        }
+        if (!sttReady) return `Loading speech-to-text (${Math.round(sttProgress)}%) - ${sttStage}${resourceIndicator}`;
+        if (!llmReady) return `Loading language model (${Math.round(llmProgress)}%) - ${llmStage}${resourceIndicator}`;
+        return `All models ready!${resourceIndicator}`;
+    }, [sttReady, llmReady, sttProgress, llmProgress, sttStage, llmStage, getDeviceInfo]);
+
+    // 6. Effects
+    useEffect(() => {
+        const deviceInfo = getDeviceInfo();
+        const modelFiles = deviceInfo.isLowResource 
+            ? ['/ort-wasm.wasm', '/silero_vad_v5.onnx'] 
+            : [
+                '/ort-wasm-simd-threaded.jsep.mjs',
+                '/ort-wasm-simd-threaded.jsep.wasm',
+                '/ort-wasm-simd-threaded.mjs',
+                '/ort-wasm-simd-threaded.wasm',
+                '/silero_vad_v5.onnx'
+            ];
+
+        modelFiles.forEach(file => {
+            fetch(file).catch(err => console.warn(`Pre-fetch failed for ${file}:`, err));
+        });
+
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js').catch(err => console.error('SW registration failed:', err));
+        }
+    }, [getDeviceInfo]);
+
     useEffect(() => {
         if (initialState) {
             if (initialState.battery !== undefined) setBattery(initialState.battery);
@@ -293,7 +347,7 @@ export const useML = (initialState = null) => {
             const isReady = sttReady && llmReady;
             if (!isReady || isPaused || isProcessing) return;
 
-            if (Date.now() - lastActivityRef.current > 8000 && !silenceTriggeredRef.current && transcript.length > 0) {
+            if (Date.now() - lastActivityRef.current > AppConfig.silenceBreakerTimeout && !silenceTriggeredRef.current && transcript.length > 0) {
                 silenceTriggeredRef.current = true;
                 deduct("...", "general", persona);
                 const breakers = SILENCE_BREAKERS[persona] || SILENCE_BREAKERS.anxiety;
@@ -343,7 +397,7 @@ export const useML = (initialState = null) => {
     const isReady = sttReady && llmReady;
     const progress = (sttProgress + llmProgress) / 2;
     const status = !isReady 
-        ? `Loading... ${Math.round(progress)}% (STT: ${sttStage}, LLM: ${llmStage})` 
+        ? getDetailedModelLoadStatus() 
         : isProcessing ? 'Processing...' : 'Ready';
 
     return {

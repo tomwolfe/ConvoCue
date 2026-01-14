@@ -140,6 +140,8 @@ export const AppConfig = {
     },
     minBatteryThreshold: 15,
     fatigueFilterThreshold: 40, // Battery level below which filtering becomes more aggressive
+    silenceBreakerTimeout: 8000, // MS of silence before a breaker is suggested
+    autoSpeakerSwitchProbability: 0.3, // Chance to auto-switch speaker if audio levels suggest it
     agency: {
         sensitivityOptions: [
             { label: 'Low', value: 0.5 },
