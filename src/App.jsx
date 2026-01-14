@@ -58,6 +58,7 @@ const App = () => {
         lastDrain,
         resetBattery,
         dismissSuggestion,
+        refreshSuggestion,
         processAudio,
         isProcessing,
         currentSpeaker,
@@ -424,6 +425,7 @@ const App = () => {
                     suggestion={suggestion}
                     intent={detectedIntent}
                     onDismiss={dismissSuggestion}
+                    onRefresh={refreshSuggestion}
                     isProcessing={isProcessing}
                     battery={battery}
                     isExhausted={isExhausted}

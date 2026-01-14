@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Sparkles, MessageSquare, AlertCircle, Briefcase, Heart, X, Loader2, ClipboardCheck, Zap, Battery } from 'lucide-react';
-import { QUICK_ACTIONS, AppConfig } from '../core/config';
+import { Sparkles, MessageSquare, AlertCircle, Briefcase, Heart, X, Loader2, ClipboardCheck, Zap, Battery, RefreshCw } from 'lucide-react';
+import { QUICK_ACTIONS, AppConfig, BRIDGE_PHRASES } from '../core/config';
 
 const INTENT_UI = {
     social: { icon: <MessageSquare size={14} />, color: '#3b82f6', label: 'Social' },
@@ -11,9 +11,11 @@ const INTENT_UI = {
     general: { icon: <Sparkles size={14} />, color: '#8b5cf6', label: 'General' }
 };
 
-const SuggestionHUD = ({ suggestion, intent, onDismiss, isProcessing, battery, isExhausted }) => {
+const SuggestionHUD = ({ suggestion, intent, onDismiss, onRefresh, isProcessing, battery, isExhausted }) => {
     const [copied, setCopied] = useState(null);
     const ui = INTENT_UI[intent] || INTENT_UI.general;
+
+    const isLowPowerMode = battery < 30;
 
     const handleQuickAction = (text, index) => {
         if (!navigator.clipboard) {
@@ -28,12 +30,17 @@ const SuggestionHUD = ({ suggestion, intent, onDismiss, isProcessing, battery, i
         });
     };
 
-    const actions = isExhausted
+    let actions = isExhausted
         ? QUICK_ACTIONS.exhausted
         : (QUICK_ACTIONS[intent] || QUICK_ACTIONS.social);
 
+    // Social Power Save: Reduce options when battery is low
+    if (isLowPowerMode && !isExhausted) {
+        actions = actions.slice(0, 2);
+    }
+
     return (
-        <div className={`suggestion-hud ${isExhausted ? 'exhausted' : ''}`}>
+        <div className={`suggestion-hud ${isExhausted ? 'exhausted' : ''} ${isLowPowerMode ? 'power-save' : ''}`}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '8px' }}>
                 <div style={{ display: 'flex', gap: '8px' }}>
                     <div className="intent-badge" style={{ backgroundColor: ui.color, marginBottom: 0 }}>
@@ -43,45 +50,59 @@ const SuggestionHUD = ({ suggestion, intent, onDismiss, isProcessing, battery, i
                     {battery < 30 && !isExhausted && (
                         <div className="intent-badge" style={{ backgroundColor: '#f59e0b', marginBottom: 0 }}>
                             <Battery size={12} />
-                            <span>Low Battery</span>
+                            <span>Power Save</span>
                         </div>
                     )}
                     {battery < 20 && !isExhausted && (
                         <div className="intent-badge battery-critical-badge">
                             <AlertCircle size={12} />
-                            <span>Critical Battery</span>
+                            <span>Critical</span>
                         </div>
                     )}
                     {isExhausted && (
                         <div className="intent-badge exhausted-badge">
                             <AlertCircle size={12} />
-                            <span>Exhausted Mode</span>
+                            <span>Exhausted</span>
                         </div>
                     )}
                 </div>
-                <button
-                    onClick={onDismiss}
-                    style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
-                    title="Dismiss"
-                >
-                    <X size={16} />
-                </button>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                    {suggestion && !isProcessing && (
+                        <button
+                            onClick={onRefresh}
+                            className="hud-action-btn"
+                            title="Re-roll suggestion"
+                            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
+                        >
+                            <RefreshCw size={16} />
+                        </button>
+                    )}
+                    <button
+                        onClick={onDismiss}
+                        className="hud-action-btn"
+                        title="Dismiss"
+                        style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
+                    >
+                        <X size={16} />
+                    </button>
+                </div>
             </div>
 
             <div className={`suggestion-box ${isProcessing ? 'is-processing' : ''}`}>
                 {suggestion ? (
                     <div className="suggestion-content">
                         <div className="keyword-chips">
-                            {suggestion.split(' ').slice(0, 15).map((word, index) => (
+                            {(isLowPowerMode ? suggestion.split(' ').slice(0, 3) : suggestion.split(' ').slice(0, 15)).map((word, index) => (
                                 <span key={index} className="keyword-chip">{word}</span>
                             ))}
+                            {isLowPowerMode && suggestion.split(' ').length > 3 && <span className="keyword-chip-more">...</span>}
                         </div>
                     </div>
                 ) : (
                     (isProcessing ? (
                         <div className="processing-message">
                             <Loader2 className="animate-spin" size={16} />
-                            <span>Generating your personalized suggestion...</span>
+                            <span>{BRIDGE_PHRASES[intent] || "Generating suggestion..."}</span>
                         </div>
                     ) : (
                         <div className="no-suggestion-placeholder">
@@ -90,7 +111,7 @@ const SuggestionHUD = ({ suggestion, intent, onDismiss, isProcessing, battery, i
                         </div>
                     ))
                 )}
-                {isProcessing && (
+                {isProcessing && !isLowPowerMode && (
                     <div className="processing-hint">
                         <span>💡 Tip: The AI is learning from your conversation to provide better suggestions</span>
                     </div>
@@ -100,7 +121,7 @@ const SuggestionHUD = ({ suggestion, intent, onDismiss, isProcessing, battery, i
             <div className={`quick-actions-container ${isExhausted ? 'priority-exhaustion' : ''}`}>
                 <div className="quick-actions-label">
                     <Zap size={10} />
-                    <span>{isExhausted ? 'Suggested Exit Strategies' : 'Quick Responses'}</span>
+                    <span>{isExhausted ? 'Suggested Exit Strategies' : (isLowPowerMode ? 'Low Power Cues' : 'Quick Responses')}</span>
                 </div>
                 <div className="quick-actions-list">
                     {actions.map((action, i) => (

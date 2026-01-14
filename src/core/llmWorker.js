@@ -127,7 +127,7 @@ self.onmessage = async (event) => {
                 break;
             case 'llm':
                 if (!llmPipeline) throw new Error('LLM model not loaded');
-                const { messages, context, instruction } = data;
+                const { messages, context, instruction, retry } = data;
 
                 // Enhanced prompt with more specific contextual cues
                 const recentIntentsStr = context.recentIntents ? ` Recent intents: ${context.recentIntents}.` : '';
@@ -146,7 +146,7 @@ self.onmessage = async (event) => {
 
                 const output = await llmPipeline(fullPrompt, {
                     max_new_tokens: 24, // Optimized from 32 for speed
-                    temperature: 0.6,
+                    temperature: retry ? 0.85 : 0.6,
                     do_sample: true,
                     top_k: 40,
                     return_full_text: false,

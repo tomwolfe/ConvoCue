@@ -325,6 +325,53 @@ export const useML = (initialState = null) => {
         setIsProcessing(false);
     }, [detectedIntent, persona, battery]);
 
+    const refreshSuggestion = useCallback(() => {
+        if (!llmWorkerRef.current || isProcessing) return;
+
+        const intent = detectedIntent;
+        const currentBattery = battery;
+        const personaConfig = AppConfig.personas[persona];
+        const taskId = ++lastTaskId.current;
+
+        setIsProcessing(true);
+        setSuggestion(BRIDGE_PHRASES[intent] || BRIDGE_PHRASES.general);
+
+        const contextData = {
+            intent: intent.toUpperCase(),
+            battery: Math.round(currentBattery),
+            persona: personaConfig.label,
+            isExhausted: currentBattery < AppConfig.minBatteryThreshold,
+            recentIntents: intentHistory.current
+                .filter(item => Date.now() - item.timestamp < 30000)
+                .map(item => item.intent)
+                .slice(-3)
+                .join('_')
+        };
+
+        const instruction = contextData.isExhausted
+            ? "URGENT: User is exhausted. Suggest a polite exit or minimal energy response."
+            : personaConfig.prompt;
+
+        const timeoutId = setTimeout(() => {
+            if (isProcessing && (suggestion === BRIDGE_PHRASES[intent] || suggestion === BRIDGE_PHRASES.general)) {
+                setSuggestion(`Refreshing ${intent} suggestions...`);
+            }
+        }, 2000);
+
+        llmTimeoutsRef.current.set(taskId, timeoutId);
+
+        llmWorkerRef.current.postMessage({
+            type: 'llm',
+            taskId,
+            data: {
+                messages: [...messagesRef.current],
+                context: contextData,
+                instruction: instruction,
+                retry: true
+            }
+        });
+    }, [detectedIntent, battery, persona, isProcessing, suggestion]);
+
     const dismissSuggestion = useCallback(() => {
         setSuggestion('');
         setIsProcessing(false);
@@ -540,7 +587,7 @@ export const useML = (initialState = null) => {
     return {
         status, progress, sttProgress, llmProgress, transcript, suggestion, detectedIntent,
         persona, setPersona, isReady, battery, resetBattery,
-        dismissSuggestion, processAudio,
+        dismissSuggestion, refreshSuggestion, processAudio,
         isProcessing,
         currentSpeaker, toggleSpeaker, shouldPulse, consecutiveCount,
         sensitivity, setSensitivity,
