@@ -562,6 +562,72 @@ header h1 span {
     background: linear-gradient(to bottom right, var(--card), rgba(239, 68, 68, 0.05));
 }
 
+.exhausted-mode-minimal {
+    background: linear-gradient(135deg, var(--card) 0%, rgba(239, 68, 68, 0.1) 100%);
+    border: 2px solid rgba(239, 68, 68, 0.3);
+    border-radius: 20px;
+    padding: 1.25rem;
+    box-shadow: 0 10px 25px -5px rgba(239, 68, 68, 0.2);
+}
+
+.exhaustion-focus-area {
+    margin: 1rem 0;
+    text-align: center;
+}
+
+.exhaustion-instruction {
+    font-size: 0.9rem;
+    color: var(--text);
+    font-weight: 600;
+    margin: 0;
+}
+
+.quick-actions-list-vertical {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.exhaustion-action-large {
+    width: 100%;
+    padding: 1rem;
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    border-radius: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.exhaustion-action-large:hover {
+    background: rgba(239, 68, 68, 0.25);
+    border-color: rgba(239, 68, 68, 0.4);
+    transform: scale(1.02);
+}
+
+.exhaustion-action-large .action-content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+}
+
+.exhaustion-action-large .action-main-label {
+    font-size: 1rem;
+    font-weight: 700;
+    color: white;
+}
+
+.exhaustion-action-large .action-preview-text {
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.action-icon-hint {
+    opacity: 0.3;
+}
+
 .hud-action-btn {
     transition: all 0.2s;
     border-radius: 6px;

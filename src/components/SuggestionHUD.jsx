@@ -39,8 +39,44 @@ const SuggestionHUD = ({ suggestion, intent, onDismiss, onRefresh, isProcessing,
         actions = actions.slice(0, 2);
     }
 
+    if (isExhausted) {
+        return (
+            <div className="suggestion-hud exhausted-mode-minimal animate-fade-in">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                    <div className="intent-badge exhausted-badge" style={{ marginBottom: 0 }}>
+                        <Battery size={12} className="animate-pulse" />
+                        <span>Social Battery Depleted</span>
+                    </div>
+                    <button onClick={onDismiss} className="hud-action-btn" title="Dismiss">
+                        <X size={16} />
+                    </button>
+                </div>
+                
+                <div className="exhaustion-focus-area">
+                    <p className="exhaustion-instruction">You're socially exhausted. Focus on a polite exit.</p>
+                </div>
+
+                <div className="quick-actions-list-vertical">
+                    {QUICK_ACTIONS.exhausted.map((action, i) => (
+                        <button
+                            key={i}
+                            className={`quick-action-btn exhaustion-action-large ${copied === i ? 'copied' : ''}`}
+                            onClick={() => handleQuickAction(action.text, i)}
+                        >
+                            <div className="action-content">
+                                <span className="action-main-label">{action.label}</span>
+                                <span className="action-preview-text">{action.text}</span>
+                            </div>
+                            {copied === i ? <ClipboardCheck size={18} /> : <RefreshCw size={14} className="action-icon-hint" />}
+                        </button>
+                    ))}
+                </div>
+            </div>
+        );
+    }
+
     return (
-        <div className={`suggestion-hud ${isExhausted ? 'exhausted' : ''} ${isLowPowerMode ? 'power-save' : ''}`}>
+        <div className={`suggestion-hud ${isLowPowerMode ? 'power-save' : ''}`}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '8px' }}>
                 <div style={{ display: 'flex', gap: '8px' }}>
                     <div className="intent-badge" style={{ backgroundColor: ui.color, marginBottom: 0 }}>

@@ -1,16 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Analytics } from '@vercel/analytics/react';
 import { useML } from './useML';
 import VAD from './components/VAD';
 import SuggestionHUD from './components/SuggestionHUD';
 import SessionSummary from './components/SessionSummary';
 import SessionHistoryModal from './components/SessionHistoryModal';
 import InsightsModal from './components/InsightsModal';
-import GoalsDashboard from './components/goals/GoalsDashboard';
-import AchievementsDisplay from './components/goals/AchievementsDisplay';
-import NotificationsPanel from './components/goals/NotificationsPanel';
 import { useSessionHistory } from './hooks/useSessionHistory';
-import { useGoalsAndAchievements } from './hooks/useGoalsAndAchievements';
 import { AppConfig } from './core/config';
 import {
     ShieldAlert,
@@ -26,9 +21,7 @@ import {
     LogOut,
     Sparkles,
     History,
-    BarChart3,
-    Target,
-    Trophy
+    BarChart3
 } from 'lucide-react';
 
 const ICON_MAP = {
@@ -40,8 +33,6 @@ const ICON_MAP = {
 
 const App = () => {
     const [sessionToLoad, setSessionToLoad] = useState(null);
-    const [showGoals, setShowGoals] = useState(false);
-    const [showAchievements, setShowAchievements] = useState(false);
 
     const {
         status,
@@ -95,61 +86,6 @@ const App = () => {
         getSessionStats
     } = sessionHistory;
 
-    const goalsAndAchievements = useGoalsAndAchievements(sessionHistory);
-    const {
-        activeGoals,
-        completedGoals,
-        achievements,
-        notifications,
-        createGoal,
-        updateGoalProgress,
-        deleteGoal,
-        resetGoal,
-        getActiveGoals,
-        getCompletedGoals,
-        getRecentNotifications,
-        clearNotification
-    } = goalsAndAchievements;
-
-    // Update goals when transcript changes
-    useEffect(() => {
-        if (transcript.length > 0 && activeGoals && activeGoals.length > 0) {
-            // Update conversation count goals
-            activeGoals.forEach(goal => {
-                if (goal && goal.type && goal.targetValue) {
-                    if (goal.type === 'social') {
-                        // For social goals, we'll consider each unique conversation as progress
-                        // For now, we'll increment once per session when transcript starts
-                        if (transcript.length === 1) {
-                            updateGoalProgress(goal.id, 1);
-                        }
-                    } else if (goal.type === 'professional') {
-                        // For professional goals, we'll increment based on professional intent detections
-                        const professionalEntries = transcript.filter(entry => entry.intent === 'professional');
-                        const newProgress = Math.min(professionalEntries.length, goal.targetValue);
-                        if (newProgress > (goal.currentValue || 0)) {
-                            updateGoalProgress(goal.id, newProgress - (goal.currentValue || 0));
-                        }
-                    } else if (goal.type === 'empathy') {
-                        // For empathy goals, we'll increment based on empathy intent detections
-                        const empathyEntries = transcript.filter(entry => entry.intent === 'empathy');
-                        const newProgress = Math.min(empathyEntries.length, goal.targetValue);
-                        if (newProgress > (goal.currentValue || 0)) {
-                            updateGoalProgress(goal.id, newProgress - (goal.currentValue || 0));
-                        }
-                    } else if (goal.type === 'conflict') {
-                        // For conflict goals, we'll increment based on conflict intent detections
-                        const conflictEntries = transcript.filter(entry => entry.intent === 'conflict');
-                        const newProgress = Math.min(conflictEntries.length, goal.targetValue);
-                        if (newProgress > (goal.currentValue || 0)) {
-                            updateGoalProgress(goal.id, newProgress - (goal.currentValue || 0));
-                        }
-                    }
-                }
-            });
-        }
-    }, [transcript, activeGoals, updateGoalProgress]);
-
     const handleLoadSession = (sessionId) => {
         const session = loadSession(sessionId);
         if (session) {
@@ -177,22 +113,6 @@ const App = () => {
                     </button>
                 </div>
                 <div className="header-right">
-                    <button
-                        className="btn-goals prominent-feature"
-                        onClick={() => setShowGoals(true)}
-                        title="View conversation goals"
-                    >
-                        <Target size={16} />
-                        <span>Goals</span>
-                    </button>
-                    <button
-                        className="btn-achievements prominent-feature"
-                        onClick={() => setShowAchievements(true)}
-                        title="View achievements"
-                    >
-                        <Trophy size={16} />
-                        <span>Achievements</span>
-                    </button>
                     <button
                         className="btn-insights prominent-feature"
                         onClick={() => setShowInsights(true)}
@@ -315,41 +235,6 @@ const App = () => {
                             onClose={() => setShowSessionHistory(false)}
                             stats={getSessionStats()}
                         />
-                    </div>
-                </div>
-            )}
-
-            {showGoals && (
-                <div className="goals-overlay" onClick={() => setShowGoals(false)}>
-                    <div className="goals-modal-wrapper" onClick={e => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h2>Conversation Goals</h2>
-                            <button className="close-button" onClick={() => setShowGoals(false)}>×</button>
-                        </div>
-                        <div className="modal-content">
-                            <GoalsDashboard
-                                activeGoals={getActiveGoals()}
-                                completedGoals={getCompletedGoals()}
-                                onCreateGoal={createGoal}
-                                onUpdateGoalProgress={updateGoalProgress}
-                                onDeleteGoal={deleteGoal}
-                                onResetGoal={resetGoal}
-                            />
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {showAchievements && (
-                <div className="achievements-overlay" onClick={() => setShowAchievements(false)}>
-                    <div className="achievements-modal-wrapper" onClick={e => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h2>Achievements</h2>
-                            <button className="close-button" onClick={() => setShowAchievements(false)}>×</button>
-                        </div>
-                        <div className="modal-content">
-                            <AchievementsDisplay achievements={achievements} />
-                        </div>
                     </div>
                 </div>
             )}
@@ -488,7 +373,7 @@ const App = () => {
                 {(status.includes('Loading') || status.includes('models')) && showTutorial && (
                     <div className="model-loading-context">
                         <div className="loading-tips">
-                            <p>💡 Tip: Exploring Goals or History while we prepare your AI co-pilot!</p>
+                            <p>💡 Tip: Exploring Session History while we prepare your AI co-pilot!</p>
                         </div>
                     </div>
                 )}
@@ -607,17 +492,6 @@ const App = () => {
                     </div>
                 </div>
             )}
-
-            {notifications.length > 0 && (
-                <div className="notifications-container">
-                    <NotificationsPanel
-                        notifications={getRecentNotifications()}
-                        onClearNotification={clearNotification}
-                    />
-                </div>
-            )}
-
-            <Analytics />
         </div>
     );
 };

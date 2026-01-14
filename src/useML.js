@@ -72,7 +72,8 @@ export const useML = (initialState = null) => {
         }
         
         if (sttWorkerRef.current) {
-            sttWorkerRef.current.postMessage({ type: 'stt', data: combined });
+            // Use Transferable Objects for efficiency
+            sttWorkerRef.current.postMessage({ type: 'stt', data: combined }, [combined.buffer]);
         }
         audioBufferRef.current = [];
         if (flushTimeoutRef.current) {
@@ -81,78 +82,24 @@ export const useML = (initialState = null) => {
         }
     }, []);
 
-    const summarizeSession = useCallback(() => {
-        if (!llmWorkerRef.current || transcript.length === 0) return;
-        
-        setIsSummarizing(true);
-        setSummaryError(null);
-        const stats = {
-            totalCount: transcript.length,
-            meCount: transcript.filter(t => t.speaker === 'me').length,
-            themCount: transcript.filter(t => t.speaker === 'them').length,
-            totalDrain: Math.round(initialBatteryRef.current - battery)
-        };
+    // Haptic Feedback for social cues
+    const triggerSocialVibration = useCallback((type) => {
+        if (!('vibrate' in navigator)) return;
 
-        llmWorkerRef.current.postMessage({
-            type: 'summarize',
-            taskId: ++lastTaskId.current,
-            data: {
-                transcript,
-                stats
-            }
-        });
-    }, [transcript, battery]);
-
-    const startNewSession = useCallback(() => {
-        setSessionSummary(null);
-        setSummaryError(null);
-        clearTranscript();
-        resetBattery();
-        messagesRef.current = [];
-        initialBatteryRef.current = 100;
-        audioBufferRef.current = [];
-        if (flushTimeoutRef.current) clearTimeout(flushTimeoutRef.current);
-    }, [clearTranscript, resetBattery]);
-
-    const closeSummary = useCallback(() => {
-        setSessionSummary(null);
-        setIsSummarizing(false);
-        setSummaryError(null);
+        switch (type) {
+            case 'conflict':
+                navigator.vibrate([100, 50, 100]); // Double pulse for warning
+                break;
+            case 'exhausted':
+                navigator.vibrate(200); // Long pulse for low battery
+                break;
+            case 'suggestion':
+                navigator.vibrate(50); // Subtle tap for new suggestion
+                break;
+            default:
+                navigator.vibrate(50);
+        }
     }, []);
-
-    // Enhanced cache for frequently used suggestions to reduce LLM calls
-    const suggestionCache = useRef(new Map());
-    const intentHistory = useRef([]); // Track recent intents for context
-
-    // Add a fast lookup for common conversation starters to provide instant responses
-    const fastLookupMap = useRef(new Map([
-        // Common greetings
-        ['hello', { intent: 'social', suggestion: 'Hi there! How are you doing today?' }],
-        ['hi', { intent: 'social', suggestion: 'Hello! Nice to meet you.' }],
-        ['hey', { intent: 'social', suggestion: 'Hey! What\'s up?' }],
-        ['how are you', { intent: 'social', suggestion: 'I\'m doing well, thank you! How about yourself?' }],
-        ['how\'s it going', { intent: 'social', suggestion: 'Pretty good! How about with you?' }],
-
-        // Common questions
-        ['what\'s up', { intent: 'social', suggestion: 'Not much, just taking it easy. How about you?' }],
-        ['what are you up to', { intent: 'social', suggestion: 'Just relaxing. What about you?' }],
-        ['how was your weekend', { intent: 'social', suggestion: 'It was relaxing, thanks! How about yours?' }],
-
-        // Professional starters
-        ['how is the project going', { intent: 'professional', suggestion: 'Making good progress. Any specific concerns?' }],
-        ['what are the next steps', { intent: 'professional', suggestion: 'The priority is finalizing the proposal by Friday.' }],
-
-        // Empathetic responses
-        ['i had a rough day', { intent: 'empathy', suggestion: 'I\'m sorry to hear that. What happened?' }],
-        ['i\'m feeling overwhelmed', { intent: 'empathy', suggestion: 'That sounds really challenging. How can I support you?' }],
-
-        // Conflict de-escalation
-        ['i don\'t agree', { intent: 'conflict', suggestion: 'I see where you\'re coming from. Can we find common ground?' }],
-        ['that won\'t work', { intent: 'conflict', suggestion: 'I understand your concern. What would work better for you?' }]
-    ]));
-
-    // Confidence-based speaker detection (80/20: Reduce flickering)
-    const speakerConfidenceRef = useRef({ me: 0, them: 0 });
 
     const processText = useCallback((text) => {
         // Advanced Auto-Speaker Detection (80/20: Mind Reader Update)
@@ -197,6 +144,7 @@ export const useML = (initialState = null) => {
             intent = fastLookupResult.intent;
             needsSuggestion = true;
             setSuggestion(fastLookupResult.suggestion);
+            triggerSocialVibration('suggestion');
             lastSuggestionTimeRef.current = Date.now();
             setIsProcessing(false);
         } else {
@@ -205,6 +153,11 @@ export const useML = (initialState = null) => {
             needsSuggestion = shouldGenerateSuggestion(text);
 
             setDetectedIntent(intent);
+            
+            // Haptic alert for conflict detection
+            if (intent === 'conflict') {
+                triggerSocialVibration('conflict');
+            }
 
             // Update intent history for context
             intentHistory.current.push({ intent, timestamp: Date.now() });
@@ -216,12 +169,19 @@ export const useML = (initialState = null) => {
             const precomputed = getPrecomputedSuggestion(text);
             if (precomputed) {
                 setSuggestion(precomputed.suggestion);
+                triggerSocialVibration('suggestion');
                 lastSuggestionTimeRef.current = Date.now();
                 setIsProcessing(false);
             }
         }
 
         const currentBattery = deduct(text, intent, persona);
+        
+        // Haptic alert for low battery
+        if (currentBattery < AppConfig.minBatteryThreshold && battery >= AppConfig.minBatteryThreshold) {
+            triggerSocialVibration('exhausted');
+        }
+
         addEntry(text, currentSpeaker, intent);
         nudgeSpeaker();
 
@@ -593,8 +553,34 @@ export const useML = (initialState = null) => {
     const progress = (sttProgress + llmProgress) / 2;
     const status = !isReady ? getDetailedModelLoadStatus() : isProcessing ? 'Processing...' : 'Ready';
 
+    const meVolumeRef = useRef(0);
+    
+    const calculateVolume = (audioData) => {
+        let sum = 0;
+        for (let i = 0; i < audioData.length; i++) {
+            sum += audioData[i] * audioData[i];
+        }
+        return Math.sqrt(sum / audioData.length);
+    };
+
     const processAudio = useCallback((audioData) => {
         if (!sttReady || !sttWorkerRef.current) return;
+
+        // 80/20 Auto-Diarization: Volume-based heuristic
+        // Local speaker (Me) is usually significantly louder than distant speaker (Them)
+        const currentVolume = calculateVolume(audioData);
+        if (currentSpeaker === 'me') {
+            // Update "Me" baseline when we know it's definitely the user
+            meVolumeRef.current = meVolumeRef.current === 0 
+                ? currentVolume 
+                : meVolumeRef.current * 0.95 + currentVolume * 0.05;
+        } else if (meVolumeRef.current > 0.01) { // Only if we have a valid baseline
+            // If current volume is close to or louder than our "Me" baseline
+            if (currentVolume > meVolumeRef.current * 0.8) {
+                // High probability it's the local user speaking
+                setCurrentSpeaker('me');
+            }
+        }
 
         audioBufferRef.current.push(audioData);
 
@@ -607,7 +593,7 @@ export const useML = (initialState = null) => {
         } else {
             flushTimeoutRef.current = setTimeout(flushAudioBuffer, 300);
         }
-    }, [sttReady, flushAudioBuffer]);
+    }, [sttReady, flushAudioBuffer, currentSpeaker, setCurrentSpeaker]);
 
     useEffect(() => {
         return () => {
