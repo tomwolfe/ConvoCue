@@ -118,22 +118,29 @@ export const useSocialBattery = () => {
 
         // Create more descriptive drain reasons for better user understanding
         let detailedReason = '';
+        let severity = 'low'; // low, medium, high, surge
+        
         if (intent !== 'general') {
             switch (intent) {
                 case 'conflict':
                     detailedReason = 'Conflict detected';
+                    severity = totalDeduction > 5 ? 'surge' : 'high';
                     break;
                 case 'professional':
                     detailedReason = 'Work discussion';
+                    severity = totalDeduction > 3 ? 'high' : 'medium';
                     break;
                 case 'empathy':
                     detailedReason = 'Emotional topic';
+                    severity = 'medium';
                     break;
                 case 'social':
                     detailedReason = 'Casual conversation';
+                    severity = 'low';
                     break;
                 case 'positive':
                     detailedReason = 'Positive interaction';
+                    severity = 'recovery';
                     break;
                 default:
                     detailedReason = intent;
@@ -144,6 +151,7 @@ export const useSocialBattery = () => {
             amount: isPositive ? `+${Math.abs(totalDeduction).toFixed(1)}` : `-${totalDeduction.toFixed(1)}`,
             reason: detailedReason,
             intent: intent,
+            severity: severity,
             wordCount: Math.round(adjustedWordCount),
             multiplier: multiplier.toFixed(1)
         });

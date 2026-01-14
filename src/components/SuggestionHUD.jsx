@@ -90,19 +90,27 @@ const SuggestionHUD = ({ suggestion, intent, onDismiss, onRefresh, isProcessing,
 
             <div className={`suggestion-box ${isProcessing ? 'is-processing' : ''}`}>
                 {suggestion ? (
-                    <div className="suggestion-content">
+                    <div className="suggestion-content animate-fade-in">
                         <div className="keyword-chips">
-                            {(isLowPowerMode ? suggestion.split(' ').slice(0, 3) : suggestion.split(' ').slice(0, 15)).map((word, index) => (
-                                <span key={index} className="keyword-chip">{word}</span>
+                            {(isLowPowerMode ? suggestion.split(' ').slice(0, 5) : suggestion.split(' ').slice(0, 15)).map((word, index) => (
+                                <span key={index} className="keyword-chip" style={{ animationDelay: `${index * 50}ms` }}>{word}</span>
                             ))}
-                            {isLowPowerMode && suggestion.split(' ').length > 3 && <span className="keyword-chip-more">...</span>}
+                            {isLowPowerMode && suggestion.split(' ').length > 5 && <span className="keyword-chip-more">...</span>}
                         </div>
+                        {isProcessing && (
+                            <div className="processing-overlay">
+                                <div className="pulse-loader"></div>
+                                <span>Refining...</span>
+                            </div>
+                        )}
                     </div>
                 ) : (
                     (isProcessing ? (
                         <div className="processing-message">
-                            <Loader2 className="animate-spin" size={16} />
-                            <span>{BRIDGE_PHRASES[intent] || "Generating suggestion..."}</span>
+                            <div className="thinking-dots">
+                                <span></span><span></span><span></span>
+                            </div>
+                            <span className="animate-pulse">{BRIDGE_PHRASES[intent] || "Generating suggestion..."}</span>
                         </div>
                     ) : (
                         <div className="no-suggestion-placeholder">
@@ -111,27 +119,25 @@ const SuggestionHUD = ({ suggestion, intent, onDismiss, onRefresh, isProcessing,
                         </div>
                     ))
                 )}
-                {isProcessing && !isLowPowerMode && (
-                    <div className="processing-hint">
-                        <span>💡 Tip: The AI is learning from your conversation to provide better suggestions</span>
-                    </div>
-                )}
             </div>
 
             <div className={`quick-actions-container ${isExhausted ? 'priority-exhaustion' : ''}`}>
                 <div className="quick-actions-label">
-                    <Zap size={10} />
-                    <span>{isExhausted ? 'Suggested Exit Strategies' : (isLowPowerMode ? 'Low Power Cues' : 'Quick Responses')}</span>
+                    <Zap size={10} className="text-yellow-500" />
+                    <span>{isExhausted ? 'EMERGENCY EXIT STRATEGIES' : (isLowPowerMode ? 'LOW ENERGY CUES' : 'INSTANT REACTIONS')}</span>
                 </div>
-                <div className="quick-actions-list">
+                <div className="quick-actions-list horizontal-scroll">
                     {actions.map((action, i) => (
                         <button
                             key={i}
-                            className={`quick-action-btn ${copied === i ? 'copied' : ''} ${isExhausted ? 'large-action' : ''}`}
+                            className={`quick-action-btn ${copied === i ? 'copied' : ''} ${isExhausted ? 'exhaustion-action' : 'smart-action'}`}
                             onClick={() => handleQuickAction(action.text, i)}
                         >
-                            {copied === i ? <ClipboardCheck size={12} /> : <Zap size={12} style={{ opacity: 0.6 }} />}
-                            <span>{action.label}</span>
+                            {copied === i ? <ClipboardCheck size={12} /> : <Zap size={12} className="zap-icon" />}
+                            <div className="action-label-group">
+                                <span className="action-main-label">{action.label}</span>
+                                {!isLowPowerMode && <span className="action-preview">{action.text.substring(0, 20)}...</span>}
+                            </div>
                         </button>
                     ))}
                 </div>

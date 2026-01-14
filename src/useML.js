@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { detectIntent, shouldGenerateSuggestion, getPrecomputedSuggestion, detectTurnTake } from './core/intentEngine';
+import { detectIntent, shouldGenerateSuggestion, getPrecomputedSuggestion, detectTurnTake, detectSpeakerHint } from './core/intentEngine';
 import { AppConfig, BRIDGE_PHRASES } from './core/config';
 import { useSocialBattery } from './hooks/useSocialBattery';
 import { useTranscript } from './hooks/useTranscript';
@@ -151,13 +151,36 @@ export const useML = (initialState = null) => {
         ['that won\'t work', { intent: 'conflict', suggestion: 'I understand your concern. What would work better for you?' }]
     ]));
 
+    // Confidence-based speaker detection (80/20: Reduce flickering)
+    const speakerConfidenceRef = useRef({ me: 0, them: 0 });
+
     const processText = useCallback((text) => {
-        // Auto-Speaker Detection (80/20: Predictive Diarization)
-        // If a suggestion was recently shown and new text arrives, it's highly likely the user is responding.
+        // Advanced Auto-Speaker Detection (80/20: Mind Reader Update)
+        const speakerHint = detectSpeakerHint(text, currentSpeaker);
         const timeSinceLastSuggestion = Date.now() - lastSuggestionTimeRef.current;
-        if (currentSpeaker === 'them' && timeSinceLastSuggestion < 15000 && timeSinceLastSuggestion > 500) {
-            // Auto-toggle to 'me' if it seems like a response to the AI's cue
-            toggleSpeaker();
+        
+        // Priority 1: Content-based hint with confidence threshold
+        if (speakerHint) {
+            speakerConfidenceRef.current[speakerHint]++;
+            // If we get 2 consecutive hints or a strong hint, toggle
+            if (speakerConfidenceRef.current[speakerHint] >= 1 || text.length > 50) {
+                if (speakerHint !== currentSpeaker) {
+                    setCurrentSpeaker(speakerHint);
+                    // Reset confidence for both
+                    speakerConfidenceRef.current = { me: 0, them: 0 };
+                }
+            }
+        } else {
+            // Decay confidence if no hint
+            speakerConfidenceRef.current.me = Math.max(0, speakerConfidenceRef.current.me - 0.5);
+            speakerConfidenceRef.current.them = Math.max(0, speakerConfidenceRef.current.them - 0.5);
+        }
+
+        // Priority 2: Timing-based heuristic (Response to suggestion)
+        if (currentSpeaker === 'them' && timeSinceLastSuggestion < 15000 && timeSinceLastSuggestion > 1000) {
+            if (text.toLowerCase().startsWith('i ') || text.length > 10) {
+                setCurrentSpeaker('me');
+            }
         }
 
         // First, check for fast lookup responses for common phrases
@@ -261,9 +284,13 @@ export const useML = (initialState = null) => {
         const timeoutId = setTimeout(() => {
             // If LLM takes too long, show a more specific bridge phrase
             if (isProcessing && (suggestion === BRIDGE_PHRASES[intent] || suggestion === BRIDGE_PHRASES.general)) {
-                setSuggestion(`Still thinking about ${intent}...`);
+                // Pick a random quick action from the current intent as a fallback
+                const fallbackActions = QUICK_ACTIONS[intent] || QUICK_ACTIONS.social;
+                const randomAction = fallbackActions[Math.floor(Math.random() * fallbackActions.length)];
+                setSuggestion(randomAction.text);
+                setIsProcessing(false); // Stop "processing" if we provide a fallback
             }
-        }, 3000); // 3 second timeout
+        }, 4000); // 4 second timeout for fallback
 
         // Store timeout ID for cleanup
         llmTimeoutsRef.current.set(taskId, timeoutId);

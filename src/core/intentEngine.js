@@ -295,3 +295,48 @@ export const getPrecomputedSuggestion = (text) => {
 
     return null;
 };
+
+/**
+ * Provides a hint for who is likely speaking based on content.
+ * 80/20: Simple heuristics for "I" vs "You" can solve most speaker-switching friction.
+ */
+export const detectSpeakerHint = (text, currentSpeaker) => {
+    if (!text || text.trim().length < 2) return null;
+    const textLower = text.toLowerCase().trim();
+
+    // Heuristics for 'me' (the user) - Strong starters that usually indicate the mic owner
+    const meIndicators = [
+        /^i\s/i, /^i'm\s/i, /^i've\s/i, /^i'll\s/i, /^my\s/i,
+        /^i\sdon't\s/i, /^i\sthink\s/i, /^i\sknow\s/i, /^i\sfeel\s/i,
+        /\si\sam\s/i, /\si\shave\s/i, /\si\swill\s/i
+    ];
+    
+    // Heuristics for 'them' (the other person) - Often asking questions or referring to 'you'
+    const themIndicators = [
+        /^you\s/i, /^your\s/i, /^you're\s/i,
+        /^do\syou\s/i, /^can\syou\s/i, /^have\syou\s/i, /^how\sabout\syou/i,
+        /\swhat\sdo\syou\b/i, /\show\sdo\syou\b/i,
+        /\syou\sshould\b/i, /\scan\syou\b/i
+    ];
+
+    const isMeTargeted = meIndicators.some(pattern => pattern.test(textLower));
+    const isThemTargeted = themIndicators.some(pattern => pattern.test(textLower));
+
+    // Refined heuristic: If the text starts with "I", it is highly likely 'me' (the user)
+    // because the user's voice is always clearer/closer to the mic, and STT
+    // is biased towards the clearer voice.
+    if (isMeTargeted && !isThemTargeted) return 'me';
+    
+    // If it's a question starting with "You" or "Do you", it's likely 'them'
+    // but we only switch to 'them' if they are clearly addressed or if 'me' was just speaking.
+    if (isThemTargeted && !isMeTargeted) return 'them';
+
+    // Contextual: If 'them' is speaking and says something that sounds like a personal statement
+    // it's probably a misattribution because the user is the primary speaker.
+    if (currentSpeaker === 'them' && textLower.startsWith('i ')) return 'me';
+
+    // If 'me' is speaking and asks a direct question, they might still be speaking,
+    // but we don't auto-toggle 'them' unless the transcript is very clear.
+    
+    return null;
+};

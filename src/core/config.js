@@ -116,12 +116,12 @@ export const PARETO_PERSONAS = {
 };
 
 export const BRIDGE_PHRASES = {
-    social: "Finding a warm response...",
-    professional: "Drafting a professional reply...",
-    conflict: "De-escalating the situation...",
-    empathy: "Finding the right supportive words...",
-    positive: "Acknowledging that great point...",
-    general: "Thinking..."
+    social: "That's a good point, let me think...",
+    professional: "I see, let me consider the best way to approach that...",
+    conflict: "I hear you, let's find the right words here...",
+    empathy: "I understand how you feel, give me a moment...",
+    positive: "That's great! Let me think of a good follow-up...",
+    general: "Thinking of a good response..."
 };
 
 export const AppConfig = {

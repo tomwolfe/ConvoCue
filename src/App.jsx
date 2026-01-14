@@ -229,8 +229,9 @@ const App = () => {
                             }}></div>
                             {isPaused && <div className="battery-paused-overlay">PAUSED</div>}
                             {lastDrain && (
-                                <div className={`drain-indicator animate-float-up ${lastDrain.amount.startsWith('+') ? 'is-positive' : ''}`}>
+                                <div className={`drain-indicator animate-float-up severity-${lastDrain.severity || 'low'} ${lastDrain.amount.startsWith('+') ? 'is-positive' : ''}`}>
                                     {lastDrain.amount}% {lastDrain.reason && <span className="drain-reason">{lastDrain.reason}</span>}
+                                    {lastDrain.severity === 'surge' && <Sparkles size={10} className="surge-icon" />}
                                 </div>
                             )}
                         </div>

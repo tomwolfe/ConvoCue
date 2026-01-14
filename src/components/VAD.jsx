@@ -300,8 +300,17 @@ const VAD = ({ onSpeechEnd, isReady, status, progressiveReadiness }) => {
             )}
 
             {vad.listening && (
-                <div className="audio-visualizer-simple">
-                    <div className="wave-animation"></div>
+                <div className="audio-visualizer-dynamic">
+                    <div className="pulse-ring"></div>
+                    <div className="pulse-ring delay-1"></div>
+                    <div className="pulse-ring delay-2"></div>
+                    <div className="audio-bars">
+                        <div className="bar"></div>
+                        <div className="bar"></div>
+                        <div className="bar"></div>
+                        <div className="bar"></div>
+                        <div className="bar"></div>
+                    </div>
                 </div>
             )}
         </div>
