@@ -5,6 +5,26 @@ import { useSocialBattery } from './hooks/useSocialBattery';
 import { useTranscript } from './hooks/useTranscript';
 
 export const useML = (initialState = null) => {
+    // 1. Refs (Declared first to avoid Temporal Dead Zone)
+    const sttWorkerRef = useRef(null);
+    const llmWorkerRef = useRef(null);
+    const messagesRef = useRef([]);
+    const initialBatteryRef = useRef(100);
+    const lastTaskId = useRef(0);
+    const llmTimeoutsRef = useRef(new Map());
+    const audioBufferRef = useRef([]);
+    const flushTimeoutRef = useRef(null);
+    const suggestionCache = useRef(new Map());
+    const intentHistory = useRef([]);
+    
+    // Feature Refs
+    const lastActivityRef = useRef(Date.now());
+    const userVolumeRef = useRef(0.15);
+    const themVolumeRef = useRef(0.05);
+    const manualTogglesRef = useRef(0);
+    const silenceTriggeredRef = useRef(false);
+    
+    // 2. State
     const [suggestion, setSuggestion] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
     const [detectedIntent, setDetectedIntent] = useState('general');
@@ -13,43 +33,6 @@ export const useML = (initialState = null) => {
     const [isSummarizing, setIsSummarizing] = useState(false);
     const [summaryError, setSummaryError] = useState(null);
 
-    const {
-        battery, deduct, reset: resetBattery, batteryRef, setBattery,
-        sensitivity, setSensitivity, isPaused, togglePause, recharge, isExhausted, lastDrain
-    } = useSocialBattery();
-    const {
-        transcript, addEntry, currentSpeaker, toggleSpeaker: baseToggleSpeaker, clearTranscript,
-        shouldPulse, nudgeSpeaker, consecutiveCount, setTranscript
-    } = useTranscript();
-
-    const toggleSpeaker = useCallback(() => {
-        manualTogglesRef.current += 1;
-        baseToggleSpeaker();
-    }, [baseToggleSpeaker]);
-
-    // Initialize with initial state if provided (for loading sessions)
-    useEffect(() => {
-        if (initialState) {
-            // Load session data using the functions from child hooks
-            if (initialState.battery !== undefined) {
-                setBattery(initialState.battery);
-            }
-            if (initialState.transcript) {
-                setTranscript(initialState.transcript);
-            }
-            if (initialState.persona) {
-                setPersona(initialState.persona);
-            }
-            // Note: We don't restore all state as some values are dynamic
-        }
-    }, [initialState]);
-
-    const sttWorkerRef = useRef(null);
-    const llmWorkerRef = useRef(null);
-    const messagesRef = useRef([]);
-    const initialBatteryRef = useRef(100);
-    const lastTaskId = useRef(0);
-    const llmTimeoutsRef = useRef(new Map()); // Store timeouts for LLM requests
     const [sttReady, setSttReady] = useState(false);
     const [llmReady, setLlmReady] = useState(false);
     const [sttProgress, setSttProgress] = useState(0);
@@ -59,40 +42,21 @@ export const useML = (initialState = null) => {
     const [sttStage, setSttStage] = useState('initializing');
     const [llmStage, setLlmStage] = useState('initializing');
 
-    const lastActivityRef = useRef(Date.now());
-    const userVolumeRef = useRef(0.15); // Default expected volume for 'me'
-    const themVolumeRef = useRef(0.05); // Default expected volume for 'them'
-    const manualTogglesRef = useRef(0);
-    const silenceTriggeredRef = useRef(false);
+    // 3. Hooks
+    const {
+        battery, deduct, reset: resetBattery, batteryRef, setBattery,
+        sensitivity, setSensitivity, isPaused, togglePause, recharge, isExhausted, lastDrain
+    } = useSocialBattery();
+    const {
+        transcript, addEntry, currentSpeaker, toggleSpeaker: baseToggleSpeaker, clearTranscript,
+        shouldPulse, nudgeSpeaker, consecutiveCount, setTranscript
+    } = useTranscript();
 
-    const audioBufferRef = useRef([]);
-    const flushTimeoutRef = useRef(null);
-
-    // Monitor silence and provide "Silence Breakers"
-    useEffect(() => {
-        const interval = setInterval(() => {
-            if (!isReady || isPaused || isProcessing) return;
-
-            const silenceDuration = Date.now() - lastActivityRef.current;
-            
-            // If silence > 8 seconds and we haven't triggered a silence breaker yet
-            if (silenceDuration > 8000 && !silenceTriggeredRef.current && transcript.length > 0) {
-                silenceTriggeredRef.current = true;
-                
-                // Deduct a small amount for the tension of silence
-                deduct("...", "general", persona);
-                
-                // Get persona-specific silence breakers
-                const breakers = SILENCE_BREAKERS[persona] || SILENCE_BREAKERS.anxiety;
-                const randomBreaker = breakers[Math.floor(Math.random() * breakers.length)];
-                
-                setSuggestion(`[Silence Breaker] ${randomBreaker}`);
-                setDetectedIntent('social');
-            }
-        }, 2000);
-
-        return () => clearInterval(interval);
-    }, [isReady, isPaused, isProcessing, transcript.length, persona, deduct]);
+    // 4. Callbacks
+    const toggleSpeaker = useCallback(() => {
+        manualTogglesRef.current += 1;
+        baseToggleSpeaker();
+    }, [baseToggleSpeaker]);
 
     const flushAudioBuffer = useCallback(() => {
         if (audioBufferRef.current.length === 0) return;
@@ -115,106 +79,60 @@ export const useML = (initialState = null) => {
         }
     }, []);
 
-    const summarizeSession = useCallback(() => {
-        if (!llmWorkerRef.current || transcript.length === 0) return;
-        
-        setIsSummarizing(true);
-        setSummaryError(null);
-        const stats = {
-            totalCount: transcript.length,
-            meCount: transcript.filter(t => t.speaker === 'me').length,
-            themCount: transcript.filter(t => t.speaker === 'them').length,
-            totalDrain: Math.round(initialBatteryRef.current - battery)
-        };
+    const handleLlmResult = useCallback((sug, taskId) => {
+        if (taskId && llmTimeoutsRef.current.has(taskId)) {
+            clearTimeout(llmTimeoutsRef.current.get(taskId));
+            llmTimeoutsRef.current.delete(taskId);
+        }
 
-        llmWorkerRef.current.postMessage({
-            type: 'summarize',
-            taskId: ++lastTaskId.current,
-            data: {
-                transcript,
-                stats
-            }
-        });
-    }, [transcript, battery]);
+        const intent = detectedIntent;
+        const recentIntents = intentHistory.current
+            .filter(item => Date.now() - item.timestamp < 30000)
+            .map(item => item.intent)
+            .slice(-3)
+            .join('_');
 
-    const startNewSession = useCallback(() => {
-        setSessionSummary(null);
-        setSummaryError(null);
-        clearTranscript();
-        resetBattery();
-        messagesRef.current = [];
-        initialBatteryRef.current = 100;
-        audioBufferRef.current = [];
-        if (flushTimeoutRef.current) clearTimeout(flushTimeoutRef.current);
-    }, [clearTranscript, resetBattery]);
+        const cacheKey = `${intent}_${recentIntents}_${persona}_${battery > AppConfig.minBatteryThreshold ? 'normal' : 'exhausted'}`;
+        suggestionCache.current.set(cacheKey, { text: sug, timestamp: Date.now() });
 
-    const closeSummary = useCallback(() => {
-        setSessionSummary(null);
-        setIsSummarizing(false);
-        setSummaryError(null);
-    }, []);
+        if (suggestionCache.current.size > 75) {
+            const firstKey = suggestionCache.current.keys().next().value;
+            suggestionCache.current.delete(firstKey);
+        }
 
-    // Enhanced cache for frequently used suggestions to reduce LLM calls
-    const suggestionCache = useRef(new Map());
-    const intentHistory = useRef([]); // Track recent intents for context
-
-    // Add a fast lookup for common conversation starters to provide instant responses
-    const fastLookupMap = useRef(new Map([
-        // Common greetings
-        ['hello', { intent: 'social', suggestion: 'Hi there! How are you doing today?' }],
-        ['hi', { intent: 'social', suggestion: 'Hello! Nice to meet you.' }],
-        ['hey', { intent: 'social', suggestion: 'Hey! What\'s up?' }],
-        ['how are you', { intent: 'social', suggestion: 'I\'m doing well, thank you! How about yourself?' }],
-        ['how\'s it going', { intent: 'social', suggestion: 'Pretty good! How about with you?' }],
-
-        // Common questions
-        ['what\'s up', { intent: 'social', suggestion: 'Not much, just taking it easy. How about you?' }],
-        ['what are you up to', { intent: 'social', suggestion: 'Just relaxing. What about you?' }],
-        ['how was your weekend', { intent: 'social', suggestion: 'It was relaxing, thanks! How about yours?' }],
-
-        // Professional starters
-        ['how is the project going', { intent: 'professional', suggestion: 'Making good progress. Any specific concerns?' }],
-        ['what are the next steps', { intent: 'professional', suggestion: 'The priority is finalizing the proposal by Friday.' }],
-
-        // Empathetic responses
-        ['i had a rough day', { intent: 'empathy', suggestion: 'I\'m sorry to hear that. What happened?' }],
-        ['i\'m feeling overwhelmed', { intent: 'empathy', suggestion: 'That sounds really challenging. How can I support you?' }],
-
-        // Conflict de-escalation
-        ['i don\'t agree', { intent: 'conflict', suggestion: 'I see where you\'re coming from. Can we find common ground?' }],
-        ['that won\'t work', { intent: 'conflict', suggestion: 'I understand your concern. What would work better for you?' }]
-    ]));
+        setSuggestion(sug);
+        setIsProcessing(false);
+    }, [detectedIntent, persona, battery]);
 
     const processText = useCallback((text) => {
-        // Reset silence detection
         lastActivityRef.current = Date.now();
         silenceTriggeredRef.current = false;
 
-        // First, check for fast lookup responses for common phrases
         const normalizedText = text.toLowerCase().trim();
-        const fastLookupResult = fastLookupMap.current.get(normalizedText);
+        
+        // Fast lookup for common greetings/questions
+        const fastLookupMap = new Map([
+            ['hello', { intent: 'social', suggestion: 'Hi there! How are you doing today?' }],
+            ['hi', { intent: 'social', suggestion: 'Hello! Nice to meet you.' }],
+            ['how are you', { intent: 'social', suggestion: 'I\'m doing well, thank you! How about yourself?' }]
+        ]);
+        
+        const fastLookupResult = fastLookupMap.get(normalizedText);
 
         let intent, needsSuggestion;
         if (fastLookupResult) {
-            // Use the fast lookup result
             intent = fastLookupResult.intent;
             needsSuggestion = true;
             setSuggestion(fastLookupResult.suggestion);
             setIsProcessing(false);
         } else {
-            // Fall back to normal processing
             intent = detectIntent(text);
             needsSuggestion = shouldGenerateSuggestion(text);
-
             setDetectedIntent(intent);
 
-            // Update intent history for context
             intentHistory.current.push({ intent, timestamp: Date.now() });
-            if (intentHistory.current.length > 5) {
-                intentHistory.current.shift(); // Keep only last 5 intents
-            }
+            if (intentHistory.current.length > 5) intentHistory.current.shift();
 
-            // Check for precomputed suggestions first (fastest response)
             const precomputed = getPrecomputedSuggestion(text);
             if (precomputed) {
                 setSuggestion(precomputed.suggestion);
@@ -230,61 +148,49 @@ export const useML = (initialState = null) => {
         messagesRef.current.push({ role: 'user', content: `${speakerLabel}: ${text}` });
         if (messagesRef.current.length > 6) messagesRef.current.shift();
 
-        // Fatigue-aware filtering: Increase threshold when battery is low
-        const batteryThreshold = AppConfig.fatigueFilterThreshold;
-        const isLowBattery = currentBattery < batteryThreshold;
+        const isLowBattery = currentBattery < AppConfig.fatigueFilterThreshold;
         const shouldShowSuggestion = needsSuggestion &&
-            (!isLowBattery || (isLowBattery && Math.random() < currentBattery / 100)); // Probability scales with battery level
+            (!isLowBattery || (isLowBattery && Math.random() < currentBattery / 100));
 
         if (!shouldShowSuggestion || currentSpeaker === 'me') {
-            setIsProcessing(false);
-            setSuggestion('');
+            if (!fastLookupResult && !getPrecomputedSuggestion(text)) {
+                setIsProcessing(false);
+                setSuggestion('');
+            }
             return;
         }
 
-        // Enhanced cache key with recent intent context
         const recentIntents = intentHistory.current
-            .filter(item => Date.now() - item.timestamp < 30000) // Last 30 seconds
+            .filter(item => Date.now() - item.timestamp < 30000)
             .map(item => item.intent)
-            .slice(-3) // Last 3 intents
+            .slice(-3)
             .join('_');
 
         const cacheKey = `${intent}_${recentIntents}_${persona}_${currentBattery > AppConfig.minBatteryThreshold ? 'normal' : 'exhausted'}`;
         const cachedSuggestion = suggestionCache.current.get(cacheKey);
 
-        if (cachedSuggestion && Date.now() - cachedSuggestion.timestamp < 45000) { // Extended cache to 45s
+        if (cachedSuggestion && Date.now() - cachedSuggestion.timestamp < 45000) {
             setSuggestion(cachedSuggestion.text);
             setIsProcessing(false);
             return;
         }
 
-        // Instant reaction to reduce perceived latency
         setSuggestion(BRIDGE_PHRASES[intent] || BRIDGE_PHRASES.general);
         setIsProcessing(true);
-        const personaConfig = AppConfig.personas[persona];
         const taskId = ++lastTaskId.current;
 
         const contextData = {
             intent: intent.toUpperCase(),
             battery: Math.round(currentBattery),
-            persona: personaConfig.label,
+            persona: AppConfig.personas[persona].label,
             isExhausted: currentBattery < AppConfig.minBatteryThreshold,
-            recentIntents: recentIntents // Pass recent intent context to LLM
+            recentIntents
         };
 
-        const instruction = contextData.isExhausted
-            ? "URGENT: User is exhausted. Suggest a polite exit or minimal energy response."
-            : personaConfig.prompt;
-
-        // Store the taskId and timeout ID together for proper cleanup
         const timeoutId = setTimeout(() => {
-            // If LLM takes too long, show a more specific bridge phrase
-            if (isProcessing && (suggestion === BRIDGE_PHRASES[intent] || suggestion === BRIDGE_PHRASES.general)) {
-                setSuggestion(`Still thinking about ${intent}...`);
-            }
-        }, 3000); // 3 second timeout
+            if (isProcessing) setSuggestion(`Still thinking about ${intent}...`);
+        }, 3000);
 
-        // Store timeout ID for cleanup
         llmTimeoutsRef.current.set(taskId, timeoutId);
 
         if (llmWorkerRef.current) {
@@ -294,275 +200,32 @@ export const useML = (initialState = null) => {
                 data: {
                     messages: [...messagesRef.current],
                     context: contextData,
-                    instruction: instruction
+                    instruction: contextData.isExhausted 
+                        ? "URGENT: User is exhausted. Suggest a polite exit."
+                        : AppConfig.personas[persona].prompt
                 }
             });
         }
-    }, [persona, deduct, addEntry, currentSpeaker]);
-
-    // Handle LLM results and cache them
-    const handleLlmResult = useCallback((sug, taskId) => {
-        // Clear the timeout for this task ID
-        if (taskId && llmTimeoutsRef.current.has(taskId)) {
-            clearTimeout(llmTimeoutsRef.current.get(taskId));
-            llmTimeoutsRef.current.delete(taskId);
-        }
-
-        // Enhanced caching with recent intent context
-        const intent = detectedIntent;
-        const recentIntents = intentHistory.current
-            .filter(item => Date.now() - item.timestamp < 30000) // Last 30 seconds
-            .map(item => item.intent)
-            .slice(-3) // Last 3 intents
-            .join('_');
-
-        const cacheKey = `${intent}_${recentIntents}_${persona}_${battery > AppConfig.minBatteryThreshold ? 'normal' : 'exhausted'}`;
-        suggestionCache.current.set(cacheKey, {
-            text: sug,
-            timestamp: Date.now()
-        });
-
-        // Also cache without recent intents for broader matching
-        const basicCacheKey = `${intent}_${persona}_${battery > AppConfig.minBatteryThreshold ? 'normal' : 'exhausted'}`;
-        if (!suggestionCache.current.has(basicCacheKey)) {
-            suggestionCache.current.set(basicCacheKey, {
-                text: sug,
-                timestamp: Date.now()
-            });
-        }
-
-        // Limit cache size to prevent memory issues
-        if (suggestionCache.current.size > 75) { // Increased cache size
-            // Remove oldest entries first
-            const firstKey = suggestionCache.current.keys().next().value;
-            suggestionCache.current.delete(firstKey);
-        }
-
-        setSuggestion(sug);
-        setIsProcessing(false);
-    }, [detectedIntent, persona, battery]);
-
-    const dismissSuggestion = useCallback(() => {
-        setSuggestion('');
-        setIsProcessing(false);
-    }, []);
-
-    const processTextRef = useRef(processText);
-    useEffect(() => {
-        processTextRef.current = processText;
-    }, [processText]);
-
-    // Adaptive resource detection and model loading
-    const getDeviceInfo = () => {
-        const hardwareConcurrency = navigator.hardwareConcurrency || 2;
-        const memory = navigator.deviceMemory || 4; // Assume 4GB if not available
-        const userAgent = navigator.userAgent.toLowerCase();
-
-        // Determine if device is low-resource based on specs
-        const isLowResource = hardwareConcurrency <= 2 || memory <= 4 ||
-                             userAgent.includes('mobile') || userAgent.includes('android');
-
-        return {
-            hardwareConcurrency,
-            memory,
-            isLowResource,
-            userAgent
-        };
-    };
-
-    // Eager fetch model files to prime browser cache
-    useEffect(() => {
-        const deviceInfo = getDeviceInfo();
-
-        // Select appropriate model based on device capabilities
-        const modelFiles = deviceInfo.isLowResource ? [
-            '/ort-wasm.wasm', // Fallback to simpler WASM if on low-resource device
-            '/silero_vad_v5.onnx'
-        ] : [
-            '/ort-wasm-simd-threaded.jsep.mjs',
-            '/ort-wasm-simd-threaded.jsep.wasm',
-            '/ort-wasm-simd-threaded.mjs',
-            '/ort-wasm-simd-threaded.wasm',
-            '/silero_vad_v5.onnx'
-        ];
-
-        // Preload model files with progress tracking
-        modelFiles.forEach(file => {
-            fetch(file)
-                .then(response => {
-                    if (response.ok) {
-                        console.log(`Pre-fetched ${file}`);
-                    }
-                })
-                .catch(error => {
-                    console.warn(`Failed to pre-fetch ${file}:`, error);
-                });
-        });
-
-        // Initialize service worker for better caching if available
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js')
-                .then(registration => {
-                    console.log('SW registered: ', registration);
-                })
-                .catch(registrationError => {
-                    console.log('SW registration failed: ', registrationError);
-                });
-        }
-    }, []);
-
-    // Improved model loading status with progressive enhancement
-    const getModelLoadStatus = () => {
-        if (!sttReady && !llmReady) {
-            if (sttProgress < 100 && llmProgress < 100) {
-                return 'Loading AI models...';
-            } else if (sttProgress < 100) {
-                return 'Finishing speech-to-text model...';
-            } else if (llmProgress < 100) {
-                return 'Finishing language model...';
-            }
-        }
-        if (!sttReady) return 'Loading speech-to-text model...';
-        if (!llmReady) return 'Loading language model...';
-        return 'Ready';
-    };
-
-    // Enhanced model loading status with more specific progress information
-    const getDetailedModelLoadStatus = () => {
-        const deviceInfo = getDeviceInfo();
-        const resourceIndicator = deviceInfo.isLowResource ? ' (optimized for low-resource device)' : '';
-
-        if (!sttReady && !llmReady) {
-            if (sttProgress < 100 && llmProgress < 100) {
-                return `Loading AI models (${Math.round((sttProgress + llmProgress) / 2)}%)... STT: ${sttStage}, LLM: ${llmStage}${resourceIndicator}`;
-            } else if (sttProgress < 100) {
-                return `Finishing speech-to-text model (${Math.round(sttProgress)}%) - ${sttStage}${resourceIndicator}`;
-            } else if (llmProgress < 100) {
-                return `Finishing language model (${Math.round(llmProgress)}%) - ${llmStage}${resourceIndicator}`;
-            }
-        }
-        if (!sttReady) return `Loading speech-to-text model (${Math.round(sttProgress)}%) - ${sttStage}${resourceIndicator}`;
-        if (!llmReady) return `Loading language model (${Math.round(llmProgress)}%) - ${llmStage}${resourceIndicator}`;
-        return `All models loaded and ready! ${resourceIndicator}`.trim();
-    };
-
-    // Progressive readiness: STT ready = basic functionality, both ready = full functionality
-    const getProgressiveReadiness = () => {
-        if (sttReady && llmReady) return 'full';
-        if (sttReady) return 'partial'; // STT ready = can transcribe, no suggestions yet
-        return 'loading';
-    };
-
-    useEffect(() => {
-        const sttWorker = new Worker(new URL('./core/sttWorker.js', import.meta.url), { type: 'module' });
-        const llmWorker = new Worker(new URL('./core/llmWorker.js', import.meta.url), { type: 'module' });
-        sttWorkerRef.current = sttWorker;
-        llmWorkerRef.current = llmWorker;
-
-        sttWorker.onmessage = (event) => {
-            const { type, text, progress, status: stat, error, taskId, loadTime, stage } = event.data;
-            switch (type) {
-                case 'progress':
-                    setSttProgress(progress);
-                    if (stage) setSttStage(stage);
-                    break;
-                case 'ready':
-                    setSttReady(true);
-                    if (loadTime !== undefined) setSttLoadTime(loadTime);
-                    break;
-                case 'stt_result':
-                    if (text) processTextRef.current(text);
-                    break;
-                case 'error': console.error('STT Worker error:', error); break;
-            }
-        };
-
-        llmWorker.onmessage = (event) => {
-            const { type, suggestion: sug, summary, progress, error, taskId, loadTime, stage } = event.data;
-            if (taskId && taskId < lastTaskId.current && (type === 'llm_result' || type === 'summary_result' || type === 'error')) return;
-
-            switch (type) {
-                case 'progress':
-                    setLlmProgress(progress);
-                    if (stage) setLlmStage(stage);
-                    break;
-                case 'ready':
-                    setLlmReady(true);
-                    if (loadTime !== undefined) setLlmLoadTime(loadTime);
-                    break;
-                case 'llm_result':
-                    handleLlmResult(sug, taskId);
-                    break;
-                case 'summary_result':
-                    setSessionSummary(summary);
-                    setIsSummarizing(false);
-                    setSummaryError(null);
-                    break;
-                case 'error':
-                    // Clear the timeout for this task ID
-                    if (taskId && llmTimeoutsRef.current.has(taskId)) {
-                        clearTimeout(llmTimeoutsRef.current.get(taskId));
-                        llmTimeoutsRef.current.delete(taskId);
-                    }
-                    console.error('LLM Worker error:', error);
-                    setIsProcessing(false);
-                    setIsSummarizing(false);
-                    setSummaryError(error);
-                    break;
-            }
-        };
-
-        sttWorker.postMessage({ type: 'load' });
-        llmWorker.postMessage({ type: 'load' });
-
-        return () => {
-            sttWorker.terminate();
-            llmWorker.terminate();
-
-            // Clear any remaining timeouts
-            for (const timeoutId of llmTimeoutsRef.current.values()) {
-                clearTimeout(timeoutId);
-            }
-            llmTimeoutsRef.current.clear();
-        };
-    }, []);
-
-    const isReady = sttReady && llmReady;
-    const progressiveReadiness = getProgressiveReadiness();
-    const progress = (sttProgress + llmProgress) / 2;
-    const status = !isReady ? getDetailedModelLoadStatus() : isProcessing ? 'Processing...' : 'Ready';
+    }, [persona, deduct, addEntry, currentSpeaker, nudgeSpeaker]);
 
     const processAudio = useCallback((audioData, metadata) => {
         if (!sttReady || !sttWorkerRef.current) return;
 
-        // Reset silence detection on any speech
         lastActivityRef.current = Date.now();
         silenceTriggeredRef.current = false;
 
-        // Auto-speaker guessing based on volume (RMS)
         if (metadata && metadata.rms) {
             const { rms } = metadata;
-            
-            // Heuristic: If volume is closer to userVolumeRef than themVolumeRef, it's probably 'me'
-            // We only do this if the user hasn't manually toggled much recently, 
-            // or we use it as a "suggestion" to switch.
             const distMe = Math.abs(rms - userVolumeRef.current);
             const distThem = Math.abs(rms - themVolumeRef.current);
-            
             const guessedSpeaker = distMe < distThem ? 'me' : 'them';
             
             if (guessedSpeaker !== currentSpeaker) {
-                // We don't force switch, but we can nudge or auto-switch if confidence is high
-                // For now, let's auto-switch to reduce friction (80/20 principle)
                 if (manualTogglesRef.current < 3 || Math.random() < 0.3) {
-                     // toggleSpeaker is a callback from useTranscript, we might need to expose setCurrentSpeaker
-                     // Actually let's just use the toggle logic if it's different
-                     if (guessedSpeaker === 'me' && currentSpeaker === 'them') toggleSpeaker();
-                     if (guessedSpeaker === 'them' && currentSpeaker === 'me') toggleSpeaker();
+                    toggleSpeaker();
                 }
             }
             
-            // Slowly adapt thresholds
             if (currentSpeaker === 'me') {
                 userVolumeRef.current = userVolumeRef.current * 0.9 + rms * 0.1;
             } else {
@@ -571,11 +234,9 @@ export const useML = (initialState = null) => {
         }
 
         audioBufferRef.current.push(audioData);
-
         if (flushTimeoutRef.current) clearTimeout(flushTimeoutRef.current);
-
         const totalLength = audioBufferRef.current.reduce((acc, curr) => acc + curr.length, 0);
-        // If buffer > 3s, flush immediately, otherwise wait 300ms for more speech
+        
         if (totalLength > 48000) {
             flushAudioBuffer();
         } else {
@@ -583,11 +244,107 @@ export const useML = (initialState = null) => {
         }
     }, [sttReady, flushAudioBuffer, currentSpeaker, toggleSpeaker]);
 
-    useEffect(() => {
-        return () => {
-            if (flushTimeoutRef.current) clearTimeout(flushTimeoutRef.current);
-        };
+    const summarizeSession = useCallback(() => {
+        if (!llmWorkerRef.current || transcript.length === 0) return;
+        setIsSummarizing(true);
+        setSummaryError(null);
+        llmWorkerRef.current.postMessage({
+            type: 'summarize',
+            taskId: ++lastTaskId.current,
+            data: {
+                transcript,
+                stats: {
+                    totalCount: transcript.length,
+                    meCount: transcript.filter(t => t.speaker === 'me').length,
+                    themCount: transcript.filter(t => t.speaker === 'them').length,
+                    totalDrain: Math.round(initialBatteryRef.current - battery)
+                }
+            }
+        });
+    }, [transcript, battery]);
+
+    const startNewSession = useCallback(() => {
+        setSessionSummary(null);
+        setSummaryError(null);
+        clearTranscript();
+        resetBattery();
+        messagesRef.current = [];
+        initialBatteryRef.current = 100;
+        audioBufferRef.current = [];
+        if (flushTimeoutRef.current) clearTimeout(flushTimeoutRef.current);
+    }, [clearTranscript, resetBattery]);
+
+    const dismissSuggestion = useCallback(() => {
+        setSuggestion('');
+        setIsProcessing(false);
     }, []);
+
+    // 5. Effects
+    useEffect(() => {
+        if (initialState) {
+            if (initialState.battery !== undefined) setBattery(initialState.battery);
+            if (initialState.transcript) setTranscript(initialState.transcript);
+            if (initialState.persona) setPersona(initialState.persona);
+        }
+    }, [initialState, setBattery, setTranscript]);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            const isReady = sttReady && llmReady;
+            if (!isReady || isPaused || isProcessing) return;
+
+            if (Date.now() - lastActivityRef.current > 8000 && !silenceTriggeredRef.current && transcript.length > 0) {
+                silenceTriggeredRef.current = true;
+                deduct("...", "general", persona);
+                const breakers = SILENCE_BREAKERS[persona] || SILENCE_BREAKERS.anxiety;
+                setSuggestion(`[Silence Breaker] ${breakers[Math.floor(Math.random() * breakers.length)]}`);
+                setDetectedIntent('social');
+            }
+        }, 2000);
+        return () => clearInterval(interval);
+    }, [sttReady, llmReady, isPaused, isProcessing, transcript.length, persona, deduct]);
+
+    useEffect(() => {
+        const sttWorker = new Worker(new URL('./core/sttWorker.js', import.meta.url), { type: 'module' });
+        const llmWorker = new Worker(new URL('./core/llmWorker.js', import.meta.url), { type: 'module' });
+        sttWorkerRef.current = sttWorker;
+        llmWorkerRef.current = llmWorker;
+
+        const processTextRef = { current: processText };
+
+        sttWorker.onmessage = (e) => {
+            const { type, text, progress, loadTime, stage, error } = e.data;
+            if (type === 'progress') { setSttProgress(progress); if (stage) setSttStage(stage); }
+            else if (type === 'ready') { setSttReady(true); if (loadTime) setSttLoadTime(loadTime); }
+            else if (type === 'stt_result') { if (text) processTextRef.current(text); }
+            else if (type === 'error') console.error(error);
+        };
+
+        llmWorker.onmessage = (e) => {
+            const { type, suggestion: sug, summary, progress, taskId, loadTime, stage, error } = e.data;
+            if (taskId && taskId < lastTaskId.current) return;
+            if (type === 'progress') { setLlmProgress(progress); if (stage) setLlmStage(stage); }
+            else if (type === 'ready') { setLlmReady(true); if (loadTime) setLlmLoadTime(loadTime); }
+            else if (type === 'llm_result') handleLlmResult(sug, taskId);
+            else if (type === 'summary_result') { setSessionSummary(summary); setIsSummarizing(false); }
+            else if (type === 'error') { setIsProcessing(false); setIsSummarizing(false); setSummaryError(error); }
+        };
+
+        sttWorker.postMessage({ type: 'load' });
+        llmWorker.postMessage({ type: 'load' });
+
+        return () => {
+            sttWorker.terminate();
+            llmWorker.terminate();
+            llmTimeoutsRef.current.forEach(clearTimeout);
+        };
+    }, [handleLlmResult, processText]);
+
+    const isReady = sttReady && llmReady;
+    const progress = (sttProgress + llmProgress) / 2;
+    const status = !isReady 
+        ? `Loading... ${Math.round(progress)}% (STT: ${sttStage}, LLM: ${llmStage})` 
+        : isProcessing ? 'Processing...' : 'Ready';
 
     return {
         status, progress, sttProgress, llmProgress, transcript, suggestion, detectedIntent,
@@ -600,7 +357,7 @@ export const useML = (initialState = null) => {
         recharge, isExhausted, lastDrain,
         summarizeSession, startNewSession, closeSummary, sessionSummary, isSummarizing, summaryError,
         initialBattery: initialBatteryRef.current,
-        progressiveReadiness,
+        progressiveReadiness: sttReady && llmReady ? 'full' : sttReady ? 'partial' : 'loading',
         sttStage, llmStage
     };
 };

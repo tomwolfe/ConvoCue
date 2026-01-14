@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sparkles, MessageSquare, AlertCircle, Briefcase, Heart, X, Loader2, ClipboardCheck, Zap, Battery } from 'lucide-react';
 import { QUICK_ACTIONS, AppConfig } from '../core/config';
 
@@ -13,10 +13,10 @@ const INTENT_UI = {
 
 const SuggestionHUD = ({ suggestion, intent, onDismiss, isProcessing, battery, isExhausted }) => {
     const [copied, setCopied] = useState(null);
-    const [shouldPulse, setShouldPulse] = React.useState(false);
+    const [shouldPulse, setShouldPulse] = useState(false);
     const ui = INTENT_UI[intent] || INTENT_UI.general;
 
-    React.useEffect(() => {
+    useEffect(() => {
         if (suggestion && !isProcessing) {
             setShouldPulse(true);
             const timer = setTimeout(() => setShouldPulse(false), 1500);
