@@ -333,24 +333,33 @@ export const detectSpeakerHint = (text, currentSpeaker) => {
     if (isMeTargeted && !isThemTargeted) return 'me';
     
     // Priority 2: Questions directed at "you" or statements starting with "You" are likely 'them'
-    // especially if the previous speaker was 'me'
+    // but only if they don't also contain "I" (which would be the user talking about themselves and the other person)
     if (isThemTargeted && !isMeTargeted) {
-        // If 'me' was just speaking and says something starting with "You", it might be 'me' referring to 'them'
-        // But in STT, if the audio is clear, it's usually the person the mic is closest to.
-        // However, if it's a question, it's very likely 'them' asking the user.
-        if (textLower.includes('?') || textLower.startsWith('do you') || textLower.startsWith('how about you')) {
+        // If it's a question, it's very likely 'them' asking the user.
+        if (textLower.includes('?') || textLower.startsWith('do you') || textLower.startsWith('how about you') || textLower.startsWith('can you')) {
             return 'them';
         }
+        
+        // If it's a statement starting with "You", it's likely 'them'
+        // unless the current speaker is 'me' and it's a long sentence (user explaining something to 'them')
+        if (currentSpeaker === 'me' && text.length > 30) {
+            return null; // Stay as 'me'
+        }
+        
         return 'them';
     }
 
     // Priority 3: Turn-taking logic
-    // If 'me' asked a question in the previous turn (context needed, but for now we look at current text)
-    // If the text is a short response like "Yeah", "No", "Okay", it usually follows a question.
-    const isShortResponse = /^(yeah|yes|no|okay|ok|sure|right|cool)\.?$/i.test(textLower);
+    // If it's a short response like "Yeah", "No", "Okay", it's often a speaker change
+    // but we only trigger it if it's very clearly a backchannel
+    const isShortResponse = /^(yeah|yes|no|okay|ok|sure|right|cool|exactly|true)\.?$/i.test(textLower);
     if (isShortResponse) {
-        // If it's a short response, it's likely the person who WASN'T just speaking
-        return currentSpeaker === 'me' ? 'them' : 'me';
+        // If 'them' is speaking and we hear a short response, it's almost certainly 'me' (the user)
+        if (currentSpeaker === 'them') return 'me';
+        
+        // If 'me' is speaking and we hear a short response, it could be 'them' or just the user agreeing
+        // We'll be conservative and not switch automatically here to avoid flickering
+        return null;
     }
     
     return null;

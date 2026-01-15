@@ -18,9 +18,18 @@ export const useML = (initialState = null) => {
         sensitivity, setSensitivity, isPaused, togglePause, recharge, isExhausted, lastDrain
     } = useSocialBattery();
     const {
-        transcript, addEntry, currentSpeaker, setCurrentSpeaker, toggleSpeaker, clearTranscript,
+        transcript, addEntry, currentSpeaker, setCurrentSpeaker, toggleSpeaker: baseToggleSpeaker, clearTranscript,
         shouldPulse, nudgeSpeaker, consecutiveCount, setTranscript
     } = useTranscript();
+
+    // Track manual speaker overrides to prevent instant auto-detection flickering
+    const lastManualToggleRef = useRef(0);
+
+    const toggleSpeaker = useCallback(() => {
+        lastManualToggleRef.current = Date.now();
+        speakerConfidenceRef.current = { me: 0, them: 0 };
+        baseToggleSpeaker();
+    }, [baseToggleSpeaker]);
 
     // Track if a suggestion was recently shown to help with auto-speaker detection
     const lastSuggestionTimeRef = useRef(0);
@@ -178,9 +187,14 @@ export const useML = (initialState = null) => {
         // Advanced Auto-Speaker Detection (80/20: Mind Reader Update)
         const speakerHint = detectSpeakerHint(text, currentSpeaker);
         const timeSinceLastSuggestion = Date.now() - lastSuggestionTimeRef.current;
+        const timeSinceManualToggle = Date.now() - lastManualToggleRef.current;
         
+        // Priority 0: Manual Override Protection
+        // If the user just manually toggled the speaker, don't auto-switch for 3 seconds
+        const isManualLockActive = timeSinceManualToggle < 3000;
+
         // Priority 1: Content-based hint with confidence threshold
-        if (speakerHint) {
+        if (speakerHint && !isManualLockActive) {
             // Increase confidence for the hinted speaker
             speakerConfidenceRef.current[speakerHint] += text.length > 20 ? 2 : 1;
             
@@ -192,7 +206,7 @@ export const useML = (initialState = null) => {
                 // Reset confidence for both after a switch or confirming current
                 speakerConfidenceRef.current = { me: 0, them: 0 };
             }
-        } else {
+        } else if (!isManualLockActive) {
             // Decay confidence slowly if no hint
             speakerConfidenceRef.current.me = Math.max(0, speakerConfidenceRef.current.me - 0.5);
             speakerConfidenceRef.current.them = Math.max(0, speakerConfidenceRef.current.them - 0.5);
@@ -200,7 +214,7 @@ export const useML = (initialState = null) => {
 
         // Priority 2: Timing-based heuristic (Response to suggestion)
         // If 'them' speaks shortly after a suggestion was shown, and it sounds like a response
-        if (currentSpeaker === 'them' && timeSinceLastSuggestion < 10000 && timeSinceLastSuggestion > 500) {
+        if (currentSpeaker === 'them' && !isManualLockActive && timeSinceLastSuggestion < 10000 && timeSinceLastSuggestion > 500) {
             if (/^(i |my |that's )/i.test(text)) {
                 setCurrentSpeaker('me');
                 speakerConfidenceRef.current = { me: 0, them: 0 };
@@ -642,16 +656,33 @@ export const useML = (initialState = null) => {
         // 80/20 Auto-Diarization: Volume-based heuristic
         // Local speaker (Me) is usually significantly louder than distant speaker (Them)
         const currentVolume = calculateVolume(audioData);
+        const timeSinceManualToggle = Date.now() - lastManualToggleRef.current;
+        const isManualLockActive = timeSinceManualToggle < 3000;
+
         if (currentSpeaker === 'me') {
             // Update "Me" baseline when we know it's definitely the user
             meVolumeRef.current = meVolumeRef.current === 0 
                 ? currentVolume 
                 : meVolumeRef.current * 0.95 + currentVolume * 0.05;
-        } else if (meVolumeRef.current > 0.01) { // Only if we have a valid baseline
+        } else if (meVolumeRef.current > 0.01 && !isManualLockActive) {
+            // If current speaker is 'them', and we have a valid baseline for 'me'
             // If current volume is close to or louder than our "Me" baseline
-            if (currentVolume > meVolumeRef.current * 0.8) {
+            if (currentVolume > meVolumeRef.current * 0.7) { // Increased sensitivity from 0.8
                 // High probability it's the local user speaking
                 setCurrentSpeaker('me');
+                speakerConfidenceRef.current = { me: 0, them: 0 };
+            } else {
+                // Slowly decay 'me' baseline when 'them' is speaking to adapt to environment changes
+                meVolumeRef.current *= 0.999;
+            }
+        } else if (meVolumeRef.current === 0 && currentVolume > 0.05) {
+            // Initialize baseline if it's the first time we hear anything substantial
+            meVolumeRef.current = currentVolume;
+            
+            // If it's quite loud, assume it's the local user starting the conversation
+            if (currentVolume > 0.1) {
+                setCurrentSpeaker('me');
+                speakerConfidenceRef.current = { me: 0, them: 0 };
             }
         }
 
