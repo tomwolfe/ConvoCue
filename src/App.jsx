@@ -21,7 +21,9 @@ import {
     LogOut,
     Sparkles,
     History,
-    BarChart3
+    BarChart3,
+    Target,
+    LayoutDashboard
 } from 'lucide-react';
 
 const ICON_MAP = {
@@ -71,7 +73,8 @@ const App = () => {
         initialBattery,
         progressiveReadiness,
         sttStage,
-        llmStage
+        llmStage,
+        autoSwitched
     } = useML(sessionToLoad);
 
     const sessionHistory = useSessionHistory();
@@ -99,12 +102,20 @@ const App = () => {
     const [showSettings, setShowSettings] = useState(false);
     const [showSessionHistory, setShowSessionHistory] = useState(false);
     const [showInsights, setShowInsights] = useState(false);
+    const [isFocusMode, setIsFocusMode] = useState(false);
 
     return (
         <div className="app">
             <header>
                 <div className="header-left">
                     <h1>ConvoCue <span>2</span></h1>
+                    <button 
+                        className={`btn-icon ${isFocusMode ? 'active' : ''}`} 
+                        onClick={() => setIsFocusMode(!isFocusMode)} 
+                        title={isFocusMode ? "Standard View" : "Focus Mode"}
+                    >
+                        {isFocusMode ? <LayoutDashboard size={18} /> : <Target size={18} />}
+                    </button>
                     <button className="btn-icon" onClick={() => setShowTutorial(true)} title="How it works">
                         <Info size={18} />
                     </button>
@@ -270,31 +281,33 @@ const App = () => {
                 </div>
             )}
 
-            <div className="persona-nav">
-                {Object.entries(AppConfig.personas).map(([id, p]) => (
-                    <div key={id} className="persona-tooltip-wrapper">
-                        <button
-                            className={`persona-pill ${persona === id ? 'active' : ''}`}
-                            onClick={() => setPersona(id)}
-                        >
-                            {ICON_MAP[p.icon]}
-                            <span>{p.label}</span>
-                        </button>
-                        <div className="persona-tooltip">
-                            <div className="tooltip-content">
-                                <h4>{p.label}</h4>
-                                <p>{p.description || 'Provides tailored suggestions based on this persona.'}</p>
-                                <div className="tooltip-stats">
-                                    <span className="drain-rate">Drain Rate: {p.drainRate}x</span>
-                                    <span className="best-for">Best For: {p.bestFor || 'General use'}</span>
+            {!isFocusMode && (
+                <div className="persona-nav">
+                    {Object.entries(AppConfig.personas).map(([id, p]) => (
+                        <div key={id} className="persona-tooltip-wrapper">
+                            <button
+                                className={`persona-pill ${persona === id ? 'active' : ''}`}
+                                onClick={() => setPersona(id)}
+                            >
+                                {ICON_MAP[p.icon]}
+                                <span>{p.label}</span>
+                            </button>
+                            <div className="persona-tooltip">
+                                <div className="tooltip-content">
+                                    <h4>{p.label}</h4>
+                                    <p>{p.description || 'Provides tailored suggestions based on this persona.'}</p>
+                                    <div className="tooltip-stats">
+                                        <span className="drain-rate">Drain Rate: {p.drainRate}x</span>
+                                        <span className="best-for">Best For: {p.bestFor || 'General use'}</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                ))}
-            </div>
+                    ))}
+                </div>
+            )}
 
-            <main>
+            <main className={isFocusMode ? 'focus-mode' : ''}>
                 {battery < 30 && !isExhausted && (
                     <div className="battery-warning-banner">
                         <div className="warning-content">
@@ -317,20 +330,20 @@ const App = () => {
                     isExhausted={isExhausted}
                 />
 
-                <div className="transcript-container">
+                <div className={`transcript-container ${isFocusMode ? 'minimized' : ''}`}>
                     <div className="transcript-header">
-                        <h3>Live Transcript</h3>
-                        <button className={`btn-toggle-speaker ${shouldPulse ? 'nudge-pulse' : ''}`} onClick={toggleSpeaker}>
+                        <h3>{isFocusMode ? 'Last Heard' : 'Live Transcript'}</h3>
+                        <button className={`btn-toggle-speaker ${shouldPulse ? 'nudge-pulse' : ''} ${autoSwitched ? 'auto-switched' : ''}`} onClick={toggleSpeaker}>
                             {currentSpeaker === 'me' ? <User size={14} /> : <Users size={14} />}
-                            <span>Talking: {currentSpeaker === 'me' ? 'You' : 'Them'}</span>
-                            {consecutiveCount >= 3 && <div className="speaker-hint">Switch?</div>}
+                            <span>{autoSwitched ? 'Auto-Switched' : `Talking: ${currentSpeaker === 'me' ? 'You' : 'Them'}`}</span>
+                            {!autoSwitched && consecutiveCount >= 3 && <div className="speaker-hint">Switch?</div>}
                         </button>
                     </div>
                     <div className="transcript-scroll">
                         {transcript.length === 0 ? (
                             <div className="empty-transcript">No speech detected yet. Start talking!</div>
                         ) : (
-                            transcript.map((entry, i) => (
+                            (isFocusMode ? [transcript[transcript.length - 1]] : transcript).map((entry, i) => (
                                 <div key={i} className={`transcript-entry ${entry.speaker}`}>
                                     <span className="speaker-icon">
                                         {entry.speaker === 'me' ? <User size={12} /> : <Users size={12} />}

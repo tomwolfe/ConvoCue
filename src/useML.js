@@ -12,6 +12,7 @@ export const useML = (initialState = null) => {
     const [sessionSummary, setSessionSummary] = useState(null);
     const [isSummarizing, setIsSummarizing] = useState(false);
     const [summaryError, setSummaryError] = useState(null);
+    const [autoSwitched, setAutoSwitched] = useState(false);
 
     const {
         battery, deduct, reset: resetBattery, batteryRef, setBattery,
@@ -334,14 +335,14 @@ export const useML = (initialState = null) => {
         // Store the taskId and timeout ID together for proper cleanup
         const timeoutId = setTimeout(() => {
             // If LLM takes too long, show a more specific bridge phrase
-            if (isProcessing && (suggestion === BRIDGE_PHRASES[intent] || suggestion === BRIDGE_PHRASES.general)) {
+            if (isProcessing) {
                 // Pick a random quick action from the current intent as a fallback
                 const fallbackActions = QUICK_ACTIONS[intent] || QUICK_ACTIONS.social;
                 const randomAction = fallbackActions[Math.floor(Math.random() * fallbackActions.length)];
                 setSuggestion(randomAction.text);
                 setIsProcessing(false); // Stop "processing" if we provide a fallback
             }
-        }, 4000); // 4 second timeout for fallback
+        }, 5000); // 5 second timeout for fallback
 
         // Store timeout ID for cleanup
         llmTimeoutsRef.current.set(taskId, timeoutId);
@@ -357,19 +358,33 @@ export const useML = (initialState = null) => {
                 }
             });
         }
-    }, [persona, deduct, addEntry, currentSpeaker, toggleSpeaker, nudgeSpeaker, suggestion, isProcessing]);
+    }, [persona, deduct, addEntry, currentSpeaker, toggleSpeaker, nudgeSpeaker, suggestion, isProcessing, autoSwitched]);
 
 
     // Handle LLM results and cache them
-    const handleLlmResult = useCallback((sug, taskId) => {
+    const handleLlmResult = useCallback((sug, intent, speakerToggle, taskId) => {
         // Clear the timeout for this task ID
         if (taskId && llmTimeoutsRef.current.has(taskId)) {
             clearTimeout(llmTimeoutsRef.current.get(taskId));
             llmTimeoutsRef.current.delete(taskId);
         }
 
+        if (intent) {
+            setDetectedIntent(intent);
+            // Haptic alert for conflict detection if newly detected by LLM
+            if (intent === 'conflict') {
+                triggerSocialVibration('conflict');
+            }
+        }
+
+        if (speakerToggle && currentSpeaker === 'them') {
+            setCurrentSpeaker('me');
+            setAutoSwitched(true);
+            setTimeout(() => setAutoSwitched(false), 2000);
+        }
+
         // Enhanced caching with recent intent context
-        const intent = detectedIntent;
+        const currentIntent = intent || detectedIntent;
         const recentIntents = intentHistory.current
             .filter(item => Date.now() - item.timestamp < 30000) // Last 30 seconds
             .map(item => item.intent)
@@ -401,7 +416,7 @@ export const useML = (initialState = null) => {
         setSuggestion(sug);
         lastSuggestionTimeRef.current = Date.now();
         setIsProcessing(false);
-    }, [detectedIntent, persona, battery]);
+    }, [detectedIntent, persona, battery, currentSpeaker, setCurrentSpeaker, triggerSocialVibration]);
 
     const refreshSuggestion = useCallback(() => {
         if (!llmWorkerRef.current || isProcessing) return;
@@ -599,7 +614,7 @@ export const useML = (initialState = null) => {
                     if (loadTime !== undefined) setLlmLoadTime(loadTime);
                     break;
                 case 'llm_result':
-                    handleLlmResult(sug, taskId);
+                    handleLlmResult(sug, event.data.intent, event.data.speakerToggle, taskId);
                     break;
                 case 'summary_result':
                     setSessionSummary(summary);
@@ -717,6 +732,7 @@ export const useML = (initialState = null) => {
         summarizeSession, startNewSession, closeSummary, sessionSummary, isSummarizing, summaryError,
         initialBattery: initialBatteryRef.current,
         progressiveReadiness,
-        sttStage, llmStage
+        sttStage, llmStage,
+        autoSwitched
     };
 };

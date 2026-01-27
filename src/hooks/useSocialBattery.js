@@ -10,12 +10,14 @@ export const useSocialBattery = () => {
     const batteryRef = useRef(battery);
     const lastInteractionRef = useRef(Date.now());
     const drainTimeoutRef = useRef(null);
+    const consecutiveHighDrainRef = useRef({ count: 0, intent: null });
+    const recoveryMomentumRef = useRef(0);
 
     useEffect(() => {
         batteryRef.current = battery;
     }, [battery]);
 
-    // Passive recovery mechanism (80/20: small code, big feel improvement)
+    // Passive recovery mechanism with Recovery Momentum
     useEffect(() => {
         const interval = setInterval(() => {
             if (isPaused) return;
@@ -23,27 +25,35 @@ export const useSocialBattery = () => {
             const idleTime = (now - lastInteractionRef.current) / 1000;
 
             // Different recovery rates based on how long user has been idle
-            let recoveryRate = 0;
+            let baseRecoveryRate = 0;
             if (idleTime > 45) {
-                recoveryRate = 1.0; // Faster recovery after longer breaks
+                baseRecoveryRate = 1.0; // Faster recovery after longer breaks
             } else if (idleTime > 20) {
-                recoveryRate = 0.5; // Moderate recovery
+                baseRecoveryRate = 0.5; // Moderate recovery
             } else if (idleTime > 10) {
-                recoveryRate = 0.2; // Slower recovery for shorter breaks
+                baseRecoveryRate = 0.2; // Slower recovery for shorter breaks
             }
 
-            if (recoveryRate > 0) {
+            // Apply Recovery Momentum
+            const totalRecovery = baseRecoveryRate + recoveryMomentumRef.current;
+
+            if (totalRecovery > 0) {
                 setBattery(prev => {
-                    const newVal = Math.min(100, prev + recoveryRate);
+                    const newVal = Math.min(100, prev + totalRecovery);
                     if (newVal > prev) {
                         setLastDrain({
-                            amount: `+${recoveryRate.toFixed(1)}`,
+                            amount: `+${totalRecovery.toFixed(1)}`,
                             reason: 'recovery'
                         });
                         setTimeout(() => setLastDrain(null), 3000);
                     }
                     return newVal;
                 });
+            }
+
+            // Slowly decay recovery momentum during idle time
+            if (idleTime > 60) {
+                recoveryMomentumRef.current = Math.max(0, recoveryMomentumRef.current - 0.05);
             }
         }, 5000);
         return () => clearInterval(interval);
@@ -57,6 +67,27 @@ export const useSocialBattery = () => {
         lastInteractionRef.current = now;
 
         const wordCount = text.trim().split(/\s+/).length;
+
+        // Reset recovery momentum if a drain occurs (unless it's positive/social)
+        if (intent !== 'positive' && intent !== 'social') {
+            recoveryMomentumRef.current = Math.max(0, recoveryMomentumRef.current - 0.2);
+        } else if (intent === 'positive') {
+            // Build recovery momentum
+            recoveryMomentumRef.current = Math.min(2.0, recoveryMomentumRef.current + 0.1);
+        }
+
+        // Stress Compounding logic
+        if (intent === 'conflict' || intent === 'professional') {
+            if (consecutiveHighDrainRef.current.intent === intent) {
+                consecutiveHighDrainRef.current.count++;
+            } else {
+                consecutiveHighDrainRef.current = { count: 1, intent: intent };
+            }
+        } else {
+            consecutiveHighDrainRef.current = { count: 0, intent: null };
+        }
+
+        const stressMultiplier = 1 + (Math.max(0, consecutiveHighDrainRef.current.count - 1) * 0.5);
 
         // More nuanced word count calculation based on conversation length and intensity
         let adjustedWordCount;
@@ -102,7 +133,7 @@ export const useSocialBattery = () => {
 
         // If intent is positive, we allow for a small recharge or reduced drain
         const isPositive = intent === 'positive';
-        let totalDeduction = baseDeduction * multiplier * drainRate * sensitivity * momentumFactor;
+        let totalDeduction = baseDeduction * multiplier * drainRate * sensitivity * momentumFactor * stressMultiplier;
 
         if (isPositive) {
             totalDeduction = -0.3; // Small recharge for positive sentiment

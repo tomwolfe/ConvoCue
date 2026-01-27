@@ -1995,7 +1995,73 @@ footer {
     font-size: 0.9rem;
 }
 
-/* Session History Modal Styles */
+/* Focus Mode & Auto-Switched Styles */
+main.focus-mode {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2rem;
+    padding-top: 2rem;
+}
+
+main.focus-mode .suggestion-hud {
+    background: linear-gradient(135deg, var(--card) 0%, rgba(99, 102, 241, 0.1) 100%);
+    border: 2px solid var(--primary);
+    transform: scale(1.05);
+    box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.5);
+}
+
+main.focus-mode .suggestion-box {
+    font-size: 1.5rem;
+    text-align: center;
+    padding: 1rem 0;
+}
+
+main.focus-mode .keyword-chips {
+    justify-content: center;
+}
+
+main.focus-mode .keyword-chip {
+    font-size: 1.25rem;
+    padding: 0.8rem 1.5rem;
+}
+
+.transcript-container.minimized {
+    background: transparent;
+    border: none;
+    flex-grow: 0;
+}
+
+.transcript-container.minimized .transcript-scroll {
+    max-height: none;
+    padding: 0.5rem 0;
+}
+
+.transcript-container.minimized .transcript-entry {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 1rem;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.btn-toggle-speaker.auto-switched {
+    background: var(--accent-green) !important;
+    border-color: #6ee7b7 !important;
+    color: white !important;
+    animation: autoSwitchPulse 2s ease-out;
+}
+
+@keyframes autoSwitchPulse {
+    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+    30% { transform: scale(1.1); box-shadow: 0 0 0 15px rgba(16, 185, 129, 0); }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+/* Ensure smooth transitions */
+.transcript-container, .persona-nav, .suggestion-hud {
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 .session-history-overlay {
     position: fixed;
     top: 0;
