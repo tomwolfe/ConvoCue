@@ -46,6 +46,11 @@ const NUANCE_PATTERNS = [
     { regex: /\b(need to|have to|must|required)\b/gi, professional: 1.0, conflict: 0.5 }
 ];
 
+/**
+ * Detects the conversational intent from the given text.
+ * @param {string} text - The input text to analyze.
+ * @returns {import('../types').IntentType} The detected intent.
+ */
 export const detectIntent = (text) => {
     if (!text || text.trim().length < 3) return 'general';
 

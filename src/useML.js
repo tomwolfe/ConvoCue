@@ -3,7 +3,13 @@ import { detectIntent, shouldGenerateSuggestion, getPrecomputedSuggestion, detec
 import { AppConfig, BRIDGE_PHRASES, QUICK_ACTIONS } from './core/config';
 import { useSocialBattery } from './hooks/useSocialBattery';
 import { useTranscript } from './hooks/useTranscript';
+import { ReliabilityMonitor } from './core/reliabilityMonitor';
 
+/**
+ * Core ML hook for speech-to-text, intent detection, and suggestion generation.
+ * @param {Object} [initialState=null] - Optional initial session state.
+ * @returns {Object} ML session state and control functions.
+ */
 export const useML = (initialState = null) => {
     const [suggestion, setSuggestion] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
@@ -87,6 +93,10 @@ export const useML = (initialState = null) => {
 
     const sttWorkerRef = useRef(null);
     const llmWorkerRef = useRef(null);
+    const sttMonitorRef = useRef(null);
+    const llmMonitorRef = useRef(null);
+    const [sttRebootKey, setSttRebootKey] = useState(0);
+    const [llmRebootKey, setLlmRebootKey] = useState(0);
     const messagesRef = useRef([]);
     const initialBatteryRef = useRef(100);
     const lastTaskId = useRef(0);
@@ -145,7 +155,7 @@ export const useML = (initialState = null) => {
     }, []);
 
     const summarizeSession = useCallback(() => {
-        if (!llmWorkerRef.current || transcript.length === 0) return;
+        if (!llmMonitorRef.current || transcript.length === 0) return;
         
         setIsSummarizing(true);
         setSummaryError(null);
@@ -156,13 +166,17 @@ export const useML = (initialState = null) => {
             totalDrain: Math.round(initialBatteryRef.current - battery)
         };
 
-        llmWorkerRef.current.postMessage({
+        llmMonitorRef.current.postMessage({
             type: 'summarize',
             taskId: ++lastTaskId.current,
             data: {
                 transcript,
                 stats
             }
+        }).catch(err => {
+            console.error('[useML] Summary task failed:', err);
+            setIsSummarizing(false);
+            setSummaryError('Summarization timed out or failed.');
         });
     }, [transcript, battery]);
 
@@ -241,9 +255,11 @@ export const useML = (initialState = null) => {
 
             setDetectedIntent(intent);
             
-            // Haptic alert for conflict detection
+            // Haptic alert and cache invalidation for conflict detection
             if (intent === 'conflict') {
                 triggerSocialVibration('conflict');
+                // MISSION: Invalidate cache immediately when 'Conflict' is detected
+                suggestionCache.current.clear();
             }
 
             // Update intent history for context
@@ -346,8 +362,8 @@ export const useML = (initialState = null) => {
         // Store timeout ID for cleanup
         llmTimeoutsRef.current.set(taskId, timeoutId);
 
-        if (llmWorkerRef.current) {
-            llmWorkerRef.current.postMessage({
+        if (llmMonitorRef.current) {
+            llmMonitorRef.current.postMessage({
                 type: 'llm',
                 taskId,
                 data: {
@@ -355,6 +371,9 @@ export const useML = (initialState = null) => {
                     context: contextData,
                     instruction: instruction
                 }
+            }).catch(err => {
+                console.warn('[useML] LLM task failed or timed out:', err);
+                // Fallback logic is already handled by setTimeout in processText
             });
         }
     }, [persona, deduct, addEntry, currentSpeaker, toggleSpeaker, nudgeSpeaker, suggestion, isProcessing]);
@@ -564,10 +583,35 @@ export const useML = (initialState = null) => {
     useEffect(() => {
         const sttWorker = new Worker(new URL('./core/sttWorker.js', import.meta.url), { type: 'module' });
         const llmWorker = new Worker(new URL('./core/llmWorker.js', import.meta.url), { type: 'module' });
+        
         sttWorkerRef.current = sttWorker;
         llmWorkerRef.current = llmWorker;
 
+        const sttMonitor = new ReliabilityMonitor(sttWorker, 'STT', {
+            onFailure: () => setSttStage('error_timeout'),
+            onRecovered: () => setSttStage('recovered'),
+            rebootOnFailure: true,
+            onReboot: () => {
+                console.warn('Rebooting STT worker due to reliability failure');
+                setSttRebootKey(prev => prev + 1);
+            }
+        });
+        const llmMonitor = new ReliabilityMonitor(llmWorker, 'LLM', {
+            onFailure: () => setLlmStage('error_timeout'),
+            onRecovered: () => setLlmStage('recovered'),
+            rebootOnFailure: true,
+            onReboot: () => {
+                console.warn('Rebooting LLM worker due to reliability failure');
+                setLlmRebootKey(prev => prev + 1);
+            }
+        });
+
+        sttMonitorRef.current = sttMonitor;
+        llmMonitorRef.current = llmMonitor;
+
         sttWorker.onmessage = (event) => {
+            if (sttMonitor.handleMessage(event)) return;
+
             const { type, text, progress, status: stat, error, taskId, loadTime, stage } = event.data;
             switch (type) {
                 case 'progress':
@@ -586,6 +630,8 @@ export const useML = (initialState = null) => {
         };
 
         llmWorker.onmessage = (event) => {
+            if (llmMonitor.handleMessage(event)) return;
+
             const { type, suggestion: sug, summary, progress, error, taskId, loadTime, stage } = event.data;
             if (taskId && taskId < lastTaskId.current && (type === 'llm_result' || type === 'summary_result' || type === 'error')) return;
 
@@ -624,8 +670,12 @@ export const useML = (initialState = null) => {
         llmWorker.postMessage({ type: 'load' });
 
         return () => {
+            sttMonitor.terminate();
+            llmMonitor.terminate();
             sttWorker.terminate();
             llmWorker.terminate();
+            setSttReady(false);
+            setLlmReady(false);
 
             // Clear any remaining timeouts
             for (const timeoutId of llmTimeoutsRef.current.values()) {
@@ -633,7 +683,7 @@ export const useML = (initialState = null) => {
             }
             llmTimeoutsRef.current.clear();
         };
-    }, []);
+    }, [sttRebootKey, llmRebootKey]);
 
     const isReady = sttReady && llmReady;
     const progressiveReadiness = getProgressiveReadiness();

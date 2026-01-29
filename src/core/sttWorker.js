@@ -145,6 +145,9 @@ self.onmessage = async (event) => {
                 });
                 self.postMessage({ type: 'stt_result', text: result.text, taskId });
                 break;
+            case 'heartbeat':
+                self.postMessage({ type: 'heartbeat_ack', timestamp: data?.timestamp, taskId });
+                break;
         }
     } catch (error) {
         isModelLoading = false;

@@ -49,6 +49,13 @@ export const useSocialBattery = () => {
         return () => clearInterval(interval);
     }, [isPaused]);
 
+    /**
+     * Deducts battery based on conversation text and detected intent.
+     * @param {string} text - The transcript entry text.
+     * @param {import('../types').IntentType} intent - The detected intent.
+     * @param {string} [personaKey='anxiety'] - The current persona key.
+     * @returns {number} The updated battery level.
+     */
     const deduct = useCallback((text, intent, personaKey = 'anxiety') => {
         if (isPaused) return batteryRef.current;
 

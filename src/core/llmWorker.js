@@ -193,6 +193,9 @@ Tone: Supportive, clinical yet empathetic. Max 80 words total.`;
                 const summary = summaryOutput[0].generated_text.trim();
                 self.postMessage({ type: 'summary_result', summary, taskId });
                 break;
+            case 'heartbeat':
+                self.postMessage({ type: 'heartbeat_ack', timestamp: data?.timestamp, taskId });
+                break;
         }
     } catch (error) {
         isModelLoading = false;
