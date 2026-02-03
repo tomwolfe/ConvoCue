@@ -8,6 +8,7 @@ import InsightsModal from './components/InsightsModal';
 import { useSessionHistory } from './hooks/useSessionHistory';
 import { AppConfig } from './core/config';
 import {
+    Shield,
     ShieldAlert,
     Briefcase,
     Heart,
@@ -56,6 +57,7 @@ const App = () => {
         toggleSpeaker,
         shouldPulse,
         consecutiveCount,
+        trafficLightStatus,
         sensitivity,
         setSensitivity,
         isPaused,
@@ -111,6 +113,10 @@ const App = () => {
                     <button className={`btn-icon ${showSettings ? 'active' : ''}`} onClick={() => setShowSettings(!showSettings)} title="Settings">
                         <RotateCcw size={18} style={{ transform: showSettings ? 'rotate(-90deg)' : 'none', transition: 'transform 0.3s' }} />
                     </button>
+                    <div id="privacy-shield-indicator" className="privacy-shield" data-testid="privacy-shield-indicator">
+                        <Shield size={14} className="shield-icon" />
+                        <span className="privacy-text">No audio or text ever leaves your device</span>
+                    </div>
                 </div>
                 <div className="header-right">
                     <button
@@ -320,10 +326,18 @@ const App = () => {
                 <div className="transcript-container">
                     <div className="transcript-header">
                         <h3>Live Transcript</h3>
-                        <button className={`btn-toggle-speaker ${shouldPulse ? 'nudge-pulse' : ''}`} onClick={toggleSpeaker}>
+                        <button 
+                            className={`btn-toggle-speaker ${currentSpeaker === 'me' ? `traffic-light-${trafficLightStatus}` : ''}`} 
+                            onClick={toggleSpeaker}
+                            data-testid="speaker-toggle-badge"
+                        >
                             {currentSpeaker === 'me' ? <User size={14} /> : <Users size={14} />}
                             <span>Talking: {currentSpeaker === 'me' ? 'You' : 'Them'}</span>
-                            {consecutiveCount >= 3 && <div className="speaker-hint">Switch?</div>}
+                            {currentSpeaker === 'me' && trafficLightStatus !== 'green' && (
+                                <div className="speaker-hint">
+                                    {trafficLightStatus === 'red' ? 'Stop talking!' : 'Wrap up?'}
+                                </div>
+                            )}
                         </button>
                     </div>
                     <div className="transcript-scroll">

@@ -1,10 +1,33 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 
 export const useTranscript = () => {
     const [transcript, setTranscript] = useState([]);
     const [currentSpeaker, setCurrentSpeaker] = useState('them');
     const [shouldPulse, setShouldPulse] = useState(false);
     const [consecutiveCount, setConsecutiveCount] = useState(0);
+    const [trafficLightStatus, setTrafficLightStatus] = useState('green');
+    const speakerStartTimeRef = useRef(null);
+
+    // Update traffic light status based on duration
+    useEffect(() => {
+        if (!speakerStartTimeRef.current || currentSpeaker !== 'me') {
+            setTrafficLightStatus('green');
+            return;
+        }
+
+        const interval = setInterval(() => {
+            const duration = (Date.now() - speakerStartTimeRef.current) / 1000;
+            if (duration >= 120) {
+                setTrafficLightStatus('red');
+            } else if (duration >= 60) {
+                setTrafficLightStatus('yellow');
+            } else {
+                setTrafficLightStatus('green');
+            }
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, [currentSpeaker]);
 
     const nudgeSpeaker = useCallback(() => {
         setShouldPulse(true);
@@ -18,6 +41,17 @@ export const useTranscript = () => {
                 setConsecutiveCount(c => c + 1);
             } else {
                 setConsecutiveCount(1);
+                // Reset start time if speaker changes
+                if (speaker === 'me') {
+                    speakerStartTimeRef.current = Date.now();
+                } else {
+                    speakerStartTimeRef.current = null;
+                }
+            }
+
+            // Also ensure speakerStartTime is set if it was null and speaker is 'me'
+            if (speaker === 'me' && !speakerStartTimeRef.current) {
+                speakerStartTimeRef.current = Date.now();
             }
 
             return [...prev, {
@@ -30,18 +64,41 @@ export const useTranscript = () => {
     }, [currentSpeaker]);
 
     const toggleSpeaker = useCallback(() => {
-        setCurrentSpeaker(prev => prev === 'me' ? 'them' : 'me');
+        setCurrentSpeaker(prev => {
+            const next = prev === 'me' ? 'them' : 'me';
+            if (next === 'me') {
+                speakerStartTimeRef.current = Date.now();
+            } else {
+                speakerStartTimeRef.current = null;
+            }
+            return next;
+        });
         setConsecutiveCount(0);
+        setTrafficLightStatus('green');
     }, []);
 
     const clearTranscript = useCallback(() => {
         setTranscript([]);
         setConsecutiveCount(0);
+        speakerStartTimeRef.current = null;
+        setTrafficLightStatus('green');
     }, []);
 
     const setTranscriptValue = useCallback((value) => {
         setTranscript(value);
     }, []);
 
-    return { transcript, addEntry, currentSpeaker, setCurrentSpeaker, toggleSpeaker, clearTranscript, shouldPulse, nudgeSpeaker, consecutiveCount, setTranscript: setTranscriptValue };
+    return { 
+        transcript, 
+        addEntry, 
+        currentSpeaker, 
+        setCurrentSpeaker, 
+        toggleSpeaker, 
+        clearTranscript, 
+        shouldPulse, 
+        nudgeSpeaker, 
+        consecutiveCount, 
+        trafficLightStatus,
+        setTranscript: setTranscriptValue 
+    };
 };

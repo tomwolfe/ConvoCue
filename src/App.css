@@ -1,3 +1,38 @@
+.privacy-shield {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    color: var(--accent-green);
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    margin-left: 8px;
+    white-space: nowrap;
+}
+
+.privacy-shield .shield-icon {
+    flex-shrink: 0;
+}
+
+.traffic-light-green {
+    border-color: var(--accent-green) !important;
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+}
+
+.traffic-light-yellow {
+    border-color: var(--accent-orange) !important;
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
+}
+
+.traffic-light-red {
+    border-color: var(--accent-red) !important;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
+    animation: criticalPulse 1s infinite;
+}
+
 :root {
     --primary: #6366f1;
     --primary-light: rgba(99, 102, 241, 0.1);

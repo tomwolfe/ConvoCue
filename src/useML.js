@@ -25,7 +25,7 @@ export const useML = (initialState = null) => {
     } = useSocialBattery();
     const {
         transcript, addEntry, currentSpeaker, setCurrentSpeaker, toggleSpeaker: baseToggleSpeaker, clearTranscript,
-        shouldPulse, nudgeSpeaker, consecutiveCount, setTranscript
+        shouldPulse, nudgeSpeaker, consecutiveCount, trafficLightStatus, setTranscript
     } = useTranscript();
 
     // Track manual speaker overrides to prevent instant auto-detection flickering
@@ -760,7 +760,7 @@ export const useML = (initialState = null) => {
         persona, setPersona, isReady, battery, resetBattery,
         dismissSuggestion, refreshSuggestion, processAudio,
         isProcessing,
-        currentSpeaker, toggleSpeaker, shouldPulse, consecutiveCount,
+        currentSpeaker, toggleSpeaker, shouldPulse, consecutiveCount, trafficLightStatus,
         sensitivity, setSensitivity,
         isPaused, togglePause,
         recharge, isExhausted, lastDrain,

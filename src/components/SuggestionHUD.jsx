@@ -162,6 +162,28 @@ const SuggestionHUD = ({ suggestion, intent, onDismiss, onRefresh, isProcessing,
                     <Zap size={10} className="text-yellow-500" />
                     <span>{isExhausted ? 'EMERGENCY EXIT STRATEGIES' : (isLowPowerMode ? 'LOW ENERGY CUES' : 'INSTANT REACTIONS')}</span>
                 </div>
+                {intent === 'conflict' && !isExhausted && (
+                    <div style={{ marginBottom: '1rem' }}>
+                        <button
+                            className="quick-action-btn"
+                            style={{
+                                width: '100%',
+                                backgroundColor: 'var(--accent-red)',
+                                color: 'white',
+                                padding: '12px',
+                                fontSize: '0.9rem',
+                                display: 'flex',
+                                justifyContent: 'center',
+                                gap: '8px'
+                            }}
+                            onClick={() => handleQuickAction("I hear what you're saying, and I want to understand your perspective better without things getting heated. Can we take a breath?", 'de-escalate')}
+                            data-testid="de-escalate-button"
+                        >
+                            <AlertCircle size={18} />
+                            <strong>De-escalate NOW</strong>
+                        </button>
+                    </div>
+                )}
                 <div className="quick-actions-list horizontal-scroll">
                     {actions.map((action, i) => (
                         <button
