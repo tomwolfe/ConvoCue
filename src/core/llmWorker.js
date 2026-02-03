@@ -127,6 +127,7 @@ self.onmessage = async (event) => {
                 break;
             case 'llm':
                 if (!llmPipeline) {
+                    console.warn('[llmWorker] LLM model not loaded');
                     self.postMessage({
                         type: 'error',
                         error: 'LLM model not loaded',
@@ -136,6 +137,7 @@ self.onmessage = async (event) => {
                 }
 
                 try {
+                    console.log(`[llmWorker] LLM request received for taskId ${taskId}, context:`, { intent: context.intent, battery: context.battery });
                     const { messages, context, instruction, retry } = data;
 
                     // Validate context to prevent undefined values in prompt
@@ -179,10 +181,12 @@ self.onmessage = async (event) => {
                         clearTimeout(timeoutId);
 
                         const suggestion = output[0].generated_text.trim();
+                        console.log(`[llmWorker] LLM processing successful for taskId ${taskId}, suggestion:`, suggestion);
 
                         self.postMessage({ type: 'llm_result', suggestion, taskId });
                     } catch (pipelineError) {
                         clearTimeout(timeoutId);
+                        console.error(`[llmWorker] LLM processing failed for taskId ${taskId}:`, pipelineError);
 
                         if (pipelineError.name === 'AbortError') {
                             self.postMessage({
@@ -199,6 +203,7 @@ self.onmessage = async (event) => {
                         }
                     }
                 } catch (error) {
+                    console.error(`[llmWorker] LLM worker error for taskId ${taskId}:`, error);
                     self.postMessage({
                         type: 'error',
                         error: `LLM processing error: ${error.message}`,

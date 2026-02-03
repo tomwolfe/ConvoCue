@@ -198,6 +198,8 @@ export const useML = (initialState = null) => {
     }, []);
 
     const processText = useCallback((text) => {
+        console.log('[useML] processText START - Input:', text.substring(0, 50));
+        
         // Advanced Auto-Speaker Detection (80/20: Mind Reader Update)
         const speakerHint = detectSpeakerHint(text, currentSpeaker);
         const timeSinceLastSuggestion = Date.now() - lastSuggestionTimeRef.current;
@@ -215,6 +217,11 @@ export const useML = (initialState = null) => {
             // If we have strong confidence or consecutive hints, toggle
             if (speakerConfidenceRef.current[speakerHint] >= 2) {
                 if (speakerHint !== currentSpeaker) {
+                    console.log(`[useML] Speaker switched to: ${speakerHint} (confidence: ${speakerConfidenceRef.current[speakerHint]})`);
+                    // Reset processing state when speaker changes
+                    setIsProcessing(false);
+                    // Clear suggestion when switching to avoid confusion
+                    setSuggestion('');
                     setCurrentSpeaker(speakerHint);
                 }
                 // Reset confidence for both after a switch or confirming current
@@ -332,6 +339,8 @@ export const useML = (initialState = null) => {
         // Instant reaction to reduce perceived latency
         setSuggestion(BRIDGE_PHRASES[intent] || BRIDGE_PHRASES.general);
         setIsProcessing(true);
+        console.log(`[useML] Pipeline stage: VAD -> STT -> Intent: ${intent} -> Starting LLM generation`);
+        
         const personaConfig = AppConfig.personas[persona];
         const taskId = ++lastTaskId.current;
 
@@ -351,6 +360,7 @@ export const useML = (initialState = null) => {
         const timeoutId = setTimeout(() => {
             // If LLM takes too long, show a more specific bridge phrase
             if (isProcessing && (suggestion === BRIDGE_PHRASES[intent] || suggestion === BRIDGE_PHRASES.general)) {
+                console.warn(`[useML] 4-second timeout triggered for taskId ${taskId} - LLM worker not responding, providing fallback`);
                 // Pick a random quick action from the current intent as a fallback
                 const fallbackActions = QUICK_ACTIONS[intent] || QUICK_ACTIONS.social;
                 const randomAction = fallbackActions[Math.floor(Math.random() * fallbackActions.length)];
@@ -373,10 +383,11 @@ export const useML = (initialState = null) => {
         // Add a watchdog timeout to ensure the processing state is cleared even if worker fails silently
         const watchdogTimeoutId = setTimeout(() => {
             if (isProcessing) {
-                console.warn(`[useML] Watchdog timeout triggered for taskId ${taskId}, clearing processing state`);
+                console.warn(`[useML] Watchdog timeout triggered for taskId ${taskId} after 8 seconds - LLM worker failed to respond`);
+                console.warn(`[useML] Pipeline stage: VAD -> STT -> Intent -> LLM Timeout`);
                 setIsProcessing(false);
                 if (suggestion === 'Refining...' || suggestion === 'UPDATING...') {
-                    setSuggestion('');
+                    setSuggestion('Continue listening...');
                 }
                 if (detectedIntent === 'UPDATING...') {
                     setDetectedIntent(intent || 'general');
@@ -425,6 +436,8 @@ export const useML = (initialState = null) => {
                 if (isProcessing) {
                     console.warn(`[useML] Safeguard timeout triggered for taskId ${taskId}, clearing processing state`);
                     setIsProcessing(false);
+                    // Provide fallback suggestion
+                    setSuggestion('Continue listening...');
                     // Clean up any associated timeouts
                     if (llmTimeoutsRef.current.has(taskId)) {
                         clearTimeout(llmTimeoutsRef.current.get(taskId));
@@ -475,6 +488,8 @@ export const useML = (initialState = null) => {
                 setIsProcessing(false);
             });
         }
+        
+        console.log('[useML] processText END - Pipeline complete');
     }, [persona, deduct, addEntry, currentSpeaker, toggleSpeaker, nudgeSpeaker, suggestion, isProcessing]);
 
 
@@ -776,6 +791,7 @@ export const useML = (initialState = null) => {
                     if (loadTime !== undefined) setSttLoadTime(loadTime);
                     break;
                 case 'stt_result':
+                    console.log(`[useML] STT result received for taskId ${taskId}:`, text);
                     if (text) processTextRef.current(text);
                     break;
                 case 'error': console.error('STT Worker error:', error); break;
@@ -896,6 +912,8 @@ export const useML = (initialState = null) => {
     const processAudio = useCallback((audioData) => {
         if (!sttReady || !sttWorkerRef.current) return;
 
+        console.log('[useML] processAudio START - Audio data received, size:', audioData.length);
+
         // 80/20 Auto-Diarization: Volume-based heuristic
         // Local speaker (Me) is usually significantly louder than distant speaker (Them)
         const currentVolume = calculateVolume(audioData);
@@ -940,6 +958,8 @@ export const useML = (initialState = null) => {
         } else {
             flushTimeoutRef.current = setTimeout(flushAudioBuffer, 300);
         }
+        
+        console.log('[useML] processAudio END - Audio processing complete');
     }, [sttReady, flushAudioBuffer, currentSpeaker, setCurrentSpeaker]);
 
     useEffect(() => {
