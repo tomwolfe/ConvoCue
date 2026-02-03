@@ -126,35 +126,85 @@ self.onmessage = async (event) => {
                 }
                 break;
             case 'llm':
-                if (!llmPipeline) throw new Error('LLM model not loaded');
-                const { messages, context, instruction, retry } = data;
+                if (!llmPipeline) {
+                    self.postMessage({
+                        type: 'error',
+                        error: 'LLM model not loaded',
+                        taskId
+                    });
+                    return;
+                }
 
-                // Enhanced prompt with more specific contextual cues
-                const recentIntentsStr = context.recentIntents ? ` Recent intents: ${context.recentIntents}.` : '';
-                const systemPrompt = `Role:${context.persona}. Intent:${context.intent}.${recentIntentsStr} Battery:${context.battery}%. Goal:${instruction}. Context: Provide a relevant, concise suggestion based on the conversation history.`;
+                try {
+                    const { messages, context, instruction, retry } = data;
 
-                // Enhanced prompt with more specific instructions and context
-                const fullPrompt = `\`\`system\n${systemPrompt}\nRules:
+                    // Validate context to prevent undefined values in prompt
+                    const validatedContext = {
+                        persona: context.persona || 'General Assistant',
+                        intent: context.intent || 'general',
+                        battery: context.battery || 100,
+                        recentIntents: context.recentIntents || '',
+                        isExhausted: context.isExhausted || false
+                    };
+
+                    // Enhanced prompt with more specific contextual cues
+                    const recentIntentsStr = validatedContext.recentIntents ? ` Recent intents: ${validatedContext.recentIntents}.` : '';
+                    const systemPrompt = `Role:${validatedContext.persona}. Intent:${validatedContext.intent}.${recentIntentsStr} Battery:${validatedContext.battery}%. Goal:${instruction}. Context: Provide a relevant, concise suggestion based on the conversation history.`;
+
+                    // Enhanced prompt with more specific instructions and context
+                    const fullPrompt = `\`\`system\n${systemPrompt}\nRules:
 - Provide ONE suggestion as 3-5 keyword chips
 - NO full sentences, NO preamble
 - Format: "Keyword1 Keyword2 Keyword3"
 - Consider the conversation context, intent, and recent conversation flow
 - Be contextually relevant and actionable
 - If exhausted, suggest exit strategies\`\`\n` +
-                    messages.map(m => `\`\`user\n${m.content}\`\``).join('\n') +
-                    '\n\`\`assistant\n';
+                        messages.map(m => `\`\`user\n${m.content}\`\``).join('\n') +
+                        '\n\`\`assistant\n';
 
-                const output = await llmPipeline(fullPrompt, {
-                    max_new_tokens: 24, // Optimized from 32 for speed
-                    temperature: retry ? 0.85 : 0.6,
-                    do_sample: true,
-                    top_k: 40,
-                    return_full_text: false,
-                });
+                    // Add a timeout mechanism to prevent hanging
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
 
-                const suggestion = output[0].generated_text.trim();
+                    try {
+                        const output = await llmPipeline(fullPrompt, {
+                            max_new_tokens: 24, // Optimized from 32 for speed
+                            temperature: retry ? 0.85 : 0.6,
+                            do_sample: true,
+                            top_k: 40,
+                            return_full_text: false,
+                            signal: controller.signal
+                        });
 
-                self.postMessage({ type: 'llm_result', suggestion, taskId });
+                        clearTimeout(timeoutId);
+
+                        const suggestion = output[0].generated_text.trim();
+
+                        self.postMessage({ type: 'llm_result', suggestion, taskId });
+                    } catch (pipelineError) {
+                        clearTimeout(timeoutId);
+
+                        if (pipelineError.name === 'AbortError') {
+                            self.postMessage({
+                                type: 'error',
+                                error: 'LLM request timed out after 5 seconds',
+                                taskId
+                            });
+                        } else {
+                            self.postMessage({
+                                type: 'error',
+                                error: `LLM processing failed: ${pipelineError.message}`,
+                                taskId
+                            });
+                        }
+                    }
+                } catch (error) {
+                    self.postMessage({
+                        type: 'error',
+                        error: `LLM processing error: ${error.message}`,
+                        taskId
+                    });
+                }
                 break;
 
             case 'summarize':

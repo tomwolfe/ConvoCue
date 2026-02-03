@@ -356,11 +356,37 @@ export const useML = (initialState = null) => {
                 const randomAction = fallbackActions[Math.floor(Math.random() * fallbackActions.length)];
                 setSuggestion(randomAction.text);
                 setIsProcessing(false); // Stop "processing" if we provide a fallback
+
+                // Clear the timeout from our map since we're handling it here
+                llmTimeoutsRef.current.delete(taskId);
+
+                // Also clear the detected intent if it's stuck on "UPDATING..."
+                if (detectedIntent === 'UPDATING...') {
+                    setDetectedIntent(intent || 'general');
+                }
             }
         }, 4000); // 4 second timeout for fallback
 
         // Store timeout ID for cleanup
         llmTimeoutsRef.current.set(taskId, timeoutId);
+
+        // Add a watchdog timeout to ensure the processing state is cleared even if worker fails silently
+        const watchdogTimeoutId = setTimeout(() => {
+            if (isProcessing) {
+                console.warn(`[useML] Watchdog timeout triggered for taskId ${taskId}, clearing processing state`);
+                setIsProcessing(false);
+                if (suggestion === 'Refining...' || suggestion === 'UPDATING...') {
+                    setSuggestion('');
+                }
+                if (detectedIntent === 'UPDATING...') {
+                    setDetectedIntent(intent || 'general');
+                }
+                llmTimeoutsRef.current.delete(taskId);
+            }
+        }, 8000); // 8 second watchdog timeout
+
+        // Store the watchdog timeout ID with a special prefix
+        llmTimeoutsRef.current.set(`watchdog_${taskId}`, watchdogTimeoutId);
 
         if (llmMonitorRef.current) {
             llmMonitorRef.current.postMessage({
@@ -374,6 +400,16 @@ export const useML = (initialState = null) => {
             }).catch(err => {
                 console.warn('[useML] LLM task failed or timed out:', err);
                 // Fallback logic is already handled by setTimeout in processText
+                // Clear both timeouts if there's an error
+                if (llmTimeoutsRef.current.has(taskId)) {
+                    clearTimeout(llmTimeoutsRef.current.get(taskId));
+                    llmTimeoutsRef.current.delete(taskId);
+                }
+                if (llmTimeoutsRef.current.has(`watchdog_${taskId}`)) {
+                    clearTimeout(llmTimeoutsRef.current.get(`watchdog_${taskId}`));
+                    llmTimeoutsRef.current.delete(`watchdog_${taskId}`);
+                }
+                setIsProcessing(false);
             });
         }
     }, [persona, deduct, addEntry, currentSpeaker, toggleSpeaker, nudgeSpeaker, suggestion, isProcessing]);
@@ -385,6 +421,12 @@ export const useML = (initialState = null) => {
         if (taskId && llmTimeoutsRef.current.has(taskId)) {
             clearTimeout(llmTimeoutsRef.current.get(taskId));
             llmTimeoutsRef.current.delete(taskId);
+        }
+
+        // Also clear the watchdog timeout if it exists
+        if (taskId && llmTimeoutsRef.current.has(`watchdog_${taskId}`)) {
+            clearTimeout(llmTimeoutsRef.current.get(`watchdog_${taskId}`));
+            llmTimeoutsRef.current.delete(`watchdog_${taskId}`);
         }
 
         // Enhanced caching with recent intent context
@@ -419,7 +461,14 @@ export const useML = (initialState = null) => {
 
         setSuggestion(sug);
         lastSuggestionTimeRef.current = Date.now();
+
+        // Clear the "Refining..." state
         setIsProcessing(false);
+
+        // Clear the "UPDATING..." state if it's still showing
+        if (detectedIntent === 'UPDATING...') {
+            setDetectedIntent(intent || 'general');
+        }
     }, [detectedIntent, persona, battery]);
 
     const refreshSuggestion = useCallback(() => {
@@ -583,7 +632,7 @@ export const useML = (initialState = null) => {
     useEffect(() => {
         const sttWorker = new Worker(new URL('./core/sttWorker.js', import.meta.url), { type: 'module' });
         const llmWorker = new Worker(new URL('./core/llmWorker.js', import.meta.url), { type: 'module' });
-        
+
         sttWorkerRef.current = sttWorker;
         llmWorkerRef.current = llmWorker;
 
@@ -608,6 +657,35 @@ export const useML = (initialState = null) => {
 
         sttMonitorRef.current = sttMonitor;
         llmMonitorRef.current = llmMonitor;
+
+        // Set up a heartbeat to monitor worker responsiveness
+        const heartbeatInterval = setInterval(() => {
+            if (llmWorker && llmReady) {
+                const heartbeatId = `hb_${Date.now()}`;
+                const heartbeatTimeout = setTimeout(() => {
+                    console.warn('[useML] LLM Worker heartbeat timeout - possible hang');
+                    // If worker is unresponsive, clear processing states
+                    if (isProcessing) {
+                        setIsProcessing(false);
+                        if (suggestion === 'Refining...') {
+                            setSuggestion('');
+                        }
+                        if (detectedIntent === 'UPDATING...') {
+                            setDetectedIntent('general');
+                        }
+                    }
+                }, 5000); // 5 second timeout for heartbeat response
+
+                llmWorker.postMessage({
+                    type: 'heartbeat',
+                    taskId: heartbeatId,
+                    data: { timestamp: Date.now() }
+                });
+
+                // Store timeout to clear later if response comes
+                llmTimeoutsRef.current.set(`heartbeat_${heartbeatId}`, heartbeatTimeout);
+            }
+        }, 10000); // Send heartbeat every 10 seconds
 
         sttWorker.onmessage = (event) => {
             if (sttMonitor.handleMessage(event)) return;
@@ -635,6 +713,16 @@ export const useML = (initialState = null) => {
             const { type, suggestion: sug, summary, progress, error, taskId, loadTime, stage } = event.data;
             if (taskId && taskId < lastTaskId.current && (type === 'llm_result' || type === 'summary_result' || type === 'error')) return;
 
+            // Handle heartbeat responses
+            if (type === 'heartbeat_ack') {
+                const heartbeatKey = `heartbeat_${taskId}`;
+                if (llmTimeoutsRef.current.has(heartbeatKey)) {
+                    clearTimeout(llmTimeoutsRef.current.get(heartbeatKey));
+                    llmTimeoutsRef.current.delete(heartbeatKey);
+                }
+                return;
+            }
+
             switch (type) {
                 case 'progress':
                     setLlmProgress(progress);
@@ -658,10 +746,27 @@ export const useML = (initialState = null) => {
                         clearTimeout(llmTimeoutsRef.current.get(taskId));
                         llmTimeoutsRef.current.delete(taskId);
                     }
+
+                    // Also clear the watchdog timeout if it exists
+                    if (taskId && llmTimeoutsRef.current.has(`watchdog_${taskId}`)) {
+                        clearTimeout(llmTimeoutsRef.current.get(`watchdog_${taskId}`));
+                        llmTimeoutsRef.current.delete(`watchdog_${taskId}`);
+                    }
+
                     console.error('LLM Worker error:', error);
                     setIsProcessing(false);
                     setIsSummarizing(false);
                     setSummaryError(error);
+
+                    // Clear the "Refining..." state if it's still showing
+                    if (suggestion === 'Refining...') {
+                        setSuggestion('');
+                    }
+
+                    // Clear the "UPDATING..." state if it's still showing
+                    if (detectedIntent === 'UPDATING...') {
+                        setDetectedIntent('general');
+                    }
                     break;
             }
         };
@@ -670,6 +775,7 @@ export const useML = (initialState = null) => {
         llmWorker.postMessage({ type: 'load' });
 
         return () => {
+            clearInterval(heartbeatInterval);
             sttMonitor.terminate();
             llmMonitor.terminate();
             sttWorker.terminate();
@@ -678,7 +784,7 @@ export const useML = (initialState = null) => {
             setLlmReady(false);
 
             // Clear any remaining timeouts
-            for (const timeoutId of llmTimeoutsRef.current.values()) {
+            for (const [key, timeoutId] of llmTimeoutsRef.current.entries()) {
                 clearTimeout(timeoutId);
             }
             llmTimeoutsRef.current.clear();
