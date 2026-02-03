@@ -202,7 +202,7 @@ export const useML = (initialState = null) => {
         const speakerHint = detectSpeakerHint(text, currentSpeaker);
         const timeSinceLastSuggestion = Date.now() - lastSuggestionTimeRef.current;
         const timeSinceManualToggle = Date.now() - lastManualToggleRef.current;
-        
+
         // Priority 0: Manual Override Protection
         // If the user just manually toggled the speaker, don't auto-switch for 3 seconds
         const isManualLockActive = timeSinceManualToggle < 3000;
@@ -211,7 +211,7 @@ export const useML = (initialState = null) => {
         if (speakerHint && !isManualLockActive) {
             // Increase confidence for the hinted speaker
             speakerConfidenceRef.current[speakerHint] += text.length > 20 ? 2 : 1;
-            
+
             // If we have strong confidence or consecutive hints, toggle
             if (speakerConfidenceRef.current[speakerHint] >= 2) {
                 if (speakerHint !== currentSpeaker) {
@@ -254,7 +254,7 @@ export const useML = (initialState = null) => {
             needsSuggestion = shouldGenerateSuggestion(text);
 
             setDetectedIntent(intent);
-            
+
             // Haptic alert and cache invalidation for conflict detection
             if (intent === 'conflict') {
                 triggerSocialVibration('conflict');
@@ -279,7 +279,7 @@ export const useML = (initialState = null) => {
         }
 
         const currentBattery = deduct(text, intent, persona);
-        
+
         // Haptic alert for low battery
         if (currentBattery < AppConfig.minBatteryThreshold && battery >= AppConfig.minBatteryThreshold) {
             triggerSocialVibration('exhausted');
@@ -388,7 +388,62 @@ export const useML = (initialState = null) => {
         // Store the watchdog timeout ID with a special prefix
         llmTimeoutsRef.current.set(`watchdog_${taskId}`, watchdogTimeoutId);
 
+        // Add a global timeout to reset everything if the worker is completely unresponsive
+        const globalTimeoutId = setTimeout(() => {
+            if (isProcessing) {
+                console.warn(`[useML] Global timeout triggered for taskId ${taskId}, forcing reset`);
+                setIsProcessing(false);
+                if (suggestion === 'Refining...' || suggestion === 'UPDATING...') {
+                    setSuggestion('');
+                }
+                if (detectedIntent === 'UPDATING...') {
+                    setDetectedIntent(intent || 'general');
+                }
+
+                // Clear all related timeouts
+                if (llmTimeoutsRef.current.has(taskId)) {
+                    clearTimeout(llmTimeoutsRef.current.get(taskId));
+                    llmTimeoutsRef.current.delete(taskId);
+                }
+                if (llmTimeoutsRef.current.has(`watchdog_${taskId}`)) {
+                    clearTimeout(llmTimeoutsRef.current.get(`watchdog_${taskId}`));
+                    llmTimeoutsRef.current.delete(`watchdog_${taskId}`);
+                }
+                if (llmTimeoutsRef.current.has(`safeguard_${taskId}`)) {
+                    clearTimeout(llmTimeoutsRef.current.get(`safeguard_${taskId}`));
+                    llmTimeoutsRef.current.delete(`safeguard_${taskId}`);
+                }
+            }
+        }, 15000); // 15 second global timeout
+
+        // Store the global timeout ID with a special prefix
+        llmTimeoutsRef.current.set(`global_${taskId}`, globalTimeoutId);
+
         if (llmMonitorRef.current) {
+            // Add a safeguard timeout that will clear isProcessing regardless of worker response
+            const safeguardTimeout = setTimeout(() => {
+                if (isProcessing) {
+                    console.warn(`[useML] Safeguard timeout triggered for taskId ${taskId}, clearing processing state`);
+                    setIsProcessing(false);
+                    // Clean up any associated timeouts
+                    if (llmTimeoutsRef.current.has(taskId)) {
+                        clearTimeout(llmTimeoutsRef.current.get(taskId));
+                        llmTimeoutsRef.current.delete(taskId);
+                    }
+                    if (llmTimeoutsRef.current.has(`watchdog_${taskId}`)) {
+                        clearTimeout(llmTimeoutsRef.current.get(`watchdog_${taskId}`));
+                        llmTimeoutsRef.current.delete(`watchdog_${taskId}`);
+                    }
+                    if (llmTimeoutsRef.current.has(`global_${taskId}`)) {
+                        clearTimeout(llmTimeoutsRef.current.get(`global_${taskId}`));
+                        llmTimeoutsRef.current.delete(`global_${taskId}`);
+                    }
+                }
+            }, 10000); // 10 second safeguard timeout
+
+            // Store the safeguard timeout
+            llmTimeoutsRef.current.set(`safeguard_${taskId}`, safeguardTimeout);
+
             llmMonitorRef.current.postMessage({
                 type: 'llm',
                 taskId,
@@ -400,7 +455,7 @@ export const useML = (initialState = null) => {
             }).catch(err => {
                 console.warn('[useML] LLM task failed or timed out:', err);
                 // Fallback logic is already handled by setTimeout in processText
-                // Clear both timeouts if there's an error
+                // Clear all timeouts if there's an error
                 if (llmTimeoutsRef.current.has(taskId)) {
                     clearTimeout(llmTimeoutsRef.current.get(taskId));
                     llmTimeoutsRef.current.delete(taskId);
@@ -408,6 +463,14 @@ export const useML = (initialState = null) => {
                 if (llmTimeoutsRef.current.has(`watchdog_${taskId}`)) {
                     clearTimeout(llmTimeoutsRef.current.get(`watchdog_${taskId}`));
                     llmTimeoutsRef.current.delete(`watchdog_${taskId}`);
+                }
+                if (llmTimeoutsRef.current.has(`safeguard_${taskId}`)) {
+                    clearTimeout(llmTimeoutsRef.current.get(`safeguard_${taskId}`));
+                    llmTimeoutsRef.current.delete(`safeguard_${taskId}`);
+                }
+                if (llmTimeoutsRef.current.has(`global_${taskId}`)) {
+                    clearTimeout(llmTimeoutsRef.current.get(`global_${taskId}`));
+                    llmTimeoutsRef.current.delete(`global_${taskId}`);
                 }
                 setIsProcessing(false);
             });
@@ -427,6 +490,18 @@ export const useML = (initialState = null) => {
         if (taskId && llmTimeoutsRef.current.has(`watchdog_${taskId}`)) {
             clearTimeout(llmTimeoutsRef.current.get(`watchdog_${taskId}`));
             llmTimeoutsRef.current.delete(`watchdog_${taskId}`);
+        }
+
+        // Also clear the safeguard timeout if it exists
+        if (taskId && llmTimeoutsRef.current.has(`safeguard_${taskId}`)) {
+            clearTimeout(llmTimeoutsRef.current.get(`safeguard_${taskId}`));
+            llmTimeoutsRef.current.delete(`safeguard_${taskId}`);
+        }
+
+        // Also clear the global timeout if it exists
+        if (taskId && llmTimeoutsRef.current.has(`global_${taskId}`)) {
+            clearTimeout(llmTimeoutsRef.current.get(`global_${taskId}`));
+            llmTimeoutsRef.current.delete(`global_${taskId}`);
         }
 
         // Enhanced caching with recent intent context
@@ -751,6 +826,18 @@ export const useML = (initialState = null) => {
                     if (taskId && llmTimeoutsRef.current.has(`watchdog_${taskId}`)) {
                         clearTimeout(llmTimeoutsRef.current.get(`watchdog_${taskId}`));
                         llmTimeoutsRef.current.delete(`watchdog_${taskId}`);
+                    }
+
+                    // Also clear the safeguard timeout if it exists
+                    if (taskId && llmTimeoutsRef.current.has(`safeguard_${taskId}`)) {
+                        clearTimeout(llmTimeoutsRef.current.get(`safeguard_${taskId}`));
+                        llmTimeoutsRef.current.delete(`safeguard_${taskId}`);
+                    }
+
+                    // Also clear the global timeout if it exists
+                    if (taskId && llmTimeoutsRef.current.has(`global_${taskId}`)) {
+                        clearTimeout(llmTimeoutsRef.current.get(`global_${taskId}`));
+                        llmTimeoutsRef.current.delete(`global_${taskId}`);
                     }
 
                     console.error('LLM Worker error:', error);
