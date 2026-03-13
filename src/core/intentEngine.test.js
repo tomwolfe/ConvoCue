@@ -1,6 +1,7 @@
+import { describe, it, expect } from 'vitest';
 import { detectIntent, shouldGenerateSuggestion, detectTurnTake, getPrecomputedSuggestion } from './intentEngine';
 
-describe('intentEngine', () => {
+describe('Intent Engine', () => {
     describe('detectIntent', () => {
         it('should detect social intent', () => {
             expect(detectIntent('Hello, how are you doing today?')).toBe('social');

@@ -899,8 +899,12 @@ export const useML = (initialState = null) => {
     const progress = (sttProgress + llmProgress) / 2;
     const status = !isReady ? getDetailedModelLoadStatus() : isProcessing ? 'Processing...' : 'Ready';
 
+    // Volume-based auto-diarization refs
     const meVolumeRef = useRef(0);
-    
+    const volumeHistoryRef = useRef([]); // 2-second moving average buffer
+    const baselineVolumeRef = useRef(0); // Ambient noise baseline
+    const VOLUME_THRESHOLD = 0.30; // 30% above baseline indicates local speaker
+
     const calculateVolume = (audioData) => {
         let sum = 0;
         for (let i = 0; i < audioData.length; i++) {
@@ -914,22 +918,42 @@ export const useML = (initialState = null) => {
 
         console.log('[useML] processAudio START - Audio data received, size:', audioData.length);
 
-        // 80/20 Auto-Diarization: Volume-based heuristic
+        // Enhanced 80/20 Auto-Diarization: Volume-based heuristic with 2-second moving average
         // Local speaker (Me) is usually significantly louder than distant speaker (Them)
         const currentVolume = calculateVolume(audioData);
         const timeSinceManualToggle = Date.now() - lastManualToggleRef.current;
         const isManualLockActive = timeSinceManualToggle < 3000;
 
+        // Update volume history for 2-second moving average (assuming 16kHz sample rate)
+        // Each audio chunk is ~100ms, so we keep ~20 chunks
+        volumeHistoryRef.current.push(currentVolume);
+        if (volumeHistoryRef.current.length > 20) {
+            volumeHistoryRef.current.shift();
+        }
+
+        // Calculate 2-second moving average
+        const movingAvg = volumeHistoryRef.current.reduce((a, b) => a + b, 0) / volumeHistoryRef.current.length;
+
+        // Update ambient baseline slowly (only when no speech detected)
+        if (currentVolume < 0.02) {
+            baselineVolumeRef.current = baselineVolumeRef.current === 0
+                ? 0.01
+                : baselineVolumeRef.current * 0.99 + currentVolume * 0.01;
+        }
+
         if (currentSpeaker === 'me') {
             // Update "Me" baseline when we know it's definitely the user
-            meVolumeRef.current = meVolumeRef.current === 0 
-                ? currentVolume 
+            meVolumeRef.current = meVolumeRef.current === 0
+                ? currentVolume
                 : meVolumeRef.current * 0.95 + currentVolume * 0.05;
         } else if (meVolumeRef.current > 0.01 && !isManualLockActive) {
             // If current speaker is 'them', and we have a valid baseline for 'me'
-            // If current volume is close to or louder than our "Me" baseline
-            if (currentVolume > meVolumeRef.current * 0.7) { // Increased sensitivity from 0.8
+            // Check if current volume exceeds baseline by 30% (VOLUME_THRESHOLD)
+            const volumeIncrease = (currentVolume - baselineVolumeRef.current) / baselineVolumeRef.current;
+            
+            if (volumeIncrease > VOLUME_THRESHOLD || currentVolume > meVolumeRef.current * 0.7) {
                 // High probability it's the local user speaking
+                console.log(`[useML] Auto-diarization: Volume spike detected (${(volumeIncrease * 100).toFixed(1)}% above baseline), switching to 'me'`);
                 setCurrentSpeaker('me');
                 speakerConfidenceRef.current = { me: 0, them: 0 };
             } else {
@@ -939,7 +963,8 @@ export const useML = (initialState = null) => {
         } else if (meVolumeRef.current === 0 && currentVolume > 0.05) {
             // Initialize baseline if it's the first time we hear anything substantial
             meVolumeRef.current = currentVolume;
-            
+            baselineVolumeRef.current = Math.min(baselineVolumeRef.current, currentVolume * 0.5);
+
             // If it's quite loud, assume it's the local user starting the conversation
             if (currentVolume > 0.1) {
                 setCurrentSpeaker('me');
