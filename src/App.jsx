@@ -46,6 +46,8 @@ const App = () => {
         persona,
         setPersona,
         isReady,
+        isFullReady,
+        profile,
         battery,
         lastDrain,
         resetBattery,
@@ -107,6 +109,11 @@ const App = () => {
             <header>
                 <div className="header-left">
                     <h1>ConvoCue <span>2</span></h1>
+                    {profile === 'LITE' && (
+                        <div className="lite-mode-badge" title="LLM disabled for performance">
+                            Lite Mode
+                        </div>
+                    )}
                     <button className="btn-icon" onClick={() => setShowTutorial(true)} title="How it works">
                         <Info size={18} />
                     </button>
@@ -370,8 +377,8 @@ const App = () => {
                     status={status}
                     progressiveReadiness={progressiveReadiness}
                 />
-                {!isReady && (
-                    <div className="model-loading-overlay-minimized">
+                {!isFullReady && (
+                    <div className={`model-loading-overlay-minimized ${isReady ? 'is-partial' : ''}`}>
                         <div className="loading-status-bar">
                             <div className="status-info">
                                 <Sparkles size={14} className="loading-icon-spin" />

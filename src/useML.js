@@ -5,6 +5,8 @@ import { useSocialBattery } from './hooks/useSocialBattery';
 import { useTranscript } from './hooks/useTranscript';
 import { ReliabilityMonitor } from './core/reliabilityMonitor';
 
+import { getCapabilities, getRecommendedProfile } from './core/preflight';
+
 /**
  * Core ML hook for speech-to-text, intent detection, and suggestion generation.
  * @param {Object} [initialState=null] - Optional initial session state.
@@ -18,6 +20,8 @@ export const useML = (initialState = null) => {
     const [sessionSummary, setSessionSummary] = useState(null);
     const [isSummarizing, setIsSummarizing] = useState(false);
     const [summaryError, setSummaryError] = useState(null);
+    const [profile, setProfile] = useState(null);
+    const [capabilities, setCapabilities] = useState(null);
 
     const {
         battery, deduct, reset: resetBattery, batteryRef, setBattery,
@@ -74,6 +78,18 @@ export const useML = (initialState = null) => {
         ['that won\'t work', { intent: 'conflict', suggestion: 'I understand your concern. What would work better for you?' }]
     ]));
 
+    // Perform pre-flight check on mount
+    useEffect(() => {
+        const runPreflight = async () => {
+            const caps = await getCapabilities();
+            const recommendedProfile = getRecommendedProfile(caps);
+            setCapabilities(caps);
+            setProfile(recommendedProfile);
+            console.log(`[useML] Device Profile: ${recommendedProfile}`, caps);
+        };
+        runPreflight();
+    }, []);
+
     // Initialize with initial state if provided (for loading sessions)
     useEffect(() => {
         if (initialState) {
@@ -97,6 +113,8 @@ export const useML = (initialState = null) => {
     const llmMonitorRef = useRef(null);
     const [sttRebootKey, setSttRebootKey] = useState(0);
     const [llmRebootKey, setLlmRebootKey] = useState(0);
+    const [llmFailCount, setLlmFailCount] = useState(0);
+    const MAX_LLM_REBOOTS = 2;
     const messagesRef = useRef([]);
     const initialBatteryRef = useRef(100);
     const lastTaskId = useRef(0);
@@ -720,11 +738,11 @@ export const useML = (initialState = null) => {
     };
 
     useEffect(() => {
-        const sttWorker = new Worker(new URL('./core/sttWorker.js', import.meta.url), { type: 'module' });
-        const llmWorker = new Worker(new URL('./core/llmWorker.js', import.meta.url), { type: 'module' });
+        if (!profile) return; // Wait for preflight
 
+        console.log(`[useML] Initializing workers for profile: ${profile}`);
+        const sttWorker = new Worker(new URL('./core/sttWorker.js', import.meta.url), { type: 'module' });
         sttWorkerRef.current = sttWorker;
-        llmWorkerRef.current = llmWorker;
 
         const sttMonitor = new ReliabilityMonitor(sttWorker, 'STT', {
             onFailure: () => setSttStage('error_timeout'),
@@ -735,18 +753,43 @@ export const useML = (initialState = null) => {
                 setSttRebootKey(prev => prev + 1);
             }
         });
-        const llmMonitor = new ReliabilityMonitor(llmWorker, 'LLM', {
-            onFailure: () => setLlmStage('error_timeout'),
-            onRecovered: () => setLlmStage('recovered'),
-            rebootOnFailure: true,
-            onReboot: () => {
-                console.warn('Rebooting LLM worker due to reliability failure');
-                setLlmRebootKey(prev => prev + 1);
-            }
-        });
-
         sttMonitorRef.current = sttMonitor;
-        llmMonitorRef.current = llmMonitor;
+
+        let llmWorker = null;
+        let llmMonitor = null;
+
+        // Task 2.2: Lite profile skip LLM
+        if (profile !== 'LITE') {
+            llmWorker = new Worker(new URL('./core/llmWorker.js', import.meta.url), { type: 'module' });
+            llmWorkerRef.current = llmWorker;
+
+            llmMonitor = new ReliabilityMonitor(llmWorker, 'LLM', {
+                onFailure: () => setLlmStage('error_timeout'),
+                onRecovered: () => {
+                    setLlmStage('recovered');
+                    setLlmFailCount(0); // Reset fail count on recovery
+                },
+                rebootOnFailure: true,
+                onReboot: () => {
+                    setLlmFailCount(prev => {
+                        if (prev >= MAX_LLM_REBOOTS) {
+                            console.error('[useML] LLM worker failed too many times. Falling back to LITE mode.');
+                            setProfile('LITE');
+                            return prev;
+                        }
+                        console.warn(`[useML] Rebooting LLM worker (fail count: ${prev + 1}/${MAX_LLM_REBOOTS})`);
+                        setLlmRebootKey(k => k + 1);
+                        return prev + 1;
+                    });
+                }
+            });
+            llmMonitorRef.current = llmMonitor;
+        } else {
+            console.log('[useML] Lite profile: LLM disabled for performance.');
+            setLlmReady(true); // Treat LLM as "ready" so app can start in Lite mode
+            setLlmProgress(100);
+            setLlmStage('disabled');
+        }
 
         // Set up a heartbeat to monitor worker responsiveness
         const heartbeatInterval = setInterval(() => {
@@ -798,91 +841,95 @@ export const useML = (initialState = null) => {
             }
         };
 
-        llmWorker.onmessage = (event) => {
-            if (llmMonitor.handleMessage(event)) return;
+        if (llmWorker) {
+            llmWorker.onmessage = (event) => {
+                if (llmMonitor.handleMessage(event)) return;
 
-            const { type, suggestion: sug, summary, progress, error, taskId, loadTime, stage } = event.data;
-            if (taskId && taskId < lastTaskId.current && (type === 'llm_result' || type === 'summary_result' || type === 'error')) return;
+                const { type, suggestion: sug, summary, progress, error, taskId, loadTime, stage } = event.data;
+                if (taskId && taskId < lastTaskId.current && (type === 'llm_result' || type === 'summary_result' || type === 'error')) return;
 
-            // Handle heartbeat responses
-            if (type === 'heartbeat_ack') {
-                const heartbeatKey = `heartbeat_${taskId}`;
-                if (llmTimeoutsRef.current.has(heartbeatKey)) {
-                    clearTimeout(llmTimeoutsRef.current.get(heartbeatKey));
-                    llmTimeoutsRef.current.delete(heartbeatKey);
+                // Handle heartbeat responses
+                if (type === 'heartbeat_ack') {
+                    const heartbeatKey = `heartbeat_${taskId}`;
+                    if (llmTimeoutsRef.current.has(heartbeatKey)) {
+                        clearTimeout(llmTimeoutsRef.current.get(heartbeatKey));
+                        llmTimeoutsRef.current.delete(heartbeatKey);
+                    }
+                    return;
                 }
-                return;
-            }
 
-            switch (type) {
-                case 'progress':
-                    setLlmProgress(progress);
-                    if (stage) setLlmStage(stage);
-                    break;
-                case 'ready':
-                    setLlmReady(true);
-                    if (loadTime !== undefined) setLlmLoadTime(loadTime);
-                    break;
-                case 'llm_result':
-                    handleLlmResult(sug, taskId);
-                    break;
-                case 'summary_result':
-                    setSessionSummary(summary);
-                    setIsSummarizing(false);
-                    setSummaryError(null);
-                    break;
-                case 'error':
-                    // Clear the timeout for this task ID
-                    if (taskId && llmTimeoutsRef.current.has(taskId)) {
-                        clearTimeout(llmTimeoutsRef.current.get(taskId));
-                        llmTimeoutsRef.current.delete(taskId);
-                    }
+                switch (type) {
+                    case 'progress':
+                        setLlmProgress(progress);
+                        if (stage) setLlmStage(stage);
+                        break;
+                    case 'ready':
+                        setLlmReady(true);
+                        if (loadTime !== undefined) setLlmLoadTime(loadTime);
+                        break;
+                    case 'llm_result':
+                        handleLlmResult(sug, taskId);
+                        break;
+                    case 'summary_result':
+                        setSessionSummary(summary);
+                        setIsSummarizing(false);
+                        setSummaryError(null);
+                        break;
+                    case 'error':
+                        // Clear the timeout for this task ID
+                        if (taskId && llmTimeoutsRef.current.has(taskId)) {
+                            clearTimeout(llmTimeoutsRef.current.get(taskId));
+                            llmTimeoutsRef.current.delete(taskId);
+                        }
 
-                    // Also clear the watchdog timeout if it exists
-                    if (taskId && llmTimeoutsRef.current.has(`watchdog_${taskId}`)) {
-                        clearTimeout(llmTimeoutsRef.current.get(`watchdog_${taskId}`));
-                        llmTimeoutsRef.current.delete(`watchdog_${taskId}`);
-                    }
+                        // Also clear the watchdog timeout if it exists
+                        if (taskId && llmTimeoutsRef.current.has(`watchdog_${taskId}`)) {
+                            clearTimeout(llmTimeoutsRef.current.get(`watchdog_${taskId}`));
+                            llmTimeoutsRef.current.delete(`watchdog_${taskId}`);
+                        }
 
-                    // Also clear the safeguard timeout if it exists
-                    if (taskId && llmTimeoutsRef.current.has(`safeguard_${taskId}`)) {
-                        clearTimeout(llmTimeoutsRef.current.get(`safeguard_${taskId}`));
-                        llmTimeoutsRef.current.delete(`safeguard_${taskId}`);
-                    }
+                        // Also clear the safeguard timeout if it exists
+                        if (taskId && llmTimeoutsRef.current.has(`safeguard_${taskId}`)) {
+                            clearTimeout(llmTimeoutsRef.current.get(`safeguard_${taskId}`));
+                            llmTimeoutsRef.current.delete(`safeguard_${taskId}`);
+                        }
 
-                    // Also clear the global timeout if it exists
-                    if (taskId && llmTimeoutsRef.current.has(`global_${taskId}`)) {
-                        clearTimeout(llmTimeoutsRef.current.get(`global_${taskId}`));
-                        llmTimeoutsRef.current.delete(`global_${taskId}`);
-                    }
+                        // Also clear the global timeout if it exists
+                        if (taskId && llmTimeoutsRef.current.has(`global_${taskId}`)) {
+                            clearTimeout(llmTimeoutsRef.current.get(`global_${taskId}`));
+                            llmTimeoutsRef.current.delete(`global_${taskId}`);
+                        }
 
-                    console.error('LLM Worker error:', error);
-                    setIsProcessing(false);
-                    setIsSummarizing(false);
-                    setSummaryError(error);
+                        console.error('LLM Worker error:', error);
+                        setIsProcessing(false);
+                        setIsSummarizing(false);
+                        setSummaryError(error);
 
-                    // Clear the "Refining..." state if it's still showing
-                    if (suggestion === 'Refining...') {
-                        setSuggestion('');
-                    }
+                        // Clear the "Refining..." state if it's still showing
+                        if (suggestion === 'Refining...') {
+                            setSuggestion('');
+                        }
 
-                    // Clear the "UPDATING..." state if it's still showing
-                    if (detectedIntent === 'UPDATING...') {
-                        setDetectedIntent('general');
-                    }
-                    break;
-            }
-        };
+                        // Clear the "UPDATING..." state if it's still showing
+                        if (detectedIntent === 'UPDATING...') {
+                            setDetectedIntent('general');
+                        }
+                        break;
+                }
+            };
+        }
 
         sttWorker.postMessage({ type: 'load' });
-        llmWorker.postMessage({ type: 'load' });
+        if (llmWorker) {
+            llmWorker.postMessage({ type: 'load' });
+        }
 
         return () => {
             clearInterval(heartbeatInterval);
             sttMonitor.terminate();
-            llmMonitor.terminate();
+            if (llmMonitor) llmMonitor.terminate();
             sttWorker.terminate();
-            llmWorker.terminate();
+            if (llmWorker) llmWorker.terminate();
             setSttReady(false);
             setLlmReady(false);
 
@@ -892,12 +939,13 @@ export const useML = (initialState = null) => {
             }
             llmTimeoutsRef.current.clear();
         };
-    }, [sttRebootKey, llmRebootKey]);
+    }, [sttRebootKey, llmRebootKey, profile]);
 
-    const isReady = sttReady && llmReady;
+    const isReady = sttReady; // Core functionality (STT) ready
+    const isFullReady = sttReady && llmReady;
     const progressiveReadiness = getProgressiveReadiness();
     const progress = (sttProgress + llmProgress) / 2;
-    const status = !isReady ? getDetailedModelLoadStatus() : isProcessing ? 'Processing...' : 'Ready';
+    const status = !isFullReady ? getDetailedModelLoadStatus() : isProcessing ? 'Processing...' : 'Ready';
 
     // Volume-based auto-diarization refs
     const meVolumeRef = useRef(0);
@@ -1004,7 +1052,7 @@ export const useML = (initialState = null) => {
         recharge, isExhausted, lastDrain,
         summarizeSession, startNewSession, closeSummary, sessionSummary, isSummarizing, summaryError,
         initialBattery: initialBatteryRef.current,
-        progressiveReadiness,
+        progressiveReadiness, isFullReady, profile, capabilities,
         sttStage, llmStage
     };
 };

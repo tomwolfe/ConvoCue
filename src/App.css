@@ -3507,3 +3507,50 @@ footer {
     70% { transform: scale(0.9); }
     100% { transform: scale(1); opacity: 1; }
 }
+
+/* Task 2.3: Progressive Loading & Partial Recovery Styles */
+.model-loading-overlay-minimized.is-partial {
+    background: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(2px);
+    border-top: 1px solid rgba(99, 102, 241, 0.1);
+    height: 40px;
+    padding: 0 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.model-loading-overlay-minimized.is-partial .status-info {
+    font-size: 0.65rem;
+    gap: 8px;
+}
+
+.model-loading-overlay-minimized.is-partial .progress-bar-mini {
+    width: 60px;
+}
+
+.model-loading-overlay-minimized.is-partial .loading-icon-spin {
+    width: 12px;
+    height: 12px;
+}
+
+/* Ensure the main UI is not blocked when in partial mode */
+.app:has(.model-loading-overlay-minimized.is-partial) main {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Status indicator for Lite mode */
+.lite-mode-badge {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.2);
+    color: var(--accent-orange);
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}

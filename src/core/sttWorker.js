@@ -36,10 +36,11 @@ self.onmessage = async (event) => {
                         // Use WebGPU if supported, otherwise fallback to WASM
                         const device = isWebGPUSupported ? 'webgpu' : 'wasm';
 
-                        // Add more granular progress updates
+                        // Task 2.1: Model Quantization (ONNX Int8) for Whisper-Tiny
+                        // Using 'q8' (which corresponds to 8-bit quantization)
                         sttPipeline = await pipeline('automatic-speech-recognition', STT_MODEL, {
                             device: device,
-                            dtype: 'q4',
+                            dtype: 'q8',
                             progress_callback: (p) => {
                                 if (p.status === 'progress') {
                                     // Calculate estimated progress based on time if available
@@ -81,7 +82,7 @@ self.onmessage = async (event) => {
 
                                 sttPipeline = await pipeline('automatic-speech-recognition', STT_MODEL, {
                                     device: 'wasm',
-                                    dtype: 'q4',
+                                    dtype: 'q8',
                                     progress_callback: (p) => {
                                         if (p.status === 'progress') {
                                             let calculatedProgress = p.progress;
