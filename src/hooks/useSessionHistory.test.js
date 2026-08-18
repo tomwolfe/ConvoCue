@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { useSessionHistory } from './hooks/useSessionHistory';
+import { useSessionHistory } from './useSessionHistory';
+import { jest } from '@jest/globals';
 
 // Mock localStorage
 const mockLocalStorage = (() => {

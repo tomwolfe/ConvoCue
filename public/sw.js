@@ -1,125 +1,76 @@
-const CACHE_NAME = 'convocue-v2';
-const ASSETS_CACHE = 'convocue-assets-v2';
-const MODELS_CACHE = 'convocue-models-v2';
-
-const staticAssets = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/static/css/main.css',
-  '/static/js/main.js'
-];
+const SHELL_CACHE = 'convocue-shell-v3';
+const MODELS_CACHE = 'convocue-models-v3';
 
 const modelFiles = [
   '/ort-wasm-simd-threaded.jsep.mjs',
   '/ort-wasm-simd-threaded.jsep.wasm',
   '/ort-wasm-simd-threaded.mjs',
   '/ort-wasm-simd-threaded.wasm',
-  '/silero_vad_v5.onnx'
+  '/silero_vad_v5.onnx',
 ];
 
-// Install event - cache static assets
-self.addEventListener('install', event => {
+const appShell = [
+  '/',
+  '/index.html',
+];
+
+self.addEventListener('install', (event) => {
   event.waitUntil(
     Promise.all([
-      caches.open(ASSETS_CACHE)
-        .then(cache => {
-          console.log('Caching static assets');
-          return cache.addAll(staticAssets);
-        }),
-      caches.open(MODELS_CACHE)
-        .then(cache => {
-          console.log('Caching model files');
-          return cache.addAll(modelFiles);
-        })
-    ]).then(() => {
-      console.log('All caches populated');
-      self.skipWaiting(); // Activate immediately
-    })
+      caches.open(SHELL_CACHE).then((cache) => cache.addAll(appShell)),
+      caches.open(MODELS_CACHE).then((cache) => {
+        return cache.addAll(modelFiles).catch((err) => {
+          console.warn('Some model files could not be cached:', err);
+        });
+      }),
+    ]).then(() => self.skipWaiting())
   );
 });
 
-// Activate event - clean up old caches
-self.addEventListener('activate', event => {
+self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cacheName => {
-          if (cacheName !== ASSETS_CACHE && cacheName !== MODELS_CACHE) {
-            console.log('Deleting old cache:', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys
+          .filter((key) => key !== SHELL_CACHE && key !== MODELS_CACHE)
+          .map((key) => {
+            console.log('Deleting old cache:', key);
+            return caches.delete(key);
+          })
+      )
+    ).then(() => self.clients.claim())
   );
 });
 
-// Fetch event with different strategies for different resources
-self.addEventListener('fetch', event => {
+self.addEventListener('fetch', (event) => {
   const { request } = event;
 
-  // For model files (large, critical files), use cache-first with background update
   if (request.url.includes('.wasm') || request.url.includes('.onnx') || request.url.includes('.mjs')) {
     event.respondWith(
-      caches.open(MODELS_CACHE).then(cache => {
-        return cache.match(request).then(response => {
-          // If found in cache, return it but also update in background
-          if (response) {
-            // Update cache in background for next time
-            fetch(request).then(networkResponse => {
-              if (networkResponse.status === 200) {
-                cache.put(request, networkResponse.clone());
-              }
-            }).catch(err => {
-              console.log('Background update failed for:', request.url, err);
-            });
+      caches.open(MODELS_CACHE).then((cache) =>
+        cache.match(request).then((cached) => {
+          const fetched = fetch(request)
+            .then((response) => {
+              if (response.ok) cache.put(request, response.clone());
+              return response;
+            })
+            .catch(() => cached);
 
-            return response;
-          }
+          return cached || fetched;
+        })
+      )
+    );
+    return;
+  }
 
-          // If not in cache, fetch from network and cache for next time
-          return fetch(request).then(networkResponse => {
-            if (networkResponse.status === 200) {
-              cache.put(request, networkResponse.clone());
-            }
-            return networkResponse;
-          });
-        });
-      })
-    );
-  }
-  // For static assets, use cache-first strategy
-  else if (request.destination === 'document' || request.destination === 'style' || request.destination === 'script') {
+  if (request.mode === 'navigate') {
     event.respondWith(
-      caches.match(request).then(response => {
-        return response || fetch(request).then(networkResponse => {
-          // Cache the response for future requests
-          if (networkResponse.status === 200) {
-            caches.open(ASSETS_CACHE).then(cache => {
-              cache.put(request, networkResponse.clone());
-            });
-          }
-          return networkResponse;
-        });
-      })
+      fetch(request).catch(() => caches.match('/index.html'))
     );
+    return;
   }
-  // For other requests, use network-first with fallback to cache
-  else {
-    event.respondWith(
-      fetch(request).then(networkResponse => {
-        // Update cache in background
-        if (networkResponse.status === 200) {
-          caches.open(ASSETS_CACHE).then(cache => {
-            cache.put(request, networkResponse.clone());
-          });
-        }
-        return networkResponse;
-      }).catch(() => {
-        // Fallback to cache if network fails
-        return caches.match(request);
-      })
-    );
-  }
+
+  event.respondWith(
+    caches.match(request).then((cached) => cached || fetch(request))
+  );
 });

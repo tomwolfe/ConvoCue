@@ -212,7 +212,7 @@ const BACKCHANNEL_PHRASES = new Set([
 ]);
 
 // Expanded precomputed common conversation patterns to speed up response
-const COMMON_PATTERNS = new Map([
+export const COMMON_PATTERNS = new Map([
     // Social patterns
     [/how are you/i, { intent: 'social', suggestion: "I'm doing well, thank you! How about yourself?" }],
     [/how's it going/i, { intent: 'social', suggestion: "Pretty good! How are things with you?" }],

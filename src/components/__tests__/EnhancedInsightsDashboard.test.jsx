@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import EnhancedInsightsDashboard from './EnhancedInsightsDashboard';
+import EnhancedInsightsDashboard from '../EnhancedInsightsDashboard';
 
 // Mock the recharts components since they're not essential for unit tests
 jest.mock('recharts', () => ({
